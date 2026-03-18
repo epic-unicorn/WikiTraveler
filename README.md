@@ -1,4 +1,4 @@
-🚀 WikiTraveler Manifesto
+**🚀 WikiTraveler Manifesto**
 
 **The Vision**
 To replace the broken, unreliable data of corporate booking apps with a Distributed Truth Layer. We believe that travelers deserve certainties, not "best guesses." By building a community-driven system, we ensure that travel insights remain free, open, and verified by the people who actually stand on the ground, not the ones selling the room.
@@ -28,12 +28,12 @@ WikiTraveler is a 100% open-source, federated protocol that "sidecars" real-worl
 -   The Gossip Protocol: A peer-to-peer sync system where nodes share daily CC-BY snapshots, ensuring the truth stays free and open.
 
 🛡️ The Reliability Stack
-
-| Tier | Source | Label | Why it matters 
-| 1 | Amadeus | [OFFICIAL] | Unreliable Baseline. Often vague or missing.
-| 2 | AI Agent | [AI_GUESS] | Machine-estimated spec to guide auditors.
-| 3 | Community | [COMMUNITY] | Ground Truth. Verified by a fellow traveler.
-| 4 | Mesh | [MESH_TRUTH] | Verified by Multi-Node Consensus.
+| Tier | Source | Label | Why it matters |
+|------|--------|-------|---|
+| 1 | Amadeus | `[OFFICIAL]` | Unreliable baseline. Often vague or missing. |
+| 2 | AI Agent | `[AI_GUESS]` | Machine-estimated spec to guide auditors. |
+| 3 | Community | `[COMMUNITY]` | Ground Truth. Verified by a fellow traveler. |
+| 4 | Mesh | `[MESH_TRUTH]` | Verified by multi-node consensus. |
 
 🗺️ High-Level Execution Roadmap
 
