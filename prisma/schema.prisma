@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Reliability tier enum — mirrors the core package
+// ---------------------------------------------------------------------------
+enum Tier {
+  OFFICIAL
+  AI_GUESS
+  COMMUNITY
+  MESH_TRUTH
+}
+
+// ---------------------------------------------------------------------------
+// Travel property (keyed by Amadeus property ID)
+// ---------------------------------------------------------------------------
+model Property {
+  id        String   @id @default(cuid())
+  amadeusId String   @unique
+  name      String
+  location  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  facts      AccessibilityFact[]
+  audits     AuditSubmission[]
+}
+
+// ---------------------------------------------------------------------------
+// A single accessibility fact for a property
+// ---------------------------------------------------------------------------
+model AccessibilityFact {
+  id            String    @id @default(cuid())
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  fieldName     String
+  value         String
+  tier          Tier      @default(OFFICIAL)
+  sourceNodeId  String
+  submittedBy   String?
+  signatureHash String?
+  timestamp     DateTime  @default(now())
+
+  @@unique([propertyId, fieldName, sourceNodeId])
+  @@index([propertyId])
+  @@index([tier])
+}
+
+// ---------------------------------------------------------------------------
+// Raw community audit submission (kept for audit trail)
+// ---------------------------------------------------------------------------
+model AuditSubmission {
+  id           String   @id @default(cuid())
+  propertyId   String
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  auditorToken String?
+  // JSON array of { fieldName, value } objects
+  facts        Json
+  // JSON array of base64-encoded images (MVP: stored in DB)
+  photoUrls    Json     @default("[]")
+  createdAt    DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+// ---------------------------------------------------------------------------
+// Peer node registry
+// ---------------------------------------------------------------------------
+model NodePeer {
+  id       String   @id @default(cuid())
+  url      String   @unique
+  lastSeen DateTime @default(now())
+  isActive Boolean  @default(true)
+}
+
+// ---------------------------------------------------------------------------
+// Gossip sync history
+// ---------------------------------------------------------------------------
+model GossipSnapshot {
+  id           String   @id @default(cuid())
+  fromNodeId   String
+  snapshotHash String
+  appliedAt    DateTime @default(now())
+  factCount    Int      @default(0)
+}

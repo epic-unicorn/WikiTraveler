@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grand Hotel Vienna — Agency Demo | WikiTraveler SDK</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f9fafb; color: #111827; font-size: 15px;
+    }
+    a { color: #1e3a5f; }
+
+    /* ── Page layout ── */
+    .page-header {
+      background: #1e3a5f; color: #fff;
+      padding: 14px 24px; display: flex; align-items: center; gap: 12px;
+    }
+    .page-header h1 { font-size: 18px; }
+    .page-header span { font-size: 11px; background: #34d399; color: #fff; border-radius: 999px; padding: 2px 10px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; display: grid; grid-template-columns: 1fr 340px; gap: 32px; }
+    @media (max-width: 700px) { main { grid-template-columns: 1fr; } }
+
+    /* ── Hotel card (left) ── */
+    .hotel-img { width: 100%; height: 220px; object-fit: cover; border-radius: 14px; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 80px; }
+    .hotel-name { font-size: 26px; font-weight: 700; margin: 20px 0 4px; }
+    .hotel-meta { color: #6b7280; font-size: 14px; margin-bottom: 20px; }
+    .price-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .price-box .price { font-size: 32px; font-weight: 800; color: #1e3a5f; }
+    .btn-book { display: block; width: 100%; padding: 14px; background: #059669; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; text-align: center; cursor: pointer; }
+
+    /* ── Sidebar (right) ── */
+    .sidebar > section { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .sidebar h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+    /* ── Code snippet blocks ── */
+    .snippet-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 5px 14px; border-radius: 8px; border: 1.5px solid #d1d5db;
+      background: #f3f4f6; font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active { background: #1e3a5f; color: #fff; border-color: #1e3a5f; }
+    .snippet-panel { display: none; }
+    .snippet-panel.active { display: block; }
+    pre {
+      background: #1e2433; color: #e2e8f0; border-radius: 10px;
+      padding: 14px 16px; font-size: 12px; line-height: 1.6;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+      position: relative;
+    }
+    .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      background: #374151; color: #e2e8f0; border: none; border-radius: 6px;
+      padding: 3px 10px; font-size: 11px; cursor: pointer;
+    }
+    .copy-btn:hover { background: #4b5563; }
+
+    /* node URL configurator */
+    .node-config { display: flex; gap: 8px; margin-bottom: 20px; }
+    .node-config input {
+      flex: 1; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px;
+    }
+    .node-config button {
+      background: #1e3a5f; color: #fff; border: none; border-radius: 8px;
+      padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <span style="font-size:22px">🏨</span>
+  <h1>Mock Agency Booking Page</h1>
+  <span>WikiTraveler SDK Demo</span>
+</div>
+
+<main>
+  <!-- Left: hotel card -->
+  <div>
+    <div class="hotel-img" style="background:#dbeafe">🏨</div>
+    <h2 class="hotel-name">Grand Hotel Vienna</h2>
+    <p class="hotel-meta">📍 Kärntner Ring 9, 1010 Vienna, Austria · ⭐⭐⭐⭐⭐</p>
+
+    <div class="price-box">
+      <p style="font-size:12px;color:#6b7280;margin-bottom:4px">From</p>
+      <span class="price">€289</span>
+      <span style="color:#6b7280;font-size:14px"> / night</span>
+      <button class="btn-book" style="margin-top:16px">Book Now</button>
+    </div>
+
+    <p style="color:#6b7280;font-size:14px;line-height:1.7">
+      The Grand Hotel Vienna is one of the most prestigious luxury hotels in the Austrian capital,
+      located directly on the Ringstraße. Known for its impeccable service and historic elegance.
+    </p>
+  </div>
+
+  <!-- Right: sidebar -->
+  <aside class="sidebar">
+
+    <!-- Node configurator -->
+    <section>
+      <h2>⚙️ Node Configuration</h2>
+      <p style="font-size:12px;color:#6b7280;margin-bottom:10px">
+        Point the SDK to your running WikiTraveler node. You can also pass <code>?node=URL</code> in the address bar.
+      </p>
+      <div class="node-config">
+        <input id="node-url-input" type="url" placeholder="http://localhost:3000" />
+        <button onclick="applyNodeUrl()">Apply</button>
+      </div>
+      <p id="node-status" style="font-size:12px;color:#9ca3af"></p>
+    </section>
+
+    <!-- Pattern 1: Drop-in widget -->
+    <section>
+      <h2>♿ Accessibility Info <span style="font-size:11px;background:#60a5fa;color:#fff;border-radius:999px;padding:1px 8px">Live</span></h2>
+
+      <!--
+        PATTERN 1: Drop-in widget (zero config).
+        The SDK reads data-property-id and data-node-url from the element.
+      -->
+      <div id="wt-widget"
+           data-wt-widget
+           data-property-id="demo-grand-hotel-vienna"
+           data-node-url="http://localhost:3000">
+      </div>
+    </section>
+
+    <!-- SDK Code snippets -->
+    <section>
+      <h2>📋 Integration Snippets</h2>
+      <p style="font-size:12px;color:#6b7280;margin-bottom:14px">
+        Copy any of the following patterns into your existing booking website.
+      </p>
+
+      <div class="snippet-tabs">
+        <button class="tab-btn active" onclick="showTab('widget')">Drop-in Widget</button>
+        <button class="tab-btn" onclick="showTab('fetch')">Raw JSON Fetch</button>
+        <button class="tab-btn" onclick="showTab('esm')">npm ESM</button>
+      </div>
+
+      <!-- Pattern 1: CDN widget -->
+      <div id="tab-widget" class="snippet-panel active">
+        <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Paste into any HTML page — no build step required.</p>
+        <pre id="snippet-widget"><button class="copy-btn" onclick="copySnippet('snippet-widget')">Copy</button><span class="code"></span></pre>
+      </div>
+
+      <!-- Pattern 2: raw fetch -->
+      <div id="tab-fetch" class="snippet-panel">
+        <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Fetch raw JSON and render your own UI.</p>
+        <pre id="snippet-fetch"><button class="copy-btn" onclick="copySnippet('snippet-fetch')">Copy</button><span class="code"></span></pre>
+
+        <!-- Live raw output -->
+        <div style="margin-top:16px">
+          <p style="font-size:12px;font-weight:600;margin-bottom:6px">Live response:</p>
+          <pre id="raw-output" style="max-height:200px;font-size:11px"><span style="color:#9ca3af">Waiting for Apply…</span></pre>
+        </div>
+      </div>
+
+      <!-- Pattern 3: ESM import -->
+      <div id="tab-esm" class="snippet-panel">
+        <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Use the npm package in any bundler (React, Vue, Next.js…).</p>
+        <pre id="snippet-esm"><button class="copy-btn" onclick="copySnippet('snippet-esm')">Copy</button><span class="code"></span></pre>
+      </div>
+    </section>
+
+  </aside>
+</main>
+
+<!--
+  WikiTraveler SDK loaded from local dist/ for demo.
+  In production: <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"></script>
+-->
+<script src="../../packages/sdk/dist/wikitraveler.umd.js" onerror="loadFallbackSdk()"></script>
+<script>
+  // ── Fallback: if the UMD bundle isn't built yet, provide a minimal shim ──
+  function loadFallbackSdk() {
+    window.WikiTraveler = {
+      mountWidget(selector) {
+        const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (!el) return;
+        el.innerHTML = '<p style="color:#fbbf24;font-size:13px">⚠️ SDK not built yet — run <code>pnpm build</code> in packages/sdk/ first.</p>';
+      },
+      WikiTraveler: class {
+        constructor(cfg) { this._cfg = cfg; }
+        async getAccessibility(id) { throw new Error('SDK not built'); }
+      }
+    };
+    // Re-run auto-mount with shim
+    document.querySelectorAll('[data-wt-widget]').forEach(el => WikiTraveler.mountWidget(el));
+  }
+
+  const PROPERTY_ID = "demo-grand-hotel-vienna";
+  let currentNodeUrl = "http://localhost:3000";
+
+  // Read ?node= query param on load
+  const urlParam = new URLSearchParams(location.search).get("node");
+  if (urlParam) currentNodeUrl = urlParam;
+  document.getElementById("node-url-input").value = currentNodeUrl;
+
+  // ── Pattern 1: Auto-mount widget ──
+  // The [data-wt-widget] attribute triggers WikiTraveler.autoMount() or we call mountWidget manually.
+  function mountDemoWidget() {
+    const el = document.getElementById("wt-widget");
+    if (!el) return;
+    el.dataset.nodeUrl = currentNodeUrl;
+    el.dataset.propertyId = PROPERTY_ID;
+    if (window.WikiTraveler && WikiTraveler.mountWidget) {
+      WikiTraveler.mountWidget(el);
+    }
+  }
+
+  // ── Pattern 2: Raw JSON fetch (live demo) ──
+  async function runRawFetch() {
+    const output = document.getElementById("raw-output");
+    output.innerHTML = '<span style="color:#9ca3af">Fetching…</span>';
+    try {
+      const client = new WikiTraveler.WikiTraveler({ nodeUrl: currentNodeUrl });
+      const data = await client.getAccessibility(PROPERTY_ID);
+      output.textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      output.innerHTML = `<span style="color:#f87171">${e.message}</span>`;
+    }
+  }
+
+  function applyNodeUrl() {
+    const val = document.getElementById("node-url-input").value.trim().replace(/\/$/, "");
+    if (!val) return;
+    currentNodeUrl = val;
+    document.getElementById("node-status").textContent = `Applied: ${val}`;
+    updateSnippets();
+    mountDemoWidget();
+    runRawFetch();
+  }
+
+  // ── Snippet builders ──
+  function updateSnippets() {
+    const widgetSnippet = `<!-- Pattern 1: Drop-in Widget (CDN, no build step) -->
+<script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"><\/script>
+
+<div id="wt-widget"
+     data-wt-widget
+     data-property-id="${PROPERTY_ID}"
+     data-node-url="${currentNodeUrl}">
+</div>
+
+<!-- Optional: override colours with CSS variables -->
+<style>
+  #wt-widget {
+    --wt-badge-color: #059669;
+    --wt-font-family: 'Georgia', serif;
+  }
+</style>`;
+
+    const fetchSnippet = `<!-- Pattern 2: Raw JSON fetch — render your own UI -->
+<script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"><\/script>
+<div id="accessibility-section"></div>
+<script>
+  const wt = new WikiTraveler.WikiTraveler({
+    nodeUrl: "${currentNodeUrl}"
+  });
+
+  wt.getAccessibility("${PROPERTY_ID}").then(data => {
+    const el = document.getElementById("accessibility-section");
+    el.innerHTML = data.facts.map(f =>
+      \`<div>
+        <strong>\${f.fieldName}</strong>: \${f.value}
+        <span style="color:\${f.color}">\${f.label}</span>
+      </div>\`
+    ).join("");
+  });
+<\/script>`;
+
+    const esmSnippet = `// Pattern 3: npm ESM import (React / Vue / Next.js / Vite…)
+// npm install @wikitraveler/sdk
+
+import { WikiTraveler, mountWidget } from "@wikitraveler/sdk";
+
+// Option A — use the client directly
+const wt = new WikiTraveler({ nodeUrl: "${currentNodeUrl}" });
+const data = await wt.getAccessibility("${PROPERTY_ID}");
+console.log(data.facts); // [{ fieldName, value, tier, label, color }]
+
+// Option B — mount the pre-styled widget
+mountWidget({
+  target: "#wt-widget",
+  propertyId: "${PROPERTY_ID}",
+  nodeUrl: "${currentNodeUrl}",
+});`;
+
+    document.querySelector("#snippet-widget .code").textContent = widgetSnippet;
+    document.querySelector("#snippet-fetch .code").textContent = fetchSnippet;
+    document.querySelector("#snippet-esm .code").textContent = esmSnippet;
+  }
+
+  // ── Tabs ──
+  function showTab(id) {
+    document.querySelectorAll(".snippet-panel").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById(`tab-${id}`).classList.add("active");
+    event.target.classList.add("active");
+  }
+
+  // ── Copy ──
+  function copySnippet(preId) {
+    const text = document.querySelector(`#${preId} .code`)?.textContent ?? "";
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector(`#${preId} .copy-btn`);
+      if (btn) { btn.textContent = "Copied!"; setTimeout(() => { btn.textContent = "Copy"; }, 1500); }
+    });
+  }
+
+  // ── Boot ──
+  document.addEventListener("DOMContentLoaded", () => {
+    updateSnippets();
+    mountDemoWidget();
+  });
+</script>
+</body>
+</html>

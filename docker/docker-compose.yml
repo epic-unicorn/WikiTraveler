@@ -1,0 +1,41 @@
+# Single-node deployment
+# Usage: docker compose -f docker/docker-compose.yml up
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wikitraveler
+      POSTGRES_PASSWORD: wikitraveler
+      POSTGRES_DB: wikitraveler
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikitraveler"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  node:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler
+      NODE_ID: docker-node-1
+      NODE_URL: http://localhost:3000
+      COMMUNITY_PASSPHRASE: changeme
+      JWT_SECRET: change-me-in-production
+      CORS_ORIGINS: "*"
+      GOSSIP_INTERVAL_HOURS: "24"
+      NODE_ENV: production
+
+volumes:
+  postgres_data:

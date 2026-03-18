@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/node/next.config.js",
+      "use": "@vercel/next"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/gossip",
+      "schedule": "0 */6 * * *"
+    }
+  ],
+  "env": {
+    "NODE_ID": "@node-id",
+    "NODE_URL": "@node-url",
+    "COMMUNITY_PASSPHRASE": "@community-passphrase",
+    "JWT_SECRET": "@jwt-secret",
+    "DATABASE_URL": "@database-url",
+    "CORS_ORIGINS": "*",
+    "CRON_SECRET": "@cron-secret"
+  }
+}
