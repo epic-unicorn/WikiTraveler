@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
+    "@wikitraveler/ai-agent": "workspace:*",
     "@wikitraveler/core": "workspace:*",
     "jsonwebtoken": "^9.0.2",
     "next": "14.2.3",

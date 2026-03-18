@@ -2,7 +2,49 @@
 
 > **The Distributed Travel Truth-Layer** — because booking apps can't be trusted. The community can.
 
-WikiTraveler is a 100% open-source, federated protocol that sidecars real-world accessibility intelligence onto global travel platforms. Traditional booking sites provide outdated, vague, or missing data. WikiTraveler provides the Ground Truth — community-audited, multi-node verified, and impossible to paywall.
+WikiTraveler is a open-source, federated protocol that sidecars real-world accessibility intelligence onto global travel platforms. Traditional booking sites provide outdated, vague, or missing data. WikiTraveler provides the Ground Truth — community-audited, multi-node verified, and impossible to paywall.
+
+---
+
+## Why WikiTraveler Exists
+
+### The Amadeus Problem
+
+**Amadeus** is the world's largest travel technology company. It operates the Global Distribution System (GDS) that underpins the majority of hotel, flight, and car-rental bookings on earth. When you search for a hotel on Booking.com, Expedia, Hotels.com, Kayak, or any major OTA (Online Travel Agency), the underlying property data — room counts, amenities, policies, check-in times — almost always originates from the Amadeus GDS or its direct competitors (Sabre, Travelport).
+
+Airlines, hotel chains, and independent properties pay Amadeus to list their inventory. Travel agencies, OTAs, and corporate booking tools pay Amadeus to access it. The data flows through APIs like the **Amadeus Hotel Search API**, which returns structured records for hundreds of thousands of properties worldwide.
+
+### Who relies on Amadeus data
+
+- **Online Travel Agencies** — Booking.com, Expedia, Hotels.com, Agoda, Trip.com
+- **Corporate travel tools** — Concur, Egencia, TravelPerk, Navan
+- **Airline booking flows** — virtually every major carrier's "add a hotel" flow
+- **Meta-search engines** — Google Hotels, Kayak, Trivago
+- **Accessibility travel platforms** — sites specifically serving travellers with disabilities that rely on the same underlying feed
+
+### What Amadeus is missing
+
+Amadeus excels at inventory — it knows a hotel has 200 rooms and accepts Visa. It is systematically weak on the details that matter most to specific travellers:
+
+| Gap | Why it exists |
+|-----|---------------|
+| **Accessibility specs are sparse** | Hotels self-report. There is no verification. "Accessible room available" is not the same as "doorway is 85 cm wide". |
+| **Vague binary flags** | The API returns `"accessibleParking": true` with no further detail. How many spaces? How far from the entrance? |
+| **Stale data** | Properties update Amadeus records infrequently. A renovation three years ago may have added a ramp that is not in the feed. |
+| **Commercial incentive to over-claim** | Properties are motivated to tick every amenity checkbox to appear in more searches. There is no penalty for inaccuracy. |
+| **No photo evidence** | Accessibility claims are text assertions with no supporting imagery. |
+| **No community correction mechanism** | If a traveller discovers a hotel lied about accessibility, there is no channel in the GDS to flag it. The bad data persists indefinitely. |
+| **Proprietary and paywalled** | The raw data is not publicly accessible. Researchers, disability advocates, and independent developers cannot audit or improve it. |
+
+### What WikiTraveler does instead
+
+WikiTraveler treats Amadeus data as a **starting point**, not a source of truth. It ingests official records to understand what fields are claimed and where the gaps are, then layering three additional tiers on top:
+
+1. **AI estimates** — GPT-4o analyses photos and generates measurable estimates for fields that the official record leaves blank, giving auditors a pre-filled baseline before they even arrive at the property.
+2. **Community audits** — Field auditors verify on the ground with photos and precise measurements. A single community audit instantly outranks any official or AI-generated claim.
+3. **Mesh consensus** — When three or more independent nodes corroborate the same value, it is promoted to `MESH_TRUTH` — the only tier that cannot be overridden by a single party.
+
+All of this runs on infrastructure you own and deploy. No data is locked behind a paywall. No single company controls what the community knows.
 
 ---
 
@@ -45,6 +87,7 @@ Higher tiers always win. A `MESH_TRUTH` value overrides `OFFICIAL` and `COMMUNIT
 | **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.         |
 | **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.                |
 | **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).               |
+| **AI Agent**    | `packages/ai-agent` | GPT-4o vision analysis and text-based gap-filling engine.        |
 
 ---
 
@@ -106,7 +149,8 @@ wikitraveler/
 │   └── agency-demo/     # Static agency SDK demo
 ├── packages/
 │   ├── core/            # Shared types & gossip merge logic
-│   └── sdk/             # Browser SDK (CJS + ESM + UMD)
+│   ├── sdk/             # Browser SDK (CJS + ESM + UMD)
+│   └── ai-agent/        # GPT-4o vision + gap-fill engine
 ├── prisma/
 │   └── schema.prisma    # Database schema (PostgreSQL)
 ├── docker/
@@ -125,9 +169,9 @@ wikitraveler/
 
 | Document                                        | Description                                           |
 |-------------------------------------------------|-------------------------------------------------------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)   | System design, data flow, gossip protocol, API surface |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)     | Local setup, per-package build and config guide       |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)       | Docker, Vercel, and production hardening              |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)   | System design, data flow, AI agent, gossip protocol, API surface |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)     | Local setup, per-package build and config guide (incl. AI agent) |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)       | Docker, Vercel, production hardening, OpenAI key setup           |
 
 ---
 

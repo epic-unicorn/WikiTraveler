@@ -67,6 +67,7 @@ environment:
   JWT_SECRET: <64-char random hex>
   CORS_ORIGINS: "https://myhotelbooking.com,https://app.myhotel.com"
   SEED_NODES: "https://other-node.example.com"
+  OPENAI_API_KEY: <your-openai-key>  # optional — remove to disable AI
 ```
 
 Never commit real secrets — use Docker secrets or an env file excluded from version control.
@@ -174,6 +175,7 @@ In the Vercel project settings (or via CLI), set these environment variables. Na
 | `COMMUNITY_PASSPHRASE` | Shared auditor password |
 | `CORS_ORIGINS` | `*` or your agency domains |
 | `CRON_SECRET` | A secret that Vercel will pass to the cron endpoint |
+| `OPENAI_API_KEY` | Your OpenAI API key (optional — leave blank to disable AI features) |
 
 The `vercel.json` references these as `@node-id`, `@node-url`, etc. Create matching Vercel secrets with those names.
 
@@ -210,17 +212,20 @@ DATABASE_URL=<your-prod-url> pnpm db:seed
 
 **5. Verify the cron**
 
-The `vercel.json` cron configuration fires `/api/cron/gossip` every 6 hours:
+The `vercel.json` cron configuration fires `/api/cron/gossip` every 6 hours and `/api/cron/ai-scan` every night at 02:00:
 
 ```json
 {
   "crons": [
-    { "path": "/api/cron/gossip", "schedule": "0 */6 * * *" }
+    { "path": "/api/cron/gossip",   "schedule": "0 */6 * * *" },
+    { "path": "/api/cron/ai-scan",  "schedule": "0 2 * * *"   }
   ]
 }
 ```
 
 Check cron logs in the Vercel dashboard under **Logs → Cron Jobs**.
+
+The `ai-scan` cron gap-fills up to 20 properties per run by default. Adjust with the `?limit=N` query param (max 50) if you need faster initial coverage.
 
 ### Registering peers
 
@@ -311,6 +316,20 @@ The current MVP stores photos as base64 strings inside the PostgreSQL `AuditSubm
 2. Store the resulting URLs in `photoUrls` instead of base64 strings.
 3. Add a maximum file-size check before accepting uploads.
 
+### AI Agent
+
+`OPENAI_API_KEY` is entirely optional. If the key is absent, all AI features silently disable and the node operates as a pure community-audit mesh.
+
+When it is set:
+- Vision analysis fires automatically when photos are submitted via the Field Kit (fire-and-forget, non-blocking).
+- Gap-fill for properties with no AI coverage runs nightly via the `ai-scan` cron.
+- On-demand analysis is available via `POST /api/properties/[id]/analyze`.
+
+Cost control tips:
+- The `?limit=N` query param on `/api/cron/ai-scan` limits how many properties are gap-filled per run (default 20, max 50). Lower it if your OpenAI spend is a concern.
+- Vision requests consume more tokens than gap-fill. Photos stored as base64 are sent as data URIs; switching to hosted URLs saves token throughput.
+- AI-generated facts are tagged `AI_GUESS` (tier rank 1) and are always overwritten by `COMMUNITY` (rank 2) or `MESH_TRUTH` (rank 3) data — so AI costs decrease naturally as the community contributes real audits.
+
 ---
 
 ## Environment Variable Quick Reference
@@ -325,4 +344,5 @@ The current MVP stores photos as base64 strings inside the PostgreSQL `AuditSubm
 | `CORS_ORIGINS` | `*` | `*` (or locked-down list) |
 | `SEED_NODES` | _(empty)_ | Other node URLs |
 | `CRON_SECRET` | _(empty)_ | `@cron-secret` secret |
+| `OPENAI_API_KEY` | _(empty — AI disabled)_ | `@openai-api-key` secret |
 | `NODE_ENV` | `production` | `production` (set by Vercel) |

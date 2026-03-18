@@ -10,37 +10,50 @@ WikiTraveler is a federated, horizontally-scalable truth layer for travel data. 
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                          Browser / Mobile                                │
 │                                                                          │
-│   ┌─────────────┐   ┌──────────────────┐   ┌──────────────────────────┐ │
-│   │  Lens       │   │  Field Kit       │   │  Agency Website          │ │
-│   │  (Chrome    │   │  (Mobile PWA)    │   │  + WikiTraveler SDK      │ │
-│   │   MV3)      │   │                  │   │  (UMD / ESM / CJS)       │ │
-│   └──────┬──────┘   └────────┬─────────┘   └─────────────┬────────────┘ │
+│   ┌─────────────┐   ┌──────────────────┐   ┌──────────────────────────┐  │
+│   │  Lens       │   │  Field Kit       │   │  Agency Website          │  │
+│   │  (Chrome    │   │  (Mobile PWA)    │   │  + WikiTraveler SDK      │  │
+│   │   MV3)      │   │                  │   │  (UMD / ESM / CJS)       │  │
+│   └──────┬──────┘   └────────┬─────────┘   └──────────────┬───────────┘  │
 │          │                   │                            │              │
 └──────────┼───────────────────┼────────────────────────────┼──────────────┘
            │  REST             │  REST                      │  REST
-           ▼                   ▼                            ▼
+           └───────────────────┴────────────────────────────┘
+                                          │
+                                          ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                        WikiTraveler Node                                 │
 │                     (Next.js 14 App Router)                              │
 │                                                                          │
-│  ┌──────────────┐  ┌────────────────┐  ┌──────────────────────────────┐ │
-│  │  /api/       │  │  /api/gossip/  │  │  /api/cron/gossip            │ │
-│  │  properties  │  │  snapshot      │  │  (Vercel Cron / Docker loop) │ │
-│  │  /audit      │  │  ingest        │  │                              │ │
-│  │  /auth       │  └───────┬────────┘  └──────────────────────────────┘ │
-│  └──────────────┘          │ Gossip pull                                 │
-│                            │                                             │
-│  ┌──────────────────────────────────────────────┐                        │
-│  │  Prisma ORM                                  │                        │
-│  │  Property | AccessibilityFact | NodePeer     │                        │
-│  │  AuditSubmission | GossipSnapshot            │                        │
-│  └──────────────────────┬───────────────────────┘                        │
+│  ┌──────────────┐  ┌────────────────┐  ┌──────────────────────────────┐  │
+│  │  /api/       │  │  /api/gossip/  │  │  /api/cron/gossip            │  │
+│  │  properties  │  │  snapshot      │  │  /api/cron/ai-scan           │  │
+│  │  /analyze    │  │  ingest        │  │  (Vercel Cron / Docker loop) │  │
+│  │  /auth       │  └───────┬────────┘  └───────────┬──────────────────┘  │
+│  └──────────────┘          │ Gossip pull           │ AI cron             │
+│                            │                       │                     │
+│  ┌──────────────────────────────────────────────┐  │                     │
+│  │  Prisma ORM                                  │  │                     │
+│  │  Property | AccessibilityFact | NodePeer     │  │                     │
+│  │  AuditSubmission | GossipSnapshot            │  │                     │
+│  └──────────────────────┬───────────────────────┘  │                     │
+│                         │                          │                     │
+│   ┌────────────────────────────────────────────────┘                     │
+│   │                                                                      │
+│   ▼                                                                      │
+│  ┌─────────────────────────┐                                             │
+│  │  @wikitraveler/ai-agent │                                             │
+│  │  analyzePhotos()        │──────── OpenAI API (GPT-4o) ──────────────► │
+│  │  gapFill()              │                                             │
+│  └─────────────────────────┘                                             │
 │                         │                                                │
 └─────────────────────────┼────────────────────────────────────────────────┘
                           │
-                ┌─────────▼─────────┐
-                │   PostgreSQL 16   │
-                └───────────────────┘
+          ┌───────────────┴────────────┐
+          ▼                            ▼
+ ┌─────────────────┐        ┌───────────────────┐
+ │  PostgreSQL 16  │        │  OpenAI (GPT-4o)  │
+ └─────────────────┘        └───────────────────┘
 
         ◄──── Gossip pull (delta sync) ─────►
 
@@ -126,6 +139,38 @@ TypeScript library distributed in three formats:
 **`mountWidget()`** — pure DOM widget that renders a tier-coloured accessibility panel into any element.
 
 **`autoMount()`** — scans the page for `[data-wt-widget]` elements and mounts automatically; re-runs on DOMContentLoaded.
+
+### `packages/ai-agent` — AI Analysis Engine
+
+Isolated TypeScript package that encapsulates all OpenAI interactions. The node depends on it; no other package does. This means the AI provider can be swapped (e.g. Anthropic Claude) by changing only this package.
+
+**Two capabilities:**
+
+| Export | Input | Output | Model |
+|--------|-------|--------|-------|
+| `analyzePhotos(photos, apiKey)` | Up to 3 base64/data-URI images | `AgentFact[]` with `high`/`medium` confidence | GPT-4o Vision |
+| `gapFill(name, location, existingFields, apiKey)` | Property name, location, list of already-covered field names | `AgentFact[]` always `low` confidence | GPT-4o |
+
+**`AgentFact`:**
+```typescript
+{
+  fieldName: string;        // one of ACCESSIBILITY_FIELDS
+  value: string;            // estimated value
+  confidence: "high" | "medium" | "low";
+  evidence: string;         // one-sentence rationale, stored in signatureHash
+}
+```
+
+**Prompt design:**
+- Vision prompt instructs the model to only report fields with visible evidence. It never guesses for non-visible fields.
+- Gap-fill prompt is given the list of already-covered fields and is instructed to skip them entirely, preventing AI from overwriting better data.
+- Both prompts use `response_format: { type: "json_object" }` to guarantee parseable output.
+
+**Safety guarantees:**
+- `COMMUNITY` and `MESH_TRUTH` facts are never overwritten by `AI_GUESS`.
+- AI facts are tagged with `sourceNodeId: "{NODE_ID}:ai-agent"` keeping them distinct from human audits in the gossip mesh.
+- Evidence and confidence are stored in `signatureHash` as JSON for a full audit trail.
+- The entire feature silently disables when `OPENAI_API_KEY` is absent.
 
 ---
 
@@ -215,8 +260,66 @@ Node A (cron fires)
 
 ### Cron schedule
 
-- **Vercel** — configured in `vercel.json`, runs every 6 hours by default (`0 */6 * * *`).
+- **Vercel gossip** — configured in `vercel.json`, runs every 6 hours (`0 */6 * * *`).
+- **Vercel AI scan** — configured in `vercel.json`, runs daily at 02:00 (`0 2 * * *`).
 - **Docker** — the two-node gossip demo uses a lightweight `gossip-scheduler` container that runs `curl` in a loop every 10 seconds (demo mode).
+
+---
+
+## AI Agent Flow
+
+The AI agent is triggered in three ways:
+
+### 1. Background vision (photo upload)
+
+When a field auditor submits photos via the Field Kit:
+
+```
+POST /api/properties/[id]/accessibility  { facts: [...], photoUrls: ["<base64>", ...] }
+  │
+  ├─ stores AuditSubmission + COMMUNITY facts (synchronous)
+  │
+  └─ void runAiAnalysis({ photos })  (fire-and-forget, non-blocking)
+       │
+       └─ analyzePhotos(photos) → GPT-4o Vision → AgentFact[]
+            │
+            └─ upsert AI_GUESS facts (never overwrites COMMUNITY / MESH_TRUTH)
+```
+
+### 2. On-demand analysis (operator triggered)
+
+```
+POST /api/properties/[id]/analyze  { photos?: [...], forceRefresh?: true }
+  │
+  ├─ if no photos in body, uses most recent AuditSubmission that has photos
+  │
+  ├─ analyzePhotos() → vision facts for fields with visible evidence
+  │
+  └─ gapFill() → text estimates for all remaining uncovered fields
+       │
+       └─ upsert AI_GUESS facts
+```
+
+### 3. Batch cron (nightly)
+
+```
+GET /api/cron/ai-scan?limit=20
+  │
+  ├─ find all properties with zero AI_GUESS facts
+  │
+  └─ for each property (up to limit):
+       gapFill(name, location, existingFields) → upsert AI_GUESS facts
+```
+
+### Tier protection rules
+
+| Existing tier | AI can overwrite? |
+|--------------|-------------------|
+| None (field missing) | Yes |
+| `OFFICIAL` | Yes (AI_GUESS outranks OFFICIAL) |
+| `AI_GUESS` | Yes, unless `skipExistingAiGuess=true` |
+| `COMMUNITY` | **Never** |
+| `MESH_TRUTH` | **Never** |
 
 ---
 
@@ -248,12 +351,14 @@ All routes are under `apps/node`:
 | POST | `/api/auth/token` | — | Exchange passphrase for JWT |
 | GET | `/api/properties?q=` | — | Search properties |
 | GET | `/api/properties/[id]/accessibility` | — | Get collapsed facts with tier |
-| POST | `/api/properties/[id]/accessibility` | Bearer JWT | Submit community audit |
+| POST | `/api/properties/[id]/accessibility` | Bearer JWT | Submit community audit (triggers background vision if photos included) |
+| POST | `/api/properties/[id]/analyze` | Bearer JWT | On-demand AI analysis (vision + gap-fill) for one property |
 | GET | `/api/gossip/snapshot?since=` | — | Export delta for peer pull |
 | POST | `/api/gossip/ingest` | — | Ingest delta from peer |
 | GET | `/api/nodes` | — | List active peer nodes |
 | POST | `/api/nodes` | — | Register a new peer |
 | GET | `/api/cron/gossip` | Bearer CRON_SECRET | Trigger gossip pull cycle |
+| GET | `/api/cron/ai-scan` | Bearer CRON_SECRET | Batch gap-fill for properties with no AI_GUESS coverage |
 
 ---
 
@@ -279,6 +384,7 @@ Set `CORS_ORIGINS` to a comma-separated list of allowed origins in production to
 | ORM | Prisma 5 | Type-safe, migration-first, works with Vercel Postgres |
 | Auth | JWT (jsonwebtoken) | Stateless, no session store needed |
 | Gossip transport | HTTP pull | Simpler than WebSockets; works across Vercel/Docker |
+| AI provider | OpenAI GPT-4o | Best-in-class vision + JSON mode; swappable via ai-agent package |
 | Photo storage | base64 in DB | No S3 dependency for MVP |
 | Extension | Chrome MV3 vanilla JS | No build step; easy to load unpacked |
 | SDK bundling | tsup (esbuild) | Fast, dual CJS+ESM with a single config |

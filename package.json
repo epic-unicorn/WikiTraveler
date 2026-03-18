@@ -5,7 +5,7 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "pnpm --filter @wikitraveler/node dev",
-    "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build",
+    "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build",
     "lint": "pnpm --recursive lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

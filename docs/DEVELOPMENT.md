@@ -179,13 +179,18 @@ In the demo page, set the **Node URL** field to your running node (`http://local
 pnpm build
 ```
 
-This runs in order: `@wikitraveler/core` → `@wikitraveler/sdk` → `@wikitraveler/node` → `@wikitraveler/field-kit`.
+This runs in order: `@wikitraveler/core` → `@wikitraveler/ai-agent` → `@wikitraveler/sdk` → `@wikitraveler/node` → `@wikitraveler/field-kit`.
+
+> `ai-agent` must be built before `sdk` or `node` because both packages depend on it at build time via the `workspace:*` protocol.
 
 ### Individual packages
 
 ```bash
 # Core shared logic
 pnpm --filter @wikitraveler/core build
+
+# AI agent (must be built before sdk and node)
+pnpm --filter @wikitraveler/ai-agent build
 
 # Agency SDK (CJS + ESM + UMD)
 pnpm --filter @wikitraveler/sdk build
@@ -276,6 +281,34 @@ const data = await wt.getAccessibility("PROP123");
 
 ---
 
+### `packages/ai-agent`
+
+**Purpose:** Encapsulates all OpenAI interactions for the node. By isolating the AI provider behind this package boundary, you can swap GPT-4o for any other model (Anthropic Claude, Gemini, etc.) by changing only this package — neither `apps/node` nor `packages/core` need to change.
+
+**Source:** `src/types.ts`, `src/prompts.ts`, `src/vision.ts`, `src/gapfill.ts`, `src/index.ts`
+
+**Build tool:** tsup (outputs CJS + ESM + `.d.ts`)
+
+**Key exports:**
+
+```typescript
+import { analyzePhotos, gapFill } from "@wikitraveler/ai-agent";
+import type { AgentFact, AnalyzeResult } from "@wikitraveler/ai-agent";
+```
+
+**Runtime requirement:** `OPENAI_API_KEY` must be set for either function to call the API. If the key is absent, the node routes that use these functions return `503` or silently skip the AI step.
+
+**Build output:**
+
+```
+packages/ai-agent/dist/
+  index.js      CJS
+  index.mjs     ESM
+  index.d.ts    Type declarations
+```
+
+---
+
 ### `apps/node`
 
 **Purpose:** The core WikiTraveler node — REST API, gossip, and dashboard UI.
@@ -294,7 +327,8 @@ const data = await wt.getAccessibility("PROP123");
 | `CORS_ORIGINS` | No | `*` | Comma-separated allowed origins |
 | `SEED_NODES` | No | — | Comma-separated peer URLs for bootstrap |
 | `GOSSIP_INTERVAL_HOURS` | No | `24` | How often the gossip cron fires |
-| `CRON_SECRET` | No | — | Protects the `/api/cron/gossip` endpoint |
+| `CRON_SECRET` | No | — | Protects `/api/cron/gossip` and `/api/cron/ai-scan` |
+| `OPENAI_API_KEY` | No | — | GPT-4o key; leave blank to disable all AI features |
 | `AMADEUS_CLIENT_ID` | No | — | Seed script: live Amadeus hotel data |
 | `AMADEUS_CLIENT_SECRET` | No | — | Seed script: live Amadeus hotel data |
 
@@ -314,7 +348,9 @@ apps/node/
 ├── app/
 │   ├── api/
 │   │   ├── auth/token/         POST — get JWT
-│   │   ├── cron/gossip/        GET  — gossip pull cycle (cron)
+│   │   ├── cron/
+│   │   │   ├── gossip/         GET  — gossip pull cycle (cron)
+│   │   │   └── ai-scan/        GET  — batch AI gap-fill (cron)
 │   │   ├── gossip/
 │   │   │   ├── snapshot/       GET  — export delta
 │   │   │   └── ingest/         POST — import delta
@@ -322,13 +358,16 @@ apps/node/
 │   │   ├── nodes/              GET/POST — peer registry
 │   │   └── properties/
 │   │       ├── route.ts        GET  — search
-│   │       └── [id]/accessibility/  GET/POST — facts
+│   │       └── [id]/
+│   │           ├── accessibility/  GET/POST — facts (POST triggers vision)
+│   │           └── analyze/        POST — on-demand AI analysis
 │   ├── properties/[id]/        Property detail page + audit form
 │   └── page.tsx                Dashboard
 ├── lib/
 │   ├── prisma.ts               Singleton PrismaClient
 │   ├── auth.ts                 JWT helpers
-│   └── nodeInfo.ts             NODE_ID, NODE_URL constants
+│   ├── nodeInfo.ts             NODE_ID, NODE_URL constants
+│   └── aiAnalyze.ts            runAiAnalysis() shared helper
 └── next.config.js
 ```
 
@@ -418,10 +457,11 @@ All packages and apps share a base TypeScript config at `tsconfig.base.json`. Ea
 **Type-check everything:**
 
 ```bash
+pnpm --filter @wikitraveler/core exec tsc --noEmit
+pnpm --filter @wikitraveler/ai-agent exec tsc --noEmit
+pnpm --filter @wikitraveler/sdk exec tsc --noEmit
 pnpm --filter @wikitraveler/node exec tsc --noEmit
 pnpm --filter @wikitraveler/field-kit exec tsc --noEmit
-pnpm --filter @wikitraveler/sdk exec tsc --noEmit
-pnpm --filter @wikitraveler/core exec tsc --noEmit
 ```
 
 **Key tsconfig notes:**
@@ -446,7 +486,8 @@ Full reference for all variables used across the monorepo:
 | `CORS_ORIGINS` | node | No | Allowed CORS origins (`*` or comma list) |
 | `SEED_NODES` | node | No | Bootstrap peer URLs, comma-separated |
 | `GOSSIP_INTERVAL_HOURS` | node | No | Hours between gossip cron runs |
-| `CRON_SECRET` | node | No | Bearer token for `/api/cron/gossip` |
+| `CRON_SECRET` | node | No | Bearer token for cron endpoints |
+| `OPENAI_API_KEY` | node | No | GPT-4o API key; enables AI_GUESS tier features |
 | `AMADEUS_CLIENT_ID` | seed script | No | Amadeus API client ID |
 | `AMADEUS_CLIENT_SECRET` | seed script | No | Amadeus API client secret |
 | `NEXT_PUBLIC_NODE_API_URL` | field-kit | Yes | Node URL for the Field Kit to connect to |

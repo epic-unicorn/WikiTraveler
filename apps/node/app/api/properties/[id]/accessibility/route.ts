@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { evaluateMeshTruth } from "@wikitraveler/core";
 import { NODE_ID } from "@/lib/nodeInfo";
+import { runAiAnalysis } from "@/lib/aiAnalyze";
 import type { NextRequest } from "next/server";
 import type { Tier } from "@wikitraveler/core";
 
@@ -142,6 +143,22 @@ export async function POST(
       })
     )
   );
+
+  // Fire-and-forget vision analysis when photos were uploaded.
+  // We do not await — the response is already on its way to the client.
+  // On Vercel serverless the function may terminate before this completes;
+  // the /api/cron/ai-scan job will cover any missed analyses.
+  if (process.env.OPENAI_API_KEY && (body.photoUrls?.length ?? 0) > 0) {
+    void runAiAnalysis({
+      propertyId: params.id,
+      propertyName: property.name,
+      location: property.location,
+      photos: body.photoUrls!,
+      skipExistingAiGuess: false, // refresh vision when new photos arrive
+    }).catch((err) =>
+      console.error("[accessibility] background vision analysis failed:", err)
+    );
+  }
 
   return NextResponse.json({ message: "Audit accepted", propertyId: params.id });
 }

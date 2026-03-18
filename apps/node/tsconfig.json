@@ -10,6 +10,7 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@wikitraveler/core": ["../../packages/core/src/index.ts"],
+      "@wikitraveler/ai-agent": ["../../packages/ai-agent/src/index.ts"],
       "@/*": ["./*"]
     }
   },
