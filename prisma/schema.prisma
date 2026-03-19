@@ -21,15 +21,27 @@ enum Tier {
 }
 
 // ---------------------------------------------------------------------------
+// Source type — which external system or pipeline originated the fact
+// ---------------------------------------------------------------------------
+enum SourceType {
+  AMADEUS
+  WHEELMAP
+  WHEEL_THE_WORLD
+  COMMUNITY
+}
+
+// ---------------------------------------------------------------------------
 // Travel property (keyed by Amadeus property ID)
 // ---------------------------------------------------------------------------
 model Property {
-  id        String   @id @default(cuid())
-  amadeusId String   @unique
-  name      String
-  location  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  amadeusId  String   @unique
+  name       String
+  location   String
+  osmId      String?  @unique
+  wheelmapId String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   facts      AccessibilityFact[]
   audits     AuditSubmission[]
@@ -39,16 +51,17 @@ model Property {
 // A single accessibility fact for a property
 // ---------------------------------------------------------------------------
 model AccessibilityFact {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   propertyId    String
-  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property      Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   fieldName     String
   value         String
-  tier          Tier      @default(OFFICIAL)
+  tier          Tier       @default(OFFICIAL)
+  sourceType    SourceType @default(AMADEUS)
   sourceNodeId  String
   submittedBy   String?
   signatureHash String?
-  timestamp     DateTime  @default(now())
+  timestamp     DateTime   @default(now())
 
   @@unique([propertyId, fieldName, sourceNodeId])
   @@index([propertyId])

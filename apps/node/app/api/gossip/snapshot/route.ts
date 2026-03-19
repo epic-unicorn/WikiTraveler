@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
       fieldName: f.fieldName,
       value: f.value,
       tier: f.tier,
+      sourceType: f.sourceType,
       sourceNodeId: f.sourceNodeId,
       submittedBy: f.submittedBy,
       timestamp: f.timestamp.toISOString(),

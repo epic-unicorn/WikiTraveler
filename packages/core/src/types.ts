@@ -10,6 +10,18 @@ export enum Tier {
   MESH_TRUTH = "MESH_TRUTH",   // Consensus-verified by ≥3 distinct nodes
 }
 
+// ---------------------------------------------------------------------------
+// Source Type
+// ---------------------------------------------------------------------------
+
+/** Which external system or pipeline originated a fact. */
+export enum SourceType {
+  AMADEUS = "AMADEUS",                 // Official GDS feed
+  WHEELMAP = "WHEELMAP",               // Wheelmap / OpenStreetMap community data
+  WHEEL_THE_WORLD = "WHEEL_THE_WORLD", // Wheel the World vetted data
+  COMMUNITY = "COMMUNITY",             // WikiTraveler field audit
+}
+
 /** Numeric rank so we can compare tiers arithmetically. */
 export const TIER_RANK: Record<Tier, number> = {
   [Tier.OFFICIAL]: 0,
@@ -44,6 +56,7 @@ export interface AccessibilityFact {
   fieldName: string;
   value: string;
   tier: Tier;
+  sourceType: SourceType;
   sourceNodeId: string;
   submittedBy: string | null;
   timestamp: string; // ISO-8601
@@ -55,6 +68,8 @@ export interface Property {
   amadeusId: string;
   name: string;
   location: string;
+  osmId: string | null;
+  wheelmapId: string | null;
 }
 
 export interface NodeInfo {

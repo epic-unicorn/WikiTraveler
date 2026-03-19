@@ -5,7 +5,7 @@ import { evaluateMeshTruth } from "@wikitraveler/core";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import type { NextRequest } from "next/server";
-import type { Tier } from "@wikitraveler/core";
+import type { Tier, SourceType } from "@wikitraveler/core";
 
 // GET /api/properties/:id/accessibility
 export async function GET(
@@ -31,6 +31,7 @@ export async function GET(
     fieldName: f.fieldName,
     value: f.value,
     tier: f.tier as Tier,
+    sourceType: f.sourceType as SourceType,
     sourceNodeId: f.sourceNodeId,
     submittedBy: f.submittedBy,
     timestamp: f.timestamp.toISOString(),
@@ -138,6 +139,7 @@ export async function POST(
           fieldName: fact.fieldName,
           value: fact.value,
           tier: "COMMUNITY",
+          sourceType: "COMMUNITY",
           sourceNodeId: NODE_ID,
         },
       })

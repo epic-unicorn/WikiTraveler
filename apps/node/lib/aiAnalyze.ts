@@ -143,6 +143,7 @@ export async function runAiAnalysis(
           fieldName: fact.fieldName,
           value: fact.value,
           tier: "AI_GUESS",
+          sourceType: "COMMUNITY",
           sourceNodeId: AI_SOURCE_NODE,
           submittedBy: "ai-agent",
           signatureHash: JSON.stringify({

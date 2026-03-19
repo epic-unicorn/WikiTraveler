@@ -14,6 +14,10 @@
     {
       "path": "/api/cron/ai-scan",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/wheelmap-sync",
+      "schedule": "0 3 * * *"
     }
   ],
   "env": {
@@ -24,6 +28,7 @@
     "DATABASE_URL": "@database-url",
     "CORS_ORIGINS": "*",
     "CRON_SECRET": "@cron-secret",
-    "OPENAI_API_KEY": "@openai-api-key"
+    "OPENAI_API_KEY": "@openai-api-key",
+    "WHEELMAP_API_KEY": "@wheelmap-api-key"
   }
 }

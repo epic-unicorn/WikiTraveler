@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mergeGossipDelta } from "@wikitraveler/core";
 import { createHash } from "crypto";
-import type { GossipDelta, Tier } from "@wikitraveler/core";
+import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 // POST /api/gossip/ingest
 export async function POST(req: Request) {
@@ -33,6 +33,7 @@ export async function POST(req: Request) {
     fieldName: f.fieldName,
     value: f.value,
     tier: f.tier as Tier,
+    sourceType: f.sourceType as SourceType,
     sourceNodeId: f.sourceNodeId,
     submittedBy: f.submittedBy,
     timestamp: f.timestamp.toISOString(),
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
           fieldName: fact.fieldName,
           value: fact.value,
           tier: fact.tier,
+          sourceType: fact.sourceType ?? "COMMUNITY",
           sourceNodeId: fact.sourceNodeId,
           submittedBy: fact.submittedBy,
           timestamp: new Date(fact.timestamp),
