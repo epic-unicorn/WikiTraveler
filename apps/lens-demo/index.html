@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- WikiTraveler Lens reads this meta tag to identify the property.
+       This is the ONLY thing an agency needs to add — no SDK, no scripts. -->
+  <meta name="wt-property-id" content="" id="wt-meta" />
+  <title id="page-title">StayWell — Hotels &amp; Resorts</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f9fafb; color: #111827; font-size: 15px; line-height: 1.5;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: #fff; border-bottom: 1px solid #e5e7eb;
+      padding: 0 28px; display: flex; align-items: center; justify-content: space-between;
+      height: 60px; position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo { font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    .nav-logo span { color: #0ea5e9; }
+    .nav-links { display: flex; gap: 24px; font-size: 14px; color: #6b7280; }
+    .nav-links a { color: inherit; text-decoration: none; }
+    .nav-links a:hover { color: #0f172a; }
+    .nav-right { display: flex; gap: 12px; align-items: center; }
+    .btn-outline { padding: 7px 18px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: #fff; color: #374151; }
+    .btn-primary { padding: 7px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: #0f172a; color: #fff; }
+
+    /* ── Hero search bar (listing page) ── */
+    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); color: #fff; padding: 48px 28px 60px; text-align: center; }
+    .hero h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+    .hero p { font-size: 16px; opacity: .75; margin-bottom: 28px; }
+    .search-bar { display: flex; gap: 8px; max-width: 680px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 8px; }
+    .search-bar input { flex: 1; border: none; outline: none; padding: 8px 12px; font-size: 14px; color: #111827; }
+    .search-bar button { background: #0ea5e9; color: #fff; border: none; border-radius: 8px; padding: 10px 22px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+    /* ── Hotel listing cards ── */
+    .listing { max-width: 1060px; margin: 0 auto; padding: 36px 20px; }
+    .listing h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+    .hotel-grid { display: grid; gap: 20px; }
+    .hotel-card {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden;
+      display: grid; grid-template-columns: 220px 1fr; transition: box-shadow .15s;
+    }
+    .hotel-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.09); }
+    .hotel-img {
+      background: #e0f2fe; display: flex; align-items: center; justify-content: center;
+      font-size: 64px; min-height: 160px;
+    }
+    .hotel-body { padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; }
+    .hotel-body h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .hotel-meta { font-size: 13px; color: #6b7280; margin-bottom: 10px; }
+    .hotel-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tag { background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+    .hotel-footer { display: flex; align-items: center; justify-content: space-between; }
+    .hotel-price { font-size: 22px; font-weight: 800; color: #0f172a; }
+    .hotel-price span { font-size: 13px; font-weight: 400; color: #9ca3af; }
+    .btn-view { background: #0f172a; color: #fff; border: none; border-radius: 10px; padding: 10px 22px; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .stars { color: #f59e0b; font-size: 13px; letter-spacing: 1px; margin-bottom: 4px; }
+
+    /* ── Hotel detail page ── */
+    #detail-view { display: none; max-width: 1060px; margin: 0 auto; padding: 36px 20px; }
+    .detail-header { display: flex; gap: 20px; margin-bottom: 28px; }
+    .detail-photo { width: 420px; height: 260px; border-radius: 16px; background: #e0f2fe; display: flex; align-items: center; justify-content: center; font-size: 96px; flex-shrink: 0; }
+    .detail-info { flex: 1; }
+    .detail-info h1 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .detail-info .detail-meta { font-size: 14px; color: #6b7280; margin-bottom: 14px; }
+    .detail-info .detail-desc { font-size: 14px; color: #4b5563; line-height: 1.7; margin-bottom: 20px; }
+    .amenity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin-bottom: 20px; }
+    .amenity { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #334155; display: flex; align-items: center; gap: 6px; }
+    .booking-panel { background: #fff; border: 1.5px solid #e5e7eb; border-radius: 16px; padding: 24px; flex-shrink: 0; width: 300px; }
+    .booking-panel .price { font-size: 30px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+    .booking-panel .per-night { font-size: 13px; color: #9ca3af; margin-bottom: 20px; }
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .date-row label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; display: block; }
+    .date-row input { width: 100%; padding: 8px 10px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px; }
+    .btn-book { width: 100%; padding: 13px; background: #0ea5e9; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .review-section { margin-top: 32px; }
+    .review-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .review-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+    .review-author { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+    .review-text { font-size: 13px; color: #4b5563; }
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; color: #6b7280; font-size: 14px; margin-bottom: 24px; cursor: pointer; background: none; border: none; padding: 0; }
+    .back-btn:hover { color: #0f172a; }
+
+    @media (max-width: 700px) {
+      .hotel-card { grid-template-columns: 1fr; }
+      .hotel-img { min-height: 120px; }
+      .detail-header { flex-direction: column; }
+      .detail-photo { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Stay<span>Well</span></div>
+  <div class="nav-links">
+    <a href="#">Hotels</a>
+    <a href="#">Flights</a>
+    <a href="#">Cars</a>
+    <a href="#">Packages</a>
+  </div>
+  <div class="nav-right">
+    <button class="btn-outline">Sign in</button>
+    <button class="btn-primary">Register</button>
+  </div>
+</nav>
+
+<!-- ── Listing page ── -->
+<div id="listing-view">
+  <div class="hero">
+    <h1>Find your perfect stay</h1>
+    <p>Thousands of hotels, guest houses and apartments worldwide</p>
+    <div class="search-bar">
+      <input type="text" placeholder="City, hotel or landmark" value="Vienna, Austria" />
+      <input type="date" style="border:none;outline:none;font-size:14px;color:#374151;padding:8px" />
+      <button>Search</button>
+    </div>
+  </div>
+
+  <div class="listing">
+    <h2>7 properties found in Vienna, Austria</h2>
+    <div class="hotel-grid">
+
+      <div class="hotel-card">
+        <div class="hotel-img">🏨</div>
+        <div class="hotel-body">
+          <div>
+            <div class="stars">★★★★★</div>
+            <h3>Grand Hotel Vienna</h3>
+            <p class="hotel-meta">📍 Kärntner Ring 9, 1010 Vienna · 0.3 km from city centre</p>
+            <div class="hotel-tags">
+              <span class="tag">Breakfast included</span>
+              <span class="tag">Free WiFi</span>
+              <span class="tag">Pool</span>
+              <span class="tag">Spa</span>
+            </div>
+          </div>
+          <div class="hotel-footer">
+            <div>
+              <div class="hotel-price">€289 <span>/ night</span></div>
+              <p style="font-size:11px;color:#9ca3af">Taxes &amp; fees included</p>
+            </div>
+            <a class="btn-view" href="#" onclick="showDetail('demo-grand-hotel-vienna', 'Grand Hotel Vienna'); return false;">View rooms →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hotel-card">
+        <div class="hotel-img" style="background:#dcfce7">🌿</div>
+        <div class="hotel-body">
+          <div>
+            <div class="stars">★★★★</div>
+            <h3>Hotel Sacher Wien</h3>
+            <p class="hotel-meta">📍 Philharmoniker Str. 4, 1010 Vienna · 0.5 km from city centre</p>
+            <div class="hotel-tags">
+              <span class="tag">Free WiFi</span>
+              <span class="tag">Bar</span>
+              <span class="tag">Historic building</span>
+            </div>
+          </div>
+          <div class="hotel-footer">
+            <div>
+              <div class="hotel-price">€219 <span>/ night</span></div>
+              <p style="font-size:11px;color:#9ca3af">Taxes &amp; fees included</p>
+            </div>
+            <a class="btn-view" href="#" onclick="showDetail('demo-hotel-sacher-wien', 'Hotel Sacher Wien'); return false;">View rooms →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hotel-card">
+        <div class="hotel-img" style="background:#fef9c3">🏩</div>
+        <div class="hotel-body">
+          <div>
+            <div class="stars">★★★</div>
+            <h3>Boutique Hotel Naschmarkt</h3>
+            <p class="hotel-meta">📍 Linke Wienzeile 4, 1060 Vienna · 1.2 km from city centre</p>
+            <div class="hotel-tags">
+              <span class="tag">Free WiFi</span>
+              <span class="tag">Parking</span>
+            </div>
+          </div>
+          <div class="hotel-footer">
+            <div>
+              <div class="hotel-price">€129 <span>/ night</span></div>
+              <p style="font-size:11px;color:#9ca3af">Taxes &amp; fees included</p>
+            </div>
+            <a class="btn-view" href="#" onclick="showDetail('demo-boutique-naschmarkt', 'Boutique Hotel Naschmarkt'); return false;">View rooms →</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Hotel detail page ── -->
+<div id="detail-view">
+  <div style="max-width:1060px;margin:0 auto;padding:28px 20px 0">
+    <button class="back-btn" onclick="showListing()">← Back to results</button>
+  </div>
+
+  <div style="max-width:1060px;margin:0 auto;padding:0 20px;display:flex;gap:28px;align-items:flex-start">
+    <div style="flex:1">
+      <div class="detail-header" style="flex-direction:column">
+        <div id="detail-photo" class="detail-photo">🏨</div>
+        <div class="detail-info">
+          <div id="detail-stars" class="stars">★★★★★</div>
+          <h1 id="detail-name">Grand Hotel Vienna</h1>
+          <p class="detail-meta" id="detail-meta">📍 Kärntner Ring 9, 1010 Vienna, Austria · 9.2 Exceptional · 2,847 reviews</p>
+          <p class="detail-desc" id="detail-desc">
+            One of Europe's most celebrated luxury hotels, the Grand Hotel Vienna has been at the heart of
+            Viennese high society since 1870. With panoramic views over the Ringstraße and a short walk
+            from the Vienna State Opera, it combines historic grandeur with world-class contemporary service.
+          </p>
+        </div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:700;margin-bottom:14px">Hotel amenities</h2>
+      <div class="amenity-grid" id="amenity-grid">
+        <div class="amenity">🅿️ Paid parking</div>
+        <div class="amenity">🍳 Breakfast available</div>
+        <div class="amenity">🏊 Indoor pool</div>
+        <div class="amenity">💆 Full-service spa</div>
+        <div class="amenity">🍸 Bar / lounge</div>
+        <div class="amenity">💪 Fitness centre</div>
+        <div class="amenity">📶 Free WiFi</div>
+        <div class="amenity">🛎 24-hour front desk</div>
+        <div class="amenity">🧺 Laundry service</div>
+        <div class="amenity">🍽 Restaurant on site</div>
+      </div>
+
+      <div class="review-section">
+        <h2>Guest reviews</h2>
+        <div class="review-card">
+          <p class="review-author">Miriam K. — Vienna, March 2026 · ★★★★★</p>
+          <p class="review-text">"Absolutely flawless stay. The staff were attentive, the room was immaculate.
+          The location on the Ringstraße is unbeatable."</p>
+        </div>
+        <div class="review-card">
+          <p class="review-author">Thomas W. — Berlin, February 2026 · ★★★★☆</p>
+          <p class="review-text">"Beautiful hotel with excellent food. Parking is a bit expensive but the
+          concierge sorted everything out. Would return."</p>
+        </div>
+        <div class="review-card">
+          <p class="review-author">Priya S. — London, January 2026 · ★★★★★</p>
+          <p class="review-text">"Travelled with my mother who uses a wheelchair. The staff were incredibly
+          helpful and the room was well set up. Couldn't fault it."</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Booking panel -->
+    <div class="booking-panel" style="position:sticky;top:76px">
+      <p class="price" id="detail-price">€289</p>
+      <p class="per-night">per night · taxes included</p>
+      <div class="date-row">
+        <div>
+          <label>Check-in</label>
+          <input type="date" value="2026-04-10" />
+        </div>
+        <div>
+          <label>Check-out</label>
+          <input type="date" value="2026-04-14" />
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Guests</label>
+        <select style="width:100%;padding:8px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px">
+          <option>1 adult</option>
+          <option selected>2 adults</option>
+          <option>2 adults, 1 child</option>
+        </select>
+      </div>
+      <div style="border-top:1px solid #f3f4f6;padding-top:12px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#6b7280;margin-bottom:6px">
+          <span>€289 × 4 nights</span><span>€1,156</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#6b7280;margin-bottom:6px">
+          <span>StayWell service fee</span><span>€58</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-top:8px">
+          <span>Total</span><span>€1,214</span>
+        </div>
+      </div>
+      <button class="btn-book">Reserve now</button>
+      <p style="font-size:11px;color:#9ca3af;margin-top:8px;text-align:center">Free cancellation until 48 h before arrival</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const HOTELS = {
+    "demo-grand-hotel-vienna": {
+      name: "Grand Hotel Vienna",
+      stars: "★★★★★",
+      meta: "📍 Kärntner Ring 9, 1010 Vienna, Austria · 9.2 Exceptional · 2,847 reviews",
+      desc: "One of Europe's most celebrated luxury hotels, the Grand Hotel Vienna has been at the heart of Viennese high society since 1870. With panoramic views over the Ringstraße and a short walk from the Vienna State Opera, it combines historic grandeur with world-class contemporary service.",
+      emoji: "🏨",
+      price: "€289",
+    },
+    "demo-hotel-sacher-wien": {
+      name: "Hotel Sacher Wien",
+      stars: "★★★★",
+      meta: "📍 Philharmoniker Str. 4, 1010 Vienna, Austria · 9.0 Excellent · 4,121 reviews",
+      desc: "Home of the original Sachertorte and a Vienna institution since 1876. The Sacher is famed for its crimson decor, impeccable service, and literary salon atmosphere just steps from the Opera.",
+      emoji: "🌿",
+      price: "€219",
+    },
+    "demo-boutique-naschmarkt": {
+      name: "Boutique Hotel Naschmarkt",
+      stars: "★★★",
+      meta: "📍 Linke Wienzeile 4, 1060 Vienna, Austria · 8.4 Great · 918 reviews",
+      desc: "A charming independent hotel in the lively Naschmarkt quarter. Perfect for exploring the famous market, Secession gallery, and local coffee houses. Clean, friendly, and great value.",
+      emoji: "🏩",
+      price: "€129",
+    },
+  };
+
+  function showDetail(propertyId, name) {
+    const hotel = HOTELS[propertyId] ?? { name, stars: "★★★★", meta: "", desc: "", emoji: "🏨", price: "€—" };
+
+    // Update the wt-property-id meta tag so Lens can detect this hotel
+    document.getElementById("wt-meta").setAttribute("content", propertyId);
+    document.title = hotel.name + " — StayWell";
+    document.getElementById("page-title").textContent = hotel.name + " — StayWell";
+
+    document.getElementById("detail-name").textContent = hotel.name;
+    document.getElementById("detail-stars").textContent = hotel.stars;
+    document.getElementById("detail-meta").textContent = hotel.meta;
+    document.getElementById("detail-desc").textContent = hotel.desc;
+    document.getElementById("detail-photo").textContent = hotel.emoji;
+    document.getElementById("detail-price").textContent = hotel.price;
+
+    document.getElementById("listing-view").style.display = "none";
+    document.getElementById("detail-view").style.display = "block";
+
+    // Update URL so Lens (and the browser back button) know which hotel is open
+    history.pushState({ propertyId }, hotel.name, `?hotel=${encodeURIComponent(propertyId)}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function showListing() {
+    document.getElementById("wt-meta").setAttribute("content", "");
+    document.title = "StayWell — Hotels & Resorts";
+    document.getElementById("listing-view").style.display = "";
+    document.getElementById("detail-view").style.display = "none";
+    history.pushState({}, "StayWell", window.location.pathname);
+  }
+
+  // On load: if a ?hotel= param is in the URL (e.g. shared link), go straight to detail
+  (function () {
+    const hotelParam = new URLSearchParams(location.search).get("hotel");
+    if (hotelParam) {
+      showDetail(hotelParam, hotelParam);
+    }
+  })();
+
+  // Handle browser back button
+  window.addEventListener("popstate", (e) => {
+    if (e.state?.propertyId) {
+      showDetail(e.state.propertyId, e.state.propertyId);
+    } else {
+      showListing();
+    }
+  });
+</script>
+
+</body>
+</html>

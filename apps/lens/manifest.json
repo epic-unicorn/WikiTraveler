@@ -7,7 +7,9 @@
   "host_permissions": [
     "*://www.booking.com/*",
     "*://*.expedia.com/*",
-    "*://*.hotels.com/*"
+    "*://*.hotels.com/*",
+    "*://localhost/*",
+    "*://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -18,7 +20,9 @@
       "matches": [
         "*://www.booking.com/*",
         "*://*.expedia.com/*",
-        "*://*.hotels.com/*"
+        "*://*.hotels.com/*",
+        "*://localhost/*",
+        "*://127.0.0.1/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

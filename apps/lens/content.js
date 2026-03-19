@@ -3,15 +3,29 @@
 const TIER_COLOR = {
   OFFICIAL: "#9ca3af",
   AI_GUESS: "#fbbf24",
-  COMMUNITY: "#34d399",
-  MESH_TRUTH: "#60a5fa",
+  VERIFIED: "#34d399",
+  CONFIRMED: "#60a5fa",
 };
 
 const TIER_LABEL = {
   OFFICIAL: "Official",
   AI_GUESS: "AI Estimate",
-  COMMUNITY: "Community Verified",
-  MESH_TRUTH: "Mesh Truth",
+  VERIFIED: "Verified ✓",
+  CONFIRMED: "Confirmed ✓✓✓",
+};
+
+const SOURCE_COLOR = {
+  AMADEUS: "#6366f1",
+  WHEELMAP: "#0ea5e9",
+  WHEEL_THE_WORLD: "#f97316",
+  AUDITOR: "#10b981",
+};
+
+const SOURCE_LABEL = {
+  AMADEUS: "Amadeus",
+  WHEELMAP: "Wheelmap ♿",
+  WHEEL_THE_WORLD: "WtW",
+  AUDITOR: "Field Audit",
 };
 
 // ---------------------------------------------------------------------------
@@ -20,19 +34,30 @@ const TIER_LABEL = {
 
 function extractPropertyId() {
   const url = window.location.href;
+  const params = new URLSearchParams(window.location.search);
 
-  // Booking.com: /hotel/country/property-name.en-gb.html or query param hotelid=
-  const bookingQuery = new URLSearchParams(window.location.search).get("hotelid");
+  // 1. Explicit meta tag — any site can add <meta name="wt-property-id" content="PROP123">
+  //    This is the zero-effort integration path (no SDK needed).
+  const metaTag = document.querySelector('meta[name="wt-property-id"]');
+  const metaValue = metaTag?.getAttribute("content")?.trim();
+  if (metaValue) return metaValue;
+
+  // 2. ?hotel= param — used by the StayWell Lens demo and similar agency sites
+  const hotelParam = params.get("hotel");
+  if (hotelParam) return hotelParam;
+
+  // 3. Booking.com: query param hotelid= or /hotel/country/property-name
+  const bookingQuery = params.get("hotelid");
   if (bookingQuery) return `booking-${bookingQuery}`;
 
   const bookingPath = url.match(/booking\.com\/hotel\/[^/]+\/([^.?#]+)/);
   if (bookingPath) return `booking-${bookingPath[1]}`;
 
-  // Expedia / Hotels.com: /h{ID}.Hotel-Information
+  // 4. Expedia / Hotels.com: /h{ID}.Hotel-Information
   const expediaMatch = url.match(/\/h(\d+)\.Hotel/i);
   if (expediaMatch) return `expedia-${expediaMatch[1]}`;
 
-  // Fallback: use document title
+  // 5. Fallback: derive a slug from the document title
   const titleSlug = document.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -88,7 +113,7 @@ function createOverlay(facts) {
   } else {
     // Show top tier badge first
     const topTier = facts.reduce((best, f) => {
-      const tierOrder = { OFFICIAL: 0, AI_GUESS: 1, COMMUNITY: 2, MESH_TRUTH: 3 };
+      const tierOrder = { OFFICIAL: 0, AI_GUESS: 1, VERIFIED: 2, CONFIRMED: 3 };
       return (tierOrder[f.tier] ?? 0) > (tierOrder[best.tier] ?? 0) ? f : best;
     }, facts[0]);
 
@@ -105,6 +130,9 @@ function createOverlay(facts) {
         <td style="padding:6px 4px;font-size:12px">${f.value}</td>
         <td style="padding:6px 4px">
           <span style="background:${TIER_COLOR[f.tier] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700">${TIER_LABEL[f.tier] ?? f.tier}</span>
+        </td>
+        <td style="padding:6px 4px">
+          <span style="background:${SOURCE_COLOR[f.sourceType] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700">${SOURCE_LABEL[f.sourceType] ?? (f.sourceType ?? "")}</span>
         </td>
       `;
       table.appendChild(row);
