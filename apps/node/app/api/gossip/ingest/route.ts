@@ -20,7 +20,38 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fetch the properties referenced in the delta
+  // ------------------------------------------------------------------
+  // 1. Upsert any properties that arrived with the delta.
+  //    This ensures FK constraints are satisfied before inserting facts,
+  //    which is critical for a bootstrapping node receiving its first sync.
+  // ------------------------------------------------------------------
+  if (Array.isArray(delta.properties) && delta.properties.length > 0) {
+    await Promise.all(
+      delta.properties.map((p) =>
+        prisma.property.upsert({
+          where: { amadeusId: p.amadeusId },
+          update: {
+            name: p.name,
+            location: p.location,
+            osmId: p.osmId ?? undefined,
+            wheelmapId: p.wheelmapId ?? undefined,
+          },
+          create: {
+            id: p.id,
+            amadeusId: p.amadeusId,
+            name: p.name,
+            location: p.location,
+            osmId: p.osmId,
+            wheelmapId: p.wheelmapId,
+          },
+        })
+      )
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // 2. Merge and upsert facts
+  // ------------------------------------------------------------------
   const propertyIds = [...new Set(delta.facts.map((f) => f.propertyId))];
 
   const existingFacts = await prisma.accessibilityFact.findMany({
@@ -42,7 +73,6 @@ export async function POST(req: Request) {
 
   const merged = mergeGossipDelta(asFacts, delta);
 
-  // Upsert each merged fact
   await Promise.all(
     merged.map((fact) =>
       prisma.accessibilityFact.upsert({
@@ -59,7 +89,7 @@ export async function POST(req: Request) {
           fieldName: fact.fieldName,
           value: fact.value,
           tier: fact.tier,
-          sourceType: fact.sourceType ?? "COMMUNITY",
+          sourceType: fact.sourceType ?? "AUDITOR",
           sourceNodeId: fact.sourceNodeId,
           submittedBy: fact.submittedBy,
           timestamp: new Date(fact.timestamp),
@@ -82,5 +112,9 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({ ok: true, ingested: delta.facts.length });
+  return NextResponse.json({
+    ok: true,
+    propertiesUpserted: delta.properties?.length ?? 0,
+    ingested: delta.facts.length,
+  });
 }

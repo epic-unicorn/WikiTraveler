@@ -176,6 +176,19 @@ In the Vercel project settings (or via CLI), set these environment variables. Na
 | `CORS_ORIGINS` | `*` or your agency domains |
 | `CRON_SECRET` | A secret that Vercel will pass to the cron endpoint |
 | `OPENAI_API_KEY` | Your OpenAI API key (optional — leave blank to disable AI features) |
+| `NODE_PRIVATE_KEY` | RSA private key PEM — signs outgoing inbox pushes (optional but recommended) |
+| `NODE_PUBLIC_KEY` | Corresponding RSA public key PEM — served at `/api/nodeinfo` for peer verification |
+| `BOOTSTRAP_PEERS` | Comma-separated peer node URLs — seeded into `NodePeer` on first boot |
+| `WHEELMAP_API_KEY` | Wheelmap API key — enables OSM wheelchair data sync (optional) |
+
+**Generating a node keypair:**
+
+```bash
+openssl genrsa -out node_private.pem 2048
+openssl rsa -in node_private.pem -pubout -out node_public.pem
+```
+
+Store the PEM content as Vercel secrets. Multi-line PEM values should be stored with literal `\n` characters (single-line escaped format) — the node normalises them back automatically.
 
 The `vercel.json` references these as `@node-id`, `@node-url`, etc. Create matching Vercel secrets with those names.
 
@@ -212,16 +225,19 @@ DATABASE_URL=<your-prod-url> pnpm db:seed
 
 **5. Verify the cron**
 
-The `vercel.json` cron configuration fires `/api/cron/gossip` every 6 hours and `/api/cron/ai-scan` every night at 02:00:
+The `vercel.json` cron configuration fires three scheduled jobs:
 
 ```json
 {
   "crons": [
-    { "path": "/api/cron/gossip",   "schedule": "0 */6 * * *" },
-    { "path": "/api/cron/ai-scan",  "schedule": "0 2 * * *"   }
+    { "path": "/api/cron/gossip",        "schedule": "0 */6 * * *" },
+    { "path": "/api/cron/ai-scan",       "schedule": "0 2 * * *"   },
+    { "path": "/api/cron/wheelmap-sync", "schedule": "0 3 * * *"   }
   ]
 }
 ```
+
+The `wheelmap-sync` cron fetches current OSM wheelchair ratings for any property that has a `wheelmapId` set. It only creates `OFFICIAL`-tier facts and never downgrades `VERIFIED` or `CONFIRMED` data.
 
 Check cron logs in the Vercel dashboard under **Logs → Cron Jobs**.
 
@@ -342,7 +358,10 @@ Cost control tips:
 | `JWT_SECRET` | `change-me-in-production` | `@jwt-secret` secret |
 | `COMMUNITY_PASSPHRASE` | `changeme` | `@community-passphrase` secret |
 | `CORS_ORIGINS` | `*` | `*` (or locked-down list) |
-| `SEED_NODES` | _(empty)_ | Other node URLs |
+| `BOOTSTRAP_PEERS` | _(empty)_ | `@bootstrap-peers` secret |
 | `CRON_SECRET` | _(empty)_ | `@cron-secret` secret |
 | `OPENAI_API_KEY` | _(empty — AI disabled)_ | `@openai-api-key` secret |
+| `NODE_PRIVATE_KEY` | _(empty — push signing disabled)_ | `@node-private-key` secret |
+| `NODE_PUBLIC_KEY` | _(empty)_ | `@node-public-key` secret |
+| `WHEELMAP_API_KEY` | _(empty — Wheelmap sync disabled)_ | `@wheelmap-api-key` secret |
 | `NODE_ENV` | `production` | `production` (set by Vercel) |

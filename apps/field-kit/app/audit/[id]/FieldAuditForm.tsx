@@ -110,7 +110,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location }: P
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Thank you!</h2>
             <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>
               Your audit for <strong>{propertyName}</strong> has been recorded as{" "}
-              <span className="badge" style={{ background: "#34d399" }}>Community Verified</span>
+              <span className="badge" style={{ background: "#34d399" }}>Verified</span>
             </p>
             <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
               View it live on the node:

@@ -94,7 +94,7 @@ export interface WheelmapSyncResult {
 
 /**
  * Fetches fresh Wheelmap data for a single property and upserts the resulting
- * OFFICIAL-tier facts. Facts at COMMUNITY or MESH_TRUTH tier are never
+ * OFFICIAL-tier facts. Facts at VERIFIED or CONFIRMED tier are never
  * downgraded.
  */
 export async function syncPropertyFromWheeelmap(
@@ -134,7 +134,7 @@ export async function syncPropertyFromWheeelmap(
   });
   const protectedFields = new Set(
     existing
-      .filter((f) => f.tier === "COMMUNITY" || f.tier === "MESH_TRUTH")
+      .filter((f) => f.tier === "VERIFIED" || f.tier === "CONFIRMED")
       .map((f) => f.fieldName)
   );
 

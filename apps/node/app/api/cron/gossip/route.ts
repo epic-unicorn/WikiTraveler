@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { NODE_URL } from "@/lib/nodeInfo";
+import { announceTopeer } from "@/lib/bootstrap";
 import type { NextRequest } from "next/server";
 
 /**
@@ -49,6 +50,9 @@ export async function GET(req: NextRequest) {
       });
 
       results.push({ url: peer.url, ok: true, ingested: ingestData.ingested });
+
+      // Tell the peer about ourselves so it can gossip back
+      void announceTopeer(peer.url);
     } catch (err) {
       // Mark peer inactive after failure but don't halt the cron
       await prisma.nodePeer.update({

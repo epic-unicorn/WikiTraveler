@@ -2,6 +2,10 @@
 const nextConfig = {
   // Required for Docker standalone output — copies only what's needed to run
   output: "standalone",
+  // Enable the instrumentation hook (runs bootstrapPeers on startup)
+  experimental: {
+    instrumentationHook: true,
+  },
   // Allow cross-origin requests from the browser-side SDK
   async headers() {
     const corsOrigins = process.env.CORS_ORIGINS ?? "*";

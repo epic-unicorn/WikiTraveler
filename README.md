@@ -2,7 +2,7 @@
 
 > **The Distributed Travel Truth-Layer** — because booking apps can't be trusted. The community can.
 
-WikiTraveler is a open-source, federated protocol that sidecars real-world accessibility intelligence onto global travel platforms. Traditional booking sites provide outdated, vague, or missing data. WikiTraveler provides the Ground Truth — community-audited, multi-node verified, and impossible to paywall.
+WikiTraveler is a open-source, federated protocol that sidecars real-world accessibility intelligence onto global travel platforms. Traditional booking sites provide outdated, vague, or missing data. WikiTraveler provides the Ground Truth — community-audited, multi-auditor confirmed, and impossible to paywall.
 
 ---
 
@@ -42,7 +42,7 @@ WikiTraveler treats Amadeus data as a **starting point**, not a source of truth.
 
 1. **AI estimates** — GPT-4o analyses photos and generates measurable estimates for fields that the official record leaves blank, giving auditors a pre-filled baseline before they even arrive at the property.
 2. **Community audits** — Field auditors verify on the ground with photos and precise measurements. A single community audit instantly outranks any official or AI-generated claim.
-3. **Mesh consensus** — When three or more independent nodes corroborate the same value, it is promoted to `MESH_TRUTH` — the only tier that cannot be overridden by a single party.
+3. **Mesh consensus** — When three or more independent auditors submit the same value, it is promoted to `CONFIRMED` — the only tier that cannot be reached by a single person.
 
 All of this runs on infrastructure you own and deploy. No data is locked behind a paywall. No single company controls what the community knows.
 
@@ -60,7 +60,8 @@ All of this runs on infrastructure you own and deploy. No data is locked behind 
 2. **Verify** — Use the Field Kit and Lens to override corporate claims with real-world specs.
 3. **Decentralize** — Deploy a distributed network of nodes on Vercel or Docker for data sovereignty.
 4. **Gossip** — Sync verified insights via delta snapshots so community truth scales faster than any booking app.
-5. **Open-Source** — Keep the protocol 100% free and open, allowing anyone to build on top of the mesh.
+5. **Federate** — Push new `VERIFIED` facts to peer nodes in real time via signed inbox messages (ActivityPub-inspired). Each node publishes its identity and public key at `/.well-known/webfinger` for automatic discovery.
+6. **Open-Source** — Keep the protocol 100% free and open, allowing anyone to build on top of the mesh.
 
 ---
 
@@ -70,10 +71,10 @@ All of this runs on infrastructure you own and deploy. No data is locked behind 
 |------|-----------|--------------|----------------------------------------------|
 | 0    | Amadeus   | `OFFICIAL`   | Unreliable baseline. Often vague or missing. |
 | 1    | AI Agent  | `AI_GUESS`   | Machine-estimated spec to guide auditors.    |
-| 2    | Community | `COMMUNITY`  | Ground truth. Verified by a fellow traveler. |
-| 3    | Mesh      | `MESH_TRUTH` | Consensus-verified by >= 3 distinct nodes.   |
+| 2    | Community | `VERIFIED`   | Ground truth. Verified by a fellow traveler. |
+| 3    | Mesh      | `CONFIRMED`  | Independently verified by ≥3 distinct auditors. |
 
-Higher tiers always win. A `MESH_TRUTH` value overrides `OFFICIAL` and `COMMUNITY` for the same field.
+Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED` for the same field.
 
 ---
 
@@ -88,6 +89,15 @@ Higher tiers always win. A `MESH_TRUTH` value overrides `OFFICIAL` and `COMMUNIT
 | **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.                |
 | **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).               |
 | **AI Agent**    | `packages/ai-agent` | GPT-4o vision analysis and text-based gap-filling engine.        |
+
+**Key node endpoints:**
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /.well-known/webfinger` | Node discovery — returns identity, public key, and inbox URL |
+| `GET /api/nodeinfo` | Node identity and RSA public key (for peer key caching) |
+| `POST /api/inbox` | Real-time signed fact push from peer nodes |
+| `POST /api/properties/[id]/accessibility` | Submit an audit; triggers immediate peer push + background vision |
 
 ---
 
@@ -114,6 +124,15 @@ pnpm install
 cp .env.example .env
 # Edit .env — at minimum set DATABASE_URL, JWT_SECRET, COMMUNITY_PASSPHRASE
 ```
+
+To enable signed peer-to-peer pushes, generate an RSA keypair for your node:
+
+```bash
+openssl genrsa -out node_private.pem 2048
+openssl rsa -in node_private.pem -pubout -out node_public.pem
+```
+
+Set `NODE_PRIVATE_KEY` and `NODE_PUBLIC_KEY` from the PEM files (use `\n`-escaped single-line format for environment variables). Nodes without a keypair still work — the gossip cron handles propagation as a fallback.
 
 ### 3. Set up the database
 

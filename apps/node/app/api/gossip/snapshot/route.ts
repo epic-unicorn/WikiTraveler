@@ -15,10 +15,21 @@ export async function GET(req: NextRequest) {
     orderBy: { timestamp: "asc" },
   });
 
+  // Include all properties referenced by the facts so new nodes can upsert
+  // them before inserting facts (avoids FK violations).
+  const propertyIds = [...new Set(facts.map((f) => f.propertyId))];
+  const properties = propertyIds.length > 0
+    ? await prisma.property.findMany({
+        where: { id: { in: propertyIds } },
+        select: { id: true, amadeusId: true, name: true, location: true, osmId: true, wheelmapId: true },
+      })
+    : [];
+
   return NextResponse.json({
     fromNodeId: NODE_ID,
     since: sinceDate.toISOString(),
     until: new Date().toISOString(),
+    properties,
     facts: facts.map((f) => ({
       id: f.id,
       propertyId: f.propertyId,

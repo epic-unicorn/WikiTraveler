@@ -7,15 +7,15 @@ export const dynamic = "force-dynamic";
 const TIER_COLOR: Record<string, string> = {
   OFFICIAL: "#9ca3af",
   AI_GUESS: "#fbbf24",
-  COMMUNITY: "#34d399",
-  MESH_TRUTH: "#60a5fa",
+  VERIFIED: "#34d399",
+  CONFIRMED: "#60a5fa",
 };
 
 const TIER_LABEL: Record<string, string> = {
   OFFICIAL: "Official",
   AI_GUESS: "AI Estimate",
-  COMMUNITY: "Community Verified",
-  MESH_TRUTH: "Mesh Truth",
+  VERIFIED: "Verified",
+  CONFIRMED: "Confirmed",
 };
 
 export default async function DashboardPage() {
@@ -140,8 +140,8 @@ function PropertyCard({
   const tierRank: Record<string, number> = {
     OFFICIAL: 0,
     AI_GUESS: 1,
-    COMMUNITY: 2,
-    MESH_TRUTH: 3,
+    VERIFIED: 2,
+    CONFIRMED: 3,
   };
   for (const f of property.facts) {
     const existing = best.get(f.fieldName);

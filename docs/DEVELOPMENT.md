@@ -217,8 +217,8 @@ pnpm --filter @wikitraveler/field-kit build
 **Key exports:**
 
 ```typescript
-import { Tier, TIER_RANK, TIER_LABEL, TIER_COLOR, ACCESSIBILITY_FIELDS } from "@wikitraveler/core";
-import { pickWinningFact, collapseFacts, evaluateMeshTruth, mergeGossipDelta } from "@wikitraveler/core";
+import { Tier, SourceType, TIER_RANK, TIER_LABEL, TIER_COLOR, ACCESSIBILITY_FIELDS } from "@wikitraveler/core";
+import { pickWinningFact, collapseFacts, evaluateConfirmed, mergeGossipDelta } from "@wikitraveler/core";
 ```
 
 **Extending:** Add new accessibility fields to `ACCESSIBILITY_FIELDS` in `src/types.ts`. Add a new tier to the `Tier` enum and update all four `TIER_*` maps.
@@ -321,14 +321,16 @@ packages/ai-agent/dist/
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `NODE_ID` | No | random | Stable identifier for this node |
-| `NODE_URL` | No | `http://localhost:3000` | Public URL (used in gossip handshakes) |
+| `NODE_URL` | No | `http://localhost:3000` | Public URL (used in gossip handshakes and signature `keyId`) |
 | `JWT_SECRET` | Yes | — | Signs community JWTs |
 | `COMMUNITY_PASSPHRASE` | Yes | — | Passphrase auditors use to get a token |
 | `CORS_ORIGINS` | No | `*` | Comma-separated allowed origins |
-| `SEED_NODES` | No | — | Comma-separated peer URLs for bootstrap |
-| `GOSSIP_INTERVAL_HOURS` | No | `24` | How often the gossip cron fires |
-| `CRON_SECRET` | No | — | Protects `/api/cron/gossip` and `/api/cron/ai-scan` |
+| `BOOTSTRAP_PEERS` | No | — | Comma-separated peer URLs seeded into NodePeer on startup |
+| `CRON_SECRET` | No | — | Protects `/api/cron/*` endpoints |
 | `OPENAI_API_KEY` | No | — | GPT-4o key; leave blank to disable all AI features |
+| `NODE_PRIVATE_KEY` | No | — | RSA private key PEM for signing outgoing inbox pushes |
+| `NODE_PUBLIC_KEY` | No | — | Corresponding RSA public key PEM, served at `/api/nodeinfo` |
+| `WHEELMAP_API_KEY` | No | — | Wheelmap API key for OSM wheelchair data sync |
 | `AMADEUS_CLIENT_ID` | No | — | Seed script: live Amadeus hotel data |
 | `AMADEUS_CLIENT_SECRET` | No | — | Seed script: live Amadeus hotel data |
 
@@ -346,28 +348,39 @@ pnpm start        # start production build
 ```
 apps/node/
 ├── app/
+│   ├── .well-known/
+│   │   └── webfinger/          GET  — WebFinger discovery (identity + public key + inbox URL)
 │   ├── api/
 │   │   ├── auth/token/         POST — get JWT
 │   │   ├── cron/
-│   │   │   ├── gossip/         GET  — gossip pull cycle (cron)
-│   │   │   └── ai-scan/        GET  — batch AI gap-fill (cron)
+│   │   │   ├── gossip/         GET  — gossip pull cycle + self-announce (cron)
+│   │   │   ├── ai-scan/        GET  — batch AI gap-fill (cron)
+│   │   │   └── wheelmap-sync/  GET  — sync OSM wheelchair data (cron)
 │   │   ├── gossip/
-│   │   │   ├── snapshot/       GET  — export delta
-│   │   │   └── ingest/         POST — import delta
+│   │   │   ├── snapshot/       GET  — export delta (facts + properties)
+│   │   │   └── ingest/         POST — import delta (two-phase: properties then facts)
 │   │   ├── health/             GET  — node status
+│   │   ├── inbox/              POST — receive real-time signed fact push from peer
+│   │   ├── nodeinfo/           GET  — node identity + RSA public key
 │   │   ├── nodes/              GET/POST — peer registry
 │   │   └── properties/
 │   │       ├── route.ts        GET  — search
 │   │       └── [id]/
-│   │           ├── accessibility/  GET/POST — facts (POST triggers vision)
-│   │           └── analyze/        POST — on-demand AI analysis
+│   │           ├── accessibility/  GET/POST — facts (POST triggers push + vision)
+│   │           ├── analyze/        POST — on-demand AI analysis
+│   │           └── external-ids/   GET/PATCH/POST — OSM/Wheelmap ID linking
 │   ├── properties/[id]/        Property detail page + audit form
 │   └── page.tsx                Dashboard
+├── instrumentation.ts          Next.js startup hook — bootstraps peers from BOOTSTRAP_PEERS
 ├── lib/
 │   ├── prisma.ts               Singleton PrismaClient
 │   ├── auth.ts                 JWT helpers
 │   ├── nodeInfo.ts             NODE_ID, NODE_URL constants
-│   └── aiAnalyze.ts            runAiAnalysis() shared helper
+│   ├── aiAnalyze.ts            runAiAnalysis() shared helper
+│   ├── bootstrap.ts            bootstrapPeers() + announceTopeer()
+│   ├── httpSignature.ts        signBody(), verifyBody(), buildSignatureHeader(), fetchPeerPublicKey()
+│   ├── push.ts                 pushFactsToPeers() — fire-and-forget signed peer push
+│   └── wheelmap.ts             Wheelmap/OSM API adapter
 └── next.config.js
 ```
 

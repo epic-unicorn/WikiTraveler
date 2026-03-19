@@ -55,7 +55,7 @@ export async function runAiAnalysis(
 
   // ------------------------------------------------------------------
   // 1. Determine which fields already have data >= the tier we produce.
-  //    We never overwrite COMMUNITY or MESH_TRUTH with AI_GUESS.
+  //    We never overwrite VERIFIED or CONFIRMED with AI_GUESS.
   // ------------------------------------------------------------------
   const existingFacts = await prisma.accessibilityFact.findMany({
     where: { propertyId },
@@ -65,8 +65,8 @@ export async function runAiAnalysis(
   const protectedFields = new Set(
     existingFacts
       .filter((f: { fieldName: string; tier: string }) =>
-        f.tier === "COMMUNITY" ||
-        f.tier === "MESH_TRUTH" ||
+        f.tier === "VERIFIED" ||
+        f.tier === "CONFIRMED" ||
         (skipExistingAiGuess && f.tier === "AI_GUESS")
       )
       .map((f: { fieldName: string; tier: string }) => f.fieldName)
@@ -143,7 +143,7 @@ export async function runAiAnalysis(
           fieldName: fact.fieldName,
           value: fact.value,
           tier: "AI_GUESS",
-          sourceType: "COMMUNITY",
+          sourceType: "AUDITOR",
           sourceNodeId: AI_SOURCE_NODE,
           submittedBy: "ai-agent",
           signatureHash: JSON.stringify({

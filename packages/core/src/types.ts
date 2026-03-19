@@ -4,10 +4,10 @@
 
 /** The four trust tiers, ordered from lowest to highest reliability. */
 export enum Tier {
-  OFFICIAL = "OFFICIAL",       // Sourced from Amadeus — unreliable baseline
-  AI_GUESS = "AI_GUESS",       // Machine-estimated from photos (deferred)
-  COMMUNITY = "COMMUNITY",     // Verified by a single on-site auditor
-  MESH_TRUTH = "MESH_TRUTH",   // Consensus-verified by ≥3 distinct nodes
+  OFFICIAL = "OFFICIAL",     // Sourced from Amadeus — unreliable baseline
+  AI_GUESS = "AI_GUESS",     // Machine-estimated from photos (deferred)
+  VERIFIED = "VERIFIED",     // Verified by a single on-site auditor
+  CONFIRMED = "CONFIRMED",   // Independently verified by ≥3 distinct auditors
 }
 
 // ---------------------------------------------------------------------------
@@ -19,31 +19,31 @@ export enum SourceType {
   AMADEUS = "AMADEUS",                 // Official GDS feed
   WHEELMAP = "WHEELMAP",               // Wheelmap / OpenStreetMap community data
   WHEEL_THE_WORLD = "WHEEL_THE_WORLD", // Wheel the World vetted data
-  COMMUNITY = "COMMUNITY",             // WikiTraveler field audit
+  AUDITOR = "AUDITOR",                 // WikiTraveler field audit
 }
 
 /** Numeric rank so we can compare tiers arithmetically. */
 export const TIER_RANK: Record<Tier, number> = {
   [Tier.OFFICIAL]: 0,
   [Tier.AI_GUESS]: 1,
-  [Tier.COMMUNITY]: 2,
-  [Tier.MESH_TRUTH]: 3,
+  [Tier.VERIFIED]: 2,
+  [Tier.CONFIRMED]: 3,
 };
 
 /** Human-readable label for each tier. */
 export const TIER_LABEL: Record<Tier, string> = {
   [Tier.OFFICIAL]: "Official",
   [Tier.AI_GUESS]: "AI Estimate",
-  [Tier.COMMUNITY]: "Community Verified",
-  [Tier.MESH_TRUTH]: "Mesh Truth",
+  [Tier.VERIFIED]: "Verified",
+  [Tier.CONFIRMED]: "Confirmed",
 };
 
 /** CSS colour token for each tier (used by UI & widget). */
 export const TIER_COLOR: Record<Tier, string> = {
   [Tier.OFFICIAL]: "#9ca3af",    // gray-400
   [Tier.AI_GUESS]: "#fbbf24",    // amber-400
-  [Tier.COMMUNITY]: "#34d399",   // emerald-400
-  [Tier.MESH_TRUTH]: "#60a5fa",  // blue-400
+  [Tier.VERIFIED]: "#34d399",    // emerald-400
+  [Tier.CONFIRMED]: "#60a5fa",   // blue-400
 };
 
 // ---------------------------------------------------------------------------
@@ -97,6 +97,8 @@ export interface GossipDelta {
   fromNodeId: string;
   since: string;     // ISO-8601 — snapshot covers changes after this timestamp
   until: string;     // ISO-8601
+  /** Properties referenced by the facts — allows new nodes to upsert them. */
+  properties: Pick<Property, "id" | "amadeusId" | "name" | "location" | "osmId" | "wheelmapId">[];
   facts: AccessibilityFact[];
 }
 

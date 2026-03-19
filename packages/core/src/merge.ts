@@ -46,35 +46,45 @@ export function collapseFacts(
 }
 
 /**
- * Evaluate whether any facts in the list should be promoted to MESH_TRUTH.
- * A fact is promoted when ≥3 distinct source nodes report the same
- * (fieldName, value) combination for the same propertyId.
+ * Evaluate whether any facts in the list should be promoted to CONFIRMED.
+ * A fact is promoted when ≥3 distinct human auditors (identified by
+ * submittedBy) independently report the same (fieldName, value) for the
+ * same propertyId.
+ *
+ * Gossip replication intentionally has no effect on this count — the same
+ * auditor's submission reaching multiple nodes does not inflate the number.
+ * Only facts with a non-null submittedBy are counted toward the threshold.
  *
  * Returns a new array with tier updates applied (originals are not mutated).
  */
-export function evaluateMeshTruth(
+export function evaluateConfirmed(
   facts: AccessibilityFact[],
-  meshThresholdNodes = 3
+  confirmThreshold = 3
 ): AccessibilityFact[] {
   type Key = string; // `${propertyId}::${fieldName}::${value}`
-  const nodeSet = new Map<Key, Set<string>>();
+  const auditorSet = new Map<Key, Set<string>>();
 
   for (const fact of facts) {
+    // Only count human-submitted facts (not AI or external feed facts)
+    if (!fact.submittedBy) continue;
     const key: Key = `${fact.propertyId}::${fact.fieldName}::${fact.value}`;
-    const nodes = nodeSet.get(key) ?? new Set();
-    nodes.add(fact.sourceNodeId);
-    nodeSet.set(key, nodes);
+    const auditors = auditorSet.get(key) ?? new Set();
+    auditors.add(fact.submittedBy);
+    auditorSet.set(key, auditors);
   }
 
   return facts.map((fact) => {
     const key: Key = `${fact.propertyId}::${fact.fieldName}::${fact.value}`;
-    const agreeing = nodeSet.get(key)?.size ?? 0;
-    if (agreeing >= meshThresholdNodes && fact.tier !== Tier.MESH_TRUTH) {
-      return { ...fact, tier: Tier.MESH_TRUTH };
+    const agreeing = auditorSet.get(key)?.size ?? 0;
+    if (agreeing >= confirmThreshold && fact.tier !== Tier.CONFIRMED) {
+      return { ...fact, tier: Tier.CONFIRMED };
     }
     return fact;
   });
 }
+
+/** @deprecated Use evaluateConfirmed — kept for backwards compatibility. */
+export const evaluateMeshTruth = evaluateConfirmed;
 
 /**
  * Merge an incoming gossip delta into an existing facts array.

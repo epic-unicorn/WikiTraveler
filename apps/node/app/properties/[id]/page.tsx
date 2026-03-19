@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 const TIER_RANK: Record<string, number> = {
   OFFICIAL: 0,
   AI_GUESS: 1,
-  COMMUNITY: 2,
-  MESH_TRUTH: 3,
+  VERIFIED: 2,
+  CONFIRMED: 3,
 };
 
 export default async function PropertyPage({

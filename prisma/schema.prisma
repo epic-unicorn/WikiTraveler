@@ -16,8 +16,8 @@ datasource db {
 enum Tier {
   OFFICIAL
   AI_GUESS
-  COMMUNITY
-  MESH_TRUTH
+  VERIFIED
+  CONFIRMED
 }
 
 // ---------------------------------------------------------------------------
@@ -27,7 +27,7 @@ enum SourceType {
   AMADEUS
   WHEELMAP
   WHEEL_THE_WORLD
-  COMMUNITY
+  AUDITOR
 }
 
 // ---------------------------------------------------------------------------
@@ -89,10 +89,11 @@ model AuditSubmission {
 // Peer node registry
 // ---------------------------------------------------------------------------
 model NodePeer {
-  id       String   @id @default(cuid())
-  url      String   @unique
-  lastSeen DateTime @default(now())
-  isActive Boolean  @default(true)
+  id        String   @id @default(cuid())
+  url       String   @unique
+  publicKey String?  // RSA public key PEM — cached from peer's /api/nodeinfo
+  lastSeen  DateTime @default(now())
+  isActive  Boolean  @default(true)
 }
 
 // ---------------------------------------------------------------------------

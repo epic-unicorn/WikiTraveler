@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { evaluateMeshTruth } from "@wikitraveler/core";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
+import { pushFactsToPeers } from "@/lib/push";
 import type { NextRequest } from "next/server";
 import type { Tier, SourceType } from "@wikitraveler/core";
 
@@ -38,7 +39,7 @@ export async function GET(
     signatureHash: f.signatureHash,
   }));
 
-  // Re-evaluate MESH_TRUTH before returning
+  // Re-evaluate CONFIRMED before returning
   const evaluated = evaluateMeshTruth(asFacts);
 
   // Collapse to one fact per fieldName (highest tier wins)
@@ -131,15 +132,15 @@ export async function POST(
         },
         update: {
           value: fact.value,
-          tier: "COMMUNITY",
+          tier: "VERIFIED",
           timestamp: new Date(),
         },
         create: {
           propertyId: params.id,
           fieldName: fact.fieldName,
           value: fact.value,
-          tier: "COMMUNITY",
-          sourceType: "COMMUNITY",
+          tier: "VERIFIED",
+          sourceType: "AUDITOR",
           sourceNodeId: NODE_ID,
         },
       })
@@ -161,6 +162,35 @@ export async function POST(
       console.error("[accessibility] background vision analysis failed:", err)
     );
   }
+
+  // ActivityPub-style real-time push to active peers (fire-and-forget).
+  // The gossip cron remains the safety net if any peer misses this push.
+  void pushFactsToPeers(
+    [
+      {
+        id: property.id,
+        amadeusId: property.amadeusId,
+        name: property.name,
+        location: property.location,
+        osmId: property.osmId,
+        wheelmapId: property.wheelmapId,
+      },
+    ],
+    body.facts.map((fact) => ({
+      id: `${NODE_ID}-${params.id}-${fact.fieldName}`,
+      propertyId: params.id,
+      fieldName: fact.fieldName,
+      value: fact.value,
+      tier: "VERIFIED" as Tier,
+      sourceType: "AUDITOR" as SourceType,
+      sourceNodeId: NODE_ID,
+      submittedBy: null,
+      timestamp: new Date().toISOString(),
+      signatureHash: null,
+    }))
+  ).catch((err) =>
+    console.error("[accessibility] peer push failed:", err)
+  );
 
   return NextResponse.json({ message: "Audit accepted", propertyId: params.id });
 }

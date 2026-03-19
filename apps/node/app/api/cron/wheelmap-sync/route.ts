@@ -10,7 +10,7 @@ import type { NextRequest } from "next/server";
  * accessibility data from the Wheelmap API for each, upserting facts at
  * OFFICIAL tier with sourceType WHEELMAP.
  *
- * Facts already at COMMUNITY or MESH_TRUTH tier are never downgraded.
+ * Facts already at VERIFIED or CONFIRMED tier are never downgraded.
  *
  * Protected by CRON_SECRET. Schedule alongside gossip and ai-scan.
  *
