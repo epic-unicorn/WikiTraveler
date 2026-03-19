@@ -26,7 +26,7 @@ export default async function PropertyPage({
   if (!property) notFound();
 
   // Collapse to highest tier per field for SSR initial state
-  const best = new Map<string, { fieldName: string; value: string; tier: string; submittedBy: string | null; timestamp: string }>();
+  const best = new Map<string, { fieldName: string; value: string; tier: string; sourceType: string; submittedBy: string | null; timestamp: string }>();
   for (const f of property.facts) {
     const existing = best.get(f.fieldName);
     if (!existing || (TIER_RANK[f.tier] ?? 0) > (TIER_RANK[existing.tier] ?? 0)) {
@@ -34,6 +34,7 @@ export default async function PropertyPage({
         fieldName: f.fieldName,
         value: f.value,
         tier: f.tier as string,
+        sourceType: f.sourceType as string,
         submittedBy: f.submittedBy,
         timestamp: f.timestamp.toISOString(),
       });

@@ -16,6 +16,20 @@ const TIER_LABEL: Record<string, string> = {
   CONFIRMED: "Confirmed",
 };
 
+const SOURCE_COLOR: Record<string, string> = {
+  AMADEUS: "#6366f1",
+  WHEELMAP: "#0ea5e9",
+  WHEEL_THE_WORLD: "#f97316",
+  AUDITOR: "#10b981",
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  AMADEUS: "Amadeus",
+  WHEELMAP: "Wheelmap ♿",
+  WHEEL_THE_WORLD: "WtW",
+  AUDITOR: "Field Audit",
+};
+
 const FIELD_LABELS: Record<string, string> = {
   door_width_cm: "Door Width (cm)",
   ramp_present: "Ramp Present",
@@ -35,6 +49,7 @@ interface Fact {
   fieldName: string;
   value: string;
   tier: string;
+  sourceType: string;
   submittedBy: string | null;
   timestamp: string;
 }
@@ -121,7 +136,7 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                {["Feature", "Value", "Trust", "When"].map((h) => (
+                {["Feature", "Value", "Trust", "Source", "When"].map((h) => (
                   <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#6b7280", fontSize: 12, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -134,6 +149,11 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
                   <td style={{ padding: "10px 12px" }}>
                     <span style={{ background: TIER_COLOR[f.tier] ?? "#9ca3af", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>
                       {TIER_LABEL[f.tier] ?? f.tier}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <span style={{ background: SOURCE_COLOR[f.sourceType] ?? "#9ca3af", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>
+                      {SOURCE_LABEL[f.sourceType] ?? f.sourceType}
                     </span>
                   </td>
                   <td style={{ padding: "10px 12px", color: "#9ca3af", fontSize: 12 }}>
