@@ -1,0 +1,59 @@
+# Development mode — hot-reloading, no production build required
+# Usage: docker compose -f docker/docker-compose.dev.yml up
+# Or: right-click this file in the VS Code Docker extension → "Compose Up"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wikitraveler
+      POSTGRES_PASSWORD: wikitraveler
+      POSTGRES_DB: wikitraveler
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikitraveler"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  node:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      # Bind-mount the whole monorepo for hot reloading
+      - ..:/app
+      # Named volumes keep the container's node_modules intact so the
+      # Windows host node_modules (or absence thereof) doesn't interfere.
+      - node_modules:/app/node_modules
+      - node_modules_core:/app/packages/core/node_modules
+      - node_modules_ai_agent:/app/packages/ai-agent/node_modules
+      - node_modules_sdk:/app/packages/sdk/node_modules
+      - node_modules_node_app:/app/apps/node/node_modules
+      - node_modules_field_kit:/app/apps/field-kit/node_modules
+    environment:
+      DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler
+      NODE_ID: docker-node-1
+      NODE_URL: http://localhost:3000
+      COMMUNITY_PASSPHRASE: changeme
+      JWT_SECRET: change-me-in-development
+      CORS_ORIGINS: "*"
+      GOSSIP_INTERVAL_HOURS: "24"
+      NODE_ENV: development
+
+volumes:
+  postgres_data:
+  node_modules:
+  node_modules_core:
+  node_modules_ai_agent:
+  node_modules_sdk:
+  node_modules_node_app:
+  node_modules_field_kit:

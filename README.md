@@ -67,7 +67,7 @@ All of this runs on infrastructure you own and deploy. No data is locked behind 
 
 | Tier | Source    | Label        | Meaning                                      |
 |------|-----------|--------------|----------------------------------------------|
-| 0    | Wikidata / OSM | `OFFICIAL`   | Unreliable baseline. Often vague or missing. |
+| 0    | Wikidata / OSM | `OFFICIAL`   | Community baseline from open sources. Foundational but often incomplete. |
 | 1    | AI Agent  | `AI_GUESS`   | Machine-estimated spec to guide auditors.    |
 | 2    | Community | `VERIFIED`   | Ground truth. Verified by a fellow traveler. |
 | 3    | Mesh      | `CONFIRMED`  | Independently verified by ≥3 distinct auditors. |

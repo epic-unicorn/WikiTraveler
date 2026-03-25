@@ -1,0 +1,25 @@
+# Development image — hot-reloading via bind-mounted source
+FROM node:20-alpine
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+WORKDIR /app
+
+# Install dependencies into the image so the bind-mounted source
+# doesn't clobber them (named volumes protect node_modules at runtime).
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/core/package.json        ./packages/core/
+COPY packages/ai-agent/package.json    ./packages/ai-agent/
+COPY packages/sdk/package.json         ./packages/sdk/
+COPY apps/node/package.json            ./apps/node/
+COPY apps/field-kit/package.json       ./apps/field-kit/
+COPY prisma/schema.prisma              ./prisma/
+
+RUN pnpm install --frozen-lockfile
+
+COPY docker/entrypoint.dev.sh /entrypoint.dev.sh
+RUN chmod +x /entrypoint.dev.sh
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+ENTRYPOINT ["/entrypoint.dev.sh"]

@@ -2,6 +2,8 @@
 
 WikiTraveler nodes can be deployed in three ways: Docker (single node), Docker (two-node gossip demo), and Vercel. This guide covers each path and production hardening recommendations.
 
+> **Looking for development mode?** See the [Development Guide](DEVELOPMENT.md#option-a--docker-recommended-zero-local-setup) for the `docker-compose.dev.yml` setup that includes hot-reloading and bind-mounted source code.
+
 ---
 
 ## Option 1 — Docker Single Node

@@ -11,7 +11,7 @@ Everything you need to run, build, and extend WikiTraveler locally.
 | Node.js | v20+ | https://nodejs.org |
 | pnpm | v9+ | `npm install -g pnpm` |
 | PostgreSQL | 16 | https://www.postgresql.org or use Docker |
-| Docker Desktop | any | https://www.docker.com (optional) |
+| Docker Desktop | any | https://www.docker.com (optional — required for Docker dev mode) |
 | Chrome | any | for loading the Lens extension |
 
 ---
@@ -86,6 +86,61 @@ pnpm db:seed
 ---
 
 ## Running the Stack Locally
+
+There are two ways to run the stack: natively with `pnpm` (fastest iteration, requires a local Postgres) or fully inside Docker (no local tooling needed beyond Docker Desktop).
+
+### Option A — Docker (recommended, zero local setup)
+
+Requires only Docker Desktop. Use this when you don't want to install Node/pnpm locally, or when you want an isolated environment that matches production closely.
+
+**VS Code Docker extension (easiest)**
+
+1. Install the [Docker extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) in VS Code.
+2. In the Explorer, right-click `docker/docker-compose.dev.yml` → **Compose Up**.
+3. The extension builds the dev image, starts Postgres, runs migrations, and launches `next dev` — all in one step.
+4. The app is live at `http://localhost:3000` with full hot-reloading.
+
+To stop: right-click the compose group in the **Docker** panel → **Compose Down**.
+
+**CLI equivalent**
+
+```bash
+docker compose -f docker/docker-compose.dev.yml up --build
+```
+
+First run takes ≈ 2 minutes (installs dependencies inside the image). Subsequent runs are instant because dependencies are cached in named Docker volumes.
+
+> **How hot-reloading works:** The entire monorepo is bind-mounted into the container at `/app`. Every file save is visible immediately to `next dev`. Named volumes (`node_modules`, `node_modules_node_app`, etc.) protect the container's installed packages from being overwritten by your Windows host filesystem.
+
+**Seeding the database**
+
+Open a shell in the running `node` container and run the seed script:
+
+```bash
+# Via Docker extension: right-click the node container → "Attach Shell"
+# Or via CLI:
+docker compose -f docker/docker-compose.dev.yml exec node sh -c "pnpm db:seed"
+```
+
+**Viewing logs**
+
+```bash
+docker compose -f docker/docker-compose.dev.yml logs -f node
+```
+
+**Stopping and cleaning up**
+
+```bash
+# Stop containers (keeps data and node_modules volumes)
+docker compose -f docker/docker-compose.dev.yml down
+
+# Stop and remove everything including volumes (forces a full reinstall next time)
+docker compose -f docker/docker-compose.dev.yml down -v
+```
+
+---
+
+### Option B — Native (pnpm)
 
 ### Node (primary app)
 

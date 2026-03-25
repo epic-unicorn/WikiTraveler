@@ -4,7 +4,7 @@
 
 /** The four trust tiers, ordered from lowest to highest reliability. */
 export enum Tier {
-  OFFICIAL = "OFFICIAL",     // Sourced from an external directory (e.g. Wikidata) — unreliable baseline
+  OFFICIAL = "OFFICIAL",     // Sourced from an external directory (e.g. Wikidata) — community baseline from open sources
   AI_GUESS = "AI_GUESS",     // Machine-estimated from photos (deferred)
   VERIFIED = "VERIFIED",     // Verified by a single on-site auditor
   CONFIRMED = "CONFIRMED",   // Independently verified by ≥3 distinct auditors
