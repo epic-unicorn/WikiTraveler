@@ -8,39 +8,37 @@ WikiTraveler is a open-source, federated protocol that sidecars real-world acces
 
 ## Why WikiTraveler Exists
 
-### The Amadeus Problem
+### The Problem with Travel Apps
 
-**Amadeus** is the world's largest travel technology company. It operates the Global Distribution System (GDS) that underpins the majority of hotel, flight, and car-rental bookings on earth. When you search for a hotel on Booking.com, Expedia, Hotels.com, Kayak, or any major OTA (Online Travel Agency), the underlying property data — room counts, amenities, policies, check-in times — almost always originates from the Amadeus GDS or its direct competitors (Sabre, Travelport).
+Open any major booking app — Booking.com, Expedia, Hotels.com, Google Hotels, Kayak — and search for a hotel that's accessible to a wheelchair user. You'll see a badge: "Accessible room available." Maybe a bullet point: "Roll-in shower." Perhaps a tick next to "elevator."
 
-Airlines, hotel chains, and independent properties pay Amadeus to list their inventory. Travel agencies, OTAs, and corporate booking tools pay Amadeus to access it. The data flows through APIs like the **Amadeus Hotel Search API**, which returns structured records for hundreds of thousands of properties worldwide.
+**That's where the information ends.**
 
-### Who relies on Amadeus data
+How wide is the doorway? Is the shower actually roll-in or just a low lip? How many steps between the parking garage and reception? Is there a hearing loop in the conference room? These are the details that determine whether a trip is possible — and none of these apps can reliably answer them.
 
-- **Online Travel Agencies** — Booking.com, Expedia, Hotels.com, Agoda, Trip.com
-- **Corporate travel tools** — Concur, Egencia, TravelPerk, Navan
-- **Airline booking flows** — virtually every major carrier's "add a hotel" flow
-- **Meta-search engines** — Google Hotels, Kayak, Trivago
-- **Accessibility travel platforms** — sites specifically serving travellers with disabilities that rely on the same underlying feed
+The apps aren't lying. They're just passing through whatever the hotel self-reported into the Global Distribution System (GDS) — the backend data layer operated by companies like Amadeus, Sabre, and Travelport that powers virtually every OTA on earth. Hotels file a checklist. The GDS stores it. The booking apps display it. Nobody verifies it.
 
-### What Amadeus is missing
+### Why the apps can't fix it
 
-Amadeus excels at inventory — it knows a hotel has 200 rooms and accepts Visa. It is systematically weak on the details that matter most to specific travellers:
+The problem isn't a bug in any single app. It's structural:
 
-| Gap | Why it exists |
-|-----|---------------|
-| **Accessibility specs are sparse** | Hotels self-report. There is no verification. "Accessible room available" is not the same as "doorway is 85 cm wide". |
-| **Vague binary flags** | The API returns `"accessibleParking": true` with no further detail. How many spaces? How far from the entrance? |
-| **Stale data** | Properties update Amadeus records infrequently. A renovation three years ago may have added a ramp that is not in the feed. |
-| **Commercial incentive to over-claim** | Properties are motivated to tick every amenity checkbox to appear in more searches. There is no penalty for inaccuracy. |
-| **No photo evidence** | Accessibility claims are text assertions with no supporting imagery. |
-| **No community correction mechanism** | If a traveller discovers a hotel lied about accessibility, there is no channel in the GDS to flag it. The bad data persists indefinitely. |
-| **Proprietary and paywalled** | The raw data is not publicly accessible. Researchers, disability advocates, and independent developers cannot audit or improve it. |
+| Root cause | What it means in practice |
+|------------|---------------------------|
+| **Hotels self-report with no verification** | "Accessible bathroom" can mean a grab bar was installed in 1998. There is no audit. |
+| **Binary flags, no measurements** | `accessibleParking: true` tells you nothing about the distance to the entrance or the gradient of the path. |
+| **Stale records** | Hotels update GDS records infrequently. A renovation that blocked the ramp three years ago may still show as accessible. |
+| **Commercial incentive to over-claim** | Ticking more amenity boxes = appearing in more searches. There is no penalty for inaccuracy. |
+| **No photo evidence** | Every accessibility claim is a text assertion. There is no image to verify it against. |
+| **No correction channel** | A traveller who discovers the hotel lied has no way to flag it inside the booking system. The bad data persists indefinitely. |
+| **Locked data** | The underlying GDS records are proprietary and paywalled. Researchers, disability advocates, and independent developers cannot audit or improve them. |
+
+The result: travellers with disabilities, specific medical needs, or dependents who rely on precise specs are forced to book on faith — and frequently arrive to find the reality doesn't match the listing.
 
 ### What WikiTraveler does instead
 
-WikiTraveler treats Amadeus data as a **starting point**, not a source of truth. It ingests official records to understand what fields are claimed and where the gaps are, then layering three additional tiers on top:
+WikiTraveler bypasses the broken self-reporting loop entirely. It treats any external directory data as a **starting point**, not a source of truth, then layers three tiers of increasingly reliable intelligence on top:
 
-1. **AI estimates** — GPT-4o analyses photos and generates measurable estimates for fields that the official record leaves blank, giving auditors a pre-filled baseline before they even arrive at the property.
+1. **AI estimates** — GPT-4o analyses property photos and generates measurable estimates for fields left blank by official records, giving auditors a pre-filled baseline before they even arrive on site.
 2. **Community audits** — Field auditors verify on the ground with photos and precise measurements. A single community audit instantly outranks any official or AI-generated claim.
 3. **Mesh consensus** — When three or more independent auditors submit the same value, it is promoted to `CONFIRMED` — the only tier that cannot be reached by a single person.
 
@@ -56,7 +54,7 @@ All of this runs on infrastructure you own and deploy. No data is locked behind 
 
 **The Strategy: Community-Owned Certainty**
 
-1. **Expose** — Ingest official Amadeus tags to highlight where data is missing or vague.
+1. **Expose** — Ingest open directory records (Wikidata, OpenStreetMap) to highlight where accessibility data is missing or vague.
 2. **Verify** — Use the Field Kit and Lens to override corporate claims with real-world specs.
 3. **Decentralize** — Deploy a distributed network of nodes on Vercel or Docker for data sovereignty.
 4. **Gossip** — Sync verified insights via delta snapshots so community truth scales faster than any booking app.
@@ -69,7 +67,7 @@ All of this runs on infrastructure you own and deploy. No data is locked behind 
 
 | Tier | Source    | Label        | Meaning                                      |
 |------|-----------|--------------|----------------------------------------------|
-| 0    | Amadeus   | `OFFICIAL`   | Unreliable baseline. Often vague or missing. |
+| 0    | Wikidata / OSM | `OFFICIAL`   | Unreliable baseline. Often vague or missing. |
 | 1    | AI Agent  | `AI_GUESS`   | Machine-estimated spec to guide auditors.    |
 | 2    | Community | `VERIFIED`   | Ground truth. Verified by a fellow traveler. |
 | 3    | Mesh      | `CONFIRMED`  | Independently verified by ≥3 distinct auditors. |

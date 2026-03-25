@@ -107,11 +107,11 @@ export async function POST(req: NextRequest) {
     await Promise.all(
       payload.properties.map((p) =>
         prisma.property.upsert({
-          where: { amadeusId: p.amadeusId },
+          where: { canonicalId: p.canonicalId },
           update: { name: p.name, location: p.location },
           create: {
             id: p.id,
-            amadeusId: p.amadeusId,
+            canonicalId: p.canonicalId,
             name: p.name,
             location: p.location,
             osmId: p.osmId ?? null,

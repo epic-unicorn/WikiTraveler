@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       : undefined,
     orderBy: { name: "asc" },
     take: 20,
-    select: { id: true, name: true, location: true, amadeusId: true },
+    select: { id: true, name: true, location: true, canonicalId: true },
   });
 
   return NextResponse.json({ properties });

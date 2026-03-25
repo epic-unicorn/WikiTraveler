@@ -3,11 +3,10 @@
  *
  * Seeds the database with sample properties and OFFICIAL-tier accessibility facts.
  *
+ * Properties are identified by their Wikidata Q-identifier (canonicalId).
+ *
  * Usage:
  *   pnpm db:seed
- *
- * Requires AMADEUS_CLIENT_ID + AMADEUS_CLIENT_SECRET in .env, OR
- * falls back to bundled static sample data if credentials are absent.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -15,11 +14,12 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 // ---------------------------------------------------------------------------
-// Static sample data (used when Amadeus credentials are absent)
+// Sample properties identified by their Wikidata Q-identifier
 // ---------------------------------------------------------------------------
 const SAMPLE_PROPERTIES = [
   {
-    amadeusId: "HTVIENNA1",
+    // https://www.wikidata.org/wiki/Q610297 — Grand Hotel Wien
+    canonicalId: "Q610297",
     name: "Grand Hotel Vienna",
     location: "Kärntner Ring 9, 1010 Vienna, Austria",
     facts: [
@@ -32,7 +32,8 @@ const SAMPLE_PROPERTIES = [
     ],
   },
   {
-    amadeusId: "HTBARCELONA1",
+    // https://www.wikidata.org/wiki/Q5897396 — Hotel Arts Barcelona
+    canonicalId: "Q5897396",
     name: "Hotel Arts Barcelona",
     location: "Carrer de la Marina 19-21, 08005 Barcelona, Spain",
     facts: [
@@ -45,7 +46,8 @@ const SAMPLE_PROPERTIES = [
     ],
   },
   {
-    amadeusId: "HTAMSTERDAM1",
+    // https://www.wikidata.org/wiki/Q17371014 — Pulitzer Amsterdam
+    canonicalId: "Q17371014",
     name: "Pulitzer Amsterdam",
     location: "Prinsengracht 315-331, 1016 GZ Amsterdam, Netherlands",
     facts: [
@@ -59,88 +61,18 @@ const SAMPLE_PROPERTIES = [
 ];
 
 // ---------------------------------------------------------------------------
-// Amadeus token fetch (optional)
-// ---------------------------------------------------------------------------
-async function getAmadeusToken(): Promise<string | null> {
-  const clientId = process.env.AMADEUS_CLIENT_ID;
-  const clientSecret = process.env.AMADEUS_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  const res = await fetch("https://test.api.amadeus.com/v1/security/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
-  if (!res.ok) {
-    console.warn("⚠️  Amadeus auth failed — falling back to static data.");
-    return null;
-  }
-  const data = await res.json() as { access_token: string };
-  return data.access_token;
-}
-
-// ---------------------------------------------------------------------------
-// Populate from Amadeus Hotel Search (test environment)
-// ---------------------------------------------------------------------------
-async function fetchAmadeusHotels(
-  token: string,
-  cityCode = "VIE"
-): Promise<typeof SAMPLE_PROPERTIES> {
-  const res = await fetch(
-    `https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city?cityCode=${cityCode}&ratings=4,5&hotelSource=ALL`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (!res.ok) {
-    console.warn(`⚠️  Amadeus hotel search failed (${res.status}) — using static data.`);
-    return SAMPLE_PROPERTIES;
-  }
-  const data = await res.json() as {
-    data: Array<{
-      hotelId: string;
-      name: string;
-      address: { lines: string[]; cityName: string; countryCode: string };
-    }>;
-  };
-
-  return data.data.slice(0, 5).map((h) => ({
-    amadeusId: h.hotelId,
-    name: h.name,
-    location: [
-      ...(h.address.lines ?? []),
-      h.address.cityName,
-      h.address.countryCode,
-    ]
-      .filter(Boolean)
-      .join(", "),
-    // Amadeus doesn't provide accessibility details — mark as OFFICIAL (baseline)
-    facts: [
-      { fieldName: "notes", value: "Amadeus baseline — accessibility details unverified." },
-    ],
-  }));
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
   console.log("🌱 WikiTraveler seed starting…");
 
-  const token = await getAmadeusToken();
-  const properties = token
-    ? await fetchAmadeusHotels(token)
-    : SAMPLE_PROPERTIES;
-
   const NODE_ID = process.env.NODE_ID ?? "seed-script";
 
-  for (const prop of properties) {
+  for (const prop of SAMPLE_PROPERTIES) {
     const property = await prisma.property.upsert({
-      where: { amadeusId: prop.amadeusId },
+      where: { canonicalId: prop.canonicalId },
       update: { name: prop.name, location: prop.location },
-      create: { amadeusId: prop.amadeusId, name: prop.name, location: prop.location },
+      create: { canonicalId: prop.canonicalId, name: prop.name, location: prop.location },
     });
 
     for (const fact of prop.facts) {
@@ -158,6 +90,7 @@ async function main() {
           fieldName: fact.fieldName,
           value: fact.value,
           tier: "OFFICIAL",
+          sourceType: "WIKIDATA",
           sourceNodeId: NODE_ID,
         },
       });
@@ -165,7 +98,7 @@ async function main() {
     console.log(`  ✅ ${property.name} (${prop.facts.length} facts)`);
   }
 
-  console.log(`\n✨ Seeded ${properties.length} properties.`);
+  console.log(`\n✨ Seeded ${SAMPLE_PROPERTIES.length} properties.`);
   await prisma.$disconnect();
 }
 

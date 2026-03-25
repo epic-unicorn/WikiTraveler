@@ -180,7 +180,7 @@ export async function syncPropertyFromWheeelmap(
  * Looks up a property on Wheelmap by name + approximate lat/lng bounding box
  * and returns the best-matching node ID, or null if none found.
  *
- * Useful for the one-time linking step (associating an amadeusId property with
+ * Useful for the one-time linking step (associating a canonicalId property with
  * a wheelmapId when no manual mapping exists yet).
  *
  * bbox is [lon_min, lat_min, lon_max, lat_max] in decimal degrees.

@@ -115,7 +115,7 @@ Framework-agnostic TypeScript library used by every other package. Never has run
 | Symbol | Description |
 |--------|-------------|
 | `Tier` enum | `OFFICIAL \| AI_GUESS \| VERIFIED \| CONFIRMED` |
-| `SourceType` enum | `AMADEUS \| WHEELMAP \| WHEEL_THE_WORLD \| AUDITOR` |
+| `SourceType` enum | `WIKIDATA \| WHEELMAP \| WHEEL_THE_WORLD \| AUDITOR` |
 | `TIER_RANK` | Numeric rank map for comparison |
 | `TIER_LABEL` | Human-readable label map |
 | `TIER_COLOR` | CSS hex colour map |
@@ -180,7 +180,7 @@ Isolated TypeScript package that encapsulates all OpenAI interactions. The node 
 ```
 Property
   id          cuid  PK
-  amadeusId   string UNIQUE
+  canonicalId string UNIQUE   ← Wikidata Q-identifier (e.g. Q610297)
   name        string
   location    string
   osmId       string? UNIQUE   ← linked OpenStreetMap node ID
@@ -192,7 +192,7 @@ AccessibilityFact
   fieldName     string
   value         string
   tier          Tier enum      ← OFFICIAL | AI_GUESS | VERIFIED | CONFIRMED
-  sourceType    SourceType     ← AMADEUS | WHEELMAP | WHEEL_THE_WORLD | AUDITOR
+  sourceType    SourceType     ← WIKIDATA | WHEELMAP | WHEEL_THE_WORLD | AUDITOR
   sourceNodeId  string          ← which node originated this fact
   submittedBy   string?         ← human auditor identifier (used for CONFIRMED promotion)
   signatureHash string?

@@ -19,7 +19,7 @@ import type { AccessibilityFact } from "@wikitraveler/core";
 
 type PushProperty = {
   id: string;
-  amadeusId: string;
+  canonicalId: string;
   name: string;
   location: string;
   osmId?: string | null;

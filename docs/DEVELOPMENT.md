@@ -331,8 +331,6 @@ packages/ai-agent/dist/
 | `NODE_PRIVATE_KEY` | No | — | RSA private key PEM for signing outgoing inbox pushes |
 | `NODE_PUBLIC_KEY` | No | — | Corresponding RSA public key PEM, served at `/api/nodeinfo` |
 | `WHEELMAP_API_KEY` | No | — | Wheelmap API key for OSM wheelchair data sync |
-| `AMADEUS_CLIENT_ID` | No | — | Seed script: live Amadeus hotel data |
-| `AMADEUS_CLIENT_SECRET` | No | — | Seed script: live Amadeus hotel data |
 
 **Dev commands:**
 
@@ -501,8 +499,6 @@ Full reference for all variables used across the monorepo:
 | `GOSSIP_INTERVAL_HOURS` | node | No | Hours between gossip cron runs |
 | `CRON_SECRET` | node | No | Bearer token for cron endpoints |
 | `OPENAI_API_KEY` | node | No | GPT-4o API key; enables AI_GUESS tier features |
-| `AMADEUS_CLIENT_ID` | seed script | No | Amadeus API client ID |
-| `AMADEUS_CLIENT_SECRET` | seed script | No | Amadeus API client secret |
 | `NEXT_PUBLIC_NODE_API_URL` | field-kit | Yes | Node URL for the Field Kit to connect to |
 
 ---
@@ -513,9 +509,6 @@ Full reference for all variables used across the monorepo:
 pnpm db:seed
 ```
 
-The seed script (`scripts/seed.ts`) does the following:
+The seed script (`scripts/seed.ts`) seeds three sample properties identified by their Wikidata Q-identifier (`canonicalId`): **Grand Hotel Vienna** (Q610297), **Hotel Arts Barcelona** (Q5897396), and **Pulitzer Amsterdam** (Q17371014). Each is seeded with `OFFICIAL`-tier accessibility facts sourced from Wikidata.
 
-1. If `AMADEUS_CLIENT_ID` and `AMADEUS_CLIENT_SECRET` are set, it fetches live hotel listings from the Amadeus API and seeds them as `OFFICIAL` facts.
-2. Otherwise it falls back to three static properties: **Hotel Sacher Wien** (Vienna), **Hotel Arts Barcelona**, and **Conservatorium Hotel** (Amsterdam).
-
-Re-running the seed is safe — it uses `upsert` on `amadeusId`.
+Re-running the seed is safe — it uses `upsert` on `canonicalId`.

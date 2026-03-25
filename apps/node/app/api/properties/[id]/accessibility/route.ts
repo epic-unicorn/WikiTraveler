@@ -169,7 +169,7 @@ export async function POST(
     [
       {
         id: property.id,
-        amadeusId: property.amadeusId,
+        canonicalId: property.canonicalId,
         name: property.name,
         location: property.location,
         osmId: property.osmId,

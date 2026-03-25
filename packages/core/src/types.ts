@@ -4,7 +4,7 @@
 
 /** The four trust tiers, ordered from lowest to highest reliability. */
 export enum Tier {
-  OFFICIAL = "OFFICIAL",     // Sourced from Amadeus — unreliable baseline
+  OFFICIAL = "OFFICIAL",     // Sourced from an external directory (e.g. Wikidata) — unreliable baseline
   AI_GUESS = "AI_GUESS",     // Machine-estimated from photos (deferred)
   VERIFIED = "VERIFIED",     // Verified by a single on-site auditor
   CONFIRMED = "CONFIRMED",   // Independently verified by ≥3 distinct auditors
@@ -16,7 +16,7 @@ export enum Tier {
 
 /** Which external system or pipeline originated a fact. */
 export enum SourceType {
-  AMADEUS = "AMADEUS",                 // Official GDS feed
+  WIKIDATA = "WIKIDATA",               // Wikidata Q-identifier (open knowledge graph)
   WHEELMAP = "WHEELMAP",               // Wheelmap / OpenStreetMap community data
   WHEEL_THE_WORLD = "WHEEL_THE_WORLD", // Wheel the World vetted data
   AUDITOR = "AUDITOR",                 // WikiTraveler field audit
@@ -65,7 +65,7 @@ export interface AccessibilityFact {
 
 export interface Property {
   id: string;
-  amadeusId: string;
+  canonicalId: string;
   name: string;
   location: string;
   osmId: string | null;
@@ -98,7 +98,7 @@ export interface GossipDelta {
   since: string;     // ISO-8601 — snapshot covers changes after this timestamp
   until: string;     // ISO-8601
   /** Properties referenced by the facts — allows new nodes to upsert them. */
-  properties: Pick<Property, "id" | "amadeusId" | "name" | "location" | "osmId" | "wheelmapId">[];
+  properties: Pick<Property, "id" | "canonicalId" | "name" | "location" | "osmId" | "wheelmapId">[];
   facts: AccessibilityFact[];
 }
 
