@@ -1,200 +1,138 @@
-# Apps — Testing Full Flows
+# Running the Apps
 
-This directory contains every runnable application in the WikiTraveler monorepo. Each section below describes a **self-contained test scenario** you can run locally without any external services (unless noted).
-
----
-
-## Prerequisites
-
-Complete the [first-time setup](../docs/DEVELOPMENT.md) (install deps, run migrations, seed the database) before running any of the flows below.
+All flows assume you've completed setup (see root [README](../README.md)):
 
 ```bash
-pnpm install
-pnpm exec prisma migrate dev
+# Postgres
+docker compose -f docker/docker-compose.dev.yml up postgres -d
+
+# Migrate + seed
+pnpm db:migrate
 pnpm db:seed
 ```
 
-All flows assume the node is running on **http://localhost:3000** unless stated otherwise.
+`.env` must have `DATABASE_URL`, `JWT_SECRET`, and `COMMUNITY_PASSPHRASE` set (copy `.env.example` to get started).
 
 ---
 
 ## Flow 1 — Agency SDK Widget
 
-**What it tests:** A travel agency embedding the WikiTraveler widget via `<script>` tag with no framework.
-
-**Apps involved:** `apps/agency-demo`, `apps/node`
-
-### Steps
+**What it tests:** A travel agency embedding the WikiTraveler widget via `<script>` tag.
 
 ```bash
-# Terminal 1 — Start the node
+# Terminal 1 — node
 pnpm dev
-# → http://localhost:3000
 
-# Terminal 2 — Build the SDK (required for the UMD bundle)
-pnpm --filter @wikitraveler/sdk build
-
-# Terminal 3 — Serve the demo
-npx serve apps/agency-demo
-# → http://localhost:3001  (or whichever port `serve` picks)
+# Terminal 2 — agency demo (builds SDK, then serves from repo root)
+pnpm dev:agency-demo
+# → http://localhost:4000/apps/agency-demo/
 ```
 
-1. Open the agency demo in your browser.
-2. Set the **Node URL** field to `http://localhost:3000` and enter a property ID from your seed data (e.g. `demo-grand-hotel-vienna`).
-3. Click **Load** — the WikiTraveler accessibility widget renders with facts pulled from the node.
+1. Open `http://localhost:4000/apps/agency-demo/`.
+2. The demo auto-connects to `http://localhost:3000` and populates the property dropdown.
+3. Select a property — the widget renders with tier badges and live data.
 
-**What to verify:**
-- Widget renders with tier badges (Official / AI Estimate / Verified / Confirmed).
-- Source badges show the data origin (Amadeus, Wheelmap ♿, Field Audit, etc).
-- Empty-state message appears for an unknown property ID.
+**Verify:** Widget shows facts with `Official` / `AI Guess` / `Verified` / `Confirmed` badges. Changing the dropdown updates the widget and raw JSON output.
 
 ---
 
-## Flow 2 — Field Auditor (Field Kit)
+---
 
-**What it tests:** A field auditor scanning a property, submitting facts, and the node upgrading fact tiers.
+## Flow 2 — Field Auditor
 
-**Apps involved:** `apps/field-kit`, `apps/node`
-
-### Steps
+**What it tests:** A field auditor submitting accessibility facts from the mobile app.
 
 ```bash
-# Terminal 1 — Start the node
+# Terminal 1 — node
 pnpm dev
-# → http://localhost:3000
 
-# Terminal 2 — Start the Field Kit
-cd apps/field-kit
-cp ../../.env.example .env.local
-# Edit .env.local: NEXT_PUBLIC_NODE_API_URL=http://localhost:3000
-pnpm dev -- -p 3001
+# Terminal 2 — field kit
+pnpm dev:field-kit
 # → http://localhost:3001
 ```
 
-1. In the Field Kit, enter the **community passphrase** (set via `COMMUNITY_PASSPHRASE` in `.env`) to get an auditor token.
-2. Select a property and submit an accessibility fact (e.g. `entrance_step_free = true`).
-3. Open the node dashboard at **http://localhost:3000** and find the property — the fact should appear with tier `VERIFIED`.
-4. Submit the same fact from a second auditor session (or a different browser/incognito window) — the tier should upgrade to `CONFIRMED`.
+1. Open `http://localhost:3001` (or use Chrome DevTools device emulation).
+2. Search for a property (e.g. "Vienna").
+3. Tap a result — you'll be prompted for the community passphrase (`COMMUNITY_PASSPHRASE` from `.env`).
+4. Fill in accessibility fields and submit.
+5. Open `http://localhost:3000` — the fact appears with tier `VERIFIED`.
 
-**What to verify:**
-- JWT token is issued after correct passphrase.
-- Submitted facts appear immediately in the node dashboard.
-- Tier upgrades from `VERIFIED` → `CONFIRMED` after independent corroboration.
-- Incorrect passphrase returns `401`.
+**Verify:** Correct passphrase issues a JWT; wrong passphrase returns `401`. Submitted facts appear on the node dashboard immediately. You can also create a new property from the search screen if it doesn't exist yet.
+
+---
 
 ---
 
 ## Flow 3 — Lens Extension on a Live Booking Site
 
-**What it tests:** The Chrome extension detecting a property on a real third-party booking site and overlaying accessibility data.
-
-**Apps involved:** `apps/lens`, `apps/node`
-
-### Steps
+**What it tests:** The Chrome extension overlaying data on a real booking site.
 
 ```bash
-# Terminal 1 — Start the node
 pnpm dev
-# → http://localhost:3000
 ```
 
-1. Open Chrome → `chrome://extensions` → enable **Developer mode**.
-2. Click **Load unpacked** → select `apps/lens/`.
-3. Click the Lens toolbar icon → **Options** → set Node URL to `http://localhost:3000`.
-4. Navigate to a Booking.com or Expedia hotel page for a property ID that exists in your node.
+1. Chrome → `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select `apps/lens/`.
+2. Click the Lens icon → **Options** → set Node URL to `http://localhost:3000`.
+3. Navigate to a Booking.com or Expedia hotel page for a property in your node.
 
-The WikiTraveler overlay panel slides in automatically if the property is recognised.
-
-**What to verify:**
-- Overlay appears with field name, value, tier badge, and source badge.
-- "No accessibility data" message shown for unrecognised properties.
-- Panel can be dismissed and re-opened via the toolbar icon.
+**Verify:** Overlay panel appears with field name, value, and tier badge. Unknown properties show "No accessibility data".
 
 ---
 
-## Flow 4 — Lens Extension on the Lens Demo (No SDK Integration)
+---
 
-**What it tests:** The Lens extension detecting a property on an agency site that has **no WikiTraveler SDK** — only a `<meta name="wt-property-id">` tag. This is the primary test scenario for the zero-friction integration path.
+## Flow 4 — Lens Extension on the Lens Demo
 
-**Apps involved:** `apps/lens`, `apps/lens-demo`, `apps/node`
-
-### Steps
+**What it tests:** Lens detecting a property via a `<meta name="wt-property-id">` tag — no SDK required.
 
 ```bash
-# Terminal 1 — Start the node
+# Terminal 1 — node
 pnpm dev
-# → http://localhost:3000
 
-# Terminal 2 — Serve the "StayWell" fake booking site
-npx serve apps/lens-demo
-# → http://localhost:3001 (or next available port)
+# Terminal 2 — lens demo
+npx serve apps/lens-demo -p 3002
+# → http://localhost:3002
 ```
 
-1. Make sure the Lens extension is loaded (see Flow 3, steps 1–3).
-2. In Lens Options, confirm Node URL is `http://localhost:3000`.
-3. Open the StayWell demo: **http://localhost:3001**.
-4. Click **View rooms →** on any hotel (e.g. "Grand Hotel Vienna").
-5. The page navigates to `?hotel=demo-grand-hotel-vienna` and sets `<meta name="wt-property-id" content="demo-grand-hotel-vienna">`.
-6. The Lens overlay appears with accessibility facts from the node.
+1. Load the Lens extension (Flow 3, steps 1–2).
+2. Open `http://localhost:3002` and click through to a hotel page.
+3. The Lens overlay fires automatically from the meta tag.
 
-**What to verify:**
-- Overlay fires without any `<script>` tag, SDK import, or API call in the demo HTML.
-- URL updates to `?hotel=<id>` and browser back button works correctly.
-- Overlay shows tier badge + source badge per fact row.
-- Pasting a direct hotel URL (e.g. `http://localhost:3001?hotel=demo-hotel-sacher-wien`) also triggers the overlay on load.
+**Verify:** Overlay appears without any `<script>` tag on the page.
 
 ---
 
-## Flow 5 — AI Scan (Automated Fact Extraction)
+---
 
-**What it tests:** The cron job trigger that calls GPT-4o to fill in missing accessibility fields.
+## Flow 5 — AI Scan
 
-**Apps involved:** `apps/node`
+**What it tests:** Cron-triggered GPT-4o gap-filling for missing accessibility fields.
 
-### Prerequisites
-
-Set `OPENAI_API_KEY` in `.env`.
-
-### Steps
+**Requires:** `OPENAI_API_KEY` in `.env`.
 
 ```bash
-# Node must be running
 pnpm dev
-# → http://localhost:3000
 
-# Trigger the AI scan cron endpoint manually
-curl -X POST http://localhost:3000/api/cron/ai-scan \
-  -H "Authorization: Bearer <CRON_SECRET>"
+curl http://localhost:3000/api/cron/ai-scan
 ```
 
-1. Check the node dashboard — properties that had zero AI-tier facts should now show `AI_GUESS` facts.
-2. Trigger again — already-scanned properties are skipped (idempotent).
-
-**What to verify:**
-- New `AI_GUESS` facts appear on the dashboard.
-- A field auditor can later override an `AI_GUESS` fact by submitting from the Field Kit (tier upgrades to `VERIFIED`).
-- Missing `OPENAI_API_KEY` returns `503` gracefully.
+**Verify:** Properties with gaps show new `AI_GUESS` facts. A subsequent field audit overrides them (tier upgrades to `VERIFIED`). Missing API key returns `503`.
 
 ---
 
-## Flow 6 — Peer Gossip & ActivityPub Push
+---
 
-**What it tests:** Two nodes exchanging accessibility facts via signed HTTP inbox pushes.
+## Flow 6 — Peer Gossip
 
-**Apps involved:** Two instances of `apps/node`
-
-### Steps
+**What it tests:** Two nodes exchanging facts via signed inbox pushes.
 
 ```bash
-# Terminal 1 — Node A (primary)
+# Terminal 1 — Node A
 pnpm dev
-# → http://localhost:3000
 
-# Terminal 2 — Node B (second node)
-cd apps/node
+# Terminal 2 — Node B (needs its own DATABASE_URL)
 PORT=3001 DATABASE_URL=<node-b-db> NODE_ID=node-b NODE_URL=http://localhost:3001 \
-  pnpm dev -- -p 3001
-# → http://localhost:3001
+  pnpm --filter @wikitraveler/node dev
 
 # Register Node B as a peer of Node A
 curl -X POST http://localhost:3000/api/nodes \
@@ -202,27 +140,21 @@ curl -X POST http://localhost:3000/api/nodes \
   -d '{"url":"http://localhost:3001"}'
 ```
 
-1. Use the Field Kit to submit a `VERIFIED` fact to **Node A**.
-2. Node A automatically pushes the signed fact batch to Node B's inbox (`POST /api/inbox`).
-3. Open the Node B dashboard at **http://localhost:3001** — the fact should appear.
+1. Submit a fact to Node A via the Field Kit.
+2. Node A pushes the signed fact to Node B's inbox.
+3. Open `http://localhost:3001` — the fact appears.
 
-**What to verify:**
-- WebFinger endpoint: `GET http://localhost:3000/.well-known/webfinger` returns `nodeId` + public key + inbox URL.
-- Node B inbox rejects a replay with a tampered signature (`401`).
-- Facts received via push appear with the correct tier and source on Node B's dashboard.
+**Verify:** `GET http://localhost:3000/.well-known/webfinger` returns node identity + public key. Tampered signatures are rejected with `401`.
 
 ---
 
 ## Quick Reference
 
-| Flow | Key scenario | Ports used |
-|------|-------------|------------|
-| 1 — Agency Widget | SDK `<script>` embed | :3000 (node), :3001 (demo) |
-| 2 — Field Auditor | Submit + corroborate facts | :3000 (node), :3001 (field-kit) |
-| 3 — Lens on Booking.com | Real booking site overlay | :3000 (node) |
-| 4 — Lens on Lens Demo | Zero-SDK meta-tag overlay | :3000 (node), :3001 (lens-demo) |
-| 5 — AI Scan | Cron-triggered GPT-4o fill | :3000 (node) |
-| 6 — Peer Gossip | Two-node signed push | :3000 (node A), :3001 (node B) |
-
-For environment variable reference and Docker deployment, see [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
-For full architecture context, see [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
+| Flow | Ports |
+|------|-------|
+| 1 — Agency Widget | :3000 (node), :4000 (demo) |
+| 2 — Field Auditor | :3000 (node), :3001 (field-kit) |
+| 3 — Lens on Booking.com | :3000 (node) |
+| 4 — Lens on Lens Demo | :3000 (node), :3002 (lens-demo) |
+| 5 — AI Scan | :3000 (node) |
+| 6 — Peer Gossip | :3000 (node A), :3001 (node B) |

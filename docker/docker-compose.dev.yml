@@ -10,6 +10,8 @@ services:
       POSTGRES_USER: wikitraveler
       POSTGRES_PASSWORD: wikitraveler
       POSTGRES_DB: wikitraveler
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

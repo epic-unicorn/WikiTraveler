@@ -107,9 +107,15 @@
       </p>
       <div class="node-config">
         <input id="node-url-input" type="url" placeholder="http://localhost:3000" />
-        <button onclick="applyNodeUrl()">Apply</button>
+        <button onclick="applyNodeUrl()">Connect</button>
       </div>
-      <p id="node-status" style="font-size:12px;color:#9ca3af"></p>
+      <div style="margin-top:8px">
+        <select id="property-select"
+          style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff">
+          <option value="">— click Connect to load properties —</option>
+        </select>
+      </div>
+      <p id="node-status" style="font-size:12px;color:#9ca3af;margin-top:6px"></p>
     </section>
 
     <!-- Pattern 1: Drop-in widget -->
@@ -169,35 +175,71 @@
 </main>
 
 <!--
-  WikiTraveler SDK loaded from local dist/ for demo.
-  In production: <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"></script>
+  Fallback shim — MUST be defined before the SDK script tag so the onerror
+  handler can reference it (onerror fires before the next inline script runs).
 -->
-<script src="../../packages/sdk/dist/wikitraveler.umd.js" onerror="loadFallbackSdk()"></script>
 <script>
-  // ── Fallback: if the UMD bundle isn't built yet, provide a minimal shim ──
   function loadFallbackSdk() {
     window.WikiTraveler = {
       mountWidget(selector) {
         const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
         if (!el) return;
-        el.innerHTML = '<p style="color:#fbbf24;font-size:13px">⚠️ SDK not built yet — run <code>pnpm build</code> in packages/sdk/ first.</p>';
+        el.innerHTML = '<p style="color:#fbbf24;font-size:13px">⚠️ SDK not built — run <code>pnpm --filter @wikitraveler/sdk build</code> first, then reload.</p>';
       },
       WikiTraveler: class {
         constructor(cfg) { this._cfg = cfg; }
-        async getAccessibility(id) { throw new Error('SDK not built'); }
+        async getAccessibility(id) { throw new Error('SDK not built — run pnpm --filter @wikitraveler/sdk build'); }
       }
     };
-    // Re-run auto-mount with shim
-    document.querySelectorAll('[data-wt-widget]').forEach(el => WikiTraveler.mountWidget(el));
+    document.querySelectorAll('[data-wt-widget]').forEach(el => window.WikiTraveler.mountWidget(el));
   }
+</script>
 
-  const PROPERTY_ID = "demo-grand-hotel-vienna";
-  let currentNodeUrl = "http://localhost:3000";
+<!--
+  WikiTraveler SDK loaded from local dist/ for demo.
+  In production: <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"></script>
+-->
+<script src="/packages/sdk/dist/wikitraveler.umd.js" onerror="loadFallbackSdk()"></script>
+<script>
 
-  // Read ?node= query param on load
-  const urlParam = new URLSearchParams(location.search).get("node");
-  if (urlParam) currentNodeUrl = urlParam;
+  // Read ?node= and ?id= query params on load
+  const urlParams = new URLSearchParams(location.search);
+  let PROPERTY_ID = urlParams.get("id") || "";
+  let currentNodeUrl = (urlParams.get("node") || "http://localhost:3000");
   document.getElementById("node-url-input").value = currentNodeUrl;
+
+  async function loadProperties(nodeUrl) {
+    const select = document.getElementById("property-select");
+    select.innerHTML = '<option value="">Loading…</option>';
+    try {
+      const res = await fetch(`${nodeUrl}/api/properties`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const props = data.properties ?? [];
+      if (props.length === 0) {
+        select.innerHTML = '<option value="">No properties found — run pnpm db:seed</option>';
+        return;
+      }
+      select.innerHTML = props.map(p =>
+        `<option value="${p.id}">${p.name} — ${p.location}</option>`
+      ).join("");
+      // Pre-select ?id= param if present, otherwise first result
+      if (PROPERTY_ID && props.find(p => p.id === PROPERTY_ID)) {
+        select.value = PROPERTY_ID;
+      } else {
+        PROPERTY_ID = props[0].id;
+        select.value = PROPERTY_ID;
+      }
+      select.onchange = () => {
+        PROPERTY_ID = select.value;
+        updateSnippets();
+        mountDemoWidget();
+        runRawFetch();
+      };
+    } catch (e) {
+      select.innerHTML = `<option value="">Could not reach node: ${e.message}</option>`;
+    }
+  }
 
   // ── Pattern 1: Auto-mount widget ──
   // The [data-wt-widget] attribute triggers WikiTraveler.autoMount() or we call mountWidget manually.
@@ -228,10 +270,12 @@
     const val = document.getElementById("node-url-input").value.trim().replace(/\/$/, "");
     if (!val) return;
     currentNodeUrl = val;
-    document.getElementById("node-status").textContent = `Applied: ${val}`;
-    updateSnippets();
-    mountDemoWidget();
-    runRawFetch();
+    document.getElementById("node-status").textContent = `Connected to ${val}`;
+    loadProperties(val).then(() => {
+      updateSnippets();
+      mountDemoWidget();
+      runRawFetch();
+    });
   }
 
   // ── Snippet builders ──
@@ -314,7 +358,12 @@ mountWidget({
   // ── Boot ──
   document.addEventListener("DOMContentLoaded", () => {
     updateSnippets();
-    mountDemoWidget();
+    // Auto-connect on load so the dropdown is populated immediately
+    loadProperties(currentNodeUrl).then(() => {
+      updateSnippets();
+      mountDemoWidget();
+      if (PROPERTY_ID) runRawFetch();
+    });
   });
 </script>
 </body>

@@ -105,53 +105,39 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 
 - [Node.js](https://nodejs.org/) v20+
 - [pnpm](https://pnpm.io/) v9+ — `npm install -g pnpm`
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (optional)
-- PostgreSQL 16 (or use the Docker Compose setup below)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — for the Postgres container
 
-### 1. Install dependencies
+### 1. Install & configure
 
 ```bash
 git clone https://github.com/your-org/wikitraveler.git
 cd wikitraveler
 pnpm install
+cp .env.example .env        # edit DATABASE_URL, JWT_SECRET, COMMUNITY_PASSPHRASE
 ```
 
-### 2. Configure environment
+### 2. Start Postgres
 
 ```bash
-cp .env.example .env
-# Edit .env — at minimum set DATABASE_URL, JWT_SECRET, COMMUNITY_PASSPHRASE
+docker compose -f docker/docker-compose.dev.yml up postgres -d
 ```
 
-To enable signed peer-to-peer pushes, generate an RSA keypair for your node:
+### 3. Migrate & seed
 
 ```bash
-openssl genrsa -out node_private.pem 2048
-openssl rsa -in node_private.pem -pubout -out node_public.pem
-```
-
-Set `NODE_PRIVATE_KEY` and `NODE_PUBLIC_KEY` from the PEM files (use `\n`-escaped single-line format for environment variables). Nodes without a keypair still work — the gossip cron handles propagation as a fallback.
-
-### 3. Set up the database
-
-```bash
-pnpm exec prisma migrate dev --name init
+pnpm db:migrate
 pnpm db:seed
 ```
 
-### 4. Start the node
+### 4. Run the apps
 
-```bash
-pnpm dev              # starts apps/node on http://localhost:3000
-```
+| Terminal | Command | URL |
+|----------|---------|-----|
+| 1 | `pnpm dev` | http://localhost:3000 — node dashboard + API |
+| 2 | `pnpm dev:field-kit` | http://localhost:3001 — mobile audit app |
+| 3 | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
 
-Visit `http://localhost:3000` for the dashboard or `http://localhost:3000/api/health` to verify.
-
-### 5. Docker (fastest path — no local Postgres needed)
-
-```bash
-docker compose -f docker/docker-compose.yml up --build
-```
+See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
 
 ---
 
@@ -168,39 +154,25 @@ wikitraveler/
 │   ├── core/            # Shared types & gossip merge logic
 │   ├── sdk/             # Browser SDK (CJS + ESM + UMD)
 │   └── ai-agent/        # GPT-4o vision + gap-fill engine
-├── prisma/
-│   └── schema.prisma    # Database schema (PostgreSQL)
-├── docker/
-│   ├── Dockerfile
-│   ├── docker-compose.yml              # Single node
-│   └── docker-compose.gossip-demo.yml # Two-node gossip demo
-├── scripts/
-│   └── seed.ts          # Database seeder
-├── .env.example         # Environment variable reference
-└── vercel.json          # Vercel deployment config
+├── prisma/schema.prisma # Database schema (PostgreSQL)
+├── docker/              # Dockerfiles + compose files
+├── scripts/             # seed.ts, mock-node.ts
+└── .env.example         # Environment variable reference
 ```
 
 ---
 
-## Documentation
+## Scripts
 
-| Document                                        | Description                                           |
-|-------------------------------------------------|-------------------------------------------------------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)   | System design, data flow, AI agent, gossip protocol, API surface |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)     | Local setup, per-package build and config guide (incl. AI agent) |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)       | Docker, Vercel, production hardening, OpenAI key setup           |
-
----
-
-## Root Scripts
-
-| Script              | Description                              |
-|---------------------|------------------------------------------|
-| `pnpm dev`          | Start `apps/node` in dev mode            |
-| `pnpm build`        | Build all packages and apps              |
-| `pnpm db:generate`  | Regenerate Prisma client                 |
-| `pnpm db:migrate`   | Run Prisma migrations                    |
-| `pnpm db:seed`      | Seed database with sample properties     |
+| Script | Description |
+|--------|-------------|
+| `pnpm dev` | Start node on :3000 |
+| `pnpm dev:field-kit` | Start field-kit on :3001 |
+| `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000 |
+| `pnpm mock-node` | In-memory mock node (no Postgres needed) |
+| `pnpm build` | Build all packages and apps |
+| `pnpm db:migrate` | Run Prisma migrations |
+| `pnpm db:seed` | Seed database with sample properties |
 
 ---
 
