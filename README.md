@@ -22,15 +22,15 @@ The apps aren't lying. They're just passing through whatever the hotel self-repo
 
 The problem isn't a bug in any single app. It's structural:
 
-| Root cause | What it means in practice |
-|------------|---------------------------|
-| **Hotels self-report with no verification** | "Accessible bathroom" can mean a grab bar was installed in 1998. There is no audit. |
-| **Binary flags, no measurements** | `accessibleParking: true` tells you nothing about the distance to the entrance or the gradient of the path. |
-| **Stale records** | Hotels update GDS records infrequently. A renovation that blocked the ramp three years ago may still show as accessible. |
-| **Commercial incentive to over-claim** | Ticking more amenity boxes = appearing in more searches. There is no penalty for inaccuracy. |
-| **No photo evidence** | Every accessibility claim is a text assertion. There is no image to verify it against. |
-| **No correction channel** | A traveller who discovers the hotel lied has no way to flag it inside the booking system. The bad data persists indefinitely. |
-| **Locked data** | The underlying GDS records are proprietary and paywalled. Researchers, disability advocates, and independent developers cannot audit or improve them. |
+| Root cause                                  | What it means in practice                                                                                                                             |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hotels self-report with no verification** | "Accessible bathroom" can mean a grab bar was installed in 1998. There is no audit.                                                                   |
+| **Binary flags, no measurements**           | `accessibleParking: true` tells you nothing about the distance to the entrance or the gradient of the path.                                           |
+| **Stale records**                           | Hotels update GDS records infrequently. A renovation that blocked the ramp three years ago may still show as accessible.                              |
+| **Commercial incentive to over-claim**      | Ticking more amenity boxes = appearing in more searches. There is no penalty for inaccuracy.                                                          |
+| **No photo evidence**                       | Every accessibility claim is a text assertion. There is no image to verify it against.                                                                |
+| **No correction channel**                   | A traveller who discovers the hotel lied has no way to flag it inside the booking system. The bad data persists indefinitely.                         |
+| **Locked data**                             | The underlying GDS records are proprietary and paywalled. Researchers, disability advocates, and independent developers cannot audit or improve them. |
 
 The result: travellers with disabilities, specific medical needs, or dependents who rely on precise specs are forced to book on faith — and frequently arrive to find the reality doesn't match the listing.
 
@@ -65,12 +65,12 @@ All of this runs on infrastructure you own and deploy. No data is locked behind 
 
 ## Reliability Stack
 
-| Tier | Source    | Label        | Meaning                                      |
-|------|-----------|--------------|----------------------------------------------|
-| 0    | Wikidata / OSM | `OFFICIAL`   | Community baseline from open sources. Foundational but often incomplete. |
-| 1    | AI Agent  | `AI_GUESS`   | Machine-estimated spec to guide auditors.    |
-| 2    | Community | `VERIFIED`   | Ground truth. Verified by a fellow traveler. |
-| 3    | Mesh      | `CONFIRMED`  | Independently verified by ≥3 distinct auditors. |
+| Tier | Source         | Label       | Meaning                                                                  |
+| ---- | -------------- | ----------- | ------------------------------------------------------------------------ |
+| 0    | Wikidata / OSM | `OFFICIAL`  | Community baseline from open sources. Foundational but often incomplete. |
+| 1    | AI Agent       | `AI_GUESS`  | Machine-estimated spec to guide auditors.                                |
+| 2    | Community      | `VERIFIED`  | Ground truth. Verified by a fellow traveler.                             |
+| 3    | Mesh           | `CONFIRMED` | Independently verified by ≥3 distinct auditors.                          |
 
 Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED` for the same field.
 
@@ -78,23 +78,23 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 
 ## Toolkit
 
-| Component       | Path                | Description                                                      |
-|-----------------|---------------------|------------------------------------------------------------------|
-| **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker.             |
-| **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits.               |
-| **Lens**        | `apps/lens`         | Chrome MV3 extension. Overlays data on Booking.com and Expedia.  |
-| **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.         |
-| **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.                |
-| **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).               |
-| **AI Agent**    | `packages/ai-agent` | GPT-4o vision analysis and text-based gap-filling engine.        |
+| Component       | Path                | Description                                                     |
+| --------------- | ------------------- | --------------------------------------------------------------- |
+| **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker.            |
+| **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits.              |
+| **Lens**        | `apps/lens`         | Chrome MV3 extension. Overlays data on Booking.com and Expedia. |
+| **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.        |
+| **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.               |
+| **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).              |
+| **AI Agent**    | `packages/ai-agent` | GPT-4o vision analysis and text-based gap-filling engine.       |
 
 **Key node endpoints:**
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /.well-known/webfinger` | Node discovery — returns identity, public key, and inbox URL |
-| `GET /api/nodeinfo` | Node identity and RSA public key (for peer key caching) |
-| `POST /api/inbox` | Real-time signed fact push from peer nodes |
+| Endpoint                                  | Description                                                       |
+| ----------------------------------------- | ----------------------------------------------------------------- |
+| `GET /.well-known/webfinger`              | Node discovery — returns identity, public key, and inbox URL      |
+| `GET /api/nodeinfo`                       | Node identity and RSA public key (for peer key caching)           |
+| `POST /api/inbox`                         | Real-time signed fact push from peer nodes                        |
 | `POST /api/properties/[id]/accessibility` | Submit an audit; triggers immediate peer push + background vision |
 
 ---
@@ -131,11 +131,11 @@ pnpm db:seed
 
 ### 4. Run the apps
 
-| Terminal | Command | URL |
-|----------|---------|-----|
-| 1 | `pnpm dev` | http://localhost:3000 — node dashboard + API |
-| 2 | `pnpm dev:field-kit` | http://localhost:3001 — mobile audit app |
-| 3 | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
+| Terminal | Command                | URL                                                |
+| -------- | ---------------------- | -------------------------------------------------- |
+| 1        | `pnpm dev`             | http://localhost:3000 — node dashboard + API       |
+| 2        | `pnpm dev:field-kit`   | http://localhost:3001 — mobile audit app           |
+| 3        | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
 
 See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
 
@@ -164,17 +164,57 @@ wikitraveler/
 
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `pnpm dev` | Start node on :3000 |
-| `pnpm dev:field-kit` | Start field-kit on :3001 |
-| `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000 |
-| `pnpm mock-node` | In-memory mock node (no Postgres needed) |
-| `pnpm build` | Build all packages and apps |
-| `pnpm db:migrate` | Run Prisma migrations |
-| `pnpm db:seed` | Seed database with sample properties |
+| Script                 | Description                              |
+| ---------------------- | ---------------------------------------- |
+| `pnpm dev`             | Start node on :3000                      |
+| `pnpm dev:field-kit`   | Start field-kit on :3001                 |
+| `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
+| `pnpm mock-node`       | In-memory mock node (no Postgres needed) |
+| `pnpm build`           | Build all packages and apps              |
+| `pnpm db:migrate`      | Run Prisma migrations                    |
+| `pnpm db:seed`         | Seed database with sample properties     |
 
 ---
+
+## Backlog
+
+### 1. The "Ingestion Pipeline" (The Plumbing)
+
+Getting data from OSM into your local node database.
+
+| User Story | Task |
+| --- | --- |
+| **Regional Overpass Manager** | Build a service that allows a Node Operator to define their "Service Area" (GeoJSON Polygon). The service should automatically query the Overpass API for all nodes/ways with wheelchair, ramp, or level tags within that boundary. |
+| **Schema Mapping Engine** | Create a translation script that maps OSM's "Key-Value" pairs to your internal WikiTraveler JSON structure (e.g., `wheelchair: yes` → `status: accessible`). |
+| **The "Source of Truth" Flag** | Add a `data_source` metadata field to every record. This must distinguish between `IMPORTED_OSM` (low trust) and `NODE_ORIGINAL` (high trust) so the system knows what needs verification later. |
+
+### 2. The "De-Duplication" Logic (The Cleaning)
+
+Handle multiple nodes importing the same border-town data.
+
+| User Story | Task |
+| --- | --- |
+| **Spatial Hash Deduplication** | Implement Geohashing for every entry. Before saving an import, the node checks if an entry already exists within a 5-meter radius with the same name to prevent "ghost duplicates." |
+| **Conflict Resolution (OSM vs. Local)** | Write logic that says: "If a local user has edited this record, never let an OSM auto-import overwrite it." Local human data always trumps automated imports. |
+
+### 3. Traffic & Stability (The "Don't Break Things" Rules)
+
+Avoid getting your IP banned by OSM or blowing up your node's storage.
+
+| User Story | Task |
+| --- | --- |
+| **Scheduled "Diff" Updates** | Instead of re-downloading the whole city every day, implement "Augmented Delta" syncing. Only fetch the changes (diffs) from OSM since the last timestamp. |
+| **Storage Pruning (The "No-Fluff" Filter)** | Create a whitelist of "Essential Tags." If an OSM object contains data about "cuisine," "phone number," or "website," strip it out before saving to keep the database size minimal. |
+
+### 4. Basic Federation Sync (Sharing the Wealth)
+
+Once Node A bootstraps its data, it needs to tell Node B.
+
+| User Story | Task |
+| --- | --- |
+| **Initial Peer Discovery** | Hardcode a "Bootstrap Peer List" (Seed Nodes) so a brand new node can find neighbors and ask, "Who has the latest accessibility map for Berlin?" |
+| **Bulk Sync Protocol** | Create a compressed `.tar.gz` export of a node's database so a new node can "hydrate" its storage in minutes rather than fetching records one-by-one. |
+
 
 ## License
 
