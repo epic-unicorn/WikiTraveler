@@ -178,42 +178,36 @@ wikitraveler/
 
 ## Backlog
 
+## Backlog
+
 ### 1. The "Ingestion Pipeline" (The Plumbing)
 
 Getting data from OSM into your local node database.
 
-| User Story | Task |
-| --- | --- |
-| **Regional Overpass Manager** | Build a service that allows a Node Operator to define their "Service Area" (GeoJSON Polygon). The service should automatically query the Overpass API for all nodes/ways with wheelchair, ramp, or level tags within that boundary. |
-| **Schema Mapping Engine** | Create a translation script that maps OSM's "Key-Value" pairs to your internal WikiTraveler JSON structure (e.g., `wheelchair: yes` → `status: accessible`). |
-| **The "Source of Truth" Flag** | Add a `data_source` metadata field to every record. This must distinguish between `IMPORTED_OSM` (low trust) and `NODE_ORIGINAL` (high trust) so the system knows what needs verification later. |
+- **Regional Overpass Manager** — Build a service that allows a Node Operator to define their "Service Area" (GeoJSON Polygon). The service should automatically query the Overpass API for all nodes/ways with wheelchair, ramp, or level tags within that boundary.
+- **Schema Mapping Engine** — Create a translation script that maps OSM's "Key-Value" pairs to your internal WikiTraveler JSON structure (e.g., `wheelchair: yes` → `status: accessible`).
+- **The "Source of Truth" Flag** — Add a `data_source` metadata field to every record. This must distinguish between `IMPORTED_OSM` (low trust) and `NODE_ORIGINAL` (high trust) so the system knows what needs verification later.
 
 ### 2. The "De-Duplication" Logic (The Cleaning)
 
 Handle multiple nodes importing the same border-town data.
 
-| User Story | Task |
-| --- | --- |
-| **Spatial Hash Deduplication** | Implement Geohashing for every entry. Before saving an import, the node checks if an entry already exists within a 5-meter radius with the same name to prevent "ghost duplicates." |
-| **Conflict Resolution (OSM vs. Local)** | Write logic that says: "If a local user has edited this record, never let an OSM auto-import overwrite it." Local human data always trumps automated imports. |
+- **Spatial Hash Deduplication** — Implement Geohashing for every entry. Before saving an import, the node checks if an entry already exists within a 5-meter radius with the same name to prevent "ghost duplicates."
+- **Conflict Resolution (OSM vs. Local)** — Write logic that says: "If a local user has edited this record, never let an OSM auto-import overwrite it." Local human data always trumps automated imports.
 
 ### 3. Traffic & Stability (The "Don't Break Things" Rules)
 
 Avoid getting your IP banned by OSM or blowing up your node's storage.
 
-| User Story | Task |
-| --- | --- |
-| **Scheduled "Diff" Updates** | Instead of re-downloading the whole city every day, implement "Augmented Delta" syncing. Only fetch the changes (diffs) from OSM since the last timestamp. |
-| **Storage Pruning (The "No-Fluff" Filter)** | Create a whitelist of "Essential Tags." If an OSM object contains data about "cuisine," "phone number," or "website," strip it out before saving to keep the database size minimal. |
+- **Scheduled "Diff" Updates** — Instead of re-downloading the whole city every day, implement "Augmented Delta" syncing. Only fetch the changes (diffs) from OSM since the last timestamp.
+- **Storage Pruning (The "No-Fluff" Filter)** — Create a whitelist of "Essential Tags." If an OSM object contains data about "cuisine," "phone number," or "website," strip it out before saving to keep the database size minimal.
 
 ### 4. Basic Federation Sync (Sharing the Wealth)
 
 Once Node A bootstraps its data, it needs to tell Node B.
 
-| User Story | Task |
-| --- | --- |
-| **Initial Peer Discovery** | Hardcode a "Bootstrap Peer List" (Seed Nodes) so a brand new node can find neighbors and ask, "Who has the latest accessibility map for Berlin?" |
-| **Bulk Sync Protocol** | Create a compressed `.tar.gz` export of a node's database so a new node can "hydrate" its storage in minutes rather than fetching records one-by-one. |
+- **Initial Peer Discovery** — Hardcode a "Bootstrap Peer List" (Seed Nodes) so a brand new node can find neighbors and ask, "Who has the latest accessibility map for Berlin?"
+- **Bulk Sync Protocol** — Create a compressed `.tar.gz` export of a node's database so a new node can "hydrate" its storage in minutes rather than fetching records one-by-one.
 
 
 ## License
