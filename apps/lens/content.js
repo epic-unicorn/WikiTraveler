@@ -29,6 +29,317 @@ const SOURCE_LABEL = {
 };
 
 // ---------------------------------------------------------------------------
+// Node URL — fetched once from storage and cached for the page lifetime
+// ---------------------------------------------------------------------------
+
+let _nodeUrl = null;
+
+async function getNodeUrl() {
+  if (_nodeUrl) return _nodeUrl;
+  _nodeUrl = await new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "GET_NODE_URL" }, (res) =>
+      resolve(res?.nodeUrl ?? "http://localhost:3000")
+    );
+  });
+  return _nodeUrl;
+}
+
+// ---------------------------------------------------------------------------
+// Page type detection
+// ---------------------------------------------------------------------------
+
+function isListingPage() {
+  const url = window.location.href;
+  return (
+    /booking\.com\/searchresults/.test(url) ||
+    /expedia\.com\/(Hotel-Search|flights-Hotel)/.test(url) ||
+    /hotels\.com\/search/.test(url)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hotel name extraction — for detail-page search fallback
+// ---------------------------------------------------------------------------
+
+function extractHotelName() {
+  const og = document.querySelector('meta[property="og:title"]');
+  const raw = (og?.getAttribute("content")?.trim() ?? document.title).trim();
+  return raw
+    // Strip site suffix:  "… | Booking.com"  or  "… – Booking.com"
+    .replace(/\s*[|\u2013\u2014]\s*(Booking\.com|Expedia|Hotels\.com|Agoda).*$/i, "")
+    // Booking.com og:title format: "Hotel Name, City, Country"
+    // Drop everything from the first ", <word>" that looks like a location
+    .replace(/,\s*[A-Z][^,]+.*$/, "")
+    .trim();
+}
+
+// ---------------------------------------------------------------------------
+// Search API
+// ---------------------------------------------------------------------------
+
+async function searchForProperty(name, nodeUrl) {
+  try {
+    const res = await fetch(
+      `${nodeUrl}/api/properties?q=${encodeURIComponent(name)}`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results = data.properties ?? [];
+    if (results.length === 0) return null;
+    const exact = results.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (exact) return exact;
+    if (results.length === 1) return results[0];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tooltip — small hover panel for listing pages
+// ---------------------------------------------------------------------------
+
+let _tooltip = null;
+let _tooltipHideTimer = null;
+
+function removeTooltip() {
+  if (_tooltip) {
+    _tooltip.remove();
+    _tooltip = null;
+  }
+}
+
+function showTooltip(anchorEl, facts, propertyName) {
+  clearTimeout(_tooltipHideTimer);
+  removeTooltip();
+
+  _tooltip = document.createElement("div");
+  _tooltip.id = "wt-lens-tooltip";
+  _tooltip.style.cssText = `
+    position: fixed;
+    z-index: 2147483647;
+    width: 280px;
+    background: #fff;
+    border: 2px solid #1e3a5f;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px;
+    color: #111827;
+    overflow: hidden;
+    pointer-events: none;
+  `;
+
+  const hdr = document.createElement("div");
+  hdr.style.cssText =
+    "background:#1e3a5f;color:#fff;padding:8px 12px;font-weight:700;font-size:12px;" +
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+  hdr.textContent = `\uD83C\uDF0D ${propertyName ?? "WikiTraveler"}`;
+  _tooltip.appendChild(hdr);
+
+  const bodyEl = document.createElement("div");
+  bodyEl.style.cssText = "padding:8px 12px;max-height:200px;overflow-y:auto";
+
+  if (!facts || facts.length === 0) {
+    bodyEl.style.color = "#9ca3af";
+    bodyEl.textContent = "No accessibility data yet.";
+  } else {
+    const table = document.createElement("table");
+    table.style.cssText = "width:100%;border-collapse:collapse";
+    facts.slice(0, 8).forEach((f) => {
+      const row = document.createElement("tr");
+      row.style.borderBottom = "1px solid #f3f4f6";
+      row.innerHTML = `
+        <td style="padding:4px 2px;color:#374151;font-weight:500">${f.fieldName.replace(/_/g, " ")}</td>
+        <td style="padding:4px 2px">${f.value}</td>
+        <td style="padding:4px 2px">
+          <span style="background:${TIER_COLOR[f.tier] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700">${TIER_LABEL[f.tier] ?? f.tier}</span>
+        </td>
+      `;
+      table.appendChild(row);
+    });
+    bodyEl.appendChild(table);
+  }
+  _tooltip.appendChild(bodyEl);
+  document.body.appendChild(_tooltip);
+
+  // Position beside the card
+  const rect = anchorEl.getBoundingClientRect();
+  const ttW = 280;
+  const ttH = _tooltip.offsetHeight || 160;
+  let left = rect.right + 10;
+  if (left + ttW > window.innerWidth - 8) left = rect.left - ttW - 10;
+  if (left < 8) left = 8;
+  let top = rect.top;
+  if (top + ttH > window.innerHeight - 8) top = window.innerHeight - ttH - 8;
+  if (top < 8) top = 8;
+  _tooltip.style.left = `${left}px`;
+  _tooltip.style.top = `${top}px`;
+}
+
+// ---------------------------------------------------------------------------
+// Listing page — hotel card key extraction
+// ---------------------------------------------------------------------------
+
+function extractKeyFromCard(card) {
+  // Booking.com: data-hotelid on the card or a child element
+  const hotelId =
+    card.getAttribute("data-hotelid") ??
+    card.querySelector("[data-hotelid]")?.getAttribute("data-hotelid");
+  if (hotelId) return `booking-${hotelId}`;
+
+  // Booking.com: anchor link with /hotel/country/slug
+  const link = card.querySelector('a[href*="/hotel/"]');
+  if (link) {
+    try {
+      const u = new URL(link.href, location.origin);
+      const hid = u.searchParams.get("hotelid");
+      if (hid) return `booking-${hid}`;
+      const m = u.pathname.match(/\/hotel\/[^/]+\/([^./?#]+)/);
+      if (m) return `booking-${m[1]}`;
+    } catch {
+      // ignore malformed URLs
+    }
+  }
+
+  // Expedia: anchor link with /h{ID}.Hotel
+  const expediaLink = card.querySelector('a[href*=".Hotel"]');
+  if (expediaLink) {
+    const m = expediaLink.href.match(/\/h(\d+)\.Hotel/i);
+    if (m) return `expedia-${m[1]}`;
+  }
+
+  // Fallback: use heading text for a name-search
+  const heading = card.querySelector('[data-testid="title"], h3, h2, .sr_item_content h3');
+  const name = heading?.textContent?.trim();
+  if (name) return `name:${name}`;
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Listing page — hover handlers
+// ---------------------------------------------------------------------------
+
+let _hoverTimer = null;
+const _cardCache = new Map(); // key -> { facts, name } | null
+
+async function handleCardEnter(card) {
+  const nodeUrl = await getNodeUrl();
+  const key = extractKeyFromCard(card);
+  if (!key) return;
+
+  clearTimeout(_hoverTimer);
+  clearTimeout(_tooltipHideTimer);
+
+  _hoverTimer = setTimeout(async () => {
+    if (_cardCache.has(key)) {
+      const cached = _cardCache.get(key);
+      if (cached) showTooltip(card, cached.facts, cached.name);
+      return;
+    }
+
+    let propertyId = key;
+    let propertyName = null;
+
+    if (key.startsWith("name:")) {
+      const name = key.slice(5);
+      const match = await searchForProperty(name, nodeUrl);
+      if (!match) {
+        _cardCache.set(key, null);
+        return;
+      }
+      propertyId = match.id;
+      propertyName = match.name;
+    }
+
+    try {
+      const res = await fetch(
+        `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`,
+        { signal: AbortSignal.timeout(6000) }
+      );
+
+      if (res.status === 404 && !key.startsWith("name:")) {
+        // Not in node by booking ID — retry by hotel name from the card heading
+        const heading = card.querySelector('[data-testid="title"], h3, h2, .sr_item_content h3');
+        const headingName = heading?.textContent?.trim();
+        if (headingName) {
+          const match = await searchForProperty(headingName, nodeUrl);
+          if (match) {
+            const res2 = await fetch(
+              `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
+              { signal: AbortSignal.timeout(6000) }
+            );
+            if (res2.ok) {
+              const data2 = await res2.json();
+              const entry2 = { facts: data2.facts ?? [], name: match.name };
+              _cardCache.set(key, entry2);
+              if (card.matches(":hover")) showTooltip(card, entry2.facts, entry2.name);
+              return;
+            }
+          }
+        }
+        _cardCache.set(key, null);
+        return;
+      }
+
+      if (!res.ok) {
+        _cardCache.set(key, null);
+        return;
+      }
+      const data = await res.json();
+      const entry = { facts: data.facts ?? [], name: propertyName };
+      _cardCache.set(key, entry);
+      if (card.matches(":hover")) showTooltip(card, entry.facts, entry.name);
+    } catch {
+      _cardCache.set(key, null);
+    }
+  }, 350);
+}
+
+function handleCardLeave() {
+  clearTimeout(_hoverTimer);
+  _tooltipHideTimer = setTimeout(removeTooltip, 150);
+}
+
+function attachCardListeners(card) {
+  if (card.__wtAttached) return;
+  card.__wtAttached = true;
+  card.addEventListener("mouseenter", () => handleCardEnter(card));
+  card.addEventListener("mouseleave", handleCardLeave);
+}
+
+const CARD_SELECTORS = [
+  '[data-testid="property-card"]',
+  '[data-hotelid]',
+  ".sr_item",
+].join(", ");
+
+function attachListingHovers() {
+  document.querySelectorAll(CARD_SELECTORS).forEach(attachCardListeners);
+}
+
+let _listingObserver = null;
+
+function startListingMode() {
+  attachListingHovers();
+  if (_listingObserver) _listingObserver.disconnect();
+  _listingObserver = new MutationObserver(attachListingHovers);
+  _listingObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function stopListingMode() {
+  if (_listingObserver) {
+    _listingObserver.disconnect();
+    _listingObserver = null;
+  }
+  removeTooltip();
+}
+
+// ---------------------------------------------------------------------------
 // Property ID extraction — heuristics for supported sites
 // ---------------------------------------------------------------------------
 
@@ -175,19 +486,54 @@ function showLoading() {
 // ---------------------------------------------------------------------------
 
 async function run() {
-  // Ask background script for the node URL (from storage)
-  const { nodeUrl } = await new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: "GET_NODE_URL" }, resolve);
-  });
+  const thisRunId = ++_runId;
+  const nodeUrl = await getNodeUrl();
+  if (thisRunId !== _runId) return; // superseded by a newer run
+
+  // ---- Listing page: attach hover tooltips to hotel cards ----
+  if (isListingPage()) {
+    removeOverlay();
+    startListingMode();
+    return;
+  }
+
+  stopListingMode();
 
   const propertyId = extractPropertyId();
-  
-  // Skip if we're using the fallback page slug (no real property on this page)
+
+  // ---- Detail page: search fallback when ID extraction failed ----
   if (propertyId.startsWith("page-")) {
+    const name = extractHotelName();
+    if (name) {
+      showLoading();
+      const match = await searchForProperty(name, nodeUrl);
+      if (thisRunId !== _runId) return;
+      if (match) {
+        try {
+          const res = await fetch(
+            `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
+            { signal: AbortSignal.timeout(8000) }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const facts = data.facts ?? [];
+            if (thisRunId !== _runId) return;
+            if (facts.length > 0) {
+              createOverlay(facts);
+              return;
+            }
+          }
+        } catch {
+          // fall through to removeOverlay
+        }
+      }
+    }
+    if (thisRunId !== _runId) return;
     removeOverlay();
     return;
   }
-  
+
+  // ---- Detail page: direct ID lookup, with name-search fallback on 404 ----
   showLoading();
 
   try {
@@ -195,31 +541,71 @@ async function run() {
       `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`,
       { signal: AbortSignal.timeout(8000) }
     );
-    if (!res.ok) {
+
+    if (res.status === 404) {
+      // ID not in node — try matching by hotel name instead
+      const name = extractHotelName();
+      if (name) {
+        const match = await searchForProperty(name, nodeUrl);
+        if (thisRunId !== _runId) return;
+        if (match) {
+          const res2 = await fetch(
+            `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
+            { signal: AbortSignal.timeout(8000) }
+          );
+          if (res2.ok) {
+            const data2 = await res2.json();
+            const facts2 = data2.facts ?? [];
+            if (thisRunId !== _runId) return;
+            if (facts2.length > 0) {
+              createOverlay(facts2);
+              return;
+            }
+          }
+        }
+      }
+      if (thisRunId !== _runId) return;
       removeOverlay();
       return;
     }
+
+    if (!res.ok) {
+      if (thisRunId !== _runId) return;
+      removeOverlay();
+      return;
+    }
+
     const data = await res.json();
     const facts = data.facts ?? [];
+    if (thisRunId !== _runId) return;
     if (facts.length > 0) {
       createOverlay(facts);
     } else {
       removeOverlay();
     }
   } catch {
+    if (thisRunId !== _runId) return;
     removeOverlay();
   }
 }
 
 // Debounce to avoid firing on every navigation fragment change
 let runTimer;
+let _runId = 0;
+let _lastScheduledUrl = "";
 
 function scheduleRun() {
   clearTimeout(runTimer);
-  
-  // Always clear overlay when scheduling a run (it will be repopulated if data exists)
-  removeOverlay();
-  
+
+  // Only clear the overlay when the page URL actually changed.
+  // Booking.com fires spurious popstate events during SPA init which would
+  // otherwise wipe an overlay that was just rendered.
+  const currentUrl = location.href;
+  if (currentUrl !== _lastScheduledUrl) {
+    _lastScheduledUrl = currentUrl;
+    removeOverlay();
+  }
+
   runTimer = setTimeout(run, 800);
 }
 

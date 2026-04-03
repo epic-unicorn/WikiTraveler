@@ -14,6 +14,37 @@ const TIER_LABEL = {
   MESH_TRUTH: "Mesh Truth",
 };
 
+async function searchForProperty(name, nodeUrl) {
+  try {
+    const res = await fetch(
+      `${nodeUrl}/api/properties?q=${encodeURIComponent(name)}`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results = data.properties ?? [];
+    if (results.length === 0) return null;
+    const exact = results.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (exact) return exact;
+    if (results.length === 1) return results[0];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function extractHotelNameFromTab(tab) {
+  // Ask content script for og:title via GET_PROPERTY_ID message isn't enough —
+  // we derive the name from the tab title which Chrome exposes.
+  const title = tab.title ?? "";
+  return title
+    .replace(/\s*[|\u2013\u2014]\s*(Booking\.com|Expedia|Hotels\.com|Agoda).*$/i, "")
+    .replace(/,\s*[A-Z][^,]+.*$/, "")
+    .trim();
+}
+
 async function init() {
   const content = document.getElementById("content");
 
@@ -48,15 +79,31 @@ async function init() {
     <p class="property-id">Property: ${propertyId}</p>
     <p style="color:#9ca3af;font-size:12px">Fetching from <code>${nodeUrl}</code>…</p>`;
 
-  try {
+  async function fetchAndRender(resolvedId, displayId) {
     const res = await fetch(
-      `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`,
+      `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
       { signal: AbortSignal.timeout(6000) }
     );
 
+    if (res.status === 404) {
+      // Try name-search fallback using the tab title
+      const name = extractHotelNameFromTab(tab);
+      if (name) {
+        const match = await searchForProperty(name, nodeUrl);
+        if (match) {
+          return fetchAndRender(match.id, match.name);
+        }
+      }
+      content.innerHTML = `
+        <p class="property-id">Property: ${displayId}</p>
+        <p class="empty">No data found for this property.<br>
+          <a href="${nodeUrl}" target="_blank">Open node →</a></p>`;
+      return;
+    }
+
     if (!res.ok) {
       content.innerHTML = `
-        <p class="property-id">Property: ${propertyId}</p>
+        <p class="property-id">Property: ${displayId}</p>
         <p class="empty">No data found for this property.<br>
           <a href="${nodeUrl}" target="_blank">Open node →</a></p>`;
       return;
@@ -67,12 +114,12 @@ async function init() {
 
     if (facts.length === 0) {
       content.innerHTML = `
-        <p class="property-id">Property: ${propertyId}</p>
+        <p class="property-id">Property: ${displayId}</p>
         <p class="empty">No accessibility facts yet.<br>Use the Field Kit to submit an audit.</p>`;
       return;
     }
 
-    let html = `<p class="property-id">Property: ${propertyId}</p>
+    let html = `<p class="property-id">Property: ${displayId}</p>
       <table><tbody>`;
     for (const f of facts) {
       const color = TIER_COLOR[f.tier] ?? "#9ca3af";
@@ -86,9 +133,13 @@ async function init() {
     }
     html += `</tbody></table>
       <p style="font-size:11px;color:#9ca3af;margin-top:10px">
-        <a href="${nodeUrl}/properties/${propertyId}" target="_blank">View full report →</a>
+        <a href="${nodeUrl}/properties/${resolvedId}" target="_blank">View full report →</a>
       </p>`;
     content.innerHTML = html;
+  }
+
+  try {
+    await fetchAndRender(propertyId, propertyId);
   } catch {
     content.innerHTML = `<p class="empty">Could not reach node.<br>
       <a href="options.html">Check settings →</a></p>`;
