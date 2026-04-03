@@ -18,8 +18,14 @@ export default async function PropertyPage({
 }: {
   params: { id: string };
 }) {
-  const property = await prisma.property.findUnique({
-    where: { id: params.id },
+  const property = await prisma.property.findFirst({
+    where: {
+      OR: [
+        { id: params.id },
+        { canonicalId: params.id },
+        { osmId: params.id },
+      ],
+    },
     include: { facts: { orderBy: { timestamp: "desc" } } },
   });
 

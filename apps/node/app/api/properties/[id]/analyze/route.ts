@@ -21,11 +21,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    requireAuth(req);
-  } catch {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(

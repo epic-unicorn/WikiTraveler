@@ -12,14 +12,16 @@
     "lint": "pnpm --recursive lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "db:reset": "prisma migrate reset --force && tsx scripts/seed.ts",
+    "osm:ingest": "tsx scripts/osm-ingest.ts"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.37",
     "prisma": "^5.14.0",
     "tsx": "^4.15.0",
     "typescript": "^5.4.0"

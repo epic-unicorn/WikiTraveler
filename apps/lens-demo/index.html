@@ -116,36 +116,35 @@
     <h1>Find your perfect stay</h1>
     <p>Thousands of hotels, guest houses and apartments worldwide</p>
     <div class="search-bar">
-      <input type="text" placeholder="City, hotel or landmark" value="Vienna, Austria" />
+      <input type="text" placeholder="City, hotel or landmark" value="Eindhoven, Netherlands" />
       <input type="date" style="border:none;outline:none;font-size:14px;color:#374151;padding:8px" />
       <button>Search</button>
     </div>
   </div>
 
   <div class="listing">
-    <h2>7 properties found in Vienna, Austria</h2>
+    <h2>3 properties found in Eindhoven, Netherlands</h2>
     <div class="hotel-grid">
 
       <div class="hotel-card">
         <div class="hotel-img">🏨</div>
         <div class="hotel-body">
           <div>
-            <div class="stars">★★★★★</div>
-            <h3>Grand Hotel Vienna</h3>
-            <p class="hotel-meta">📍 Kärntner Ring 9, 1010 Vienna · 0.3 km from city centre</p>
+            <div class="stars">★★★★</div>
+            <h3>Leonardo Hotel Eindhoven City Center</h3>
+            <p class="hotel-meta">📍 Vestdijk 14, 5611CC Eindhoven · 0.1 km from city centre</p>
             <div class="hotel-tags">
               <span class="tag">Breakfast included</span>
               <span class="tag">Free WiFi</span>
-              <span class="tag">Pool</span>
-              <span class="tag">Spa</span>
+              <span class="tag">Bar</span>
             </div>
           </div>
           <div class="hotel-footer">
             <div>
-              <div class="hotel-price">€289 <span>/ night</span></div>
+              <div class="hotel-price">€129 <span>/ night</span></div>
               <p style="font-size:11px;color:#9ca3af">Taxes &amp; fees included</p>
             </div>
-            <a class="btn-view" href="#" onclick="showDetail('demo-grand-hotel-vienna', 'Grand Hotel Vienna'); return false;">View rooms →</a>
+            <a class="btn-view" href="#" onclick="showDetail('osm:977610529', 'Leonardo Hotel Eindhoven City Center'); return false;">View rooms →</a>
           </div>
         </div>
       </div>
@@ -154,21 +153,21 @@
         <div class="hotel-img" style="background:#dcfce7">🌿</div>
         <div class="hotel-body">
           <div>
-            <div class="stars">★★★★</div>
-            <h3>Hotel Sacher Wien</h3>
-            <p class="hotel-meta">📍 Philharmoniker Str. 4, 1010 Vienna · 0.5 km from city centre</p>
+            <div class="stars">★★★★★</div>
+            <h3>NH Collection Eindhoven Centre</h3>
+            <p class="hotel-meta">📍 Vestdijk 5, 5611CA Eindhoven · 0.1 km from city centre</p>
             <div class="hotel-tags">
               <span class="tag">Free WiFi</span>
-              <span class="tag">Bar</span>
-              <span class="tag">Historic building</span>
+              <span class="tag">Fitness centre</span>
+              <span class="tag">Restaurant</span>
             </div>
           </div>
           <div class="hotel-footer">
             <div>
-              <div class="hotel-price">€219 <span>/ night</span></div>
+              <div class="hotel-price">€159 <span>/ night</span></div>
               <p style="font-size:11px;color:#9ca3af">Taxes &amp; fees included</p>
             </div>
-            <a class="btn-view" href="#" onclick="showDetail('demo-hotel-sacher-wien', 'Hotel Sacher Wien'); return false;">View rooms →</a>
+            <a class="btn-view" href="#" onclick="showDetail('osm:4714032841', 'NH Collection Eindhoven Centre'); return false;">View rooms →</a>
           </div>
         </div>
       </div>
@@ -178,19 +177,20 @@
         <div class="hotel-body">
           <div>
             <div class="stars">★★★</div>
-            <h3>Boutique Hotel Naschmarkt</h3>
-            <p class="hotel-meta">📍 Linke Wienzeile 4, 1060 Vienna · 1.2 km from city centre</p>
+            <h3>Stayokay Eindhoven</h3>
+            <p class="hotel-meta">📍 Klokgebouw 10, 5617AA Eindhoven · 1.2 km from city centre</p>
             <div class="hotel-tags">
+              <span class="tag">Hostel</span>
               <span class="tag">Free WiFi</span>
-              <span class="tag">Parking</span>
+              <span class="tag">Shared kitchen</span>
             </div>
           </div>
           <div class="hotel-footer">
             <div>
-              <div class="hotel-price">€129 <span>/ night</span></div>
+              <div class="hotel-price">€39 <span>/ night</span></div>
               <p style="font-size:11px;color:#9ca3af">Taxes &amp; fees included</p>
             </div>
-            <a class="btn-view" href="#" onclick="showDetail('demo-boutique-naschmarkt', 'Boutique Hotel Naschmarkt'); return false;">View rooms →</a>
+            <a class="btn-view" href="#" onclick="showDetail('osm:4715681055', 'Stayokay Eindhoven'); return false;">View rooms →</a>
           </div>
         </div>
       </div>
@@ -296,29 +296,29 @@
 
 <script>
   const HOTELS = {
-    "demo-grand-hotel-vienna": {
-      name: "Grand Hotel Vienna",
-      stars: "★★★★★",
-      meta: "📍 Kärntner Ring 9, 1010 Vienna, Austria · 9.2 Exceptional · 2,847 reviews",
-      desc: "One of Europe's most celebrated luxury hotels, the Grand Hotel Vienna has been at the heart of Viennese high society since 1870. With panoramic views over the Ringstraße and a short walk from the Vienna State Opera, it combines historic grandeur with world-class contemporary service.",
-      emoji: "🏨",
-      price: "€289",
-    },
-    "demo-hotel-sacher-wien": {
-      name: "Hotel Sacher Wien",
+    "osm:977610529": {
+      name: "Leonardo Hotel Eindhoven City Center",
       stars: "★★★★",
-      meta: "📍 Philharmoniker Str. 4, 1010 Vienna, Austria · 9.0 Excellent · 4,121 reviews",
-      desc: "Home of the original Sachertorte and a Vienna institution since 1876. The Sacher is famed for its crimson decor, impeccable service, and literary salon atmosphere just steps from the Opera.",
-      emoji: "🌿",
-      price: "€219",
-    },
-    "demo-boutique-naschmarkt": {
-      name: "Boutique Hotel Naschmarkt",
-      stars: "★★★",
-      meta: "📍 Linke Wienzeile 4, 1060 Vienna, Austria · 8.4 Great · 918 reviews",
-      desc: "A charming independent hotel in the lively Naschmarkt quarter. Perfect for exploring the famous market, Secession gallery, and local coffee houses. Clean, friendly, and great value.",
-      emoji: "🏩",
+      meta: "📍 Vestdijk 14, 5611CC Eindhoven · 8.7 Excellent · 1,432 reviews",
+      desc: "A contemporary 4-star hotel right in the heart of Eindhoven's city centre, steps from the main square and Design Museum. Stylish rooms, a lively bar and full accessibility provisions.",
+      emoji: "🏨",
       price: "€129",
+    },
+    "osm:4714032841": {
+      name: "NH Collection Eindhoven Centre",
+      stars: "★★★★★",
+      meta: "📍 Vestdijk 5, 5611CA Eindhoven · 9.1 Exceptional · 2,018 reviews",
+      desc: "The flagship NH Collection property in Eindhoven occupies a prime spot on Vestdijk. Expect sophisticated design, a well-equipped fitness centre and close proximity to Eindhoven's tech and design scene.",
+      emoji: "🌿",
+      price: "€159",
+    },
+    "osm:4715681055": {
+      name: "Stayokay Eindhoven",
+      stars: "★★★",
+      meta: "📍 Klokgebouw 10, 5617AA Eindhoven · 8.2 Great · 654 reviews",
+      desc: "Housed in the iconic Klokgebouw factory building in the Strijp-S creative district, Stayokay offers affordable private and shared rooms for design lovers, backpackers and families alike.",
+      emoji: "🏩",
+      price: "€39",
     },
   };
 

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { NODE_ID, NODE_VERSION } from "@/lib/nodeInfo";
-import Link from "next/link";
+import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
+import { PropertyRow } from "./PropertyRow";
 
 export const dynamic = "force-dynamic";
 
@@ -16,20 +16,6 @@ const TIER_LABEL: Record<string, string> = {
   AI_GUESS: "AI Estimate",
   VERIFIED: "Verified",
   CONFIRMED: "Confirmed",
-};
-
-const SOURCE_COLOR: Record<string, string> = {
-  AMADEUS: "#6366f1",
-  WHEELMAP: "#0ea5e9",
-  WHEEL_THE_WORLD: "#f97316",
-  AUDITOR: "#10b981",
-};
-
-const SOURCE_LABEL: Record<string, string> = {
-  AMADEUS: "Amadeus",
-  WHEELMAP: "Wheelmap ♿",
-  WHEEL_THE_WORLD: "WtW",
-  AUDITOR: "Field Audit",
 };
 
 export default async function DashboardPage() {
@@ -58,7 +44,7 @@ export default async function DashboardPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>🌍 WikiTraveler Node</h1>
           <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-            {NODE_ID} · v{NODE_VERSION}
+            {NODE_REGION} · {NODE_ID} · v{NODE_VERSION}
           </p>
         </div>
         <div style={{ display: "flex", gap: 24, fontSize: 14 }}>
@@ -98,9 +84,9 @@ export default async function DashboardPage() {
         {properties.length === 0 ? (
           <EmptyState />
         ) : (
-          <div style={{ display: "grid", gap: 20 }}>
+          <div style={{ display: "grid", gap: 6 }}>
             {properties.map((p) => (
-              <PropertyCard key={p.id} property={p} />
+              <PropertyRow key={p.id} property={p} />
             ))}
           </div>
         )}
@@ -139,125 +125,4 @@ function EmptyState() {
   );
 }
 
-function PropertyCard({
-  property,
-}: {
-  property: {
-    id: string;
-    name: string;
-    location: string;
-    facts: Array<{ id: string; fieldName: string; value: string; tier: string; sourceType: string }>;
-  };
-}) {
-  // Collapse to highest tier per field
-  const best = new Map<string, { value: string; tier: string; sourceType: string }>();
-  const tierRank: Record<string, number> = {
-    OFFICIAL: 0,
-    AI_GUESS: 1,
-    VERIFIED: 2,
-    CONFIRMED: 3,
-  };
-  for (const f of property.facts) {
-    const existing = best.get(f.fieldName);
-    if (!existing || (tierRank[f.tier] ?? 0) > (tierRank[existing.tier] ?? 0)) {
-      best.set(f.fieldName, { value: f.value, tier: f.tier, sourceType: f.sourceType });
-    }
-  }
-  const displayFacts = Array.from(best.entries());
 
-  return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: "16px 20px",
-          borderBottom: "1px solid #f3f4f6",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-        }}
-      >
-        <div>
-          <h2 style={{ fontSize: 17, fontWeight: 600 }}>{property.name}</h2>
-          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
-            📍 {property.location}
-          </p>
-        </div>
-        <Link
-          href={`/properties/${property.id}`}
-          style={{
-            background: "#1e3a5f",
-            color: "#fff",
-            borderRadius: 8,
-            padding: "6px 14px",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          Audit →
-        </Link>
-      </div>
-
-      {displayFacts.length === 0 ? (
-        <p style={{ padding: "16px 20px", color: "#9ca3af", fontSize: 13 }}>
-          No accessibility facts yet — be the first to audit.
-        </p>
-      ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: 1,
-            background: "#f3f4f6",
-          }}
-        >
-          {displayFacts.map(([fieldName, { value, tier, sourceType }]) => (
-            <div
-              key={fieldName}
-              style={{ background: "#fff", padding: "12px 16px" }}
-            >
-              <p style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-                {fieldName.replace(/_/g, " ")}
-              </p>
-              <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>
-                {value}
-              </p>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    background: TIER_COLOR[tier] ?? "#9ca3af",
-                    color: "#fff",
-                    borderRadius: 999,
-                    padding: "2px 8px",
-                    fontSize: 10,
-                    fontWeight: 600,
-                  }}
-                >
-                  {TIER_LABEL[tier] ?? tier}
-                </span>
-                <span
-                  style={{
-                    background: SOURCE_COLOR[sourceType] ?? "#9ca3af",
-                    color: "#fff",
-                    borderRadius: 999,
-                    padding: "2px 8px",
-                    fontSize: 10,
-                    fontWeight: 600,
-                  }}
-                >
-                  {SOURCE_LABEL[sourceType] ?? sourceType}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

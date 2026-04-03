@@ -8,3 +8,6 @@ export const NODE_VERSION = "0.1.0";
 
 export const NODE_URL: string =
   process.env.NODE_URL ?? "http://localhost:3000";
+
+export const NODE_REGION: string =
+  process.env.NODE_REGION ?? "Global";

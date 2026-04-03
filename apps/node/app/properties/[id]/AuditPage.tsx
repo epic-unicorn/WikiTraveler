@@ -19,6 +19,7 @@ const TIER_LABEL: Record<string, string> = {
 const SOURCE_COLOR: Record<string, string> = {
   AMADEUS: "#6366f1",
   WHEELMAP: "#0ea5e9",
+  OSM: "#16a34a",
   WHEEL_THE_WORLD: "#f97316",
   AUDITOR: "#10b981",
 };
@@ -26,6 +27,7 @@ const SOURCE_COLOR: Record<string, string> = {
 const SOURCE_LABEL: Record<string, string> = {
   AMADEUS: "Amadeus",
   WHEELMAP: "Wheelmap ♿",
+  OSM: "OpenStreetMap",
   WHEEL_THE_WORLD: "WtW",
   AUDITOR: "Field Audit",
 };

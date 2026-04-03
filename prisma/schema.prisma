@@ -26,6 +26,7 @@ enum Tier {
 enum SourceType {
   WIKIDATA
   WHEELMAP
+  OSM
   WHEEL_THE_WORLD
   AUDITOR
 }
@@ -37,11 +38,14 @@ model Property {
   id          String   @id @default(cuid())
   canonicalId String   @unique
   name        String
-  location   String
-  osmId      String?  @unique
-  wheelmapId String?  @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  location    String
+  lat         Float?
+  lon         Float?
+  dataSource  String   @default("NODE_ORIGINAL")
+  osmId       String?  @unique
+  wheelmapId  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   facts      AccessibilityFact[]
   audits     AuditSubmission[]
@@ -83,6 +87,17 @@ model AuditSubmission {
   createdAt    DateTime @default(now())
 
   @@index([propertyId])
+}
+
+// ---------------------------------------------------------------------------
+// OSM ingestion sync state — tracks last Overpass fetch per bounding box
+// ---------------------------------------------------------------------------
+model OsmSyncState {
+  id        String    @id @default(cuid())
+  bbox      String    @unique
+  lastSync  DateTime?
+  itemCount Int?
+  updatedAt DateTime  @updatedAt
 }
 
 // ---------------------------------------------------------------------------

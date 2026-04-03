@@ -2,7 +2,7 @@
 CREATE TYPE "Tier" AS ENUM ('OFFICIAL', 'AI_GUESS', 'VERIFIED', 'CONFIRMED');
 
 -- CreateEnum
-CREATE TYPE "SourceType" AS ENUM ('WIKIDATA', 'WHEELMAP', 'WHEEL_THE_WORLD', 'AUDITOR');
+CREATE TYPE "SourceType" AS ENUM ('WIKIDATA', 'WHEELMAP', 'OSM', 'WHEEL_THE_WORLD', 'AUDITOR');
 
 -- CreateTable
 CREATE TABLE "Property" (
@@ -10,6 +10,9 @@ CREATE TABLE "Property" (
     "canonicalId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "location" TEXT NOT NULL,
+    "lat" DOUBLE PRECISION,
+    "lon" DOUBLE PRECISION,
+    "dataSource" TEXT NOT NULL DEFAULT 'NODE_ORIGINAL',
     "osmId" TEXT,
     "wheelmapId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -44,6 +47,17 @@ CREATE TABLE "AuditSubmission" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditSubmission_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OsmSyncState" (
+    "id" TEXT NOT NULL,
+    "bbox" TEXT NOT NULL,
+    "lastSync" TIMESTAMP(3),
+    "itemCount" INTEGER,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OsmSyncState_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -88,6 +102,9 @@ CREATE UNIQUE INDEX "AccessibilityFact_propertyId_fieldName_sourceNodeId_key" ON
 
 -- CreateIndex
 CREATE INDEX "AuditSubmission_propertyId_idx" ON "AuditSubmission"("propertyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OsmSyncState_bbox_key" ON "OsmSyncState"("bbox");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NodePeer_url_key" ON "NodePeer"("url");

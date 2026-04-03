@@ -42,11 +42,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    requireAuth(req);
-  } catch {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   let body: { osmId?: string; wheelmapId?: string; syncNow?: boolean };
   try {
@@ -113,11 +110,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    requireAuth(req);
-  } catch {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   if (!process.env.WHEELMAP_API_KEY) {
     return NextResponse.json(

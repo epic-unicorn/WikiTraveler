@@ -21,19 +21,27 @@ async function init() {
     chrome.storage.sync.get({ nodeUrl: "http://localhost:3000" }, resolve)
   );
 
-  // Get active tab URL to determine property
+  // Get active tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? "";
 
-  // Re-use extraction heuristic
+  // Try to get property ID from the content script first (handles meta tags)
   let propertyId = "unknown";
-  const bookingQuery = new URLSearchParams(new URL(url).search).get("hotelid");
-  if (bookingQuery) propertyId = `booking-${bookingQuery}`;
-  else {
-    const bookingPath = url.match(/booking\.com\/hotel\/[^/]+\/([^.?#]+)/);
-    if (bookingPath) propertyId = `booking-${bookingPath[1]}`;
-    const expediaMatch = url.match(/\/h(\d+)\.Hotel/i);
-    if (expediaMatch) propertyId = `expedia-${expediaMatch[1]}`;
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, { type: "GET_PROPERTY_ID" });
+    if (response?.propertyId) {
+      propertyId = response.propertyId;
+    }
+  } catch {
+    // Content script not available, fall back to URL heuristics
+    const bookingQuery = new URLSearchParams(new URL(url).search).get("hotelid");
+    if (bookingQuery) propertyId = `booking-${bookingQuery}`;
+    else {
+      const bookingPath = url.match(/booking\.com\/hotel\/[^/]+\/([^.?#]+)/);
+      if (bookingPath) propertyId = `booking-${bookingPath[1]}`;
+      const expediaMatch = url.match(/\/h(\d+)\.Hotel/i);
+      if (expediaMatch) propertyId = `expedia-${expediaMatch[1]}`;
+    }
   }
 
   content.innerHTML = `

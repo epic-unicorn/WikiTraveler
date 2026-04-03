@@ -13,15 +13,21 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const property = await prisma.property.findUnique({
-    where: { id: params.id },
+  // Find by id OR canonicalId
+  const property = await prisma.property.findFirst({
+    where: {
+      OR: [
+        { id: params.id },
+        { canonicalId: params.id },
+      ],
+    },
   });
   if (!property) {
     return NextResponse.json({ message: "Property not found" }, { status: 404 });
   }
 
   const rawFacts = await prisma.accessibilityFact.findMany({
-    where: { propertyId: params.id },
+    where: { propertyId: property.id },
     orderBy: { timestamp: "desc" },
   });
 
@@ -68,11 +74,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    requireAuth(req);
-  } catch {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   let body: {
     facts?: Array<{ fieldName: string; value: string }>;
@@ -88,12 +91,21 @@ export async function POST(
     return NextResponse.json({ message: "facts array is required" }, { status: 400 });
   }
 
-  const property = await prisma.property.findUnique({
-    where: { id: params.id },
+  // Find by id OR canonicalId
+  const property = await prisma.property.findFirst({
+    where: {
+      OR: [
+        { id: params.id },
+        { canonicalId: params.id },
+      ],
+    },
   });
   if (!property) {
     return NextResponse.json({ message: "Property not found" }, { status: 404 });
   }
+
+  // Use the actual property.id for database operations
+  const propertyId = property.id;
 
   // Validate fact fields
   for (const fact of body.facts) {
@@ -113,7 +125,7 @@ export async function POST(
   // Store audit submission
   await prisma.auditSubmission.create({
     data: {
-      propertyId: params.id,
+      propertyId: propertyId,
       facts: body.facts,
       photoUrls: body.photoUrls ?? [],
     },
@@ -125,7 +137,7 @@ export async function POST(
       prisma.accessibilityFact.upsert({
         where: {
           propertyId_fieldName_sourceNodeId: {
-            propertyId: params.id,
+            propertyId: propertyId,
             fieldName: fact.fieldName,
             sourceNodeId: NODE_ID,
           },
@@ -136,7 +148,7 @@ export async function POST(
           timestamp: new Date(),
         },
         create: {
-          propertyId: params.id,
+          propertyId: propertyId,
           fieldName: fact.fieldName,
           value: fact.value,
           tier: "VERIFIED",
@@ -153,7 +165,7 @@ export async function POST(
   // the /api/cron/ai-scan job will cover any missed analyses.
   if (process.env.OPENAI_API_KEY && (body.photoUrls?.length ?? 0) > 0) {
     void runAiAnalysis({
-      propertyId: params.id,
+      propertyId: propertyId,
       propertyName: property.name,
       location: property.location,
       photos: body.photoUrls!,
@@ -177,8 +189,8 @@ export async function POST(
       },
     ],
     body.facts.map((fact) => ({
-      id: `${NODE_ID}-${params.id}-${fact.fieldName}`,
-      propertyId: params.id,
+      id: `${NODE_ID}-${propertyId}-${fact.fieldName}`,
+      propertyId: propertyId,
       fieldName: fact.fieldName,
       value: fact.value,
       tier: "VERIFIED" as Tier,
