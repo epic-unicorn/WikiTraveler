@@ -24,12 +24,18 @@ export async function register() {
     }
 
     // Then, bootstrap peers (non-critical)
-    const { bootstrapPeers } = await import("@/lib/bootstrap");
+    const { bootstrapPeers, registerWithRegistry } = await import("@/lib/bootstrap");
     try {
       await bootstrapPeers();
     } catch (err) {
       // Never crash startup over bootstrap failures — log and continue
       console.error("[instrumentation] bootstrapPeers failed:", err);
+    }
+
+    try {
+      await registerWithRegistry();
+    } catch (err) {
+      console.error("[instrumentation] registerWithRegistry failed:", err);
     }
   }
 }

@@ -58,6 +58,16 @@ Flow: search → tap property (or create if missing) → fill 12 accessibility f
 
 Chrome MV3 extension. Injects a tier-coloured accessibility panel on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step.
 
+### `apps/registry`
+
+Centralized node discovery service. Nodes call `POST /api/v1/nodes/register` on startup (via `REGISTRY_URL` env var) to appear in the mesh. Runs on port 3002.
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/v1/nodes/register` | Register or heartbeat a node |
+| `GET /api/v1/nodes` | List active nodes (filterable by region) |
+| `GET /api/v1/nodes/:nodeId/peers` | Peer recommendations (up to 5, ordered by recency) |
+
 ### `apps/agency-demo`
 
 Single `index.html` demonstrating the three SDK integration patterns: drop-in widget, raw JSON fetch, and ESM import. Auto-populates a property dropdown from the node's `/api/properties`.
@@ -124,6 +134,13 @@ AccessibilityFact
 AuditSubmission   ← raw submitted facts + photos (base64)
 NodePeer          ← peer registry with cached public key
 GossipSnapshot    ← dedup log with SHA-256 hash of each applied delta
+
+RegistryNode      ← in apps/registry DB
+  nodeId       string UNIQUE
+  url          string
+  region       string?
+  isActive     boolean
+  lastHeartbeat DateTime
 ```
 
 ---
@@ -176,6 +193,8 @@ Bootstrap from `BOOTSTRAP_PEERS` env var. Any node also exposes:
 GET /.well-known/webfinger
   → { nodeId, version, publicKey, inboxUrl }
 ```
+
+At startup, if `REGISTRY_URL` is set, the node calls `POST <REGISTRY_URL>/api/v1/nodes/register` to announce itself to the central registry. This is fire-and-forget and never blocks startup.
 
 ---
 

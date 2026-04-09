@@ -90,12 +90,12 @@ pnpm dev
 pnpm dev
 
 # Terminal 2 — lens demo
-npx serve apps/lens-demo -p 3002
-# → http://localhost:3002
+npx serve apps/lens-demo -p 4001
+# → http://localhost:4001
 ```
 
 1. Load the Lens extension (Flow 3, steps 1–2).
-2. Open `http://localhost:3002` and click through to a hotel page.
+2. Open `http://localhost:4001` and click through to a hotel page.
 3. The Lens overlay fires automatically from the meta tag.
 
 **Verify:** Overlay appears without any `<script>` tag on the page.
@@ -148,6 +148,33 @@ curl -X POST http://localhost:3000/api/nodes \
 
 ---
 
+## Flow 7 — Registry
+
+**What it tests:** Node auto-registration and peer discovery via the central registry.
+
+```bash
+# Terminal 1 — registry
+pnpm dev:registry
+# → http://localhost:3002
+
+# Terminal 2 — node (with REGISTRY_URL=http://localhost:3002 in .env)
+pnpm dev
+```
+
+With `REGISTRY_URL` set, the node calls `POST /api/v1/nodes/register` automatically on startup.
+
+**Verify:** Open `http://localhost:3002` — your node appears in the "Registered Nodes" list.
+
+```bash
+# List registered nodes
+curl http://localhost:3002/api/v1/nodes
+
+# Peer recommendations
+curl http://localhost:3002/api/v1/nodes/my-node-1/peers
+```
+
+---
+
 ## Quick Reference
 
 | Flow | Ports |
@@ -155,6 +182,7 @@ curl -X POST http://localhost:3000/api/nodes \
 | 1 — Agency Widget | :3000 (node), :4000 (demo) |
 | 2 — Field Auditor | :3000 (node), :3001 (field-kit) |
 | 3 — Lens on Booking.com | :3000 (node) |
-| 4 — Lens on Lens Demo | :3000 (node), :3002 (lens-demo) |
+| 4 — Lens on Lens Demo | :3000 (node), :4001 (lens-demo) |
 | 5 — AI Scan | :3000 (node) |
 | 6 — Peer Gossip | :3000 (node A), :3001 (node B) |
+| 7 — Registry | :3000 (node), :3002 (registry) |

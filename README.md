@@ -83,6 +83,7 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 | **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker.            |
 | **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits.              |
 | **Lens**        | `apps/lens`         | Chrome MV3 extension. Overlays data on Booking.com and Expedia. |
+| **Registry**    | `apps/registry`     | Node discovery service. Nodes register to find each other.       |
 | **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.        |
 | **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.               |
 | **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).              |
@@ -149,6 +150,7 @@ wikitraveler/
 │   ├── node/            # Next.js node (API + dashboard)
 │   ├── field-kit/       # Next.js mobile audit app
 │   ├── lens/            # Chrome MV3 extension
+│   ├── registry/        # Node discovery service
 │   └── agency-demo/     # Static agency SDK demo
 ├── packages/
 │   ├── core/            # Shared types & gossip merge logic
@@ -177,7 +179,7 @@ wikitraveler/
 
 ## Backlog
 
-* Node registry page to find other nodes for regions
+* ~~Node registry page to find other nodes for regions~~ ✓ `apps/registry` in place
 
 ## License
 

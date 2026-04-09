@@ -90,6 +90,37 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  apps/registry:
+    dependencies:
+      next:
+        specifier: 14.2.3
+        version: 14.2.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18
+        version: 18.3.1
+      react-dom:
+        specifier: ^18
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@prisma/client':
+        specifier: ^5.22.0
+        version: 5.22.0(prisma@5.22.0)
+      '@types/node':
+        specifier: ^20
+        version: 20.19.37
+      '@types/react':
+        specifier: ^18
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18
+        version: 18.3.7(@types/react@18.3.28)
+      prisma:
+        specifier: ^5.14.0
+        version: 5.22.0
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   packages/ai-agent:
     dependencies:
       '@wikitraveler/core':

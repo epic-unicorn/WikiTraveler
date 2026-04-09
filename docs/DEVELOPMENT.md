@@ -74,7 +74,21 @@ pnpm dev:field-kit
 ```
 
 Open in a mobile browser or use Chrome DevTools device emulation.
+### Registry
 
+```bash
+pnpm dev:registry
+# → http://localhost:3002
+```
+
+The registry requires its own migration (first time only):
+
+```bash
+cd apps/registry
+npx prisma migrate dev --name init
+```
+
+With `REGISTRY_URL=http://localhost:3002` in `.env`, the node registers itself automatically on startup.
 ### Agency Demo
 
 ```bash
@@ -123,6 +137,7 @@ Build order: `core` â†’ `ai-agent` â†’ `sdk` â†’ `node` / `field-
 | `COMMUNITY_PASSPHRASE` | node | Yes | Shared password for field auditors |
 | `CORS_ORIGINS` | node | No | Allowed CORS origins (`*` or comma list) |
 | `BOOTSTRAP_PEERS` | node | No | Bootstrap peer URLs, comma-separated |
+| `REGISTRY_URL` | node | No | Registry URL; triggers auto-registration on startup |
 | `GOSSIP_INTERVAL_HOURS` | node | No | Hours between gossip cron runs |
 | `CRON_SECRET` | node | No | Bearer token for cron endpoints |
 | `OPENAI_API_KEY` | node | No | GPT-4o key; enables AI_GUESS tier features |

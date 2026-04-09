@@ -57,6 +57,7 @@ Deploy `apps/node` as a serverless Next.js app. The database must be externally 
 | `CORS_ORIGINS` | `*` or comma-separated agency origins |
 | `CRON_SECRET` | Protects cron endpoints |
 | `BOOTSTRAP_PEERS` | Comma-separated peer node URLs (optional) |
+| `REGISTRY_URL` | URL of the central registry; node registers on startup (optional) |
 | `OPENAI_API_KEY` | GPT-4o key (optional — disables AI if absent) |
 | `NODE_PRIVATE_KEY` | RSA private key PEM for signing inbox pushes (optional) |
 | `NODE_PUBLIC_KEY` | Corresponding RSA public key PEM (optional) |
@@ -135,6 +136,7 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 | `COMMUNITY_PASSPHRASE` | `changeme` | Set in dashboard |
 | `CORS_ORIGINS` | `*` | `*` or locked-down list |
 | `BOOTSTRAP_PEERS` | _(empty)_ | Optional |
+| `REGISTRY_URL` | _(empty — auto-registration disabled)_ | Optional |
 | `CRON_SECRET` | _(empty)_ | Set in dashboard |
 | `OPENAI_API_KEY` | _(empty — AI disabled)_ | Optional |
 | `NODE_PRIVATE_KEY` | _(empty — signing disabled)_ | Optional |
