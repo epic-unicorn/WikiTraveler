@@ -156,7 +156,7 @@ wikitraveler/
 │   └── ai-agent/        # GPT-4o vision + gap-fill engine
 ├── prisma/schema.prisma # Database schema (PostgreSQL)
 ├── docker/              # Dockerfiles + compose files
-├── scripts/             # seed.ts, mock-node.ts
+├── scripts/             # seed.ts, osm-ingest.ts
 └── .env.example         # Environment variable reference
 ```
 
@@ -169,7 +169,6 @@ wikitraveler/
 | `pnpm dev`             | Start node on :3000                      |
 | `pnpm dev:field-kit`   | Start field-kit on :3001                 |
 | `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
-| `pnpm mock-node`       | In-memory mock node (no Postgres needed) |
 | `pnpm build`           | Build all packages and apps              |
 | `pnpm db:migrate`      | Run Prisma migrations                    |
 | `pnpm db:seed`         | Seed database with sample properties     |

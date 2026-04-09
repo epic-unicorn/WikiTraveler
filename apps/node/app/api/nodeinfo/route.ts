@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { NODE_ID, NODE_URL, NODE_VERSION } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_URL, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
 
 /**
  * GET /api/nodeinfo
@@ -12,6 +12,7 @@ export async function GET() {
     nodeId: NODE_ID,
     nodeUrl: NODE_URL,
     version: NODE_VERSION,
+    region: NODE_REGION,
     publicKey: process.env.NODE_PUBLIC_KEY ?? null,
   });
 }

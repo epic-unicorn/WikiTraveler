@@ -122,16 +122,26 @@ async function init() {
 
     const data = await res.json();
     const facts = data.facts ?? [];
+    const prop = data.property;
+
+    const propNameHtml = prop?.name
+      ? `<p style="font-weight:700;font-size:13px;margin:0 0 2px">${prop.name}</p>`
+      : "";
+    const propAddressHtml = prop?.location
+      ? `<p style="font-size:11px;color:#6b7280;margin:0 0 10px">${prop.location}</p>`
+      : "";
+    const propHeader = propNameHtml || propAddressHtml
+      ? `${propNameHtml}${propAddressHtml}`
+      : `<p class="property-id">Property: ${displayId}</p>`;
 
     if (facts.length === 0) {
       content.innerHTML = `
-        <p class="property-id">Property: ${displayId}</p>
+        ${propHeader}
         <p class="empty">No accessibility facts yet.<br>Use the Field Kit to submit an audit.</p>`;
       return;
     }
 
-    let html = `<p class="property-id">Property: ${displayId}</p>
-      <table><tbody>`;
+    let html = `${propHeader}<table><tbody>`;
     for (const f of facts) {
       const color = TIER_COLOR[f.tier] ?? "#9ca3af";
       const label = TIER_LABEL[f.tier] ?? f.tier;

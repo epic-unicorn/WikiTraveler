@@ -45,6 +45,27 @@ async function getNodeUrl() {
 }
 
 // ---------------------------------------------------------------------------
+// Auto-popup setting — cached, reset on storage change
+// ---------------------------------------------------------------------------
+
+let _autoPopup = null;
+
+async function getAutoPopup() {
+  if (_autoPopup !== null) return _autoPopup;
+  _autoPopup = await new Promise((resolve) =>
+    chrome.storage.sync.get({ autoPopup: true }, (items) => resolve(items.autoPopup))
+  );
+  return _autoPopup;
+}
+
+// Invalidate cache when the user changes settings
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && "autoPopup" in changes) {
+    _autoPopup = null;
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Page type detection
 // ---------------------------------------------------------------------------
 
@@ -391,7 +412,7 @@ function extractPropertyId() {
 // Overlay injection
 // ---------------------------------------------------------------------------
 
-function createOverlay(facts) {
+function createOverlay(facts, property) {
   // Only show overlay if we have facts
   if (!facts || facts.length === 0) {
     removeOverlay();
@@ -432,14 +453,19 @@ function createOverlay(facts) {
     background: #1e3a5f;
     color: #fff;
     padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     flex-shrink: 0;
   `;
+  const nameHtml = property?.name
+    ? `<div style="font-weight:700;font-size:14px;margin-bottom:${property.location ? 2 : 0}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🌍 ${property.name}</div>`
+    : `<div style="font-weight:700;font-size:14px">🌍 WikiTraveler</div>`;
+  const addressHtml = property?.location
+    ? `<div style="font-size:11px;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">${property.location}</div>`
+    : "";
   header.innerHTML = `
-    <span style="font-weight:700;font-size:14px">🌍 WikiTraveler</span>
-    <button id="wt-close" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1">×</button>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div style="min-width:0;flex:1">${nameHtml}${addressHtml}</div>
+      <button id="wt-close" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1;flex-shrink:0;padding:0">×</button>
+    </div>
   `;
 
   const body = document.createElement("div");
@@ -528,6 +554,10 @@ async function run() {
 
   stopListingMode();
 
+  // Respect the "auto-show overlay" setting — if disabled the user opens
+  // data manually via the WikiTraveler toolbar icon (popup).
+  if (!(await getAutoPopup())) return;
+
   const propertyId = extractPropertyId();
 
   // ---- Detail page: search fallback when ID extraction failed ----
@@ -548,7 +578,7 @@ async function run() {
             const facts = data.facts ?? [];
             if (thisRunId !== _runId) return;
             if (facts.length > 0) {
-              createOverlay(facts);
+              createOverlay(facts, data.property);
               return;
             }
           }
@@ -587,7 +617,7 @@ async function run() {
             const facts2 = data2.facts ?? [];
             if (thisRunId !== _runId) return;
             if (facts2.length > 0) {
-              createOverlay(facts2);
+              createOverlay(facts2, data2.property);
               return;
             }
           }
@@ -608,7 +638,7 @@ async function run() {
     const facts = data.facts ?? [];
     if (thisRunId !== _runId) return;
     if (facts.length > 0) {
-      createOverlay(facts);
+      createOverlay(facts, data.property);
     } else {
       removeOverlay();
     }

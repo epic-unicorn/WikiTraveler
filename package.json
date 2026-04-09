@@ -7,7 +7,6 @@
     "dev": "pnpm --filter @wikitraveler/node dev",
     "dev:field-kit": "pnpm --filter @wikitraveler/field-kit dev",
     "dev:agency-demo": "pnpm --filter @wikitraveler/sdk build && npx serve -p 4000 .",
-    "mock-node": "tsx scripts/mock-node.ts",
     "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build",
     "lint": "pnpm --recursive lint",
     "db:generate": "prisma generate",
