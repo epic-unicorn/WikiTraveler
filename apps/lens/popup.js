@@ -15,24 +15,35 @@ const TIER_LABEL = {
 };
 
 async function searchForProperty(name, nodeUrl) {
-  try {
-    const res = await fetch(
-      `${nodeUrl}/api/properties?q=${encodeURIComponent(name)}`,
-      { signal: AbortSignal.timeout(6000) }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const results = data.properties ?? [];
-    if (results.length === 0) return null;
-    const exact = results.find(
-      (p) => p.name.toLowerCase() === name.toLowerCase()
-    );
-    if (exact) return exact;
-    if (results.length === 1) return results[0];
-    return null;
-  } catch {
-    return null;
+  const words = name.split(/\s+/);
+  // Retry with progressively shorter queries so a stored name like "NH Collection"
+  // is found even when the extracted name is "NH Collection Eindhoven Centre".
+  for (let len = words.length; len >= 2; len--) {
+    const q = words.slice(0, len).join(" ");
+    try {
+      const res = await fetch(
+        `${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`,
+        { signal: AbortSignal.timeout(6000) }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const results = data.properties ?? [];
+      if (results.length === 0) continue;
+      const lower = name.toLowerCase();
+      // 1. Exact match
+      const exact = results.find((p) => p.name.toLowerCase() === lower);
+      if (exact) return exact;
+      // 2. Stored name is a prefix of the extracted name
+      const prefix = results.find((p) => lower.startsWith(p.name.toLowerCase()));
+      if (prefix) return prefix;
+      // 3. Single result
+      if (results.length === 1) return results[0];
+      // Multiple ambiguous results — keep trying a shorter query
+    } catch {
+      // network error on this attempt, try shorter
+    }
   }
+  return null;
 }
 
 function extractHotelNameFromTab(tab) {

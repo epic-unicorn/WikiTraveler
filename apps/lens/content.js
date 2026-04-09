@@ -78,24 +78,35 @@ function extractHotelName() {
 // ---------------------------------------------------------------------------
 
 async function searchForProperty(name, nodeUrl) {
-  try {
-    const res = await fetch(
-      `${nodeUrl}/api/properties?q=${encodeURIComponent(name)}`,
-      { signal: AbortSignal.timeout(6000) }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const results = data.properties ?? [];
-    if (results.length === 0) return null;
-    const exact = results.find(
-      (p) => p.name.toLowerCase() === name.toLowerCase()
-    );
-    if (exact) return exact;
-    if (results.length === 1) return results[0];
-    return null;
-  } catch {
-    return null;
+  const words = name.split(/\s+/);
+  // Retry with progressively shorter queries so a stored name like "NH Collection"
+  // is found even when the extracted name is "NH Collection Eindhoven Centre".
+  for (let len = words.length; len >= 2; len--) {
+    const q = words.slice(0, len).join(" ");
+    try {
+      const res = await fetch(
+        `${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`,
+        { signal: AbortSignal.timeout(6000) }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const results = data.properties ?? [];
+      if (results.length === 0) continue;
+      const lower = name.toLowerCase();
+      // 1. Exact match
+      const exact = results.find((p) => p.name.toLowerCase() === lower);
+      if (exact) return exact;
+      // 2. Stored name is a prefix of the extracted name
+      const prefix = results.find((p) => lower.startsWith(p.name.toLowerCase()));
+      if (prefix) return prefix;
+      // 3. Single result
+      if (results.length === 1) return results[0];
+      // Multiple ambiguous results — keep trying a shorter query
+    } catch {
+      // network error on this attempt, try shorter
+    }
   }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -390,14 +401,22 @@ function createOverlay(facts) {
   const existing = document.getElementById("wt-lens-overlay");
   if (existing) existing.remove();
 
+  // Clamp width to viewport: 320px min, 420px max, 92vw on narrow screens
+  const vw = window.innerWidth;
+  const overlayW = Math.min(420, Math.max(320, vw * 0.92));
+  const rightOffset = vw > 480 ? 20 : Math.round((vw - overlayW) / 2);
+  const topOffset = vw > 480 ? 20 : 12;
+  // Height: leave room for the header (~44px) and some breathing room
+  const maxBodyH = Math.min(420, window.innerHeight - topOffset - 60);
+
   const overlay = document.createElement("div");
   overlay.id = "wt-lens-overlay";
   overlay.style.cssText = `
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: ${topOffset}px;
+    right: ${rightOffset}px;
     z-index: 2147483647;
-    width: 300px;
+    width: ${overlayW}px;
     background: #fff;
     border: 2px solid #1e3a5f;
     border-radius: 14px;
@@ -416,6 +435,7 @@ function createOverlay(facts) {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-shrink: 0;
   `;
   header.innerHTML = `
     <span style="font-weight:700;font-size:14px">🌍 WikiTraveler</span>
@@ -423,7 +443,7 @@ function createOverlay(facts) {
   `;
 
   const body = document.createElement("div");
-  body.style.cssText = "padding: 12px 14px; max-height: 320px; overflow-y: auto;";
+  body.style.cssText = `padding: 10px 14px; max-height: ${maxBodyH}px; overflow-y: auto;`;
 
   // Show top tier badge first
   const topTier = facts.reduce((best, f) => {
@@ -432,26 +452,35 @@ function createOverlay(facts) {
   }, facts[0]);
 
   const tierBadge = `<span style="background:${TIER_COLOR[topTier.tier] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700">${TIER_LABEL[topTier.tier] ?? topTier.tier}</span>`;
-  body.innerHTML = `<p style="margin-bottom:10px;font-size:12px;color:#6b7280">Highest trust level: ${tierBadge}</p>`;
+  body.innerHTML = `<p style="margin-bottom:8px;font-size:12px;color:#6b7280">Highest trust level: ${tierBadge}</p>`;
 
-  const table = document.createElement("table");
-  table.style.cssText = "width:100%;border-collapse:collapse";
+  // Render facts as stacked rows instead of a 4-column table so long
+  // field names, values and badges all wrap naturally at any width.
   facts.forEach((f) => {
-    const row = document.createElement("tr");
-    row.style.borderBottom = "1px solid #f3f4f6";
-    row.innerHTML = `
-      <td style="padding:6px 4px;color:#374151;font-weight:500;font-size:12px">${f.fieldName.replace(/_/g, " ")}</td>
-      <td style="padding:6px 4px;font-size:12px">${f.value}</td>
-      <td style="padding:6px 4px">
-        <span style="background:${TIER_COLOR[f.tier] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700">${TIER_LABEL[f.tier] ?? f.tier}</span>
-      </td>
-      <td style="padding:6px 4px">
-        <span style="background:${SOURCE_COLOR[f.sourceType] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700">${SOURCE_LABEL[f.sourceType] ?? (f.sourceType ?? "")}</span>
-      </td>
+    const item = document.createElement("div");
+    item.style.cssText = `
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+      column-gap: 8px;
+      row-gap: 2px;
+      padding: 7px 0;
+      border-bottom: 1px solid #f3f4f6;
     `;
-    table.appendChild(row);
+    const tierColor = TIER_COLOR[f.tier] ?? "#9ca3af";
+    const srcColor  = SOURCE_COLOR[f.sourceType] ?? "#9ca3af";
+    item.innerHTML = `
+      <span style="font-weight:600;font-size:12px;color:#374151;word-break:break-word">
+        ${f.fieldName.replace(/_/g, " ")}
+      </span>
+      <span style="display:flex;gap:4px;align-items:flex-start;justify-content:flex-end;flex-wrap:wrap;min-width:0">
+        <span style="background:${tierColor};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;white-space:nowrap">${TIER_LABEL[f.tier] ?? f.tier}</span>
+        <span style="background:${srcColor};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;white-space:nowrap">${SOURCE_LABEL[f.sourceType] ?? (f.sourceType ?? "")}</span>
+      </span>
+      <span style="font-size:12px;color:#111827;grid-column:1/-1;word-break:break-word">${f.value}</span>
+    `;
+    body.appendChild(item);
   });
-  body.appendChild(table);
 
   overlay.appendChild(header);
   overlay.appendChild(body);
