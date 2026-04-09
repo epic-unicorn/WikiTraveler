@@ -1,84 +1,158 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export default function SearchPage() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Array<{ id: string; name: string; location: string }> | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 
-  // Create-property form state
+interface Property { id: string; name: string; location: string; }
+interface NodeInfo { nodeId?: string; region?: string; version?: string; }
+
+export default function SearchPage() {
+  const router = useRouter();
+
+  // Node URL (persisted in localStorage)
+  const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
+  const [nodeInfo, setNodeInfo] = useState<NodeInfo | null>(null);
+  const [nodeReachable, setNodeReachable] = useState<boolean | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsUrl, setSettingsUrl] = useState(ENV_NODE_URL);
+  const [settingsError, setSettingsError] = useState("");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("wt_node_url");
+    if (stored) { setNodeUrl(stored); setSettingsUrl(stored); }
+  }, []);
+
+  useEffect(() => {
+    setNodeInfo(null);
+    setNodeReachable(null);
+    fetch(`${nodeUrl}/api/nodeinfo`, { signal: AbortSignal.timeout(4000) })
+      .then((r) => r.json())
+      .then((d: NodeInfo) => { setNodeInfo(d); setNodeReachable(true); })
+      .catch(() => setNodeReachable(false));
+  }, [nodeUrl]);
+
+  function saveSettings() {
+    const trimmed = settingsUrl.trim().replace(/\/$/, "");
+    try { new URL(trimmed); } catch { setSettingsError("Invalid URL."); return; }
+    localStorage.setItem("wt_node_url", trimmed);
+    setNodeUrl(trimmed);
+    setSettingsError("");
+    setShowSettings(false);
+  }
+
+  function resetSettings() {
+    localStorage.removeItem("wt_node_url");
+    setNodeUrl(ENV_NODE_URL);
+    setSettingsUrl(ENV_NODE_URL);
+    setSettingsError("");
+    setShowSettings(false);
+  }
+
+  // Search (type-to-search, debounced 350ms)
+  const [query, setQuery] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [results, setResults] = useState<Property[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (abortRef.current) abortRef.current.abort();
+    if (!query.trim()) { setResults(null); setLoading(false); return; }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setSearchError("");
+      try {
+        const res = await fetch(
+          `${nodeUrl}/api/properties?q=${encodeURIComponent(query)}`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) throw new Error();
+        const data = await res.json() as { properties: Property[] };
+        setResults(data.properties ?? []);
+        setLocationFilter("");
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+        setSearchError("Could not reach the node. Check settings.");
+        setResults(null);
+      } finally {
+        setLoading(false);
+      }
+    }, 350);
+
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query, nodeUrl]);
+
+  const locations = results
+    ? [...new Set(results.map((p) => p.location).filter(Boolean))].sort()
+    : [];
+  const filtered = results
+    ? locationFilter ? results.filter((p) => p.location === locationFilter) : results
+    : null;
+
+  // Create property
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createLocation, setCreateLocation] = useState("");
   const [createPassphrase, setCreatePassphrase] = useState("");
+  const [hasSavedToken, setHasSavedToken] = useState(() =>
+    typeof window !== "undefined" ? !!sessionStorage.getItem("wt_auth_token") : false
+  );
   const [createError, setCreateError] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
 
-  const nodeUrl = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
-  const router = useRouter();
-
-  async function search() {
-    if (!query.trim()) return;
-    setLoading(true);
-    setError("");
-    setShowCreate(false);
+  // Recently audited properties (from localStorage)
+  const [recentAudits, setRecentAudits] = useState<Array<{ id: string; name: string; location: string; auditedAt: string }>>([]);
+  useEffect(() => {
     try {
-      const res = await fetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(query)}`);
-      if (!res.ok) throw new Error("Search failed");
-      const data = await res.json() as { properties: Array<{ id: string; name: string; location: string }> };
-      setResults(data.properties ?? []);
-    } catch {
-      setError("Could not reach the node. Check your connection.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      const stored = localStorage.getItem("wt_recent_audits");
+      if (stored) setRecentAudits(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
 
   async function createProperty() {
     setCreateError("");
     if (!createName.trim() || !createLocation.trim()) {
-      setCreateError("Name and location are required.");
-      return;
-    }
-    if (!createPassphrase.trim()) {
-      setCreateError("Passphrase is required to create a property.");
-      return;
+      setCreateError("Name and location are required."); return;
     }
     setCreateLoading(true);
     try {
-      // Obtain token
-      const tokenRes = await fetch(`${nodeUrl}/api/auth/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passphrase: createPassphrase }),
-      });
-      const tokenData = await tokenRes.json() as { token?: string; message?: string };
-      if (!tokenRes.ok) {
-        setCreateError(tokenData.message ?? "Invalid passphrase");
-        return;
+      let token = sessionStorage.getItem("wt_auth_token");
+      if (!token) {
+        if (!createPassphrase.trim()) { setCreateError("Passphrase is required."); setCreateLoading(false); return; }
+        const tokenRes = await fetch(`${nodeUrl}/api/auth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passphrase: createPassphrase }),
+        });
+        const tokenData = await tokenRes.json() as { token?: string; message?: string };
+        if (!tokenRes.ok) { setCreateError(tokenData.message ?? "Invalid passphrase"); return; }
+        token = tokenData.token ?? "";
+        sessionStorage.setItem("wt_auth_token", token);
+        setHasSavedToken(true);
       }
-
-      // Create property
       const createRes = await fetch(`${nodeUrl}/api/properties`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${tokenData.token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: createName.trim(), location: createLocation.trim() }),
       });
-      const createData = await createRes.json() as { property?: { id: string }; message?: string };
-      if (!createRes.ok) {
-        setCreateError(createData.message ?? "Failed to create property");
+      if (createRes.status === 401) {
+        sessionStorage.removeItem("wt_auth_token");
+        setHasSavedToken(false);
+        setCreateError("Session expired — re-enter passphrase.");
         return;
       }
+      const createData = await createRes.json() as { property?: { id: string }; message?: string };
+      if (!createRes.ok) { setCreateError(createData.message ?? "Failed to create property"); return; }
       router.push(`/audit/${createData.property!.id}`);
     } catch {
-      setCreateError("Could not reach the node. Check your connection.");
+      setCreateError("Could not reach the node. Check settings.");
     } finally {
       setCreateLoading(false);
     }
@@ -86,128 +160,159 @@ export default function SearchPage() {
 
   return (
     <>
+      {/* Settings overlay */}
+      {showSettings && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.45)", display: "flex", flexDirection: "column" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}
+        >
+          <div style={{ background: "#fff", padding: "20px 16px 24px", borderBottomLeftRadius: 18, borderBottomRightRadius: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}>Settings</h2>
+              <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#6b7280", lineHeight: 1 }}>×</button>
+            </div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Node URL</label>
+            <input
+              type="url"
+              value={settingsUrl}
+              onChange={(e) => setSettingsUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveSettings()}
+              style={{ width: "100%", padding: "11px 13px", border: "1.5px solid #d1d5db", borderRadius: 10, fontSize: 15, boxSizing: "border-box", background: "#f9fafb" }}
+            />
+            {settingsError && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 6 }}>{settingsError}</p>}
+            {nodeInfo && (
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, fontSize: 12, color: "#374151" }}>
+                <p>Connected · <strong>{nodeInfo.region ?? "Global"}</strong></p>
+                <p style={{ marginTop: 3, color: "#6b7280" }}>{nodeInfo.nodeId} · v{nodeInfo.version}</p>
+              </div>
+            )}
+            {nodeReachable === false && (
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, fontSize: 12, color: "#ef4444" }}>
+                Cannot reach node at this URL.
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={saveSettings} style={{ flex: 2, background: "#1e3a5f", color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>Save</button>
+              <button onClick={resetSettings} style={{ flex: 1, background: "transparent", border: "1px solid #d1d5db", borderRadius: 10, padding: "11px", cursor: "pointer", fontSize: 13, color: "#374151" }}>Reset</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header>
-        <span style={{ fontSize: 24 }}>🔍</span>
-        <h1>WikiTraveler Field Kit</h1>
+        <span style={{ fontSize: 22 }}>🌍</span>
+        <div style={{ flex: 1 }}>
+          <h1>Field Kit</h1>
+          {nodeInfo?.region && (
+            <p style={{ fontSize: 11, opacity: 0.75, marginTop: 1 }}>📡 {nodeInfo.region}</p>
+          )}
+        </div>
+        <button
+          onClick={() => setShowSettings((s) => !s)}
+          aria-label="Settings"
+          style={{ background: "none", border: "none", color: "#93c5fd", fontSize: 20, cursor: "pointer", padding: "0 4px" }}
+        >⚙</button>
       </header>
 
       <main className="page">
-        <div className="card">
-          <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 16 }}>
-            Search for a property to start your on-site accessibility audit.
-          </p>
-          <label htmlFor="search">Property name or location</label>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div className="card" style={{ padding: "16px" }}>
+          <div style={{ position: "relative" }}>
+            <span style={{
+              position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
+              fontSize: 18, color: "#9ca3af", pointerEvents: "none", lineHeight: 1,
+            }}>&#128269;</span>
             <input
               id="search"
-              type="text"
-              placeholder='e.g. "Grand Hotel Vienna"'
+              type="search"
+              placeholder="Search properties…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && search()}
-              style={{ flex: 1 }}
-            />
-            <button
-              onClick={search}
-              disabled={loading}
+              autoComplete="off"
+              autoCorrect="off"
+              autoFocus
               style={{
-                background: "#1e3a5f", color: "#fff", border: "none",
-                borderRadius: 10, padding: "0 18px", cursor: "pointer",
-                fontWeight: 700, fontSize: 20,
+                paddingLeft: 44,
+                paddingRight: loading ? 40 : 14,
+                paddingTop: 14,
+                paddingBottom: 14,
+                fontSize: 17,
+                border: "2px solid #d1d5db",
+                borderRadius: 14,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
               }}
-            >
-              {loading ? "…" : "→"}
-            </button>
+            />
+            {loading && (
+              <span style={{
+                position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
+                fontSize: 18, color: "#9ca3af", lineHeight: 1,
+              }}>&#8987;</span>
+            )}
           </div>
-          {error && <p className="status-err">{error}</p>}
+          {searchError && <p className="status-err">{searchError}</p>}
+
+          {locations.length > 1 && (
+            <div style={{ marginTop: 14 }}>
+              <label htmlFor="loc-filter" style={{ marginTop: 0 }}>Filter by location</label>
+              <select
+                id="loc-filter"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                style={{ width: "100%", padding: "11px 13px", border: "1.5px solid #d1d5db", borderRadius: 10, background: "#f9fafb", color: "#111827", marginTop: 6, WebkitAppearance: "none" }}
+              >
+                <option value="">All locations ({results?.length})</option>
+                {locations.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
-        {results !== null && (
-          <div style={{ marginTop: 20 }}>
-            {results.length === 0 ? (
+        {filtered !== null && (
+          <div style={{ marginTop: 16 }}>
+            {filtered.length === 0 && !loading ? (
               <div>
-                <p style={{ textAlign: "center", color: "#9ca3af", padding: "24px 0 16px" }}>
+                <p style={{ textAlign: "center", color: "#9ca3af", padding: "20px 0 12px" }}>
                   No properties found for &ldquo;{query}&rdquo;.
                 </p>
                 {!showCreate ? (
                   <button
                     onClick={() => { setShowCreate(true); setCreateName(query); }}
-                    style={{
-                      width: "100%", padding: "12px", borderRadius: 10,
-                      border: "2px dashed #1e3a5f", background: "transparent",
-                      color: "#1e3a5f", fontWeight: 600, fontSize: 15, cursor: "pointer",
-                    }}
-                  >
-                    + Add &ldquo;{query}&rdquo; to the database
-                  </button>
+                    style={{ width: "100%", padding: "12px", borderRadius: 10, border: "2px dashed #1e3a5f", background: "transparent", color: "#1e3a5f", fontWeight: 600, fontSize: 15, cursor: "pointer" }}
+                  >+ Add &ldquo;{query}&rdquo; to the database</button>
                 ) : (
                   <div className="card" style={{ marginTop: 8 }}>
                     <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>New property</p>
                     <label htmlFor="create-name">Name</label>
-                    <input
-                      id="create-name"
-                      type="text"
-                      value={createName}
-                      onChange={(e) => setCreateName(e.target.value)}
-                      placeholder='e.g. "Hotel Example"'
-                      style={{ marginBottom: 10 }}
-                    />
+                    <input id="create-name" type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. Hotel Example" style={{ marginBottom: 10 }} />
                     <label htmlFor="create-location">Location</label>
-                    <input
-                      id="create-location"
-                      type="text"
-                      value={createLocation}
-                      onChange={(e) => setCreateLocation(e.target.value)}
-                      placeholder='e.g. "Main Street 1, Amsterdam"'
-                      style={{ marginBottom: 10 }}
-                    />
-                    <label htmlFor="create-passphrase">Community passphrase</label>
-                    <input
-                      id="create-passphrase"
-                      type="password"
-                      value={createPassphrase}
-                      onChange={(e) => setCreatePassphrase(e.target.value)}
-                      placeholder="Enter passphrase"
-                      style={{ marginBottom: 10 }}
-                    />
+                    <input id="create-location" type="text" value={createLocation} onChange={(e) => setCreateLocation(e.target.value)} placeholder="e.g. Main Street 1, Amsterdam" style={{ marginBottom: 10 }} />
+                    {!hasSavedToken && (
+                      <>
+                        <label htmlFor="create-pass">Community passphrase</label>
+                        <input id="create-pass" type="password" value={createPassphrase} onChange={(e) => setCreatePassphrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createProperty()} placeholder="Enter passphrase" autoComplete="current-password" style={{ marginBottom: 10 }} />
+                      </>
+                    )}
+                    {hasSavedToken && (
+                      <p style={{ fontSize: 12, color: "#059669", marginBottom: 10 }}>Session saved — no passphrase needed.</p>
+                    )}
                     {createError && <p className="status-err">{createError}</p>}
                     <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                      <button
-                        onClick={createProperty}
-                        disabled={createLoading}
-                        style={{
-                          flex: 1, background: "#1e3a5f", color: "#fff",
-                          border: "none", borderRadius: 10, padding: "10px",
-                          fontWeight: 700, cursor: "pointer",
-                        }}
-                      >
+                      <button onClick={createProperty} disabled={createLoading} style={{ flex: 1, background: "#1e3a5f", color: "#fff", border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer" }}>
                         {createLoading ? "Creating…" : "Create & start audit"}
                       </button>
-                      <button
-                        onClick={() => setShowCreate(false)}
-                        style={{
-                          background: "transparent", border: "1px solid #d1d5db",
-                          borderRadius: 10, padding: "10px 14px", cursor: "pointer",
-                        }}
-                      >
-                        Cancel
-                      </button>
+                      <button onClick={() => setShowCreate(false)} style={{ background: "transparent", border: "1px solid #d1d5db", borderRadius: 10, padding: "10px 14px", cursor: "pointer" }}>Cancel</button>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              results.map((p) => (
+              filtered.map((p) => (
                 <Link key={p.id} href={`/audit/${p.id}`} style={{ display: "block" }}>
-                  <div
-                    className="card"
-                    style={{ marginTop: 12, cursor: "pointer", transition: "border-color 0.15s" }}
-                  >
+                  <div className="card" style={{ marginTop: 12, cursor: "pointer" }}>
                     <p style={{ fontWeight: 600, fontSize: 16 }}>{p.name}</p>
                     <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>📍 {p.location}</p>
-                    <p style={{ color: "#1e3a5f", fontSize: 13, marginTop: 8, fontWeight: 600 }}>
-                      Start audit →
-                    </p>
+                    <p style={{ color: "#1e3a5f", fontSize: 13, marginTop: 8, fontWeight: 600 }}>Start audit →</p>
                   </div>
                 </Link>
               ))
@@ -215,20 +320,38 @@ export default function SearchPage() {
           </div>
         )}
 
-        <div
-          style={{
-            marginTop: 32, padding: "16px 20px",
-            background: "#eff6ff", borderRadius: 12,
-            border: "1px solid #bfdbfe",
-          }}
-        >
-          <p style={{ fontSize: 13, color: "#1e40af" }}>
-            <strong>Node:</strong> <code style={{ fontSize: 12 }}>{nodeUrl}</code>
+        <div style={{ marginTop: 32, padding: "12px 16px", background: "#f9fafb", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+          <p style={{ fontSize: 12, color: nodeReachable === false ? "#ef4444" : nodeReachable ? "#059669" : "#9ca3af" }}>
+            {nodeReachable === false ? "Not connected" : nodeReachable ? "Connected" : "Connecting\u2026"}
+            {" \u00b7 "}<code style={{ fontSize: 11 }}>{nodeUrl}</code>
           </p>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-            Set <code>NEXT_PUBLIC_NODE_API_URL</code> to point to a different node.
-          </p>
+          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Tap \u2699 to change node.</p>
         </div>
+
+        {recentAudits.length > 0 && !query && (
+          <div style={{ marginTop: 24 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Recently audited</p>
+            {recentAudits.map((p) => (
+              <Link key={p.id} href={`/audit/${p.id}`} style={{ display: "block" }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "12px 14px", marginBottom: 8,
+                  background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12,
+                  cursor: "pointer",
+                }}>
+                  <span style={{ fontSize: 20, lineHeight: 1 }}>\ud83d\udcdd</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
+                    <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.location}</p>
+                  </div>
+                  <p style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>
+                    {new Date(p.auditedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
     </>
   );

@@ -1,0 +1,25 @@
+// This file is used to generate lib/prisma.ts in the registry.
+// It defines the RegistryNode model for the registry database.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model RegistryNode {
+  id            String   @id @default(cuid())
+  url           String   @unique
+  nodeId        String   @unique
+  region        String?  @db.VarChar(50)
+  lastHeartbeat DateTime @default(now()) @updatedAt
+  createdAt     DateTime @default(now())
+  isActive      Boolean  @default(true)
+
+  @@index([lastHeartbeat])
+  @@index([region])
+  @@index([isActive])
+}
