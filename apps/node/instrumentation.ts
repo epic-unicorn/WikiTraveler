@@ -8,7 +8,7 @@
  *
  * We use it to:
  * 1. Verify database connectivity
- * 2. Seed bootstrap peers from BOOTSTRAP_PEERS env var
+ * 2. Register this node with the central registry
  */
 export async function register() {
   // Only run in the Node.js runtime (not the Edge runtime)
@@ -23,15 +23,7 @@ export async function register() {
       process.exit(1);
     }
 
-    // Then, bootstrap peers (non-critical)
-    const { bootstrapPeers, registerWithRegistry } = await import("@/lib/bootstrap");
-    try {
-      await bootstrapPeers();
-    } catch (err) {
-      // Never crash startup over bootstrap failures — log and continue
-      console.error("[instrumentation] bootstrapPeers failed:", err);
-    }
-
+    const { registerWithRegistry } = await import("@/lib/bootstrap");
     try {
       await registerWithRegistry();
     } catch (err) {

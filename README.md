@@ -136,7 +136,8 @@ pnpm db:seed
 | -------- | ---------------------- | -------------------------------------------------- |
 | 1        | `pnpm dev`             | http://localhost:3000 — node dashboard + API       |
 | 2        | `pnpm dev:field-kit`   | http://localhost:3001 — mobile audit app           |
-| 3        | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
+| 3        | `pnpm dev:registry`    | http://localhost:3002 — registry service           |
+| 4        | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
 
 See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
 
@@ -170,16 +171,13 @@ wikitraveler/
 | ---------------------- | ---------------------------------------- |
 | `pnpm dev`             | Start node on :3000                      |
 | `pnpm dev:field-kit`   | Start field-kit on :3001                 |
+| `pnpm dev:registry`    | Start registry on :3002                  |
 | `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
 | `pnpm build`           | Build all packages and apps              |
 | `pnpm db:migrate`      | Run Prisma migrations                    |
 | `pnpm db:seed`         | Seed database with sample properties     |
 
 ---
-
-## Backlog
-
-* ~~Node registry page to find other nodes for regions~~ ✓ `apps/registry` in place
 
 ## License
 

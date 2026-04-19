@@ -181,20 +181,22 @@ Catches any facts missed during unreachable push windows:
 
 ```
 GET /api/cron/gossip
+  → GET <REGISTRY_URL>/api/v1/nodes/:nodeId/peers
+  → (falls back to local NodePeer table if registry unreachable)
   → for each peer: GET peer/api/gossip/snapshot?since=<lastSeen>
   → POST /api/gossip/ingest (applies delta locally)
-  → POST peer/api/nodes { url: NODE_URL }  (self-announce)
+  → upserts peer into local NodePeer table
 ```
 
 ### Node discovery
 
-Bootstrap from `BOOTSTRAP_PEERS` env var. Any node also exposes:
-```
-GET /.well-known/webfinger
-  → { nodeId, version, publicKey, inboxUrl }
-```
+The central registry (`REGISTRY_URL`) is the authoritative peer source. At startup each node calls `POST <REGISTRY_URL>/api/v1/nodes/register` (fire-and-forget). The gossip cron queries `GET <REGISTRY_URL>/api/v1/nodes/:nodeId/peers` each run and falls back to the local `NodePeer` table if the registry is unreachable.
 
-At startup, if `REGISTRY_URL` is set, the node calls `POST <REGISTRY_URL>/api/v1/nodes/register` to announce itself to the central registry. This is fire-and-forget and never blocks startup.
+Any node also exposes identity endpoints used for HTTP Signature verification:
+```
+GET /.well-known/webfinger  →  { nodeId, version, publicKey, inboxUrl }
+GET /api/nodeinfo           →  { nodeId, url, version, region, publicKey }
+```
 
 ---
 
