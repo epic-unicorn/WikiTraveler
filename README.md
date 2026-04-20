@@ -1,48 +1,6 @@
-﻿# WikiTraveler 🌍🔓
-
-> **The Distributed Travel Truth-Layer** — because booking apps can't be trusted. The community can.
+﻿# WikiTraveler 🌍
 
 WikiTraveler is a open-source, federated protocol that sidecars real-world accessibility intelligence onto global travel platforms. Traditional booking sites provide outdated, vague, or missing data. WikiTraveler provides the Ground Truth — community-audited, multi-auditor confirmed, and impossible to paywall.
-
----
-
-## Why WikiTraveler Exists
-
-### The Problem with Travel Apps
-
-Open any major booking app — Booking.com, Expedia, Hotels.com, Google Hotels, Kayak — and search for a hotel that's accessible to a wheelchair user. You'll see a badge: "Accessible room available." Maybe a bullet point: "Roll-in shower." Perhaps a tick next to "elevator."
-
-**That's where the information ends.**
-
-How wide is the doorway? Is the shower actually roll-in or just a low lip? How many steps between the parking garage and reception? Is there a hearing loop in the conference room? These are the details that determine whether a trip is possible — and none of these apps can reliably answer them.
-
-The apps aren't lying. They're just passing through whatever the hotel self-reported into the Global Distribution System (GDS) — the backend data layer operated by companies like Amadeus, Sabre, and Travelport that powers virtually every OTA on earth. Hotels file a checklist. The GDS stores it. The booking apps display it. Nobody verifies it.
-
-### Why the apps can't fix it
-
-The problem isn't a bug in any single app. It's structural:
-
-| Root cause                                  | What it means in practice                                                                                                                             |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hotels self-report with no verification** | "Accessible bathroom" can mean a grab bar was installed in 1998. There is no audit.                                                                   |
-| **Binary flags, no measurements**           | `accessibleParking: true` tells you nothing about the distance to the entrance or the gradient of the path.                                           |
-| **Stale records**                           | Hotels update GDS records infrequently. A renovation that blocked the ramp three years ago may still show as accessible.                              |
-| **Commercial incentive to over-claim**      | Ticking more amenity boxes = appearing in more searches. There is no penalty for inaccuracy.                                                          |
-| **No photo evidence**                       | Every accessibility claim is a text assertion. There is no image to verify it against.                                                                |
-| **No correction channel**                   | A traveller who discovers the hotel lied has no way to flag it inside the booking system. The bad data persists indefinitely.                         |
-| **Locked data**                             | The underlying GDS records are proprietary and paywalled. Researchers, disability advocates, and independent developers cannot audit or improve them. |
-
-The result: travellers with disabilities, specific medical needs, or dependents who rely on precise specs are forced to book on faith — and frequently arrive to find the reality doesn't match the listing.
-
-### What WikiTraveler does instead
-
-WikiTraveler bypasses the broken self-reporting loop entirely. It treats any external directory data as a **starting point**, not a source of truth, then layers three tiers of increasingly reliable intelligence on top:
-
-1. **AI estimates** — GPT-4o analyses property photos and generates measurable estimates for fields left blank by official records, giving auditors a pre-filled baseline before they even arrive on site.
-2. **Community audits** — Field auditors verify on the ground with photos and precise measurements. A single community audit instantly outranks any official or AI-generated claim.
-3. **Mesh consensus** — When three or more independent auditors submit the same value, it is promoted to `CONFIRMED` — the only tier that cannot be reached by a single person.
-
-All of this runs on infrastructure you own and deploy. No data is locked behind a paywall. No single company controls what the community knows.
 
 ---
 
