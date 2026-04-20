@@ -59,13 +59,34 @@ function extractHotelNameFromTab(tab) {
 async function init() {
   const content = document.getElementById("content");
 
-  const { nodeUrl } = await new Promise((resolve) =>
-    chrome.storage.sync.get({ nodeUrl: "http://localhost:3000" }, resolve)
-  );
-
   // Get active tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? "";
+
+  // Ask content script for coordinates, then resolve the best node via registry
+  let coords = null;
+  try {
+    const coordRes = await chrome.tabs.sendMessage(tab.id, { type: "GET_COORDS" });
+    if (coordRes?.lat != null && coordRes?.lon != null) coords = coordRes;
+  } catch { /* content script not injected on this page */ }
+
+  const { nodeUrl, regionMissing } = await new Promise((resolve) =>
+    chrome.runtime.sendMessage(
+      { type: "RESOLVE_NODE", lat: coords?.lat ?? null, lon: coords?.lon ?? null },
+      (res) => resolve(res ?? { nodeUrl: "http://localhost:3000", regionMissing: false })
+    )
+  );
+
+  // Show regional warning if no bbox-matched node was found
+  if (regionMissing && coords != null) {
+    const banner = document.createElement("div");
+    banner.style.cssText = `
+      background:#fef3c7;color:#92400e;font-size:12px;padding:8px 16px;
+      border-bottom:1px solid #fde68a;display:flex;gap:8px;align-items:flex-start;
+    `;
+    banner.innerHTML = `<span>⚠️</span><span>No regional node available for this location. Data may be from another region.</span>`;
+    document.querySelector("header").after(banner);
+  }
 
   // Try to get property ID from the content script first (handles meta tags)
   let propertyId = "unknown";

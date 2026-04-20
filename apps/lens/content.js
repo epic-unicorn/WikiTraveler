@@ -582,43 +582,6 @@ function createOverlay(facts, property) {
 function removeOverlay() {
   const existing = document.getElementById("wt-lens-overlay");
   if (existing) existing.remove();
-  const banner = document.getElementById("wt-region-banner");
-  if (banner) banner.remove();
-}
-
-function showRegionMissingBanner() {
-  if (document.getElementById("wt-region-banner")) return;
-  const banner = document.createElement("div");
-  banner.id = "wt-region-banner";
-  banner.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 2147483647;
-    max-width: 320px;
-    background: #1e3a5f;
-    color: #fff;
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 13px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-  `;
-  banner.innerHTML = `
-    <span style="font-size:18px;line-height:1.2">🌍</span>
-    <div style="flex:1">
-      <div style="font-weight:700;margin-bottom:3px">No regional node available</div>
-      <div style="font-size:12px;opacity:0.8">WikiTraveler doesn't have a node covering this location yet. Data shown may be from a different region.</div>
-    </div>
-    <button id="wt-banner-close" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1;padding:0;flex-shrink:0">×</button>
-  `;
-  document.body.appendChild(banner);
-  document.getElementById("wt-banner-close")?.addEventListener("click", () => banner.remove());
-  // Auto-dismiss after 8 seconds
-  setTimeout(() => banner.remove(), 8000);
 }
 
 function showLoading() {
@@ -646,8 +609,7 @@ async function run() {
   const nodeUrl = await getNodeUrl();
   if (thisRunId !== _runId) return; // superseded by a newer run
 
-  if (_regionMissing) showRegionMissingBanner();
-
+  if (_regionMissing) {} // regional warning shown in popup only
   // ---- Listing page: attach hover tooltips to hotel cards ----
   if (isListingPage()) {
     removeOverlay();
@@ -775,6 +737,10 @@ function scheduleRun() {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "GET_PROPERTY_ID") {
     sendResponse({ propertyId: extractPropertyId() });
+  }
+  if (msg.type === "GET_COORDS") {
+    const coords = extractCoordinates();
+    sendResponse(coords ?? { lat: null, lon: null });
   }
 });
 
