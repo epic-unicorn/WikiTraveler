@@ -38,12 +38,28 @@ export async function POST(req: Request) {
 
   // ------------------------------------------------------------------
   // 1. Upsert any properties that arrived with the delta.
-  //    This ensures FK constraints are satisfied before inserting facts,
-  //    which is critical for a bootstrapping node receiving its first sync.
+  //    Filter out properties outside this node's bbox to prevent a
+  //    world-node (or misconfigured peer) from bloating our database.
   // ------------------------------------------------------------------
-  if (Array.isArray(delta.properties) && delta.properties.length > 0) {
+  const bboxFilter = makeBboxFilter();
+
+  const allowedProperties = Array.isArray(delta.properties)
+    ? delta.properties.filter((p) => !bboxFilter || bboxFilter(p.lat, p.lon))
+    : [];
+
+  const allowedPropertyIds = new Set(allowedProperties.map((p) => p.id));
+
+  // Also filter facts to only those belonging to allowed properties
+  const allowedFacts = delta.facts.filter((f) => !bboxFilter || allowedPropertyIds.has(f.propertyId));
+
+  if (bboxFilter && allowedProperties.length < (delta.properties?.length ?? 0)) {
+    const skipped = (delta.properties?.length ?? 0) - allowedProperties.length;
+    console.info(`[ingest] Skipped ${skipped} out-of-bbox properties from ${delta.fromNodeId}`);
+  }
+
+  if (allowedProperties.length > 0) {
     await Promise.all(
-      delta.properties.map((p) =>
+      allowedProperties.map((p) =>
         prisma.property.upsert({
           where: { canonicalId: p.canonicalId },
           update: {
@@ -66,9 +82,9 @@ export async function POST(req: Request) {
   }
 
   // ------------------------------------------------------------------
-  // 2. Merge and upsert facts
+  // 2. Merge and upsert facts (only for allowed properties)
   // ------------------------------------------------------------------
-  const propertyIds = [...new Set(delta.facts.map((f) => f.propertyId))];
+  const propertyIds = [...new Set(allowedFacts.map((f) => f.propertyId))];
 
   const existingFacts = await prisma.accessibilityFact.findMany({
     where: { propertyId: { in: propertyIds } },
@@ -87,7 +103,7 @@ export async function POST(req: Request) {
     signatureHash: f.signatureHash,
   }));
 
-  const merged = mergeGossipDelta(asFacts, delta);
+  const merged = mergeGossipDelta(asFacts, { ...delta, facts: allowedFacts });
 
   await Promise.all(
     merged.map((fact) =>
@@ -117,20 +133,20 @@ export async function POST(req: Request) {
 
   // Record the gossip snapshot
   const snapshotHash = createHash("sha256")
-    .update(JSON.stringify(delta.facts))
+    .update(JSON.stringify(allowedFacts))
     .digest("hex");
 
   await prisma.gossipSnapshot.create({
     data: {
       fromNodeId: delta.fromNodeId,
       snapshotHash,
-      factCount: delta.facts.length,
+      factCount: allowedFacts.length,
     },
   });
 
   return NextResponse.json({
     ok: true,
-    propertiesUpserted: delta.properties?.length ?? 0,
-    ingested: delta.facts.length,
+    propertiesUpserted: allowedProperties.length,
+    ingested: allowedFacts.length,
   });
 }
