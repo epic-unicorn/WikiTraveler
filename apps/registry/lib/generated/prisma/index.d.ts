@@ -858,6 +858,7 @@ export namespace Prisma {
     url: string | null
     nodeId: string | null
     region: string | null
+    bbox: string | null
     lastHeartbeat: Date | null
     createdAt: Date | null
     isActive: boolean | null
@@ -868,6 +869,7 @@ export namespace Prisma {
     url: string | null
     nodeId: string | null
     region: string | null
+    bbox: string | null
     lastHeartbeat: Date | null
     createdAt: Date | null
     isActive: boolean | null
@@ -878,6 +880,7 @@ export namespace Prisma {
     url: number
     nodeId: number
     region: number
+    bbox: number
     lastHeartbeat: number
     createdAt: number
     isActive: number
@@ -890,6 +893,7 @@ export namespace Prisma {
     url?: true
     nodeId?: true
     region?: true
+    bbox?: true
     lastHeartbeat?: true
     createdAt?: true
     isActive?: true
@@ -900,6 +904,7 @@ export namespace Prisma {
     url?: true
     nodeId?: true
     region?: true
+    bbox?: true
     lastHeartbeat?: true
     createdAt?: true
     isActive?: true
@@ -910,6 +915,7 @@ export namespace Prisma {
     url?: true
     nodeId?: true
     region?: true
+    bbox?: true
     lastHeartbeat?: true
     createdAt?: true
     isActive?: true
@@ -993,6 +999,7 @@ export namespace Prisma {
     url: string
     nodeId: string
     region: string | null
+    bbox: string | null
     lastHeartbeat: Date
     createdAt: Date
     isActive: boolean
@@ -1020,6 +1027,7 @@ export namespace Prisma {
     url?: boolean
     nodeId?: boolean
     region?: boolean
+    bbox?: boolean
     lastHeartbeat?: boolean
     createdAt?: boolean
     isActive?: boolean
@@ -1030,6 +1038,7 @@ export namespace Prisma {
     url?: boolean
     nodeId?: boolean
     region?: boolean
+    bbox?: boolean
     lastHeartbeat?: boolean
     createdAt?: boolean
     isActive?: boolean
@@ -1040,6 +1049,7 @@ export namespace Prisma {
     url?: boolean
     nodeId?: boolean
     region?: boolean
+    bbox?: boolean
     lastHeartbeat?: boolean
     createdAt?: boolean
     isActive?: boolean
@@ -1054,6 +1064,10 @@ export namespace Prisma {
       url: string
       nodeId: string
       region: string | null
+      /**
+       * Bounding box as "minLat,minLon,maxLat,maxLon" (same format as OSM_BBOX)
+       */
+      bbox: string | null
       lastHeartbeat: Date
       createdAt: Date
       isActive: boolean
@@ -1454,6 +1468,7 @@ export namespace Prisma {
     readonly url: FieldRef<"RegistryNode", 'String'>
     readonly nodeId: FieldRef<"RegistryNode", 'String'>
     readonly region: FieldRef<"RegistryNode", 'String'>
+    readonly bbox: FieldRef<"RegistryNode", 'String'>
     readonly lastHeartbeat: FieldRef<"RegistryNode", 'DateTime'>
     readonly createdAt: FieldRef<"RegistryNode", 'DateTime'>
     readonly isActive: FieldRef<"RegistryNode", 'Boolean'>
@@ -1764,6 +1779,7 @@ export namespace Prisma {
     url: 'url',
     nodeId: 'nodeId',
     region: 'region',
+    bbox: 'bbox',
     lastHeartbeat: 'lastHeartbeat',
     createdAt: 'createdAt',
     isActive: 'isActive'
@@ -1861,6 +1877,7 @@ export namespace Prisma {
     url?: StringFilter<"RegistryNode"> | string
     nodeId?: StringFilter<"RegistryNode"> | string
     region?: StringNullableFilter<"RegistryNode"> | string | null
+    bbox?: StringNullableFilter<"RegistryNode"> | string | null
     lastHeartbeat?: DateTimeFilter<"RegistryNode"> | Date | string
     createdAt?: DateTimeFilter<"RegistryNode"> | Date | string
     isActive?: BoolFilter<"RegistryNode"> | boolean
@@ -1871,6 +1888,7 @@ export namespace Prisma {
     url?: SortOrder
     nodeId?: SortOrder
     region?: SortOrderInput | SortOrder
+    bbox?: SortOrderInput | SortOrder
     lastHeartbeat?: SortOrder
     createdAt?: SortOrder
     isActive?: SortOrder
@@ -1884,6 +1902,7 @@ export namespace Prisma {
     OR?: RegistryNodeWhereInput[]
     NOT?: RegistryNodeWhereInput | RegistryNodeWhereInput[]
     region?: StringNullableFilter<"RegistryNode"> | string | null
+    bbox?: StringNullableFilter<"RegistryNode"> | string | null
     lastHeartbeat?: DateTimeFilter<"RegistryNode"> | Date | string
     createdAt?: DateTimeFilter<"RegistryNode"> | Date | string
     isActive?: BoolFilter<"RegistryNode"> | boolean
@@ -1894,6 +1913,7 @@ export namespace Prisma {
     url?: SortOrder
     nodeId?: SortOrder
     region?: SortOrderInput | SortOrder
+    bbox?: SortOrderInput | SortOrder
     lastHeartbeat?: SortOrder
     createdAt?: SortOrder
     isActive?: SortOrder
@@ -1910,6 +1930,7 @@ export namespace Prisma {
     url?: StringWithAggregatesFilter<"RegistryNode"> | string
     nodeId?: StringWithAggregatesFilter<"RegistryNode"> | string
     region?: StringNullableWithAggregatesFilter<"RegistryNode"> | string | null
+    bbox?: StringNullableWithAggregatesFilter<"RegistryNode"> | string | null
     lastHeartbeat?: DateTimeWithAggregatesFilter<"RegistryNode"> | Date | string
     createdAt?: DateTimeWithAggregatesFilter<"RegistryNode"> | Date | string
     isActive?: BoolWithAggregatesFilter<"RegistryNode"> | boolean
@@ -1920,6 +1941,7 @@ export namespace Prisma {
     url: string
     nodeId: string
     region?: string | null
+    bbox?: string | null
     lastHeartbeat?: Date | string
     createdAt?: Date | string
     isActive?: boolean
@@ -1930,6 +1952,7 @@ export namespace Prisma {
     url: string
     nodeId: string
     region?: string | null
+    bbox?: string | null
     lastHeartbeat?: Date | string
     createdAt?: Date | string
     isActive?: boolean
@@ -1940,6 +1963,7 @@ export namespace Prisma {
     url?: StringFieldUpdateOperationsInput | string
     nodeId?: StringFieldUpdateOperationsInput | string
     region?: NullableStringFieldUpdateOperationsInput | string | null
+    bbox?: NullableStringFieldUpdateOperationsInput | string | null
     lastHeartbeat?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
@@ -1950,6 +1974,7 @@ export namespace Prisma {
     url?: StringFieldUpdateOperationsInput | string
     nodeId?: StringFieldUpdateOperationsInput | string
     region?: NullableStringFieldUpdateOperationsInput | string | null
+    bbox?: NullableStringFieldUpdateOperationsInput | string | null
     lastHeartbeat?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
@@ -1960,6 +1985,7 @@ export namespace Prisma {
     url: string
     nodeId: string
     region?: string | null
+    bbox?: string | null
     lastHeartbeat?: Date | string
     createdAt?: Date | string
     isActive?: boolean
@@ -1970,6 +1996,7 @@ export namespace Prisma {
     url?: StringFieldUpdateOperationsInput | string
     nodeId?: StringFieldUpdateOperationsInput | string
     region?: NullableStringFieldUpdateOperationsInput | string | null
+    bbox?: NullableStringFieldUpdateOperationsInput | string | null
     lastHeartbeat?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
@@ -1980,6 +2007,7 @@ export namespace Prisma {
     url?: StringFieldUpdateOperationsInput | string
     nodeId?: StringFieldUpdateOperationsInput | string
     region?: NullableStringFieldUpdateOperationsInput | string | null
+    bbox?: NullableStringFieldUpdateOperationsInput | string | null
     lastHeartbeat?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
@@ -2041,6 +2069,7 @@ export namespace Prisma {
     url?: SortOrder
     nodeId?: SortOrder
     region?: SortOrder
+    bbox?: SortOrder
     lastHeartbeat?: SortOrder
     createdAt?: SortOrder
     isActive?: SortOrder
@@ -2051,6 +2080,7 @@ export namespace Prisma {
     url?: SortOrder
     nodeId?: SortOrder
     region?: SortOrder
+    bbox?: SortOrder
     lastHeartbeat?: SortOrder
     createdAt?: SortOrder
     isActive?: SortOrder
@@ -2061,6 +2091,7 @@ export namespace Prisma {
     url?: SortOrder
     nodeId?: SortOrder
     region?: SortOrder
+    bbox?: SortOrder
     lastHeartbeat?: SortOrder
     createdAt?: SortOrder
     isActive?: SortOrder

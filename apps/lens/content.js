@@ -29,18 +29,82 @@ const SOURCE_LABEL = {
 };
 
 // ---------------------------------------------------------------------------
-// Node URL — fetched once from storage and cached for the page lifetime
+// Node URL — resolved once per page via registry (if configured) or storage
 // ---------------------------------------------------------------------------
 
 let _nodeUrl = null;
+let _regionMissing = false;
+
+/**
+ * Extract lat/lon from the current page.
+ * Booking.com and others embed coordinates in og:image or JSON-LD.
+ */
+function extractCoordinates() {
+  // 1. JSON-LD (most reliable — present on Booking.com hotel detail pages)
+  for (const el of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try {
+      const data = JSON.parse(el.textContent);
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        const geo = item.geo ?? item["@graph"]?.find?.((n) => n.geo)?.geo;
+        if (geo?.latitude != null && geo?.longitude != null) {
+          return { lat: parseFloat(geo.latitude), lon: parseFloat(geo.longitude) };
+        }
+      }
+    } catch { /* malformed JSON-LD */ }
+  }
+
+  // 2. Microdata latitude/longitude meta tags
+  const latMeta = document.querySelector('meta[itemprop="latitude"]')?.getAttribute("content");
+  const lonMeta = document.querySelector('meta[itemprop="longitude"]')?.getAttribute("content");
+  if (latMeta && lonMeta) {
+    const lat = parseFloat(latMeta), lon = parseFloat(lonMeta);
+    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+  }
+
+  // 4. Booking.com data attributes on map/property elements
+  const dataEl = document.querySelector("[data-lat][data-lng], [data-latitude][data-longitude], [data-map-lat][data-map-lng]");
+  if (dataEl) {
+    const lat = parseFloat(dataEl.getAttribute("data-lat") ?? dataEl.getAttribute("data-latitude") ?? dataEl.getAttribute("data-map-lat") ?? "");
+    const lon = parseFloat(dataEl.getAttribute("data-lng") ?? dataEl.getAttribute("data-longitude") ?? dataEl.getAttribute("data-map-lng") ?? "");
+    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+  }
+
+  // 5. Scan inline scripts for coordinate assignments (e.g. window.b_lat or similar)
+  const coordPattern = /(?:latitude|b_lat|hotel_lat)['":\s]+(-?\d{1,3}\.\d+).*?(?:longitude|b_lng|hotel_lng)['":\s]+(-?\d{1,3}\.\d+)/s;
+  for (const el of document.querySelectorAll("script:not([src])")) {
+    const m = coordPattern.exec(el.textContent ?? "");
+    if (m) {
+      const lat = parseFloat(m[1]), lon = parseFloat(m[2]);
+      if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+    }
+  }
+
+  // 6. Booking.com og:image URL params (?dest_lat=&dest_lon=) — search pages
+  const ogImage = document.querySelector('meta[property="og:image"]')?.getAttribute("content") ?? "";
+  try {
+    const u = new URL(ogImage);
+    const lat = parseFloat(u.searchParams.get("dest_lat") ?? "");
+    const lon = parseFloat(u.searchParams.get("dest_lon") ?? "");
+    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+  } catch { /* not a valid URL */ }
+
+  return null;
+}
 
 async function getNodeUrl() {
   if (_nodeUrl) return _nodeUrl;
-  _nodeUrl = await new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: "GET_NODE_URL" }, (res) =>
-      resolve(res?.nodeUrl ?? "http://localhost:3000")
+  const coords = extractCoordinates();
+  console.log("[lens] coords", coords);
+  const result = await new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { type: "RESOLVE_NODE", lat: coords?.lat ?? null, lon: coords?.lon ?? null },
+      (res) => resolve(res ?? { nodeUrl: "http://localhost:3000", regionMissing: false })
     );
   });
+  _nodeUrl = result.nodeUrl ?? "http://localhost:3000";
+  _regionMissing = result.regionMissing === true && coords != null;
+  console.log("[lens] resolved node →", _nodeUrl, _regionMissing ? "(no regional node)" : "");
   return _nodeUrl;
 }
 
@@ -518,6 +582,43 @@ function createOverlay(facts, property) {
 function removeOverlay() {
   const existing = document.getElementById("wt-lens-overlay");
   if (existing) existing.remove();
+  const banner = document.getElementById("wt-region-banner");
+  if (banner) banner.remove();
+}
+
+function showRegionMissingBanner() {
+  if (document.getElementById("wt-region-banner")) return;
+  const banner = document.createElement("div");
+  banner.id = "wt-region-banner";
+  banner.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 2147483647;
+    max-width: 320px;
+    background: #1e3a5f;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  `;
+  banner.innerHTML = `
+    <span style="font-size:18px;line-height:1.2">🌍</span>
+    <div style="flex:1">
+      <div style="font-weight:700;margin-bottom:3px">No regional node available</div>
+      <div style="font-size:12px;opacity:0.8">WikiTraveler doesn't have a node covering this location yet. Data shown may be from a different region.</div>
+    </div>
+    <button id="wt-banner-close" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1;padding:0;flex-shrink:0">×</button>
+  `;
+  document.body.appendChild(banner);
+  document.getElementById("wt-banner-close")?.addEventListener("click", () => banner.remove());
+  // Auto-dismiss after 8 seconds
+  setTimeout(() => banner.remove(), 8000);
 }
 
 function showLoading() {
@@ -544,6 +645,8 @@ async function run() {
   const thisRunId = ++_runId;
   const nodeUrl = await getNodeUrl();
   if (thisRunId !== _runId) return; // superseded by a newer run
+
+  if (_regionMissing) showRegionMissingBanner();
 
   // ---- Listing page: attach hover tooltips to hotel cards ----
   if (isListingPage()) {

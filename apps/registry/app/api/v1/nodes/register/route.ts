@@ -16,14 +16,14 @@ import type { NextRequest } from "next/server";
  *   { ok: true, nodeId, url }
  */
 export async function POST(req: NextRequest) {
-  let body: { url?: string; nodeId?: string; region?: string };
+  let body: { url?: string; nodeId?: string; region?: string; bbox?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
   }
 
-  const { url, nodeId, region } = body;
+  const { url, nodeId, region, bbox } = body;
 
   if (!url || typeof url !== "string") {
     return NextResponse.json({ message: "url is required and must be a string" }, { status: 400 });
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   const normalizedUrl = parsed.origin + parsed.pathname.replace(/\/$/, "");
+  console.log(`[registry] register ${nodeId} @ ${normalizedUrl} region=${region ?? "—"} bbox=${bbox ?? "—"}`);
 
   try {
     // Upsert: create if new, otherwise update lastHeartbeat and isActive
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
       update: {
         url: normalizedUrl,
         region: region ?? null,
+        bbox: bbox ?? null,
         lastHeartbeat: new Date(),
         isActive: true,
       },
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
         nodeId,
         url: normalizedUrl,
         region: region ?? null,
+        bbox: bbox ?? null,
         isActive: true,
       },
     });

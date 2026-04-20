@@ -127,6 +127,7 @@ exports.Prisma.RegistryNodeScalarFieldEnum = {
   url: 'url',
   nodeId: 'nodeId',
   region: 'region',
+  bbox: 'bbox',
   lastHeartbeat: 'lastHeartbeat',
   createdAt: 'createdAt',
   isActive: 'isActive'

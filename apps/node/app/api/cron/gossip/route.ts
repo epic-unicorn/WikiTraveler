@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (registryUrl && NODE_ID) {
     try {
       const res = await fetch(
-        `${registryUrl}/api/v1/nodes/${encodeURIComponent(NODE_ID)}/peers`,
+        `${registryUrl}/api/v1/nodes/${encodeURIComponent(NODE_ID)}/peers?sameRegion=true`,
         { signal: AbortSignal.timeout(8_000) }
       );
       if (res.ok) {

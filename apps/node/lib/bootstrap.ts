@@ -23,7 +23,7 @@ export async function registerWithRegistry(): Promise<void> {
     const res = await fetch(`${registryUrl}/api/v1/nodes/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: NODE_URL, nodeId: NODE_ID, region: NODE_REGION }),
+      body: JSON.stringify({ url: NODE_URL, nodeId: NODE_ID, region: NODE_REGION, bbox: process.env.OSM_BBOX ?? null }),
       signal: AbortSignal.timeout(3_000),
     });
     if (res.ok) {

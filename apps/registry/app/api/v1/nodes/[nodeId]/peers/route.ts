@@ -47,6 +47,7 @@ export async function GET(
       take: 5,
     });
 
+    console.log(`[registry] peers ${nodeId} sameRegion=${sameRegionParam} → ${peers.length} result(s)`);
     return NextResponse.json({ peers });
   } catch (err) {
     console.error("[registry] Peers lookup failed:", err);

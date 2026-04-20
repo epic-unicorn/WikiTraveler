@@ -16,6 +16,8 @@ model RegistryNode {
   url           String   @unique
   nodeId        String   @unique
   region        String?  @db.VarChar(50)
+  /// Bounding box as "minLat,minLon,maxLat,maxLon" (same format as OSM_BBOX)
+  bbox          String?  @db.VarChar(100)
   lastHeartbeat DateTime @default(now()) @updatedAt
   createdAt     DateTime @default(now())
   isActive      Boolean  @default(true)
