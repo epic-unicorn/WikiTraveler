@@ -143,7 +143,7 @@ function buildQuery(bbox: string): string {
     "hotel", "hostel", "motel", "apartment", "guest_house",
     "chalet", "resort", "alpine_hut", "vacation_rental", "bed_and_breakfast",
   ].join("|");
-  return `[out:json][timeout:90];
+  return `[out:json][timeout:180][maxsize:536870912];
 (
   node["tourism"~"^(${types})$"](${bbox});
   way["tourism"~"^(${types})$"](${bbox});
@@ -182,9 +182,12 @@ export async function fetchOverpassData(
       console.log(`[overpass] Trying ${endpoint}…`);
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "WikiTraveler/0.1 (https://github.com/wikitraveler; osm-ingest)",
+        },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(240_000),
       });
 
       if (!res.ok) {

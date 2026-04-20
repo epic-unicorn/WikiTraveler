@@ -126,7 +126,8 @@ docker compose -f docker/docker-compose.dev.yml up postgres -d
 ### 3. Migrate & seed
 
 ```bash
-pnpm db:migrate
+pnpm db:migrate               # node schema
+pnpm db:migrate:registry      # registry schema
 pnpm db:seed
 ```
 
@@ -174,8 +175,11 @@ wikitraveler/
 | `pnpm dev:registry`    | Start registry on :3002                  |
 | `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
 | `pnpm build`           | Build all packages and apps              |
-| `pnpm db:migrate`      | Run Prisma migrations                    |
-| `pnpm db:seed`         | Seed database with sample properties     |
+| `pnpm db:migrate`           | Apply pending node schema migrations     |
+| `pnpm db:migrate:registry`  | Apply pending registry schema migrations |
+| `pnpm db:seed`              | Seed database with sample properties     |
+| `pnpm db:setup`             | Full reset of both databases + seed      |
+| `pnpm osm:ingest`           | Ingest OpenStreetMap data                |
 
 ---
 

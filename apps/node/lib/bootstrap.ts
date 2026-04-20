@@ -24,14 +24,14 @@ export async function registerWithRegistry(): Promise<void> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: NODE_URL, nodeId: NODE_ID, region: NODE_REGION }),
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(3_000),
     });
     if (res.ok) {
       console.log(`[bootstrap] Registered with registry at ${registryUrl}`);
     } else {
-      console.warn(`[bootstrap] Registry registration returned ${res.status}`);
+      console.warn(`[bootstrap] Registry registration returned ${res.status} — node will run without registry`);
     }
-  } catch (err) {
-    console.warn("[bootstrap] Registry registration failed:", err);
+  } catch {
+    console.info(`[bootstrap] Registry unreachable (${registryUrl}) — node will run without it. Start the registry or unset REGISTRY_URL to suppress this message.`);
   }
 }

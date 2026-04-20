@@ -10,10 +10,10 @@
     "dev:agency-demo": "pnpm --filter @wikitraveler/sdk build && npx serve -p 4000 .",
     "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build && pnpm --filter @wikitraveler/registry build",
     "lint": "pnpm --recursive lint",
-    "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:registry": "pnpm --filter @wikitraveler/registry db:migrate",
     "db:seed": "tsx scripts/seed.ts",
-    "db:reset": "prisma migrate reset --force && tsx scripts/seed.ts",
+    "db:setup": "prisma migrate reset --force && tsx scripts/seed.ts && pnpm --filter @wikitraveler/registry db:deploy",
     "osm:ingest": "tsx scripts/osm-ingest.ts"
   },
   "workspaces": [

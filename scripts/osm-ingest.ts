@@ -18,7 +18,7 @@ import { fetchOverpassData, ingestOverpassResult } from "../apps/node/lib/overpa
 const prisma = new PrismaClient();
 
 const BBOX = process.env.OSM_BBOX ?? "51.39,5.42,51.49,5.52";
-const FIXTURE_PATH = join(__dirname, "fixtures", "eindhoven-osm.json");
+const FIXTURE_PATH = join(__dirname, "fixtures", `osm-${BBOX.replace(/[^0-9.]/g, "_")}.json`);
 const NODE_ID = process.env.NODE_ID ?? "seed-script";
 
 async function main() {
