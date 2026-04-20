@@ -29,15 +29,27 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "No active nodes registered" }, { status: 404 });
   }
 
-  // Find the first node whose bbox contains the given point.
+  // Find all nodes whose bbox contains the point, then pick the most specific
+  // (smallest area). This prevents a "world node" from shadowing regional nodes.
   // bbox format: "minLat,minLon,maxLat,maxLon"
-  const match = activeNodes.find((node) => {
+  const matches = activeNodes.filter((node) => {
     if (!node.bbox) return false;
     const parts = node.bbox.split(",").map(Number);
     if (parts.length !== 4 || parts.some(isNaN)) return false;
     const [minLat, minLon, maxLat, maxLon] = parts;
     return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
   });
+
+  // Sort by bbox area ascending — smallest (most specific) first
+  matches.sort((a, b) => {
+    const area = (n: typeof a) => {
+      const [minLat, minLon, maxLat, maxLon] = n.bbox!.split(",").map(Number);
+      return (maxLat - minLat) * (maxLon - minLon);
+    };
+    return area(a) - area(b);
+  });
+
+  const match = matches[0] ?? null;
 
   const result = match ?? activeNodes[0];
   console.log(`[registry] resolve lat=${lat} lon=${lon} → ${result.nodeId} (${match ? "bbox match" : "fallback"})`);

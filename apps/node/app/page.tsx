@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
 import { SearchMapLayout } from "./SearchMapLayout";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +31,11 @@ export default async function DashboardPage() {
             {NODE_REGION} · {NODE_ID} · v{NODE_VERSION}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 24, fontSize: 14 }}>
+        <div style={{ display: "flex", gap: 24, fontSize: 14, alignItems: "center" }}>
           <Stat label="Properties" value={propertyCount} />
           <Stat label="Facts" value={factCount} />
           <Stat label="Active Peers" value={peerCount} />
+          <Link href="/stats" style={{ color: "#93c5fd", fontSize: 13, textDecoration: "none", marginLeft: 8 }}>Stats →</Link>
         </div>
       </header>
 

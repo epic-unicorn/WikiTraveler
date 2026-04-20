@@ -4,6 +4,22 @@ import { mergeGossipDelta } from "@wikitraveler/core";
 import { createHash } from "crypto";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
+// ---------------------------------------------------------------------------
+// BBox guard — parse OSM_BBOX and return a filter function.
+// bbox format: "minLat,minLon,maxLat,maxLon"
+// ---------------------------------------------------------------------------
+function makeBboxFilter(): ((lat: number | null | undefined, lon: number | null | undefined) => boolean) | null {
+  const raw = process.env.OSM_BBOX;
+  if (!raw) return null;
+  const parts = raw.split(",").map(Number);
+  if (parts.length !== 4 || parts.some(isNaN)) return null;
+  const [minLat, minLon, maxLat, maxLon] = parts;
+  return (lat, lon) => {
+    if (lat == null || lon == null) return true; // no coords → allow (can't verify)
+    return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+  };
+}
+
 // POST /api/gossip/ingest
 export async function POST(req: Request) {
   let delta: GossipDelta;
