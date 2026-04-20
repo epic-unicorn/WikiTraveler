@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
 import Link from "next/link";
+import { AdminPanel } from "../AdminPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,8 @@ export default async function StatsPage() {
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px" }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>Statistics</h2>
+
+        <AdminPanel />
 
         {/* ── Overview ── */}
         <Section title="Overview">
