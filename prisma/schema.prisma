@@ -101,12 +101,22 @@ model OsmSyncState {
 }
 
 // ---------------------------------------------------------------------------
+// User roles
+// ---------------------------------------------------------------------------
+enum Role {
+  USER    // can read the API and use the Lens extension
+  AUDITOR // can submit field audits via Field Kit or node dashboard
+  ADMIN   // full access: user management, backup/restore, stats
+}
+
+// ---------------------------------------------------------------------------
 // User accounts — one account per node, identity is username@homeNodeUrl
 // ---------------------------------------------------------------------------
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
   passwordHash String
+  role         Role     @default(USER)
   createdAt    DateTime @default(now())
 }
 

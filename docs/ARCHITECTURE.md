@@ -44,19 +44,29 @@ WikiTraveler is a federated truth layer for accessibility data — a mesh of ind
 
 The canonical deployment unit. A Next.js 14 App Router app serving:
 - **REST API** under `/api/` — used by all clients and the SDK
-- **Dashboard** at `/` — properties with tier breakdown
-- **Property page** at `/properties/[id]` — audit form + fact history
+- **Dashboard** at `/` — property map (with "Audited only" filter) + search; requires login (AUDITOR/ADMIN only)
+- **Property page** at `/properties/[id]` — audit form + fact history; token pre-filled from cookie on load
+- **Admin panel** at `/stats` → Users tab — role management (ADMIN only)
 - **Gossip cron** at `/api/cron/gossip` — polls peers, ingests deltas, self-announces
+- **Auth pages**: `/login` (blocks USER role), `/register` (creates account, shows close-tab success for Lens flow)
 
 ### `apps/field-kit`
 
 Mobile-optimised Next.js app. Opens on the auditor's phone in the hotel lobby. Connects to any node via `NEXT_PUBLIC_NODE_API_URL`.
 
-Flow: search → GPS resolution (auto-detects the nearest regional node via `/api/peers/resolve`) → tap property (or create if missing) → fill 12 accessibility fields → submit with JWT. If the property lives on a different node than the user's home node, the JWT is verified remotely via `/.well-known/pubkey` cross-node — no re-login required.
+**Auth gate:** The app requires AUDITOR or ADMIN role. A `/login` page issues the cookie; `/register` creates a USER account and shows a pending-approval screen. Middleware redirects unauthenticated requests to `/login` (except `/login`, `/register`).
+
+Flow: login → search → GPS resolution (auto-detects the nearest regional node via `/api/peers/resolve`) → tap property (or create if missing) → fill 12 accessibility fields → submit with JWT. If the property lives on a different node than the user's home node, the JWT is verified remotely via `/.well-known/pubkey` cross-node — no re-login required.
 
 ### `apps/lens`
 
 Chrome MV3 extension. Injects a tier-coloured accessibility panel on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step.
+
+**Auth:** The popup shows a login form when no token is stored. On successful login the RS256 JWT is saved to `chrome.storage.sync`. A register link opens the node's `/register` page in a new browser tab — after account creation (and admin approval to AUDITOR), the user returns to the popup to sign in.
+
+- Listing pages: hover tooltips (350 ms delay) with the top 8 accessibility facts per hotel card.
+- Detail pages: overlay panel with all facts; falls back to name-search + coordinate scoring when only a slug-style ID is available.
+- `background.js`: resolves the best regional node via `/api/peers/resolve` (auth token included).
 
 ### `apps/agency-demo`
 
@@ -124,7 +134,7 @@ AccessibilityFact
 AuditSubmission   ← raw submitted facts + photos (base64)
 NodePeer          ← peers with cached publicKey, bbox, region
 GossipSnapshot    ← dedup log with SHA-256 hash of each applied delta
-User              ← local user accounts (username + bcrypt hash)
+User              ← local user accounts (username + bcrypt hash + role: USER|AUDITOR|ADMIN)
 ```
 
 ---
@@ -143,9 +153,11 @@ CONFIRMED (3) > VERIFIED (2) > AI_GUESS (1) > OFFICIAL (0)
 
 ## Authentication
 
-Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/login`) to receive an **RS256 JWT** signed with the node's `NODE_PRIVATE_KEY`. The JWT payload includes `homeNodeUrl` — the issuing node's URL.
+Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/login`) to receive an **RS256 JWT** signed with the node's `NODE_PRIVATE_KEY`. The JWT payload includes `homeNodeUrl` and `role`.
 
 Any node accepting the JWT decodes `homeNodeUrl`, fetches the issuer's public key from `GET homeNodeUrl/.well-known/pubkey`, and verifies the signature locally. No shared secrets needed — user identity is `username@homeNodeUrl` and is globally unique across the mesh.
+
+See **Authentication & Roles** section below for the full role hierarchy and admin seeding.
 
 ---
 
@@ -209,13 +221,37 @@ Three trigger paths:
 
 AI never overwrites `VERIFIED` or `CONFIRMED` facts.
 
-## Authentication
+## Authentication & Roles
 
-Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/login`) to receive an **RS256 JWT** signed with the node's `NODE_PRIVATE_KEY`. The JWT payload includes `homeNodeUrl` — the issuing node's URL.
+Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/login`) to receive an **RS256 JWT** signed with the node's `NODE_PRIVATE_KEY`. The JWT payload includes `homeNodeUrl` — the issuing node's URL and a `role` claim.
 
 Any node accepting the JWT decodes `homeNodeUrl`, fetches the issuer's public key from `GET homeNodeUrl/.well-known/pubkey`, and verifies the signature locally. No shared secrets needed — user identity is `username@homeNodeUrl` and is globally unique across the mesh.
 
 This means a user registered on Node A can submit audits to Node B (e.g. while travelling) without creating a second account.
+
+### Role Hierarchy
+
+| Role | Permissions |
+|------|-------------|
+| `USER` | Read API (search, accessibility, stats), use Lens |
+| `AUDITOR` | All USER permissions + submit field audits, import properties, trigger AI analysis |
+| `ADMIN` | All AUDITOR permissions + manage users, backup/restore, view admin panel |
+
+New registrations default to `USER`. An admin promotes users via the Stats page → Users panel or `PATCH /api/admin/users/:username`.
+
+The **first admin** is seeded from environment variables on startup:
+```
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=change-me-in-production
+```
+After creating the account, remove these variables to avoid re-seeding.
+
+### Node-to-Node Auth
+
+Gossip and inbox endpoints use a separate **node signature** scheme (not user JWTs):
+- `X-Node-Id`: sending node's ID
+- `X-Node-Signature`: `base64url(RSA-SHA256("<nodeId>.<timestampMs>"))`  
+- `X-Node-Timestamp`: millisecond UNIX timestamp (5-minute replay window)
 
 Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected automatically by Vercel).
 
@@ -228,20 +264,27 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 | GET | `/api/health` | — | Node status + fact/peer counts |
 | GET | `/api/nodeinfo` | — | Node identity, public key, bbox, peers |
 | GET | `/.well-known/pubkey` | — | RS256 public key PEM for remote JWT verification |
-| POST | `/api/auth/register` | — | Create user account |
-| POST | `/api/auth/login` | — | Login; returns RS256 JWT |
-| GET | `/api/auth/me` | JWT | Current user info |
-| POST | `/api/auth/token` | — | **Deprecated** — passphrase JWT (backward compat) |
+| POST | `/api/auth/register` | — | Create user account (role: USER, pending approval) |
+| POST | `/api/auth/login` | — | Login; returns RS256 JWT with `role` claim |
+| GET | `/api/auth/me` | USER | Current user info |
 | GET | `/api/peers` | — | List active peers |
-| GET | `/api/peers/resolve?lat=&lon=` | — | Best-matching peer for a coordinate |
-| GET | `/api/properties?q=` | — | Search properties |
-| POST | `/api/properties` | JWT | Create property |
-| GET | `/api/properties/[id]/accessibility` | — | Collapsed facts with tier |
-| POST | `/api/properties/[id]/accessibility` | JWT | Submit audit (saves facts, triggers push + vision) |
-| POST | `/api/properties/[id]/analyze` | JWT | On-demand AI analysis |
-| POST | `/api/inbox` | Signature | Receive signed fact push from peer |
-| GET | `/api/gossip/snapshot?since=` | — | Export delta for peer pull |
-| POST | `/api/gossip/ingest` | — | Apply incoming delta |
+| GET | `/api/peers/resolve?lat=&lon=` | USER | Best-matching peer for a coordinate |
+| GET | `/api/properties?q=` | USER | Search properties |
+| POST | `/api/properties` | AUDITOR | Create property |
+| GET | `/api/properties/map` | USER | All geo-tagged pins with key facts + `audited` flag |
+| GET | `/api/properties/[id]/accessibility` | USER | Collapsed facts with tier |
+| POST | `/api/properties/[id]/accessibility` | AUDITOR | Submit audit (saves facts, triggers push + vision) |
+| POST | `/api/properties/[id]/analyze` | AUDITOR | On-demand AI analysis |
+| POST | `/api/properties/[id]/external-ids` | AUDITOR | Add external ID mapping |
+| POST | `/api/import` | AUDITOR | Bulk import properties |
+| GET | `/api/admin/users` | ADMIN | List all users |
+| PATCH | `/api/admin/users/:username` | ADMIN | Change user role |
+| DELETE | `/api/admin/users/:username` | ADMIN | Delete user |
+| GET | `/api/admin/backup` | ADMIN | Export full backup JSON |
+| POST | `/api/admin/restore` | ADMIN | Import backup JSON |
+| POST | `/api/inbox` | Node Sig | Receive signed fact push from peer |
+| GET | `/api/gossip/snapshot?since=` | Node Sig | Export delta for peer pull |
+| POST | `/api/gossip/ingest` | Node Sig | Apply incoming delta |
 | GET | `/api/cron/gossip` | CRON_SECRET | Gossip pull cycle |
 | GET | `/api/cron/ai-scan` | CRON_SECRET | Batch gap-fill |
 | GET | `/api/cron/wheelmap-sync` | CRON_SECRET | Sync OSM wheelchair data |

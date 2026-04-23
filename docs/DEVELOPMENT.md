@@ -106,7 +106,10 @@ No build step â€” load as unpacked:
 
 1. Chrome â†’ `chrome://extensions` â†’ enable **Developer mode**
 2. **Load unpacked** â†’ select `apps/lens/`
-3. Lens icon → **Options** → set Node URL to `http://localhost:3000`, then log in
+3. Click the Lens icon → enter your node credentials and **Sign in**
+   - First time? Click **Register on node →** — this opens `http://localhost:3000/register` in a new tab.
+   - Register creates a `USER` account. Promote it to `AUDITOR` via the node dashboard (Stats → Users) before the extension can show data.
+4. Lens icon → **Options** → confirm Node URL is `http://localhost:3000`
 
 **Two-node local dev** (peer discovery testing):
 ```bash

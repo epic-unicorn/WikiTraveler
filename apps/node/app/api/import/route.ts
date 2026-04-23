@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { gunzip } from "zlib";
 import { promisify } from "util";
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 import type { Tier, SourceType } from "@wikitraveler/core";
 
@@ -56,7 +56,7 @@ interface ExportPayload {
  * JWT-protected — node operators only.
  */
 export async function POST(req: NextRequest) {
-  const authError = await requireAuth(req);
+  const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
 
   const contentType = req.headers.get("content-type") ?? "";

@@ -44,22 +44,34 @@ interface Props {
 export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, targetNodeUrl }: Props) {
   const router = useRouter();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
+  const [mounted, setMounted] = useState(false);
 
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState<string | null>(() =>
-    typeof window !== "undefined" ? sessionStorage.getItem("wt_auth_token") : null
-  );
-  const [loggedInAs, setLoggedInAs] = useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("wt_username") : null
-  );
+  const [token, setToken] = useState<string | null>(null);
+  const [loggedInAs, setLoggedInAs] = useState<string | null>(null);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
     const storedUrl = localStorage.getItem("wt_node_url");
     if (storedUrl) setNodeUrl(storedUrl);
+
+    // Populate auth state from storage — must happen client-side only
+    const fromSession = sessionStorage.getItem("wt_auth_token");
+    if (fromSession) {
+      setToken(fromSession);
+    } else {
+      const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
+      const fromCookie = m ? decodeURIComponent(m[1]) : null;
+      if (fromCookie) {
+        sessionStorage.setItem("wt_auth_token", fromCookie);
+        setToken(fromCookie);
+      }
+    }
+    setLoggedInAs(localStorage.getItem("wt_username"));
+    setMounted(true);
   }, []);
 
   async function login() {
@@ -248,8 +260,10 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
       <main className="page">
 
-        {/* Auth gate */}
-        {!token ? (
+        {/* Auth gate — only rendered after client hydration to avoid mismatch */}
+        {!mounted ? (
+          <div className="card" style={{ textAlign: "center", padding: "32px 16px", color: "#9ca3af" }}>Loading…</div>
+        ) : !token ? (
           <div className="card">
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
               {authMode === "login" ? "Log in to submit" : "Create an account"}

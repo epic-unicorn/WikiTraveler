@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_URL, NODE_REGION, NODE_BBOX } from "@/lib/nodeInfo";
+import { requireAuth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 /**
@@ -27,6 +28,9 @@ function containsPoint(bbox: string, lat: number, lon: number): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  const authError = await requireAuth(req);
+  if (authError) return authError;
+
   const lat = parseFloat(req.nextUrl.searchParams.get("lat") ?? "");
   const lon = parseFloat(req.nextUrl.searchParams.get("lon") ?? "");
 

@@ -52,12 +52,15 @@ pnpm dev:field-kit
 ```
 
 1. Open `http://localhost:3001` (or use Chrome DevTools device emulation).
-2. When prompted, allow location access — the app silently calls `/api/peers/resolve` to find the node that covers your GPS position.
-3. If a regional peer is found, a blue banner shows "Results from \<region\>" and searches are routed to that peer.
-4. Search for a property (e.g. "Vienna"), tap a result.
-5. Log in or register an account on the node. If the property lives on a different node a "📤 Remote audit · \<hostname\>" indicator appears in the header.
-6. Fill in accessibility fields and submit.
-7. Open `http://localhost:3000` — the fact appears with tier `VERIFIED`.
+2. You are redirected to `/login`. Enter your node credentials.
+   - **No account yet?** Go to `/register` — enter a username/password to create a `USER` account, then ask the node admin to promote you to `AUDITOR` (Stats → Users panel on the node dashboard), then log in.
+   - `USER` role is blocked at login with a pending-approval screen. Only `AUDITOR` or `ADMIN` can access the Field Kit.
+3. After login, allow location access — the app silently calls `/api/peers/resolve` to find the node that covers your GPS position.
+4. If a regional peer is found, a blue banner shows "Results from \<region\>" and searches are routed to that peer.
+5. Search for a property (e.g. "Vienna"), tap a result.
+6. If the property lives on a different node a "📤 Remote audit · \<hostname\>" indicator appears in the header.
+7. Fill in accessibility fields and submit.
+8. Open `http://localhost:3000` — the fact appears with tier `VERIFIED`.
 
 **Verify:** Login issues a JWT signed by the home node's RS256 key. When auditing a remote node, the remote node fetches the home node's public key from `/.well-known/pubkey` and verifies the JWT — no shared secret needed. Wrong credentials return `401`. Submitted facts appear on the target node dashboard immediately.
 
@@ -74,10 +77,11 @@ pnpm dev
 ```
 
 1. Chrome → `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select `apps/lens/`.
-2. Click the Lens icon → **Options** → set Node URL to `http://localhost:3000`.
+2. Click the Lens icon — a login form appears. Enter your node credentials and sign in.
+   - First time? Click **Register on node →** to open `http://localhost:3000/register` in a new tab, create an account, get promoted to AUDITOR by the node admin, then return to the popup and sign in.
 3. Navigate to a Booking.com or Expedia hotel page for a property in your node.
 
-**Verify:** Overlay panel appears with field name, value, and tier badge. Unknown properties show "No accessibility data".
+**Verify:** Overlay panel appears with field name, value, and tier badge. On listing pages, hover a hotel card — a tooltip shows accessibility facts after 350 ms. "Audited only" toggle on the node map highlights only properties with VERIFIED/CONFIRMED facts.
 
 ---
 

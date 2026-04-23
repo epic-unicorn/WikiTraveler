@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 interface BackupFile {
@@ -45,9 +46,8 @@ interface BackupFile {
  * Protected by ADMIN_SECRET env var (Bearer token).
  */
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authError = await requireRole(req, "ADMIN");
+  if (authError) return authError;
 
   let backup: BackupFile;
   try {
@@ -188,8 +188,4 @@ export async function POST(req: NextRequest) {
   });
 }
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) return true;
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
+

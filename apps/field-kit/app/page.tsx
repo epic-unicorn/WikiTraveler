@@ -96,9 +96,14 @@ export default function SearchPage() {
       setLoading(true);
       setSearchError("");
       try {
+        const token = sessionStorage.getItem("wt_auth_token") ?? (() => {
+          const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
+          return m ? decodeURIComponent(m[1]) : null;
+        })();
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await fetch(
           `${searchNodeUrl}/api/properties?q=${encodeURIComponent(query)}`,
-          { signal: controller.signal }
+          { signal: controller.signal, headers }
         );
         if (!res.ok) throw new Error();
         const data = await res.json() as { properties: Property[] };
@@ -127,9 +132,11 @@ export default function SearchPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createLocation, setCreateLocation] = useState("");
-  const [hasSavedToken, setHasSavedToken] = useState(() =>
-    typeof window !== "undefined" ? !!sessionStorage.getItem("wt_auth_token") : false
-  );
+  const [hasSavedToken, setHasSavedToken] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (sessionStorage.getItem("wt_auth_token")) return true;
+    return /(?:^|;\s*)wt_token=([^;]+)/.test(document.cookie);
+  });
   const [createError, setCreateError] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
 
@@ -149,7 +156,10 @@ export default function SearchPage() {
     }
     setCreateLoading(true);
     try {
-      const token = sessionStorage.getItem("wt_auth_token");
+      const token = sessionStorage.getItem("wt_auth_token") ?? (() => {
+        const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      })();
       if (!token) {
         setCreateError("You must be logged in. Open any property to log in first."); setCreateLoading(false); return;
       }
@@ -217,18 +227,30 @@ export default function SearchPage() {
       )}
 
       <header>
-        <span style={{ fontSize: 22 }}>🌍</span>
-        <div style={{ flex: 1 }}>
-          <h1>Field Kit</h1>
-          {nodeInfo?.region && (
-            <p style={{ fontSize: 11, opacity: 0.75, marginTop: 1 }}>📡 {nodeInfo.region}</p>
-          )}
-        </div>
+        <Link href="/" style={{ display: "contents", textDecoration: "none", color: "inherit" }}>
+          <span style={{ fontSize: 22 }}>🌍</span>
+          <div style={{ flex: 1 }}>
+            <h1>Field Kit</h1>
+            {nodeInfo?.region && (
+              <p style={{ fontSize: 11, opacity: 0.75, marginTop: 1 }}>📡 {nodeInfo.region}</p>
+            )}
+          </div>
+        </Link>
         <button
           onClick={() => setShowSettings((s) => !s)}
           aria-label="Settings"
           style={{ background: "none", border: "none", color: "#93c5fd", fontSize: 20, cursor: "pointer", padding: "0 4px" }}
         >⚙</button>
+        <button
+          onClick={() => {
+            document.cookie = "wt_token=; path=/; max-age=0";
+            sessionStorage.removeItem("wt_auth_token");
+            window.location.href = "/login";
+          }}
+          aria-label="Sign out"
+          style={{ background: "none", border: "none", color: "#93c5fd", fontSize: 20, cursor: "pointer", padding: "0 4px" }}
+          title="Sign out"
+        >⇥</button>
       </header>
 
       <main className="page">

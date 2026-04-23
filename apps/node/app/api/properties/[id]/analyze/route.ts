@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import type { NextRequest } from "next/server";
 
@@ -21,7 +21,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authError = await requireAuth(req);
+  const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
 
   if (!process.env.OPENAI_API_KEY) {

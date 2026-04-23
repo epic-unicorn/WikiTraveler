@@ -4,6 +4,9 @@ CREATE TYPE "Tier" AS ENUM ('OFFICIAL', 'AI_GUESS', 'VERIFIED', 'CONFIRMED');
 -- CreateEnum
 CREATE TYPE "SourceType" AS ENUM ('WIKIDATA', 'WHEELMAP', 'OSM', 'WHEEL_THE_WORLD', 'AUDITOR');
 
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'AUDITOR', 'ADMIN');
+
 -- CreateTable
 CREATE TABLE "Property" (
     "id" TEXT NOT NULL,
@@ -65,6 +68,7 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "username" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")

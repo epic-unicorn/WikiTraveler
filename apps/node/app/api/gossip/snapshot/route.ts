@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_BBOX, NODE_REGION } from "@/lib/nodeInfo";
+import { requireNodeAuth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 // GET /api/gossip/snapshot?since=<ISO>
 export async function GET(req: NextRequest) {
+  const authError = await requireNodeAuth(req);
+  if (authError) return authError;
   const since = req.nextUrl.searchParams.get("since");
   const sinceDate = since ? new Date(since) : new Date(0);
 

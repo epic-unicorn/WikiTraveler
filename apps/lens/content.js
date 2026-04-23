@@ -105,11 +105,27 @@ async function getAutoPopup() {
   return _autoPopup;
 }
 
+// ---------------------------------------------------------------------------
+// Auth headers — loaded once, invalidated on token change
+// ---------------------------------------------------------------------------
+
+let _authHeadersPromise = null;
+
+function getAuthHeaders() {
+  if (_authHeadersPromise) return _authHeadersPromise;
+  _authHeadersPromise = new Promise((resolve) =>
+    chrome.storage.sync.get({ wtToken: null }, (items) =>
+      resolve(items.wtToken ? { Authorization: `Bearer ${items.wtToken}` } : {})
+    )
+  );
+  return _authHeadersPromise;
+}
+
 // Invalidate cache when the user changes settings
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && "autoPopup" in changes) {
-    _autoPopup = null;
-  }
+  if (area !== "sync") return;
+  if ("autoPopup" in changes) _autoPopup = null;
+  if ("wtToken" in changes) _authHeadersPromise = null;
 });
 
 // ---------------------------------------------------------------------------
@@ -145,7 +161,7 @@ function extractHotelName() {
 // Search API
 // ---------------------------------------------------------------------------
 
-async function searchForProperty(name, nodeUrl, coords) {
+async function searchForProperty(name, nodeUrl, coords, headers = {}) {
   const words = name.split(/\s+/);
   let bestCandidates = null; // { results, q } from the most specific query that returned anything
 
@@ -154,7 +170,7 @@ async function searchForProperty(name, nodeUrl, coords) {
     try {
       const res = await fetch(
         `${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`,
-        { signal: AbortSignal.timeout(6000) }
+        { signal: AbortSignal.timeout(6000), headers }
       );
       if (!res.ok) continue;
       const data = await res.json();
@@ -358,9 +374,11 @@ async function handleCardEnter(card) {
     let propertyId = key;
     let propertyName = null;
 
+    const headers = await getAuthHeaders();
+
     if (key.startsWith("name:")) {
       const name = key.slice(5);
-      const { match } = await searchForProperty(name, nodeUrl, null);
+      const { match } = await searchForProperty(name, nodeUrl, null, headers);
       if (!match) {
         _cardCache.set(key, null);
         return;
@@ -372,19 +390,24 @@ async function handleCardEnter(card) {
     try {
       const res = await fetch(
         `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`,
-        { signal: AbortSignal.timeout(6000) }
+        { signal: AbortSignal.timeout(6000), headers }
       );
+
+      if (res.status === 401 || res.status === 403) {
+        _authHeadersPromise = null; // force re-read on next attempt
+        return; // silently skip — tooltip not shown
+      }
 
       if (res.status === 404 && !key.startsWith("name:")) {
         // Not in node by booking ID — retry by hotel name from the card heading
         const heading = card.querySelector('[data-testid="title"], h3, h2, .sr_item_content h3');
         const headingName = heading?.textContent?.trim();
         if (headingName) {
-          const { match } = await searchForProperty(headingName, nodeUrl, null);
+          const { match } = await searchForProperty(headingName, nodeUrl, null, headers);
           if (match) {
             const res2 = await fetch(
               `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
-              { signal: AbortSignal.timeout(6000) }
+              { signal: AbortSignal.timeout(6000), headers }
             );
             if (res2.ok) {
               const data2 = await res2.json();
@@ -583,6 +606,31 @@ function createOverlay(facts, property) {
   document.getElementById("wt-close")?.addEventListener("click", () => removeOverlay());
 }
 
+function showLoginRequired() {
+  const existing = document.getElementById("wt-lens-overlay");
+  if (existing) existing.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "wt-lens-overlay";
+  overlay.style.cssText = `
+    position: fixed; top: 20px; right: 20px; z-index: 2147483647;
+    background: #1e3a5f; color: #fff; border-radius: 12px;
+    padding: 12px 18px; font-family: sans-serif; font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2); max-width: 260px;
+  `;
+  overlay.innerHTML = `
+    <span style="font-weight:700">🌍 WikiTraveler</span><br>
+    <span style="font-size:12px;opacity:0.85">Sign in via the extension popup to view accessibility data.</span>
+    <button id="wt-close" style="position:absolute;top:8px;right:10px;background:none;border:none;color:#fff;cursor:pointer;font-size:16px">×</button>
+  `;
+  overlay.style.position = "fixed";
+  document.body.appendChild(overlay);
+  document.getElementById("wt-close")?.addEventListener("click", removeOverlay);
+
+  // Auto-dismiss after 6 s
+  setTimeout(removeOverlay, 6000);
+}
+
 function removeOverlay() {
   const existing = document.getElementById("wt-lens-overlay");
   if (existing) existing.remove();
@@ -628,6 +676,7 @@ async function run() {
   if (!(await getAutoPopup())) return;
 
   const propertyId = extractPropertyId();
+  const headers = await getAuthHeaders();
 
   // ---- Detail page: search fallback when ID extraction failed ----
   if (propertyId.startsWith("page-")) {
@@ -635,14 +684,19 @@ async function run() {
     if (name) {
       showLoading();
       const coords = extractCoordinates();
-      const { match } = await searchForProperty(name, nodeUrl, coords);
+      const { match } = await searchForProperty(name, nodeUrl, coords, headers);
       if (thisRunId !== _runId) return;
       if (match) {
         try {
           const res = await fetch(
             `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
-            { signal: AbortSignal.timeout(8000) }
+            { signal: AbortSignal.timeout(8000), headers }
           );
+          if (res.status === 401 || res.status === 403) {
+            _authHeadersPromise = null;
+            showLoginRequired();
+            return;
+          }
           if (res.ok) {
             const data = await res.json();
             const facts = data.facts ?? [];
@@ -668,20 +722,26 @@ async function run() {
   try {
     const res = await fetch(
       `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`,
-      { signal: AbortSignal.timeout(8000) }
+      { signal: AbortSignal.timeout(8000), headers }
     );
+
+    if (res.status === 401 || res.status === 403) {
+      _authHeadersPromise = null;
+      showLoginRequired();
+      return;
+    }
 
     if (res.status === 404) {
       // ID not in node — try matching by hotel name instead
       const name = extractHotelName();
       if (name) {
         const coords = extractCoordinates();
-        const { match } = await searchForProperty(name, nodeUrl, coords);
+        const { match } = await searchForProperty(name, nodeUrl, coords, headers);
         if (thisRunId !== _runId) return;
         if (match) {
           const res2 = await fetch(
             `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
-            { signal: AbortSignal.timeout(8000) }
+            { signal: AbortSignal.timeout(8000), headers }
           );
           if (res2.ok) {
             const data2 = await res2.json();

@@ -60,28 +60,31 @@ interface Props {
 
 export function SearchSection({ onResults }: Props) {
   const [query, setQuery] = useState("");
-  const [activeFeatures, setActiveFeatures] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Property[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback(
-    (q: string, features: Set<string>) => {
-      const hasInput = q.trim().length > 0 || features.size > 0;
-      if (!hasInput) {
+    (q: string) => {
+      if (!q.trim()) {
         setResults(null);
         onResults?.(null);
         return;
       }
       startTransition(async () => {
         const params = new URLSearchParams();
-        if (q.trim()) params.set("q", q.trim());
-        if (features.size > 0) params.set("feature", Array.from(features).join(","));
-        const res = await fetch(`/api/properties?${params}`);
-        const data = await res.json() as { properties: Property[] };
-        setResults(data.properties);
+        params.set("q", q.trim());
+        const token = (() => {
+          const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
+          return m ? decodeURIComponent(m[1]) : null;
+        })();
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`/api/properties?${params}`, { headers });
+        const data = await res.json() as { properties?: Property[] };
+        const properties = data.properties ?? [];
+        setResults(properties);
         onResults?.(
-          data.properties
+          properties
             .filter((p) => p.lat != null && p.lon != null)
             .map((p) => ({ id: p.id, name: p.name, lat: p.lat!, lon: p.lon! }))
         );
@@ -91,9 +94,9 @@ export function SearchSection({ onResults }: Props) {
   );
 
   const debouncedSearch = useCallback(
-    (q: string, features: Set<string>) => {
+    (q: string) => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      debounceTimer.current = setTimeout(() => search(q, features), 300);
+      debounceTimer.current = setTimeout(() => search(q), 300);
     },
     [search]
   );
@@ -101,15 +104,7 @@ export function SearchSection({ onResults }: Props) {
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const q = e.target.value;
     setQuery(q);
-    debouncedSearch(q, activeFeatures);
-  };
-
-  const toggleFeature = (key: string) => {
-    const next = new Set(activeFeatures);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    setActiveFeatures(next);
-    search(query, next); // feature toggles fire immediately
+    debouncedSearch(q);
   };
 
   return (
@@ -134,35 +129,6 @@ export function SearchSection({ onResults }: Props) {
         />
       </div>
 
-      {/* Feature filter pills */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
-        {FEATURES.map((f) => {
-          const active = activeFeatures.has(f.key);
-          return (
-            <button
-              key={f.key}
-              onClick={() => toggleFeature(f.key)}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 999,
-                border: `1.5px solid ${active ? "#1e3a5f" : "#d1d5db"}`,
-                background: active ? "#1e3a5f" : "#fff",
-                color: active ? "#fff" : "#374151",
-                fontSize: 13,
-                fontWeight: active ? 600 : 400,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <span>{f.emoji}</span>
-              {f.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Results */}
       {isPending && (
         <p style={{ color: "#6b7280", fontSize: 14 }}>Searching…</p>
@@ -171,7 +137,7 @@ export function SearchSection({ onResults }: Props) {
       {!isPending && results === null && (
         <div style={{ textAlign: "center", padding: "60px 20px", color: "#9ca3af" }}>
           <p style={{ fontSize: 48, marginBottom: 12 }}>🔍</p>
-          <p style={{ fontSize: 16 }}>Search by name, city, or pick an accessibility feature above.</p>
+          <p style={{ fontSize: 16 }}>Search by name, city, or street.</p>
         </div>
       )}
 

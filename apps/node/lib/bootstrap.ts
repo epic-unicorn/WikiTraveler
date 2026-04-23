@@ -12,6 +12,7 @@
 
 import { NODE_ID, NODE_URL, NODE_REGION, NODE_BBOX } from "@/lib/nodeInfo";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 interface RemoteNodeInfo {
   nodeId?: string;
@@ -69,6 +70,21 @@ async function upsertPeer(url: string, info: Partial<RemoteNodeInfo>) {
  * Also optionally registers with a legacy REGISTRY_URL if provided.
  */
 export async function registerWithRegistry(): Promise<void> {
+  // ── Admin account seeding ────────────────────────────────────────────────
+  const adminUsername = process.env.ADMIN_USERNAME?.trim().toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (adminUsername && adminPassword) {
+    const existing = await prisma.user.findUnique({ where: { username: adminUsername } });
+    if (!existing) {
+      const passwordHash = await bcrypt.hash(adminPassword, 12);
+      await prisma.user.create({ data: { username: adminUsername, passwordHash, role: "ADMIN" } });
+      console.info(`[bootstrap] Created admin account: ${adminUsername}`);
+    } else if (existing.role !== "ADMIN") {
+      await prisma.user.update({ where: { username: adminUsername }, data: { role: "ADMIN" } });
+      console.info(`[bootstrap] Promoted ${adminUsername} to ADMIN`);
+    }
+  }
+
   // ── Peer exchange ────────────────────────────────────────────────────────
   const seedEnv = process.env.BOOTSTRAP_PEERS ?? "";
   const legacyRegistry = process.env.REGISTRY_URL;

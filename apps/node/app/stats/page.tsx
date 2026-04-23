@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
 import Link from "next/link";
-import { AdminPanel } from "../AdminPanel";
+import { AdminSection } from "../AdminSection";
+import { SignOutButton } from "../SignOutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -99,18 +100,23 @@ export default async function StatsPage() {
       {/* Header */}
       <header style={{ background: "#1e3a5f", color: "#fff", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>🌍 WikiTraveler Node</h1>
+          <Link href="/" style={{ textDecoration: "none", color: "inherit" }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700 }}>🌍 WikiTraveler Node</h1>
+          </Link>
           <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
             {NODE_REGION} · {NODE_ID} · v{NODE_VERSION}
           </p>
         </div>
-        <Link href="/" style={{ color: "#93c5fd", fontSize: 13, textDecoration: "none" }}>← Dashboard</Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <Link href="/" style={{ color: "#93c5fd", fontSize: 13, textDecoration: "none" }}>← Dashboard</Link>
+          <SignOutButton />
+        </div>
       </header>
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px" }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>Statistics</h2>
 
-        <AdminPanel />
+        <AdminSection />
 
         {/* ── Overview ── */}
         <Section title="Overview">

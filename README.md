@@ -38,9 +38,9 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 
 | Component       | Path                | Description                                                     |
 | --------------- | ------------------- | --------------------------------------------------------------- |
-| **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker.            |
-| **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits.              |
-| **Lens**        | `apps/lens`         | Chrome MV3 extension. Overlays data on Booking.com and Expedia. |
+| **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker. Search, rich map with "Audited only" filter. |
+| **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits. Login gate — auditors only. |
+| **Lens**        | `apps/lens`         | Chrome MV3 extension. Overlays data on Booking.com and Expedia. Popup login + register link. |
 | **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.        |
 | **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.               |
 | **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).              |
@@ -52,9 +52,10 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 | ----------------------------------------- | ----------------------------------------------------------------- |
 | `GET /api/nodeinfo`                       | Node identity, public key, bbox, and known peers                  |
 | `GET /.well-known/pubkey`                 | RS256 public key (used by peer nodes to verify JWTs)              |
-| `GET /api/peers/resolve?lat=&lon=`        | Returns the best regional peer for a coordinate                   |
-| `POST /api/auth/register`                 | Create a user account on this node                                |
-| `POST /api/auth/login`                    | Login — returns a signed RS256 JWT                                |
+| `GET /api/peers/resolve?lat=&lon=`        | Returns the best regional peer for a coordinate (requires auth)   |
+| `POST /api/auth/register`                 | Create a user account (role defaults to USER, pending approval)   |
+| `POST /api/auth/login`                    | Login — returns a signed RS256 JWT with `role` claim              |
+| `GET /api/properties/map`                 | All geo-tagged properties with key facts + `audited` flag         |
 | `POST /api/gossip/ingest`                 | Receive a gossip delta from a peer node                           |
 | `POST /api/inbox`                         | Real-time signed fact push from peer nodes                        |
 | `POST /api/properties/[id]/accessibility` | Submit an audit; triggers immediate peer push + background vision |
@@ -90,6 +91,13 @@ docker compose -f docker/docker-compose.dev.yml up postgres -d
 pnpm db:migrate               # node schema
 pnpm db:seed
 ```
+
+On first start the node auto-creates the admin account from `.env`:
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=change-me-in-production
+```
+Comment those lines out after the account is created.
 
 ### 4. Run the apps
 
@@ -132,10 +140,10 @@ wikitraveler/
 | `pnpm dev:field-kit`   | Start field-kit on :3001                 |
 | `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
 | `pnpm build`           | Build all packages and apps              |
-| `pnpm db:migrate`           | Apply pending node schema migrations     |
-| `pnpm db:seed`              | Seed database with sample properties     |
-| `pnpm db:setup`             | Full reset of both databases + seed      |
-| `pnpm osm:ingest`           | Ingest OpenStreetMap data                |
+| `pnpm db:migrate`      | Apply pending node schema migrations     |
+| `pnpm db:seed`         | Seed database with sample properties     |
+| `pnpm db:setup`        | Full reset of both databases + seed      |
+| `pnpm osm:ingest`      | Ingest OpenStreetMap data                |
 
 ---
 

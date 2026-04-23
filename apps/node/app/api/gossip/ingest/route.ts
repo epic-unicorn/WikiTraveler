@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mergeGossipDelta } from "@wikitraveler/core";
 import { createHash } from "crypto";
+import { requireNodeAuth } from "@/lib/auth";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 // ---------------------------------------------------------------------------
@@ -22,6 +23,8 @@ function makeBboxFilter(): ((lat: number | null | undefined, lon: number | null 
 
 // POST /api/gossip/ingest
 export async function POST(req: Request) {
+  const authError = await requireNodeAuth(req as import("next/server").NextRequest);
+  if (authError) return authError;
   let delta: GossipDelta;
   try {
     delta = await req.json();

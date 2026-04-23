@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const TIER_COLOR: Record<string, string> = {
   OFFICIAL: "#9ca3af",
@@ -71,6 +71,12 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
     { fieldName: "door_width_cm", value: "" },
   ]);
   const [status, setStatus] = useState<{ type: "idle" | "loading" | "ok" | "error"; msg?: string }>({ type: "idle" });
+
+  // Seed token from cookie so a logged-in admin/auditor doesn't need to re-authenticate
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
+    if (m) setToken(decodeURIComponent(m[1]));
+  }, []);
 
   async function getToken() {
     setStatus({ type: "loading" });

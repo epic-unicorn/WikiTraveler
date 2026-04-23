@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 // GET /api/properties?q=<search>&feature=<fieldName>[,<fieldName>...]
 export async function GET(req: NextRequest) {
+  const authError = await requireAuth(req);
+  if (authError) return authError;
+
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   const featureParam = req.nextUrl.searchParams.get("feature")?.trim() ?? "";
   const features = featureParam ? featureParam.split(",").map((f) => f.trim()).filter(Boolean) : [];
@@ -57,7 +60,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/properties — create a new property (requires auditor JWT)
 export async function POST(req: NextRequest) {
-  const authError = await requireAuth(req);
+  const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
 
   let body: { name?: string; location?: string; canonicalId?: string };

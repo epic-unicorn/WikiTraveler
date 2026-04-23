@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
 import { SearchMapLayout } from "./SearchMapLayout";
+import { SignOutButton } from "./SignOutButton";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,9 @@ export default async function DashboardPage() {
         }}
       >
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>🌍 WikiTraveler Node</h1>
+          <Link href="/" style={{ textDecoration: "none", color: "inherit" }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700 }}>🌍 WikiTraveler Node</h1>
+          </Link>
           <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
             {NODE_REGION} · {NODE_ID} · v{NODE_VERSION}
           </p>
@@ -36,6 +39,7 @@ export default async function DashboardPage() {
           <Stat label="Facts" value={factCount} />
           <Stat label="Active Peers" value={peerCount} />
           <Link href="/stats" style={{ color: "#93c5fd", fontSize: 13, textDecoration: "none", marginLeft: 8 }}>Stats →</Link>
+          <SignOutButton />
         </div>
       </header>
 

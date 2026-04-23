@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_REGION } from "@/lib/nodeInfo";
+import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 /**
@@ -13,9 +14,8 @@ import type { NextRequest } from "next/server";
  * Protected by ADMIN_SECRET env var (Bearer token).
  */
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authError = await requireRole(req, "ADMIN");
+  if (authError) return authError;
 
   // Get the latest applied migration from Prisma's internal table
   let migration = "unknown";
@@ -55,8 +55,4 @@ export async function GET(req: NextRequest) {
   });
 }
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) return true; // no secret configured — open (dev mode)
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
+

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { evaluateMeshTruth } from "@wikitraveler/core";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
@@ -10,9 +10,11 @@ import type { Tier, SourceType } from "@wikitraveler/core";
 
 // GET /api/properties/:id/accessibility
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAuth(req);
+  if (authError) return authError;
   // Find by id OR canonicalId
   const property = await prisma.property.findFirst({
     where: {
@@ -74,7 +76,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authError = await requireAuth(req);
+  const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
 
   let body: {

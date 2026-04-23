@@ -2,9 +2,38 @@
 
 import { useState } from "react";
 
-export function AdminPanel() {
+interface Props {
+  token: string;
+}
+
+export function AdminPanel({ token }: Props) {
   const [restoreStatus, setRestoreStatus] = useState<null | { ok: boolean; message: string; warnings?: string[] }>(null);
   const [restoring, setRestoring] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleBackup() {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/admin/backup", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json() as { message?: string };
+        alert(data.message ?? "Backup failed");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `wikitraveler-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function handleRestore(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -15,7 +44,10 @@ export function AdminPanel() {
       const text = await file.text();
       const res = await fetch("/api/admin/restore", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: text,
       });
       const data = await res.json() as {
@@ -51,17 +83,18 @@ export function AdminPanel() {
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         {/* Backup */}
-        <a
-          href="/api/admin/backup"
-          download
+        <button
+          onClick={handleBackup}
+          disabled={downloading}
           style={{
             background: "#1e3a5f", color: "#fff", borderRadius: 8,
             padding: "9px 20px", fontSize: 13, fontWeight: 600,
-            textDecoration: "none", display: "inline-block",
+            border: "none", cursor: downloading ? "not-allowed" : "pointer",
+            opacity: downloading ? 0.7 : 1,
           }}
         >
-          ⬇ Download Backup
-        </a>
+          {downloading ? "Preparing…" : "⬇ Download Backup"}
+        </button>
 
         {/* Restore */}
         <label style={{
