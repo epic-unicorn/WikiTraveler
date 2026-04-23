@@ -56,7 +56,7 @@ interface ExportPayload {
  * JWT-protected — node operators only.
  */
 export async function POST(req: NextRequest) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const contentType = req.headers.get("content-type") ?? "";

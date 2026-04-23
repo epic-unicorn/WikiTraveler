@@ -31,8 +31,15 @@ services:
       DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler
       NODE_ID: docker-node-1
       NODE_URL: http://localhost:3000
-      COMMUNITY_PASSPHRASE: changeme
-      JWT_SECRET: change-me-in-production
+      # RS256 keypair — required for cross-node auth. Generate with:
+      #   openssl genrsa -out node_private.pem 2048
+      #   openssl rsa -in node_private.pem -pubout -out node_public.pem
+      NODE_PRIVATE_KEY: ""
+      NODE_PUBLIC_KEY: ""
+      # Open registration: set to "false" to require an invite or admin action
+      OPEN_REGISTRATION: "true"
+      # Seed peers — comma-separated node URLs to contact on first boot
+      # BOOTSTRAP_PEERS: https://other-node.example.com
       CORS_ORIGINS: "*"
       GOSSIP_INTERVAL_HOURS: "24"
       NODE_ENV: production

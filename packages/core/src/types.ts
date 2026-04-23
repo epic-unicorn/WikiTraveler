@@ -76,9 +76,14 @@ export interface NodeInfo {
   nodeId: string;
   version: string;
   url: string;
+  region: string;
+  bbox: string | null;
+  publicKeyPem: string | null;
   peerCount: number;
   factCount: number;
   startedAt: string;
+  /** Peers this node knows about — used for organic network discovery. */
+  peers?: PeerInfo[];
 }
 
 export interface AuditPayload {
@@ -98,8 +103,17 @@ export interface GossipDelta {
   since: string;     // ISO-8601 — snapshot covers changes after this timestamp
   until: string;     // ISO-8601
   /** Properties referenced by the facts — allows new nodes to upsert them. */
-  properties: Pick<Property, "id" | "canonicalId" | "name" | "location" | "osmId" | "wheelmapId">[];
+  properties: (Pick<Property, "id" | "canonicalId" | "name" | "location" | "osmId" | "wheelmapId"> & { lat?: number | null; lon?: number | null })[];
   facts: AccessibilityFact[];
+  /** Known active peers — propagated during gossip for organic network discovery. */
+  peers?: PeerInfo[];
+}
+
+export interface PeerInfo {
+  nodeId: string;
+  url: string;
+  region?: string;
+  bbox?: string | null;
 }
 
 export interface PeerNode {

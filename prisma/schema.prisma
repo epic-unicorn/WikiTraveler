@@ -101,11 +101,24 @@ model OsmSyncState {
 }
 
 // ---------------------------------------------------------------------------
+// User accounts — one account per node, identity is username@homeNodeUrl
+// ---------------------------------------------------------------------------
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
 // Peer node registry
 // ---------------------------------------------------------------------------
 model NodePeer {
   id        String   @id @default(cuid())
   url       String   @unique
+  nodeId    String?
+  region    String?
+  bbox      String?  // "minLat,minLon,maxLat,maxLon"
   publicKey String?  // RSA public key PEM — cached from peer's /api/nodeinfo
   lastSeen  DateTime @default(now())
   isActive  Boolean  @default(true)

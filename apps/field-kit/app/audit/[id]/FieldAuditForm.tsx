@@ -30,13 +30,6 @@ const FIELDS: AuditField[] = [
   { name: "notes", label: "Additional Notes", type: "textarea", placeholder: "Any extra details…" },
 ];
 
-const TIER_LABEL: Record<string, string> = {
-  OFFICIAL: "Official", AI_GUESS: "AI Estimate", VERIFIED: "Verified", CONFIRMED: "Confirmed",
-};
-const TIER_COLOR: Record<string, string> = {
-  OFFICIAL: "#9ca3af", AI_GUESS: "#fbbf24", VERIFIED: "#34d399", CONFIRMED: "#60a5fa",
-};
-
 interface ExistingFact { fieldName: string; value: string; tier: string; }
 
 interface Props {
@@ -44,39 +37,79 @@ interface Props {
   propertyName: string;
   location: string;
   existingFacts: ExistingFact[];
+  /** The node that hosts this property — may differ from the user's home node. */
+  targetNodeUrl?: string;
 }
 
-export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts }: Props) {
+export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, targetNodeUrl }: Props) {
   const router = useRouter();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
 
-  const [passphrase, setPassphrase] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(() =>
     typeof window !== "undefined" ? sessionStorage.getItem("wt_auth_token") : null
   );
+  const [loggedInAs, setLoggedInAs] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("wt_username") : null
+  );
   const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
     const storedUrl = localStorage.getItem("wt_node_url");
     if (storedUrl) setNodeUrl(storedUrl);
   }, []);
 
-  async function authenticate() {
+  async function login() {
     setAuthError("");
+    setAuthLoading(true);
     try {
-      const res = await fetch(`${nodeUrl}/api/auth/token`, {
+      const res = await fetch(`${nodeUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passphrase }),
+        body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
       });
-      const data = await res.json() as { token?: string; message?: string };
-      if (!res.ok) { setAuthError(data.message ?? "Invalid passphrase"); return; }
+      const data = await res.json() as { token?: string; username?: string; message?: string };
+      if (!res.ok) { setAuthError(data.message ?? "Invalid credentials"); return; }
       const t = data.token ?? "";
       sessionStorage.setItem("wt_auth_token", t);
+      localStorage.setItem("wt_username", data.username ?? username);
       setToken(t);
+      setLoggedInAs(data.username ?? username);
     } catch {
       setAuthError("Could not reach the node. Check settings.");
+    } finally {
+      setAuthLoading(false);
     }
+  }
+
+  async function register() {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const regRes = await fetch(`${nodeUrl}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+      });
+      const regData = await regRes.json() as { message?: string };
+      if (!regRes.ok) { setAuthError(regData.message ?? "Registration failed"); setAuthLoading(false); return; }
+      await login();
+    } catch {
+      setAuthError("Could not reach the node. Check settings.");
+      setAuthLoading(false);
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem("wt_auth_token");
+    localStorage.removeItem("wt_username");
+    setToken(null);
+    setLoggedInAs(null);
+    setUsername("");
+    setPassword("");
   }
 
   // Form values — seed from existing facts, then override with saved draft
@@ -133,17 +166,17 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
     setStatus("loading");
     setErrorMsg("");
-    const res = await fetch(`${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`, {
+    const submitUrl = targetNodeUrl ?? nodeUrl;
+    const res = await fetch(`${submitUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ facts, photoUrls: photos }),
     });
 
     if (res.status === 401) {
-      sessionStorage.removeItem("wt_auth_token");
-      setToken(null);
+      logout();
       setStatus("idle");
-      setAuthError("Session expired — enter the passphrase again.");
+      setAuthError("Session expired — please log in again.");
       return;
     }
 
@@ -169,17 +202,9 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
   const existingByField = Object.fromEntries(existingFacts.map((f) => [f.fieldName, f]));
 
-  function TierChip({ tier }: { tier: string }) {
-    return (
-      <span style={{
-        background: TIER_COLOR[tier] ?? "#9ca3af", color: "#fff",
-        borderRadius: 999, padding: "0 6px", fontSize: 10, fontWeight: 700,
-        display: "inline-block", verticalAlign: "middle",
-      }}>
-        {TIER_LABEL[tier] ?? tier}
-      </span>
-    );
-  }
+  // One-line data quality summary shown at top of form
+  const confirmedCount = existingFacts.filter((f) => f.tier === "CONFIRMED" || f.tier === "VERIFIED").length;
+  const aiCount = existingFacts.filter((f) => f.tier === "AI_GUESS").length;
 
   if (status === "ok") {
     return (
@@ -193,20 +218,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
             <p style={{ fontSize: 40, marginBottom: 16 }}>🎉</p>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Thank you!</h2>
             <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>
-              Your audit for <strong>{propertyName}</strong> has been recorded as{" "}
-              <span className="badge" style={{ background: "#34d399" }}>Verified</span>
-            </p>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
-              View it live on the node:
-              <br />
-              <a
-                href={`${nodeUrl}/properties/${propertyId}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "#1e3a5f", fontWeight: 600 }}
-              >
-                {nodeUrl}/properties/{propertyId}
-              </a>
+              Your audit for <strong>{propertyName}</strong> has been recorded.
             </p>
             <button className="btn-secondary" onClick={() => router.push("/")}>
               Audit another property
@@ -228,12 +240,10 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{propertyName}</h1>
           <p style={{ fontSize: 11, opacity: 0.7, marginTop: 1 }}>📍 {location}</p>
+          {targetNodeUrl && targetNodeUrl !== nodeUrl && (
+            <p style={{ fontSize: 10, color: "#f59e0b", marginTop: 1 }}>📤 Remote audit · {new URL(targetNodeUrl).hostname}</p>
+          )}
         </div>
-        {existingFacts.length > 0 && (
-          <span style={{ fontSize: 11, background: "#34d399", color: "#fff", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
-            {existingFacts.length} recorded
-          </span>
-        )}
       </header>
 
       <main className="page">
@@ -241,24 +251,61 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
         {/* Auth gate */}
         {!token ? (
           <div className="card">
-            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Authenticate</h2>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 12 }}>
-              Enter the community passphrase to submit.
-            </p>
-            <label htmlFor="pass">Passphrase</label>
+            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+              {authMode === "login" ? "Log in to submit" : "Create an account"}
+            </h2>
+            <label htmlFor="username">Username</label>
             <input
-              id="pass"
+              id="username"
+              type="text"
+              autoComplete="username"
+              placeholder="your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (authMode === "login" ? login() : register())}
+            />
+            <label htmlFor="password" style={{ marginTop: 12 }}>Password</label>
+            <input
+              id="password"
               type="password"
-              placeholder="community passphrase"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && authenticate()}
+              autoComplete={authMode === "login" ? "current-password" : "new-password"}
+              placeholder="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (authMode === "login" ? login() : register())}
             />
             {authError && <p className="status-err">{authError}</p>}
-            <button className="btn-primary" onClick={authenticate}>Continue</button>
+            <button className="btn-primary" onClick={authMode === "login" ? login : register} disabled={authLoading}>
+              {authLoading ? "…" : authMode === "login" ? "Log in" : "Create account"}
+            </button>
+            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 12, textAlign: "center" }}>
+              {authMode === "login" ? (
+                <>No account? <button onClick={() => { setAuthMode("register"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#1e3a5f", cursor: "pointer", fontSize: 12, padding: 0 }}>Register</button></>
+              ) : (
+                <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#1e3a5f", cursor: "pointer", fontSize: 12, padding: 0 }}>Log in</button></>
+              )}
+            </p>
           </div>
         ) : (
           <>
+            {/* Logged-in indicator */}
+            {loggedInAs && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, fontSize: 12, color: "#6b7280" }}>
+                <span>Logged in as <strong>{loggedInAs}</strong></span>
+                <button onClick={logout} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", fontSize: 12 }}>Log out</button>
+              </div>
+            )}
+
+            {/* Existing data summary — quiet, one line */}
+            {existingFacts.length > 0 && (
+              <div style={{ padding: "8px 12px", background: "#f0fdf4", borderRadius: 8, marginBottom: 12, fontSize: 12, color: "#374151" }}>
+                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: confirmedCount > 0 ? "#34d399" : "#fbbf24", marginRight: 6, verticalAlign: "middle" }} />
+                {confirmedCount > 0 ? `${confirmedCount} field${confirmedCount > 1 ? "s" : ""} verified` : ""}
+                {confirmedCount > 0 && aiCount > 0 ? ", " : ""}
+                {aiCount > 0 ? `${aiCount} AI estimate${aiCount > 1 ? "s" : ""}` : ""}
+                {confirmedCount === 0 && aiCount === 0 ? `${existingFacts.length} fields recorded` : ""}
+              </div>
+            )}
             {/* Accessibility fields */}
             <div className="card">
               <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Accessibility Audit</h2>
@@ -276,7 +323,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                         <span className="toggle-label">{field.label}</span>
                         {existing && (
                           <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-                            Previously: {existing.value} <TierChip tier={existing.tier} />
+                            Previously: {existing.value}
                           </div>
                         )}
                       </div>
@@ -304,7 +351,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                     </label>
                     {existing && (
                       <p style={{ fontSize: 11, color: "#9ca3af", marginTop: -2, marginBottom: 4 }}>
-                        Previously: {existing.value} <TierChip tier={existing.tier} />
+                        Previously: {existing.value}
                       </p>
                     )}
                     {field.type === "textarea" ? (

@@ -23,7 +23,8 @@ async function main() {
   const NODE_ID = process.env.NODE_ID ?? "seed-script";
 
   // ── OSM fixture ingest ────────────────────────────────────────────────────
-  const fixturePath = join(__dirname, "fixtures", "eindhoven-osm.json");
+  const BBOX = process.env.OSM_BBOX ?? "50.75,3.36,53.55,7.23";
+  const fixturePath = join(__dirname, "fixtures", `osm-${BBOX.replace(/[^0-9.]/g, "_")}.json`);
   if (existsSync(fixturePath)) {
     console.log("🗺  OSM fixture found — ingesting Eindhoven data…");
     const result = await fetchOverpassData("", fixturePath);

@@ -64,7 +64,8 @@ interface Props {
 
 export default function AuditPage({ propertyId, propertyName, initialFacts }: Props) {
   const [facts, setFacts] = useState<Fact[]>(initialFacts);
-  const [passphrase, setPassphrase] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [auditRows, setAuditRows] = useState<Array<{ fieldName: string; value: string }>>([
     { fieldName: "door_width_cm", value: "" },
@@ -73,10 +74,10 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
 
   async function getToken() {
     setStatus({ type: "loading" });
-    const res = await fetch("/api/auth/token", {
+    const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passphrase }),
+      body: JSON.stringify({ username, password }),
     });
     const data = await res.json() as { token?: string; message?: string };
     if (!res.ok) {
@@ -178,24 +179,33 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
         >
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>Authenticate</h2>
           <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
-            Enter the community passphrase to submit a field audit.
+            Sign in with your node account to submit a field audit.
           </p>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
             <input
-              type="password"
-              placeholder="Community passphrase"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && getToken()}
-              style={{ flex: 1, padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{ padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
             />
-            <button
-              onClick={getToken}
-              disabled={status.type === "loading"}
-              style={{ background: "#1e3a5f", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontWeight: 600 }}
-            >
-              Authenticate
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && getToken()}
+                style={{ flex: 1, padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
+              />
+              <button
+                onClick={getToken}
+                disabled={status.type === "loading"}
+                style={{ background: "#1e3a5f", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontWeight: 600 }}
+              >
+                Sign in
+              </button>
+            </div>
           </div>
           {status.type === "error" && <p style={{ color: "#ef4444", fontSize: 13, marginTop: 8 }}>{status.msg}</p>}
         </section>

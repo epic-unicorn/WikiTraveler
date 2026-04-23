@@ -14,6 +14,9 @@ export default function SearchPage() {
 
   // Node URL (persisted in localStorage)
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
+  // Resolved peer node for the user's current GPS location — may differ from home node
+  const [searchNodeUrl, setSearchNodeUrl] = useState(ENV_NODE_URL);
+  const [gpsResolved, setGpsResolved] = useState<{ region: string | null } | null>(null);
   const [nodeInfo, setNodeInfo] = useState<NodeInfo | null>(null);
   const [nodeReachable, setNodeReachable] = useState<boolean | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -32,6 +35,30 @@ export default function SearchPage() {
       .then((r) => r.json())
       .then((d: NodeInfo) => { setNodeInfo(d); setNodeReachable(true); })
       .catch(() => setNodeReachable(false));
+  }, [nodeUrl]);
+
+  // GPS-based peer resolution — find the best regional node for the user's location
+  useEffect(() => {
+    setSearchNodeUrl(nodeUrl);
+    setGpsResolved(null);
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch(
+            `${nodeUrl}/api/peers/resolve?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`,
+            { signal: AbortSignal.timeout(4000) }
+          );
+          if (!res.ok) return;
+          const data = await res.json() as { url: string; region?: string | null; matched: string };
+          if (data.url !== nodeUrl) {
+            setSearchNodeUrl(data.url);
+            setGpsResolved({ region: data.region ?? null });
+          }
+        } catch { /* ignore */ }
+      },
+      () => { /* permission denied — silently continue with home node */ }
+    );
   }, [nodeUrl]);
 
   function saveSettings() {
@@ -70,7 +97,7 @@ export default function SearchPage() {
       setSearchError("");
       try {
         const res = await fetch(
-          `${nodeUrl}/api/properties?q=${encodeURIComponent(query)}`,
+          `${searchNodeUrl}/api/properties?q=${encodeURIComponent(query)}`,
           { signal: controller.signal }
         );
         if (!res.ok) throw new Error();
@@ -87,7 +114,7 @@ export default function SearchPage() {
     }, 350);
 
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [query, nodeUrl]);
+  }, [query, searchNodeUrl]);
 
   const locations = results
     ? [...new Set(results.map((p) => p.location).filter(Boolean))].sort()
@@ -100,7 +127,6 @@ export default function SearchPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createLocation, setCreateLocation] = useState("");
-  const [createPassphrase, setCreatePassphrase] = useState("");
   const [hasSavedToken, setHasSavedToken] = useState(() =>
     typeof window !== "undefined" ? !!sessionStorage.getItem("wt_auth_token") : false
   );
@@ -123,21 +149,11 @@ export default function SearchPage() {
     }
     setCreateLoading(true);
     try {
-      let token = sessionStorage.getItem("wt_auth_token");
+      const token = sessionStorage.getItem("wt_auth_token");
       if (!token) {
-        if (!createPassphrase.trim()) { setCreateError("Passphrase is required."); setCreateLoading(false); return; }
-        const tokenRes = await fetch(`${nodeUrl}/api/auth/token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ passphrase: createPassphrase }),
-        });
-        const tokenData = await tokenRes.json() as { token?: string; message?: string };
-        if (!tokenRes.ok) { setCreateError(tokenData.message ?? "Invalid passphrase"); return; }
-        token = tokenData.token ?? "";
-        sessionStorage.setItem("wt_auth_token", token);
-        setHasSavedToken(true);
+        setCreateError("You must be logged in. Open any property to log in first."); setCreateLoading(false); return;
       }
-      const createRes = await fetch(`${nodeUrl}/api/properties`, {
+      const createRes = await fetch(`${searchNodeUrl}/api/properties`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: createName.trim(), location: createLocation.trim() }),
@@ -145,12 +161,13 @@ export default function SearchPage() {
       if (createRes.status === 401) {
         sessionStorage.removeItem("wt_auth_token");
         setHasSavedToken(false);
-        setCreateError("Session expired — re-enter passphrase.");
+        setCreateError("Session expired — please log in again.");
         return;
       }
       const createData = await createRes.json() as { property?: { id: string }; message?: string };
       if (!createRes.ok) { setCreateError(createData.message ?? "Failed to create property"); return; }
-      router.push(`/audit/${createData.property!.id}`);
+      const nodeParam = searchNodeUrl !== nodeUrl ? `?node=${encodeURIComponent(searchNodeUrl)}` : "";
+      router.push(`/audit/${createData.property!.id}${nodeParam}`);
     } catch {
       setCreateError("Could not reach the node. Check settings.");
     } finally {
@@ -268,6 +285,12 @@ export default function SearchPage() {
           )}
         </div>
 
+        {gpsResolved && !loading && (
+          <div style={{ marginTop: 12, padding: "8px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, fontSize: 12, color: "#1e40af" }}>
+            📍 Results from <strong>{gpsResolved.region ?? searchNodeUrl}</strong>
+          </div>
+        )}
+
         {filtered !== null && (
           <div style={{ marginTop: 16 }}>
             {filtered.length === 0 && !loading ? (
@@ -287,14 +310,11 @@ export default function SearchPage() {
                     <input id="create-name" type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. Hotel Example" style={{ marginBottom: 10 }} />
                     <label htmlFor="create-location">Location</label>
                     <input id="create-location" type="text" value={createLocation} onChange={(e) => setCreateLocation(e.target.value)} placeholder="e.g. Main Street 1, Amsterdam" style={{ marginBottom: 10 }} />
-                    {!hasSavedToken && (
-                      <>
-                        <label htmlFor="create-pass">Community passphrase</label>
-                        <input id="create-pass" type="password" value={createPassphrase} onChange={(e) => setCreatePassphrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createProperty()} placeholder="Enter passphrase" autoComplete="current-password" style={{ marginBottom: 10 }} />
-                      </>
-                    )}
                     {hasSavedToken && (
-                      <p style={{ fontSize: 12, color: "#059669", marginBottom: 10 }}>Session saved — no passphrase needed.</p>
+                      <p style={{ fontSize: 12, color: "#059669", marginBottom: 10 }}>Logged in — ready to create.</p>
+                    )}
+                    {!hasSavedToken && (
+                      <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>Open any property first to log in.</p>
                     )}
                     {createError && <p className="status-err">{createError}</p>}
                     <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -308,7 +328,7 @@ export default function SearchPage() {
               </div>
             ) : (
               filtered.map((p) => (
-                <Link key={p.id} href={`/audit/${p.id}`} style={{ display: "block" }}>
+                <Link key={p.id} href={`/audit/${p.id}${searchNodeUrl !== nodeUrl ? `?node=${encodeURIComponent(searchNodeUrl)}` : ""}`} style={{ display: "block" }}>
                   <div className="card" style={{ marginTop: 12, cursor: "pointer" }}>
                     <p style={{ fontWeight: 600, fontSize: 16 }}>{p.name}</p>
                     <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>📍 {p.location}</p>
@@ -325,7 +345,7 @@ export default function SearchPage() {
             {nodeReachable === false ? "Not connected" : nodeReachable ? "Connected" : "Connecting\u2026"}
             {" \u00b7 "}<code style={{ fontSize: 11 }}>{nodeUrl}</code>
           </p>
-          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Tap \u2699 to change node.</p>
+          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Tap the gear icon (top right) to change your home node.</p>
         </div>
 
         {recentAudits.length > 0 && !query && (

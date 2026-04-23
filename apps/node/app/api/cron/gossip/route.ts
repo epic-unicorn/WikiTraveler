@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NODE_URL, NODE_ID, NODE_REGION } from "@/lib/nodeInfo";
+import { NODE_URL } from "@/lib/nodeInfo";
 import type { NextRequest } from "next/server";
 
 /**
@@ -22,32 +22,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Fetch peers from the registry
-  const registryUrl = process.env.REGISTRY_URL;
-  let peerUrls: string[] = [];
-
-  if (registryUrl && NODE_ID) {
-    try {
-      const res = await fetch(
-        `${registryUrl}/api/v1/nodes/${encodeURIComponent(NODE_ID)}/peers?sameRegion=true`,
-        { signal: AbortSignal.timeout(8_000) }
-      );
-      if (res.ok) {
-        const data = await res.json() as { peers: Array<{ url: string }> };
-        peerUrls = data.peers.map((p) => p.url);
-      } else {
-        console.warn(`[gossip] Registry peer lookup returned ${res.status}`);
-      }
-    } catch (err) {
-      console.warn("[gossip] Registry peer lookup failed:", err);
-    }
-  }
-
-  // Fall back to local NodePeer table if registry is unavailable
-  if (peerUrls.length === 0) {
-    const localPeers = await prisma.nodePeer.findMany({ where: { isActive: true } });
-    peerUrls = localPeers.map((p) => p.url);
-  }
+  // Use local NodePeer table — no registry dependency
+  const localPeers = await prisma.nodePeer.findMany({ where: { isActive: true } });
+  const peerUrls: string[] = localPeers.map((p) => p.url);
 
   const results: Array<{ url: string; ok: boolean; ingested?: number; error?: string }> = [];
 
@@ -69,11 +46,12 @@ export async function GET(req: NextRequest) {
       });
       const ingestData = await ingestRes.json() as { ingested?: number };
 
-      // Upsert peer into local table so inbox push has a target list
+      // Upsert peer with latest metadata from delta
+      const peerNodeId = (delta as { fromNodeId?: string }).fromNodeId;
       await prisma.nodePeer.upsert({
         where: { url: peerUrl },
-        update: { lastSeen: new Date(), isActive: true },
-        create: { url: peerUrl, isActive: true },
+        update: { lastSeen: new Date(), isActive: true, ...(peerNodeId ? { nodeId: peerNodeId } : {}) },
+        create: { url: peerUrl, nodeId: peerNodeId, isActive: true },
       });
 
       results.push({ url: peerUrl, ok: true, ingested: ingestData.ingested });

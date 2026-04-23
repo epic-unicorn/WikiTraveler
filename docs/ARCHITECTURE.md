@@ -52,21 +52,11 @@ The canonical deployment unit. A Next.js 14 App Router app serving:
 
 Mobile-optimised Next.js app. Opens on the auditor's phone in the hotel lobby. Connects to any node via `NEXT_PUBLIC_NODE_API_URL`.
 
-Flow: search → tap property (or create if missing) → fill 12 accessibility fields → submit with JWT.
+Flow: search → GPS resolution (auto-detects the nearest regional node via `/api/peers/resolve`) → tap property (or create if missing) → fill 12 accessibility fields → submit with JWT. If the property lives on a different node than the user's home node, the JWT is verified remotely via `/.well-known/pubkey` cross-node — no re-login required.
 
 ### `apps/lens`
 
 Chrome MV3 extension. Injects a tier-coloured accessibility panel on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step.
-
-### `apps/registry`
-
-Centralized node discovery service. Nodes call `POST /api/v1/nodes/register` on startup (via `REGISTRY_URL` env var) to appear in the mesh. Runs on port 3002.
-
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/v1/nodes/register` | Register or heartbeat a node |
-| `GET /api/v1/nodes` | List active nodes (filterable by region) |
-| `GET /api/v1/nodes/:nodeId/peers` | Peer recommendations (up to 5, ordered by recency) |
 
 ### `apps/agency-demo`
 
@@ -132,15 +122,9 @@ AccessibilityFact
   UNIQUE (propertyId, fieldName, sourceNodeId)
 
 AuditSubmission   ← raw submitted facts + photos (base64)
-NodePeer          ← peer registry with cached public key
+NodePeer          ← peers with cached publicKey, bbox, region
 GossipSnapshot    ← dedup log with SHA-256 hash of each applied delta
-
-RegistryNode      ← in apps/registry DB
-  nodeId       string UNIQUE
-  url          string
-  region       string?
-  isActive     boolean
-  lastHeartbeat DateTime
+User              ← local user accounts (username + bcrypt hash)
 ```
 
 ---
@@ -154,6 +138,14 @@ CONFIRMED (3) > VERIFIED (2) > AI_GUESS (1) > OFFICIAL (0)
 ```
 
 **CONFIRMED promotion:** `evaluateConfirmed()` promotes a fact when ≥ 3 **distinct** human auditors (`submittedBy`) independently submit the same `(property, field, value)`. Counting auditors — not nodes — prevents gossip replication from auto-promoting a single person's fact.
+
+---
+
+## Authentication
+
+Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/login`) to receive an **RS256 JWT** signed with the node's `NODE_PRIVATE_KEY`. The JWT payload includes `homeNodeUrl` — the issuing node's URL.
+
+Any node accepting the JWT decodes `homeNodeUrl`, fetches the issuer's public key from `GET homeNodeUrl/.well-known/pubkey`, and verifies the signature locally. No shared secrets needed — user identity is `username@homeNodeUrl` and is globally unique across the mesh.
 
 ---
 
@@ -173,7 +165,7 @@ POST /api/properties/[id]/accessibility
             X-WikiTraveler-Signature: keyId="...", signature="..."
 ```
 
-Receiving nodes verify the RSA-SHA256 signature before accepting. Nodes without `NODE_PRIVATE_KEY` skip signing (local dev).
+Receiving nodes verify the RSA-SHA256 signature before accepting.
 
 ### Fallback — gossip cron (every 6 hours)
 
@@ -181,22 +173,29 @@ Catches any facts missed during unreachable push windows:
 
 ```
 GET /api/cron/gossip
-  → GET <REGISTRY_URL>/api/v1/nodes/:nodeId/peers
-  → (falls back to local NodePeer table if registry unreachable)
+  → reads active peers from local NodePeer table
   → for each peer: GET peer/api/gossip/snapshot?since=<lastSeen>
-  → POST /api/gossip/ingest (applies delta locally)
+       → POST /api/gossip/ingest (applies delta + upserts incoming peers)
   → upserts peer into local NodePeer table
 ```
 
-### Node discovery
+### Peer discovery
 
-The central registry (`REGISTRY_URL`) is the authoritative peer source. At startup each node calls `POST <REGISTRY_URL>/api/v1/nodes/register` (fire-and-forget). The gossip cron queries `GET <REGISTRY_URL>/api/v1/nodes/:nodeId/peers` each run and falls back to the local `NodePeer` table if the registry is unreachable.
+Nodes discover each other organically — no central registry needed:
 
-Any node also exposes identity endpoints used for HTTP Signature verification:
+1. **Bootstrap** — on startup, `lib/bootstrap.ts` contacts each `BOOTSTRAP_PEERS` URL, fetches `/api/nodeinfo`, and upserts that node + its known peers into the local `NodePeer` table (one-hop expansion).
+2. **Gossip peer exchange** — every gossip delta includes the sender’s known peer list (`peers[]`). Recipients upsert all new peers automatically.
+3. **Peer resolution** — `GET /api/peers/resolve?lat=&lon=` returns the best-matching peer for a coordinate based on stored `bbox` fields. Clients use this for automatic regional routing.
+
+Identity endpoints exposed by every node:
 ```
-GET /.well-known/webfinger  →  { nodeId, version, publicKey, inboxUrl }
-GET /api/nodeinfo           →  { nodeId, url, version, region, publicKey }
+GET /api/nodeinfo           → { nodeId, url, version, region, bbox, publicKeyPem, peers[] }
+GET /.well-known/pubkey     → { publicKeyPem }
+GET /api/peers              → { peers[] }
+GET /api/peers/resolve      → { nodeId, url, region, bbox, matched }
 ```
+
+`REGISTRY_URL` is still accepted as a legacy bootstrap seed source but is not required.
 
 ---
 
@@ -210,16 +209,13 @@ Three trigger paths:
 
 AI never overwrites `VERIFIED` or `CONFIRMED` facts.
 
----
-
 ## Authentication
 
-```
-POST /api/auth/token  { passphrase }  →  { token: JWT (7-day) }
+Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/login`) to receive an **RS256 JWT** signed with the node's `NODE_PRIVATE_KEY`. The JWT payload includes `homeNodeUrl` — the issuing node's URL.
 
-POST /api/properties/[id]/accessibility
-  Authorization: Bearer <JWT>
-```
+Any node accepting the JWT decodes `homeNodeUrl`, fetches the issuer's public key from `GET homeNodeUrl/.well-known/pubkey`, and verifies the signature locally. No shared secrets needed — user identity is `username@homeNodeUrl` and is globally unique across the mesh.
+
+This means a user registered on Node A can submit audits to Node B (e.g. while travelling) without creating a second account.
 
 Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected automatically by Vercel).
 
@@ -229,24 +225,24 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/.well-known/webfinger` | — | Node identity + public key + inbox URL |
 | GET | `/api/health` | — | Node status + fact/peer counts |
-| GET | `/api/nodeinfo` | — | Node identity + RSA public key |
-| POST | `/api/auth/token` | — | Exchange passphrase for JWT |
+| GET | `/api/nodeinfo` | — | Node identity, public key, bbox, peers |
+| GET | `/.well-known/pubkey` | — | RS256 public key PEM for remote JWT verification |
+| POST | `/api/auth/register` | — | Create user account |
+| POST | `/api/auth/login` | — | Login; returns RS256 JWT |
+| GET | `/api/auth/me` | JWT | Current user info |
+| POST | `/api/auth/token` | — | **Deprecated** — passphrase JWT (backward compat) |
+| GET | `/api/peers` | — | List active peers |
+| GET | `/api/peers/resolve?lat=&lon=` | — | Best-matching peer for a coordinate |
 | GET | `/api/properties?q=` | — | Search properties |
 | POST | `/api/properties` | JWT | Create property |
 | GET | `/api/properties/[id]/accessibility` | — | Collapsed facts with tier |
 | POST | `/api/properties/[id]/accessibility` | JWT | Submit audit (saves facts, triggers push + vision) |
-| GET | `/api/properties/[id]/external-ids` | — | OSM/Wheelmap IDs |
-| PATCH | `/api/properties/[id]/external-ids` | JWT | Set osmId/wheelmapId |
-| POST | `/api/properties/[id]/external-ids` | JWT | Auto-discover Wheelmap node by bounding box |
 | POST | `/api/properties/[id]/analyze` | JWT | On-demand AI analysis |
 | POST | `/api/inbox` | Signature | Receive signed fact push from peer |
 | GET | `/api/gossip/snapshot?since=` | — | Export delta for peer pull |
 | POST | `/api/gossip/ingest` | — | Apply incoming delta |
-| GET | `/api/nodes` | — | List active peers |
-| POST | `/api/nodes` | — | Register peer |
-| GET | `/api/cron/gossip` | CRON_SECRET | Gossip pull cycle + self-announce |
+| GET | `/api/cron/gossip` | CRON_SECRET | Gossip pull cycle |
 | GET | `/api/cron/ai-scan` | CRON_SECRET | Batch gap-fill |
 | GET | `/api/cron/wheelmap-sync` | CRON_SECRET | Sync OSM wheelchair data |
 

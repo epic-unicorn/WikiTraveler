@@ -144,6 +144,19 @@ export async function POST(req: Request) {
     },
   });
 
+  // Upsert any peers that arrived in the delta (peer exchange)
+  if (Array.isArray(delta.peers) && delta.peers.length > 0) {
+    await Promise.all(
+      delta.peers.map((peer) =>
+        prisma.nodePeer.upsert({
+          where: { url: peer.url },
+          update: { nodeId: peer.nodeId ?? undefined, region: peer.region ?? undefined, bbox: peer.bbox ?? undefined, lastSeen: new Date(), isActive: true },
+          create: { url: peer.url, nodeId: peer.nodeId, region: peer.region, bbox: peer.bbox, isActive: true },
+        })
+      )
+    );
+  }
+
   return NextResponse.json({
     ok: true,
     propertiesUpserted: allowedProperties.length,

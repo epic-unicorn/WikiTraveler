@@ -6,15 +6,13 @@
   "scripts": {
     "dev": "pnpm --filter @wikitraveler/node dev",
     "dev:field-kit": "pnpm --filter @wikitraveler/field-kit dev",
-    "dev:registry": "pnpm --filter @wikitraveler/registry dev",
     "dev:agency-demo": "pnpm --filter @wikitraveler/sdk build && npx serve -p 4000 .",
-    "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build && pnpm --filter @wikitraveler/registry build",
+    "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build",
     "lint": "pnpm --recursive lint",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy && pnpm --filter @wikitraveler/registry db:deploy",
-    "db:migrate:registry": "pnpm --filter @wikitraveler/registry db:migrate",
+    "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed.ts",
-    "db:setup": "prisma migrate reset --force && tsx scripts/seed.ts && pnpm --filter @wikitraveler/registry db:deploy",
+    "db:setup": "prisma migrate reset --force && tsx scripts/seed.ts",
     "osm:ingest": "tsx scripts/osm-ingest.ts"
   },
   "workspaces": [

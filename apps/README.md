@@ -11,7 +11,7 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-`.env` must have `DATABASE_URL`, `JWT_SECRET`, and `COMMUNITY_PASSPHRASE` set (copy `.env.example` to get started).
+`.env` must have `DATABASE_URL` and (optionally) `NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY` set (copy `.env.example` to get started).
 
 ---
 
@@ -40,7 +40,7 @@ pnpm dev:agency-demo
 
 ## Flow 2 — Field Auditor
 
-**What it tests:** A field auditor submitting accessibility facts from the mobile app.
+**What it tests:** A field auditor submitting accessibility facts from the mobile app, including automatic routing to the correct regional node.
 
 ```bash
 # Terminal 1 — node
@@ -52,12 +52,14 @@ pnpm dev:field-kit
 ```
 
 1. Open `http://localhost:3001` (or use Chrome DevTools device emulation).
-2. Search for a property (e.g. "Vienna").
-3. Tap a result — you'll be prompted for the community passphrase (`COMMUNITY_PASSPHRASE` from `.env`).
-4. Fill in accessibility fields and submit.
-5. Open `http://localhost:3000` — the fact appears with tier `VERIFIED`.
+2. When prompted, allow location access — the app silently calls `/api/peers/resolve` to find the node that covers your GPS position.
+3. If a regional peer is found, a blue banner shows "Results from \<region\>" and searches are routed to that peer.
+4. Search for a property (e.g. "Vienna"), tap a result.
+5. Log in or register an account on the node. If the property lives on a different node a "📤 Remote audit · \<hostname\>" indicator appears in the header.
+6. Fill in accessibility fields and submit.
+7. Open `http://localhost:3000` — the fact appears with tier `VERIFIED`.
 
-**Verify:** Correct passphrase issues a JWT; wrong passphrase returns `401`. Submitted facts appear on the node dashboard immediately. You can also create a new property from the search screen if it doesn't exist yet.
+**Verify:** Login issues a JWT signed by the home node's RS256 key. When auditing a remote node, the remote node fetches the home node's public key from `/.well-known/pubkey` and verifies the JWT — no shared secret needed. Wrong credentials return `401`. Submitted facts appear on the target node dashboard immediately.
 
 ---
 
@@ -124,54 +126,27 @@ curl http://localhost:3000/api/cron/ai-scan
 
 ## Flow 6 — Peer Gossip
 
-**What it tests:** Two nodes exchanging facts via signed inbox pushes.
+**What it tests:** Two nodes exchanging facts via gossip delta and automatic peer discovery.
 
 ```bash
-# Terminal 1 — Node A
+# Terminal 1 — Node A (Netherlands)
 pnpm dev
 
-# Terminal 2 — Node B (needs its own DATABASE_URL)
+# Terminal 2 — Node B (London) — needs its own DATABASE_URL
 PORT=3001 DATABASE_URL=<node-b-db> NODE_ID=node-b NODE_URL=http://localhost:3001 \
+  OSM_BBOX="51.3,-.5,51.7,.3" \
+  BOOTSTRAP_PEERS=http://localhost:3000 \
   pnpm --filter @wikitraveler/node dev
-
-# Register Node B as a peer of Node A
-curl -X POST http://localhost:3000/api/nodes \
-  -H "Content-Type: application/json" \
-  -d '{"url":"http://localhost:3001"}'
 ```
+
+Node B bootstraps automatically: on startup it fetches `/api/nodeinfo` from Node A and upserts it as a peer.
 
 1. Submit a fact to Node A via the Field Kit.
-2. Node A pushes the signed fact to Node B's inbox.
-3. Open `http://localhost:3001` — the fact appears.
+2. Node A pushes the signed fact to Node B's `/api/inbox`.
+3. Every 6 hours (or trigger manually: `curl http://localhost:3001/api/cron/gossip`), Node B also pulls a full delta from Node A.
+4. Open `http://localhost:3001` — the fact appears only if its property coordinates fall inside Node B's `OSM_BBOX`.
 
-**Verify:** `GET http://localhost:3000/.well-known/webfinger` returns node identity + public key. Tampered signatures are rejected with `401`.
-
----
-
-## Flow 7 — Registry
-
-**What it tests:** Node auto-registration and peer discovery via the central registry.
-
-```bash
-# Terminal 1 — registry
-pnpm dev:registry
-# → http://localhost:3002
-
-# Terminal 2 — node (with REGISTRY_URL=http://localhost:3002 in .env)
-pnpm dev
-```
-
-With `REGISTRY_URL` set, the node calls `POST /api/v1/nodes/register` automatically on startup.
-
-**Verify:** Open `http://localhost:3002` — your node appears in the "Registered Nodes" list.
-
-```bash
-# List registered nodes
-curl http://localhost:3002/api/v1/nodes
-
-# Peer recommendations
-curl http://localhost:3002/api/v1/nodes/my-node-1/peers
-```
+**Verify:** `GET http://localhost:3000/api/nodeinfo` shows Node B in the `peers[]` list after the first gossip cycle. Out-of-bbox properties are silently skipped. Tampered inbox signatures are rejected with `401`.
 
 ---
 
@@ -185,4 +160,3 @@ curl http://localhost:3002/api/v1/nodes/my-node-1/peers
 | 4 — Lens on Lens Demo | :3000 (node), :4001 (lens-demo) |
 | 5 — AI Scan | :3000 (node) |
 | 6 — Peer Gossip | :3000 (node A), :3001 (node B) |
-| 7 — Registry | :3000 (node), :3002 (registry) |

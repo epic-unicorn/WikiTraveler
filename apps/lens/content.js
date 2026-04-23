@@ -1,32 +1,15 @@
 // content.js — injected into booking pages
 
-const TIER_COLOR = {
-  OFFICIAL: "#9ca3af",
-  AI_GUESS: "#fbbf24",
-  VERIFIED: "#34d399",
-  CONFIRMED: "#60a5fa",
-};
+// Quality tier ordering (higher = more reliable)
+const TIER_ORDER = { OFFICIAL: 0, AI_GUESS: 1, VERIFIED: 2, CONFIRMED: 3 };
 
-const TIER_LABEL = {
-  OFFICIAL: "Official",
-  AI_GUESS: "AI Estimate",
-  VERIFIED: "Verified ✓",
-  CONFIRMED: "Confirmed ✓✓✓",
-};
-
-const SOURCE_COLOR = {
-  AMADEUS: "#6366f1",
-  WHEELMAP: "#0ea5e9",
-  WHEEL_THE_WORLD: "#f97316",
-  AUDITOR: "#10b981",
-};
-
-const SOURCE_LABEL = {
-  AMADEUS: "Amadeus",
-  WHEELMAP: "Wheelmap ♿",
-  WHEEL_THE_WORLD: "WtW",
-  AUDITOR: "Field Audit",
-};
+// Single quality dot color: green = user-verified, amber = AI/official
+function qualityColor(facts) {
+  const topTier = facts.reduce((best, f) => {
+    return (TIER_ORDER[f.tier] ?? 0) > (TIER_ORDER[best.tier] ?? 0) ? f : best;
+  }, facts[0]);
+  return (topTier.tier === "CONFIRMED" || topTier.tier === "VERIFIED") ? "#34d399" : "#fbbf24";
+}
 
 // ---------------------------------------------------------------------------
 // Node URL — resolved once per page via registry (if configured) or storage
@@ -162,10 +145,10 @@ function extractHotelName() {
 // Search API
 // ---------------------------------------------------------------------------
 
-async function searchForProperty(name, nodeUrl) {
+async function searchForProperty(name, nodeUrl, coords) {
   const words = name.split(/\s+/);
-  // Retry with progressively shorter queries so a stored name like "NH Collection"
-  // is found even when the extracted name is "NH Collection Eindhoven Centre".
+  let bestCandidates = null; // { results, q } from the most specific query that returned anything
+
   for (let len = words.length; len >= 2; len--) {
     const q = words.slice(0, len).join(" ");
     try {
@@ -177,21 +160,58 @@ async function searchForProperty(name, nodeUrl) {
       const data = await res.json();
       const results = data.properties ?? [];
       if (results.length === 0) continue;
+
       const lower = name.toLowerCase();
-      // 1. Exact match
+      // 1. Exact name match — always wins immediately
       const exact = results.find((p) => p.name.toLowerCase() === lower);
-      if (exact) return exact;
-      // 2. Stored name is a prefix of the extracted name
-      const prefix = results.find((p) => lower.startsWith(p.name.toLowerCase()));
-      if (prefix) return prefix;
-      // 3. Single result
-      if (results.length === 1) return results[0];
-      // Multiple ambiguous results — keep trying a shorter query
+      if (exact) return { match: exact, candidates: null };
+
+      // 2. Stored name is a meaningful prefix of the extracted name
+      //    (only when there is exactly ONE such candidate — generic chain names
+      //     like "Holiday Inn" match too many hotels, so we fall through to
+      //     coordinate scoring instead)
+      const prefixMatches = results.filter((p) => lower.startsWith(p.name.toLowerCase()));
+      if (prefixMatches.length === 1) return { match: prefixMatches[0], candidates: null };
+
+      // Keep the most specific (longest query) set of candidates and stop —
+      // shorter queries would only produce noisier results.
+      if (!bestCandidates) bestCandidates = { results, q };
+      break;
     } catch {
-      // network error on this attempt, try shorter
+      // network error — try shorter query
     }
   }
-  return null;
+
+  if (!bestCandidates) return { match: null, candidates: null };
+
+  const { results } = bestCandidates;
+
+  // 3. Use coordinates to pick the closest candidate
+  if (coords?.lat != null && coords?.lon != null) {
+    const scored = results
+      .filter((p) => p.lat != null && p.lon != null)
+      .map((p) => ({
+        p,
+        dist: Math.hypot(p.lat - coords.lat, p.lon - coords.lon),
+      }))
+      .sort((a, b) => a.dist - b.dist);
+
+    if (scored.length > 0 && scored[0].dist < 0.005) {
+      // Within ~500m — confident match
+      return { match: scored[0].p, candidates: null };
+    }
+    // Closest candidate is too far away — this is not the right property
+    return { match: null, candidates: null };
+  }
+
+  // 4. Single result but we reached here via a short/generic query — treat
+  //    as ambiguous unless it's a very close coordinate match (already handled).
+  if (results.length === 1) {
+    return { match: null, candidates: results };
+  }
+
+  // Multiple candidates, no way to pick — surface them all
+  return { match: null, candidates: results };
 }
 
 // ---------------------------------------------------------------------------
@@ -251,9 +271,6 @@ function showTooltip(anchorEl, facts, propertyName) {
       row.innerHTML = `
         <td style="padding:4px 2px;color:#374151;font-weight:500">${f.fieldName.replace(/_/g, " ")}</td>
         <td style="padding:4px 2px">${f.value}</td>
-        <td style="padding:4px 2px">
-          <span style="background:${TIER_COLOR[f.tier] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700">${TIER_LABEL[f.tier] ?? f.tier}</span>
-        </td>
       `;
       table.appendChild(row);
     });
@@ -343,7 +360,7 @@ async function handleCardEnter(card) {
 
     if (key.startsWith("name:")) {
       const name = key.slice(5);
-      const match = await searchForProperty(name, nodeUrl);
+      const { match } = await searchForProperty(name, nodeUrl, null);
       if (!match) {
         _cardCache.set(key, null);
         return;
@@ -363,7 +380,7 @@ async function handleCardEnter(card) {
         const heading = card.querySelector('[data-testid="title"], h3, h2, .sr_item_content h3');
         const headingName = heading?.textContent?.trim();
         if (headingName) {
-          const match = await searchForProperty(headingName, nodeUrl);
+          const { match } = await searchForProperty(headingName, nodeUrl, null);
           if (match) {
             const res2 = await fetch(
               `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
@@ -535,39 +552,26 @@ function createOverlay(facts, property) {
   const body = document.createElement("div");
   body.style.cssText = `padding: 10px 14px; max-height: ${maxBodyH}px; overflow-y: auto;`;
 
-  // Show top tier badge first
-  const topTier = facts.reduce((best, f) => {
-    const tierOrder = { OFFICIAL: 0, AI_GUESS: 1, VERIFIED: 2, CONFIRMED: 3 };
-    return (tierOrder[f.tier] ?? 0) > (tierOrder[best.tier] ?? 0) ? f : best;
-  }, facts[0]);
+  // Quality summary dot
+  const dotColor = qualityColor(facts);
+  const verifiedCount = facts.filter((f) => f.tier === "CONFIRMED" || f.tier === "VERIFIED").length;
+  const summaryText = verifiedCount > 0
+    ? `${verifiedCount} field${verifiedCount > 1 ? "s" : ""} verified`
+    : "AI / official data";
+  body.innerHTML = `<p style="margin-bottom:8px;font-size:12px;color:#6b7280;display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></span>${summaryText}</p>`;
 
-  const tierBadge = `<span style="background:${TIER_COLOR[topTier.tier] ?? "#9ca3af"};color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700">${TIER_LABEL[topTier.tier] ?? topTier.tier}</span>`;
-  body.innerHTML = `<p style="margin-bottom:8px;font-size:12px;color:#6b7280">Highest trust level: ${tierBadge}</p>`;
-
-  // Render facts as stacked rows instead of a 4-column table so long
-  // field names, values and badges all wrap naturally at any width.
+  // Render facts as stacked rows
   facts.forEach((f) => {
     const item = document.createElement("div");
     item.style.cssText = `
-      display: grid;
-      grid-template-columns: 1fr auto;
-      grid-template-rows: auto auto;
-      column-gap: 8px;
-      row-gap: 2px;
       padding: 7px 0;
       border-bottom: 1px solid #f3f4f6;
     `;
-    const tierColor = TIER_COLOR[f.tier] ?? "#9ca3af";
-    const srcColor  = SOURCE_COLOR[f.sourceType] ?? "#9ca3af";
     item.innerHTML = `
-      <span style="font-weight:600;font-size:12px;color:#374151;word-break:break-word">
+      <span style="font-weight:600;font-size:12px;color:#374151;display:block">
         ${f.fieldName.replace(/_/g, " ")}
       </span>
-      <span style="display:flex;gap:4px;align-items:flex-start;justify-content:flex-end;flex-wrap:wrap;min-width:0">
-        <span style="background:${tierColor};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;white-space:nowrap">${TIER_LABEL[f.tier] ?? f.tier}</span>
-        <span style="background:${srcColor};color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;white-space:nowrap">${SOURCE_LABEL[f.sourceType] ?? (f.sourceType ?? "")}</span>
-      </span>
-      <span style="font-size:12px;color:#111827;grid-column:1/-1;word-break:break-word">${f.value}</span>
+      <span style="font-size:12px;color:#111827">${f.value}</span>
     `;
     body.appendChild(item);
   });
@@ -630,7 +634,8 @@ async function run() {
     const name = extractHotelName();
     if (name) {
       showLoading();
-      const match = await searchForProperty(name, nodeUrl);
+      const coords = extractCoordinates();
+      const { match } = await searchForProperty(name, nodeUrl, coords);
       if (thisRunId !== _runId) return;
       if (match) {
         try {
@@ -670,7 +675,8 @@ async function run() {
       // ID not in node — try matching by hotel name instead
       const name = extractHotelName();
       if (name) {
-        const match = await searchForProperty(name, nodeUrl);
+        const coords = extractCoordinates();
+        const { match } = await searchForProperty(name, nodeUrl, coords);
         if (thisRunId !== _runId) return;
         if (match) {
           const res2 = await fetch(

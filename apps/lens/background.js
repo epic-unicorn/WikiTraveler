@@ -10,22 +10,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === "RESOLVE_NODE") {
-    // Given { lat, lon }, ask the registry for the best node.
-    // Falls back to the stored nodeUrl if registry is not configured or fails.
-    chrome.storage.sync.get({ nodeUrl: "http://localhost:3000", registryUrl: "" }, async (items) => {
-      const { nodeUrl, registryUrl } = items;
-      if (!registryUrl || msg.lat == null || msg.lon == null) {
-        sendResponse({ nodeUrl });
+    // Given { lat, lon }, ask this node's /api/peers/resolve for the best regional node.
+    // Falls back to the stored nodeUrl if the call fails or no coordinates given.
+    chrome.storage.sync.get({ nodeUrl: "http://localhost:3000" }, async (items) => {
+      const { nodeUrl } = items;
+      if (msg.lat == null || msg.lon == null) {
+        sendResponse({ nodeUrl, regionMissing: false });
         return;
       }
       try {
         const res = await fetch(
-          `${registryUrl}/api/v1/resolve?lat=${encodeURIComponent(msg.lat)}&lon=${encodeURIComponent(msg.lon)}`,
+          `${nodeUrl}/api/peers/resolve?lat=${encodeURIComponent(msg.lat)}&lon=${encodeURIComponent(msg.lon)}`,
           { signal: AbortSignal.timeout(4000) }
         );
         if (res.ok) {
           const data = await res.json();
-          sendResponse({ nodeUrl: data.url ?? nodeUrl, regionMissing: data.matched === false });
+          sendResponse({ nodeUrl: data.url ?? nodeUrl, regionMissing: data.matched === "fallback" });
         } else {
           sendResponse({ nodeUrl, regionMissing: false });
         }

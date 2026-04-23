@@ -27,8 +27,10 @@ Minimum required variables in `.env`:
 
 ```env
 DATABASE_URL=postgresql://wikitraveler:wikitraveler@localhost:5432/wikitraveler
-JWT_SECRET=<long random string>
-COMMUNITY_PASSPHRASE=<shared auditor password>
+# RS256 keypair — generate with:
+#   openssl genrsa -out node_private.pem 2048 && openssl rsa -in node_private.pem -pubout -out node_public.pem
+NODE_PRIVATE_KEY=
+NODE_PUBLIC_KEY=
 ```
 
 ---
@@ -104,7 +106,17 @@ No build step â€” load as unpacked:
 
 1. Chrome â†’ `chrome://extensions` â†’ enable **Developer mode**
 2. **Load unpacked** â†’ select `apps/lens/`
-3. Lens icon â†’ **Options** â†’ set Node URL to `http://localhost:3000`
+3. Lens icon → **Options** → set Node URL to `http://localhost:3000`, then log in
+
+**Two-node local dev** (peer discovery testing):
+```bash
+# Terminal 1 — node A on port 3000
+NODE_ID=node-a NODE_URL=http://localhost:3000 pnpm dev
+
+# Terminal 2 — node B on port 3010
+NODE_ID=node-b NODE_URL=http://localhost:3010 BOOTSTRAP_PEERS=http://localhost:3000 PORT=3010 pnpm dev
+```
+Node B bootstraps by fetching nodeinfo from node A and seeds the local `NodePeer` table. Gossip cron will then exchange facts bidirectionally.
 
 ---
 
@@ -133,15 +145,14 @@ Build order: `core` â†’ `ai-agent` â†’ `sdk` â†’ `node` / `field-
 | `DATABASE_URL` | node | Yes | PostgreSQL URL |
 | `NODE_ID` | node | No | Stable unique ID for this node |
 | `NODE_URL` | node | No | Public-facing URL of this node |
-| `JWT_SECRET` | node | Yes | HMAC-SHA256 key for signing JWTs |
-| `COMMUNITY_PASSPHRASE` | node | Yes | Shared password for field auditors |
+| `NODE_PRIVATE_KEY` | node | No | RSA private key PEM — enables RS256 JWT signing and cross-node auth |
+| `NODE_PUBLIC_KEY` | node | No | Corresponding RSA public key PEM |
+| `OPEN_REGISTRATION` | node | No | `"true"` (default) or `"false"` to close public registration |
 | `CORS_ORIGINS` | node | No | Allowed CORS origins (`*` or comma list) |
-| `BOOTSTRAP_PEERS` | node | No | Bootstrap peer URLs, comma-separated |
-| `REGISTRY_URL` | node | No | Registry URL; triggers auto-registration on startup |
+| `BOOTSTRAP_PEERS` | node | No | Seed node URLs, comma-separated, fetched on startup |
+| `REGISTRY_URL` | node | No | Legacy: treated as extra bootstrap seed source |
 | `GOSSIP_INTERVAL_HOURS` | node | No | Hours between gossip cron runs |
 | `CRON_SECRET` | node | No | Bearer token for cron endpoints |
 | `OPENAI_API_KEY` | node | No | GPT-4o key; enables AI_GUESS tier features |
-| `NODE_PRIVATE_KEY` | node | No | RSA private key PEM for signing inbox pushes |
-| `NODE_PUBLIC_KEY` | node | No | Corresponding RSA public key PEM |
 | `WHEELMAP_API_KEY` | node | No | Wheelmap API key for OSM wheelchair sync |
 | `NEXT_PUBLIC_NODE_API_URL` | field-kit | Yes | Node URL the Field Kit connects to |

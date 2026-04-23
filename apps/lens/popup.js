@@ -1,23 +1,9 @@
 // popup.js
 
-const TIER_COLOR = {
-  OFFICIAL: "#9ca3af",
-  AI_GUESS: "#fbbf24",
-  COMMUNITY: "#34d399",
-  MESH_TRUTH: "#60a5fa",
-};
-
-const TIER_LABEL = {
-  OFFICIAL: "Official",
-  AI_GUESS: "AI Estimate",
-  COMMUNITY: "Community Verified",
-  MESH_TRUTH: "Mesh Truth",
-};
-
-async function searchForProperty(name, nodeUrl) {
+async function searchForProperty(name, nodeUrl, coords) {
   const words = name.split(/\s+/);
-  // Retry with progressively shorter queries so a stored name like "NH Collection"
-  // is found even when the extracted name is "NH Collection Eindhoven Centre".
+  let bestCandidates = null;
+
   for (let len = words.length; len >= 2; len--) {
     const q = words.slice(0, len).join(" ");
     try {
@@ -29,20 +15,33 @@ async function searchForProperty(name, nodeUrl) {
       const data = await res.json();
       const results = data.properties ?? [];
       if (results.length === 0) continue;
+
       const lower = name.toLowerCase();
       // 1. Exact match
       const exact = results.find((p) => p.name.toLowerCase() === lower);
       if (exact) return exact;
-      // 2. Stored name is a prefix of the extracted name
-      const prefix = results.find((p) => lower.startsWith(p.name.toLowerCase()));
-      if (prefix) return prefix;
-      // 3. Single result
-      if (results.length === 1) return results[0];
-      // Multiple ambiguous results — keep trying a shorter query
+      // 2. Stored name is a unique prefix of the extracted name
+      const prefixMatches = results.filter((p) => lower.startsWith(p.name.toLowerCase()));
+      if (prefixMatches.length === 1) return prefixMatches[0];
+
+      if (!bestCandidates) bestCandidates = results;
+      break;
     } catch {
       // network error on this attempt, try shorter
     }
   }
+
+  if (!bestCandidates) return null;
+
+  // Use coordinates to pick the closest candidate
+  if (coords?.lat != null && coords?.lon != null) {
+    const scored = bestCandidates
+      .filter((p) => p.lat != null && p.lon != null)
+      .map((p) => ({ p, dist: Math.hypot(p.lat - coords.lat, p.lon - coords.lon) }))
+      .sort((a, b) => a.dist - b.dist);
+    if (scored.length > 0 && scored[0].dist < 0.005) return scored[0].p;
+  }
+
   return null;
 }
 
@@ -63,7 +62,18 @@ async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? "";
 
-  // Ask content script for coordinates, then resolve the best node via registry
+  // Show username@node in header if stored
+  chrome.storage.sync.get({ nodeUrl: "http://localhost:3000", wtUsername: "" }, (items) => {
+    const userLine = document.getElementById("user-line");
+    if (userLine && items.wtUsername) {
+      try {
+        const host = new URL(items.nodeUrl).hostname;
+        userLine.textContent = `${items.wtUsername}@${host}`;
+      } catch { /* ignore */ }
+    }
+  });
+
+  // Ask content script for coordinates, then resolve the best node via peers
   let coords = null;
   try {
     const coordRes = await chrome.tabs.sendMessage(tab.id, { type: "GET_COORDS" });
@@ -121,7 +131,7 @@ async function init() {
       // Try name-search fallback using the tab title
       const name = extractHotelNameFromTab(tab);
       if (name) {
-        const match = await searchForProperty(name, nodeUrl);
+        const match = await searchForProperty(name, nodeUrl, coords);
         if (match) {
           return fetchAndRender(match.id, match.name);
         }
@@ -164,13 +174,10 @@ async function init() {
 
     let html = `${propHeader}<table><tbody>`;
     for (const f of facts) {
-      const color = TIER_COLOR[f.tier] ?? "#9ca3af";
-      const label = TIER_LABEL[f.tier] ?? f.tier;
       html += `
         <tr>
           <td style="font-weight:500;color:#374151">${f.fieldName.replace(/_/g, " ")}</td>
           <td>${f.value}</td>
-          <td><span class="badge" style="background:${color}">${label}</span></td>
         </tr>`;
     }
     html += `</tbody></table>

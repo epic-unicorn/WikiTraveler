@@ -41,7 +41,6 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 | **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker.            |
 | **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits.              |
 | **Lens**        | `apps/lens`         | Chrome MV3 extension. Overlays data on Booking.com and Expedia. |
-| **Registry**    | `apps/registry`     | Node discovery service. Nodes register to find each other.       |
 | **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.        |
 | **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.               |
 | **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).              |
@@ -51,8 +50,12 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 
 | Endpoint                                  | Description                                                       |
 | ----------------------------------------- | ----------------------------------------------------------------- |
-| `GET /.well-known/webfinger`              | Node discovery — returns identity, public key, and inbox URL      |
-| `GET /api/nodeinfo`                       | Node identity and RSA public key (for peer key caching)           |
+| `GET /api/nodeinfo`                       | Node identity, public key, bbox, and known peers                  |
+| `GET /.well-known/pubkey`                 | RS256 public key (used by peer nodes to verify JWTs)              |
+| `GET /api/peers/resolve?lat=&lon=`        | Returns the best regional peer for a coordinate                   |
+| `POST /api/auth/register`                 | Create a user account on this node                                |
+| `POST /api/auth/login`                    | Login — returns a signed RS256 JWT                                |
+| `POST /api/gossip/ingest`                 | Receive a gossip delta from a peer node                           |
 | `POST /api/inbox`                         | Real-time signed fact push from peer nodes                        |
 | `POST /api/properties/[id]/accessibility` | Submit an audit; triggers immediate peer push + background vision |
 
@@ -72,7 +75,7 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 git clone https://github.com/your-org/wikitraveler.git
 cd wikitraveler
 pnpm install
-cp .env.example .env        # edit DATABASE_URL, JWT_SECRET, COMMUNITY_PASSPHRASE
+cp .env.example .env        # edit DATABASE_URL, NODE_PRIVATE_KEY, NODE_PUBLIC_KEY
 ```
 
 ### 2. Start Postgres
@@ -85,7 +88,6 @@ docker compose -f docker/docker-compose.dev.yml up postgres -d
 
 ```bash
 pnpm db:migrate               # node schema
-pnpm db:migrate:registry      # registry schema
 pnpm db:seed
 ```
 
@@ -95,8 +97,7 @@ pnpm db:seed
 | -------- | ---------------------- | -------------------------------------------------- |
 | 1        | `pnpm dev`             | http://localhost:3000 — node dashboard + API       |
 | 2        | `pnpm dev:field-kit`   | http://localhost:3001 — mobile audit app           |
-| 3        | `pnpm dev:registry`    | http://localhost:3002 — registry service           |
-| 4        | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
+| 3        | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
 
 See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
 
@@ -110,7 +111,6 @@ wikitraveler/
 │   ├── node/            # Next.js node (API + dashboard)
 │   ├── field-kit/       # Next.js mobile audit app
 │   ├── lens/            # Chrome MV3 extension
-│   ├── registry/        # Node discovery service
 │   └── agency-demo/     # Static agency SDK demo
 ├── packages/
 │   ├── core/            # Shared types & gossip merge logic
@@ -130,11 +130,9 @@ wikitraveler/
 | ---------------------- | ---------------------------------------- |
 | `pnpm dev`             | Start node on :3000                      |
 | `pnpm dev:field-kit`   | Start field-kit on :3001                 |
-| `pnpm dev:registry`    | Start registry on :3002                  |
 | `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
 | `pnpm build`           | Build all packages and apps              |
 | `pnpm db:migrate`           | Apply pending node schema migrations     |
-| `pnpm db:migrate:registry`  | Apply pending registry schema migrations |
 | `pnpm db:seed`              | Seed database with sample properties     |
 | `pnpm db:setup`             | Full reset of both databases + seed      |
 | `pnpm osm:ingest`           | Ingest OpenStreetMap data                |

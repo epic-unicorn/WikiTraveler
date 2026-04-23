@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/properties — create a new property (requires auditor JWT)
 export async function POST(req: NextRequest) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   let body: { name?: string; location?: string; canonicalId?: string };

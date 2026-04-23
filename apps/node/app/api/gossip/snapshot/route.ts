@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NODE_ID } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_BBOX, NODE_REGION } from "@/lib/nodeInfo";
 import type { NextRequest } from "next/server";
 
 // GET /api/gossip/snapshot?since=<ISO>
@@ -25,6 +25,13 @@ export async function GET(req: NextRequest) {
       })
     : [];
 
+  // Include active peers so recipients can discover the network organically
+  const peerRows = await prisma.nodePeer.findMany({
+    where: { isActive: true },
+    select: { url: true, nodeId: true, region: true, bbox: true },
+  });
+  const peers = peerRows.map((p) => ({ nodeId: p.nodeId ?? NODE_ID, url: p.url, region: p.region ?? NODE_REGION ?? null, bbox: p.bbox ?? NODE_BBOX ?? null }));
+
   return NextResponse.json({
     fromNodeId: NODE_ID,
     since: sinceDate.toISOString(),
@@ -42,5 +49,6 @@ export async function GET(req: NextRequest) {
       timestamp: f.timestamp.toISOString(),
       signatureHash: f.signatureHash,
     })),
+    peers,
   });
 }

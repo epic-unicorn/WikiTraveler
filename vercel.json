@@ -29,8 +29,6 @@
     "NODE_URL": "@node-url",
     "NODE_PRIVATE_KEY": "@node-private-key",
     "NODE_PUBLIC_KEY": "@node-public-key",
-    "COMMUNITY_PASSPHRASE": "@community-passphrase",
-    "JWT_SECRET": "@jwt-secret",
     "DATABASE_URL": "@database-url",
     "CORS_ORIGINS": "*",
     "CRON_SECRET": "@cron-secret",

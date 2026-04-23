@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
+    "@types/bcryptjs": "^3.0.0",
     "@wikitraveler/ai-agent": "workspace:*",
     "@wikitraveler/core": "workspace:*",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
