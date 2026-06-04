@@ -9,6 +9,8 @@ export interface WidgetOptions {
   propertyId: string;
   /** WikiTraveler node URL. */
   nodeUrl: string;
+  /** JWT obtained from POST /api/auth/login. Required for authenticated nodes. */
+  token?: string;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -96,6 +98,7 @@ export async function mountWidget(
   let el: HTMLElement | null = null;
   let propertyId: string;
   let nodeUrl: string;
+  let token: string | undefined;
 
   if (typeof optionsOrSelector === "string") {
     el = document.querySelector<HTMLElement>(optionsOrSelector);
@@ -108,6 +111,7 @@ export async function mountWidget(
         : optionsOrSelector.target;
     propertyId = optionsOrSelector.propertyId;
     nodeUrl = optionsOrSelector.nodeUrl;
+    token = optionsOrSelector.token;
   }
 
   if (!el) {
@@ -118,6 +122,7 @@ export async function mountWidget(
   // If called with only a selector/element, read from data attributes
   propertyId ??= el.dataset.propertyId ?? "";
   nodeUrl ??= el.dataset.nodeUrl ?? "";
+  token ??= el.dataset.token;
 
   if (!propertyId || !nodeUrl) {
     el.innerHTML = `<p style="color:#f87171">WikiTraveler: missing data-property-id or data-node-url</p>`;
@@ -127,7 +132,7 @@ export async function mountWidget(
   el.innerHTML = `<p style="color:#9ca3af;font-family:sans-serif">Loading accessibility data…</p>`;
 
   try {
-    const client = new WikiTraveler({ nodeUrl });
+    const client = new WikiTraveler({ nodeUrl, token });
     const data = await client.getAccessibility(propertyId);
     el.innerHTML = renderFacts(data);
   } catch (err) {

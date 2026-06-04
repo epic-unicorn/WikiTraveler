@@ -18,6 +18,8 @@ export interface WikiTravelerConfig {
   nodeUrl: string;
   /** Optional fetch timeout in milliseconds (default: 8000). */
   timeoutMs?: number;
+  /** Optional JWT obtained from POST /api/auth/login. Required for authenticated endpoints. */
+  token?: string;
 }
 
 export interface AccessibilityResponse {
@@ -41,17 +43,25 @@ export interface AccessibilityResponse {
 export class WikiTraveler {
   private readonly nodeUrl: string;
   private readonly timeoutMs: number;
+  private readonly token: string | undefined;
 
   constructor(config: WikiTravelerConfig) {
     this.nodeUrl = config.nodeUrl.replace(/\/$/, "");
     this.timeoutMs = config.timeoutMs ?? 8000;
+    this.token = config.token;
   }
 
   private async fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const headers: Record<string, string> = {
+      ...(init?.headers as Record<string, string> | undefined),
+    };
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
     try {
-      const res = await fetch(url, { ...init, signal: controller.signal });
+      const res = await fetch(url, { ...init, headers, signal: controller.signal });
       return res;
     } finally {
       clearTimeout(timer);

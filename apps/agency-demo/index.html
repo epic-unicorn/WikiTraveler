@@ -66,6 +66,24 @@
       background: #1e3a5f; color: #fff; border: none; border-radius: 8px;
       padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600;
     }
+
+    /* login form */
+    .login-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .login-grid input {
+      padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px; width: 100%;
+    }
+    .login-grid input.error { border-color: #f87171; }
+    .btn-login {
+      grid-column: span 2;
+      background: #059669; color: #fff; border: none; border-radius: 8px;
+      padding: 8px 0; font-size: 13px; cursor: pointer; font-weight: 600; width: 100%;
+    }
+    .btn-login:disabled { opacity: 0.5; cursor: default; }
+    .btn-logout {
+      background: none; border: 1px solid #d1d5db; border-radius: 8px;
+      padding: 4px 12px; font-size: 12px; cursor: pointer; color: #6b7280;
+    }
+    .auth-status { font-size: 12px; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -80,19 +98,18 @@
   <!-- Left: hotel card -->
   <div>
     <div class="hotel-img" style="background:#dbeafe">🏨</div>
-    <h2 class="hotel-name">Leonardo Hotel Eindhoven City Center</h2>
-    <p class="hotel-meta">📍 Vestdijk 14, 5611CC Eindhoven, Netherlands · ★★★★</p>
+    <h2 class="hotel-name" id="hotel-name">—</h2>
+    <p class="hotel-meta" id="hotel-meta">📍 —</p>
 
     <div class="price-box">
       <p style="font-size:12px;color:#6b7280;margin-bottom:4px">From</p>
-      <span class="price">€289</span>
+      <span class="price">—</span>
       <span style="color:#6b7280;font-size:14px"> / night</span>
       <button class="btn-book" style="margin-top:16px">Book Now</button>
     </div>
 
-    <p style="color:#6b7280;font-size:14px;line-height:1.7">
-      The Grand Hotel Vienna is one of the most prestigious luxury hotels in the Austrian capital,
-      located directly on the Ringstraße. Known for its impeccable service and historic elegance.
+    <p id="hotel-desc" style="color:#6b7280;font-size:14px;line-height:1.7">
+      Select a property to see details.
     </p>
   </div>
 
@@ -109,10 +126,27 @@
         <input id="node-url-input" type="url" placeholder="http://localhost:3000" />
         <button onclick="applyNodeUrl()">Connect</button>
       </div>
-      <div style="margin-top:8px">
+
+      <!-- Login form -->
+      <div id="login-area">
+        <div class="login-grid">
+          <input id="login-username" type="text" placeholder="Username" autocomplete="username" />
+          <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" />
+          <button class="btn-login" id="btn-login" onclick="doLogin()">Log in</button>
+        </div>
+        <p id="login-error" class="auth-status" style="color:#f87171;display:none"></p>
+      </div>
+      <div id="logged-in-area" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span id="logged-in-label" class="auth-status" style="color:#059669"></span>
+          <button class="btn-logout" onclick="doLogout()">Log out</button>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
         <select id="property-select"
           style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff">
-          <option value="">— click Connect to load properties —</option>
+          <option value="">— log in and click Connect to load properties —</option>
         </select>
       </div>
       <p id="node-status" style="font-size:12px;color:#9ca3af;margin-top:6px"></p>
@@ -208,16 +242,100 @@
   let currentNodeUrl = (urlParams.get("node") || "http://localhost:3000");
   document.getElementById("node-url-input").value = currentNodeUrl;
 
+  // JWT state — kept in memory only (no localStorage for security)
+  let authToken = null;
+  let authUsername = null;
+
+  // Loaded property list
+  let loadedProperties = [];
+
+  // ── Auth ──
+  async function doLogin() {
+    const username = document.getElementById("login-username").value.trim();
+    const password = document.getElementById("login-password").value;
+    const errEl = document.getElementById("login-error");
+    const btn = document.getElementById("btn-login");
+
+    errEl.style.display = "none";
+    if (!username || !password) {
+      errEl.textContent = "Username and password are required.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Logging in…";
+    try {
+      const res = await fetch(`${currentNodeUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.message || "Login failed.";
+        errEl.style.display = "block";
+        return;
+      }
+      authToken = data.token;
+      authUsername = data.username ?? username;
+      document.getElementById("login-area").style.display = "none";
+      document.getElementById("logged-in-area").style.display = "block";
+      document.getElementById("logged-in-label").textContent = `✓ Logged in as ${authUsername}`;
+      // Now load the property list
+      loadProperties(currentNodeUrl).then(() => {
+        updateSnippets();
+        mountDemoWidget();
+        if (PROPERTY_ID) runRawFetch();
+      });
+    } catch (e) {
+      errEl.textContent = `Could not reach node: ${e.message}`;
+      errEl.style.display = "block";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Log in";
+    }
+  }
+
+  function doLogout() {
+    authToken = null;
+    authUsername = null;
+    loadedProperties = [];
+    document.getElementById("login-area").style.display = "block";
+    document.getElementById("logged-in-area").style.display = "none";
+    document.getElementById("login-password").value = "";
+    document.getElementById("property-select").innerHTML =
+      '<option value="">— log in and click Connect to load properties —</option>';
+    document.getElementById("wt-widget").innerHTML = "";
+    document.getElementById("raw-output").innerHTML =
+      '<span style="color:#9ca3af">Waiting for Apply…</span>';
+    updateHotelCard(null);
+  }
+
+  // ── Hotel card ──
+  function updateHotelCard(prop) {
+    document.getElementById("hotel-name").textContent = prop ? prop.name : "—";
+    document.getElementById("hotel-meta").textContent = prop ? `\uD83D\uDCCD ${prop.location}` : "\uD83D\uDCCD —";
+    document.getElementById("hotel-desc").textContent = prop
+      ? `${prop.name} is listed in the WikiTraveler node at ${currentNodeUrl}. Use the panel on the right to inspect its live accessibility data.`
+      : "Select a property to see details.";
+  }
+
   async function loadProperties(nodeUrl) {
+    if (!authToken) return;
     const select = document.getElementById("property-select");
     select.innerHTML = '<option value="">Loading…</option>';
     try {
-      const res = await fetch(`${nodeUrl}/api/properties`);
+      const res = await fetch(`${nodeUrl}/api/properties`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const props = data.properties ?? [];
+      loadedProperties = props;
       if (props.length === 0) {
         select.innerHTML = '<option value="">No properties found — run pnpm db:seed</option>';
+        updateHotelCard(null);
         return;
       }
       select.innerHTML = props.map(p =>
@@ -230,8 +348,10 @@
         PROPERTY_ID = props[0].id;
         select.value = PROPERTY_ID;
       }
+      updateHotelCard(props.find(p => p.id === PROPERTY_ID) ?? props[0]);
       select.onchange = () => {
         PROPERTY_ID = select.value;
+        updateHotelCard(loadedProperties.find(p => p.id === PROPERTY_ID) ?? null);
         updateSnippets();
         mountDemoWidget();
         runRawFetch();
@@ -242,12 +362,12 @@
   }
 
   // ── Pattern 1: Auto-mount widget ──
-  // The [data-wt-widget] attribute triggers WikiTraveler.autoMount() or we call mountWidget manually.
   function mountDemoWidget() {
     const el = document.getElementById("wt-widget");
     if (!el) return;
     el.dataset.nodeUrl = currentNodeUrl;
     el.dataset.propertyId = PROPERTY_ID;
+    if (authToken) el.dataset.token = authToken;
     if (window.WikiTraveler && WikiTraveler.mountWidget) {
       WikiTraveler.mountWidget(el);
     }
@@ -258,7 +378,7 @@
     const output = document.getElementById("raw-output");
     output.innerHTML = '<span style="color:#9ca3af">Fetching…</span>';
     try {
-      const client = new WikiTraveler.WikiTraveler({ nodeUrl: currentNodeUrl });
+      const client = new WikiTraveler.WikiTraveler({ nodeUrl: currentNodeUrl, token: authToken });
       const data = await client.getAccessibility(PROPERTY_ID);
       output.textContent = JSON.stringify(data, null, 2);
     } catch (e) {
@@ -271,6 +391,10 @@
     if (!val) return;
     currentNodeUrl = val;
     document.getElementById("node-status").textContent = `Connected to ${val}`;
+    if (!authToken) {
+      document.getElementById("node-status").textContent += " — please log in";
+      return;
+    }
     loadProperties(val).then(() => {
       updateSnippets();
       mountDemoWidget();
@@ -283,10 +407,12 @@
     const widgetSnippet = `<!-- Pattern 1: Drop-in Widget (CDN, no build step) -->
 <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"><\/script>
 
+<!-- Obtain a token first via POST /api/auth/login, then pass it as data-token -->
 <div id="wt-widget"
      data-wt-widget
      data-property-id="${PROPERTY_ID}"
-     data-node-url="${currentNodeUrl}">
+     data-node-url="${currentNodeUrl}"
+     data-token="YOUR_JWT_TOKEN">
 </div>
 
 <!-- Optional: override colours with CSS variables -->
@@ -301,8 +427,12 @@
 <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"><\/script>
 <div id="accessibility-section"></div>
 <script>
+  // Obtain token once via POST /api/auth/login
+  const token = "YOUR_JWT_TOKEN";
+
   const wt = new WikiTraveler.WikiTraveler({
-    nodeUrl: "${currentNodeUrl}"
+    nodeUrl: "${currentNodeUrl}",
+    token,
   });
 
   wt.getAccessibility("${PROPERTY_ID}").then(data => {
@@ -321,8 +451,15 @@
 
 import { WikiTraveler, mountWidget } from "@wikitraveler/sdk";
 
+// Obtain token once via POST /api/auth/login
+const { token } = await fetch("${currentNodeUrl}/api/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ username: "demo", password: "••••" }),
+}).then(r => r.json());
+
 // Option A — use the client directly
-const wt = new WikiTraveler({ nodeUrl: "${currentNodeUrl}" });
+const wt = new WikiTraveler({ nodeUrl: "${currentNodeUrl}", token });
 const data = await wt.getAccessibility("${PROPERTY_ID}");
 console.log(data.facts); // [{ fieldName, value, tier, label, color }]
 
@@ -331,6 +468,7 @@ mountWidget({
   target: "#wt-widget",
   propertyId: "${PROPERTY_ID}",
   nodeUrl: "${currentNodeUrl}",
+  token,
 });`;
 
     document.querySelector("#snippet-widget .code").textContent = widgetSnippet;
@@ -358,11 +496,16 @@ mountWidget({
   // ── Boot ──
   document.addEventListener("DOMContentLoaded", () => {
     updateSnippets();
-    // Auto-connect on load so the dropdown is populated immediately
-    loadProperties(currentNodeUrl).then(() => {
-      updateSnippets();
-      mountDemoWidget();
-      if (PROPERTY_ID) runRawFetch();
+    // Do not auto-connect — the user must log in first
+  });
+
+  // Allow pressing Enter in the password field to submit
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("login-password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doLogin();
+    });
+    document.getElementById("login-username").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("login-password").focus();
     });
   });
 </script>

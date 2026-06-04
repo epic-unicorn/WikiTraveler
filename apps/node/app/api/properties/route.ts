@@ -12,11 +12,6 @@ export async function GET(req: NextRequest) {
   const featureParam = req.nextUrl.searchParams.get("feature")?.trim() ?? "";
   const features = featureParam ? featureParam.split(",").map((f) => f.trim()).filter(Boolean) : [];
 
-  // Require at least a query or a feature filter — never return the full list
-  if (!q && features.length === 0) {
-    return NextResponse.json({ properties: [] });
-  }
-
   const textFilter = q
     ? {
         OR: [
