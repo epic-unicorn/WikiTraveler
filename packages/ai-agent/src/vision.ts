@@ -1,22 +1,26 @@
-import OpenAI from "openai";
 import { VISION_SYSTEM_PROMPT } from "./prompts";
+import { createAiClient, extractJson } from "./client";
+import type { AiConfig } from "./client";
 import type { AgentFact } from "./types";
 
 /**
- * Analyse up to 3 hotel photos with GPT-4o Vision and return AI_GUESS facts.
+ * Analyse up to 3 hotel photos and return AI_GUESS accessibility facts.
+ *
+ * Works with any OpenAI-compatible vision model (GPT-4o, llama3.2-vision,
+ * llava, moondream, etc.).
  *
  * @param photos  Array of base64 strings or full data-URI strings (max 3).
- * @param apiKey  OpenAI API key.
+ * @param config  AI provider configuration.
  */
 export async function analyzePhotos(
   photos: string[],
-  apiKey: string
+  config: AiConfig
 ): Promise<AgentFact[]> {
   if (!photos.length) return [];
 
-  const client = new OpenAI({ apiKey });
+  const { client, visionModel, isLocal } = createAiClient(config);
 
-  // Normalise to data-URI format that the OpenAI vision API expects.
+  // Normalise to data-URI format expected by vision models.
   const imageContent = photos.slice(0, 3).map((photo) => ({
     type: "image_url" as const,
     image_url: {
@@ -26,8 +30,10 @@ export async function analyzePhotos(
   }));
 
   const response = await client.chat.completions.create({
-    model: "gpt-4o",
-    response_format: { type: "json_object" },
+    model: visionModel,
+    // response_format is an OpenAI extension; local models ignore it gracefully.
+    // We rely on the system prompt + extractJson() as the safety net.
+    ...(!isLocal && { response_format: { type: "json_object" as const } }),
     max_tokens: 1000,
     messages: [
       { role: "system", content: VISION_SYSTEM_PROMPT },
@@ -48,7 +54,7 @@ export async function analyzePhotos(
 
   let parsed: { facts?: unknown };
   try {
-    parsed = JSON.parse(raw) as { facts?: unknown };
+    parsed = JSON.parse(extractJson(raw)) as { facts?: unknown };
   } catch {
     return [];
   }

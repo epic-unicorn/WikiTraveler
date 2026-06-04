@@ -13,11 +13,42 @@
 import { prisma } from "@/lib/prisma";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { analyzePhotos, gapFill } from "@wikitraveler/ai-agent";
+import type { AiConfig } from "@wikitraveler/ai-agent";
 import { ACCESSIBILITY_FIELDS } from "@wikitraveler/core";
 import type { AgentFact } from "@wikitraveler/ai-agent";
 
 /** Source node suffix for all AI-generated facts. */
 const AI_SOURCE_NODE = `${NODE_ID}:ai-agent`;
+
+/**
+ * Build an AiConfig from environment variables.
+ *
+ * Local (Ollama / LM Studio / Llamafile):
+ *   AI_BASE_URL=http://localhost:11434/v1
+ *   AI_API_KEY=ollama          # any non-empty string
+ *   AI_VISION_MODEL=llama3.2-vision
+ *   AI_TEXT_MODEL=qwen2.5:7b
+ *
+ * OpenAI (legacy / default):
+ *   OPENAI_API_KEY=sk-...
+ *   AI_VISION_MODEL=gpt-4o     # optional override
+ *   AI_TEXT_MODEL=gpt-4o       # optional override
+ */
+function buildAiConfig(): AiConfig | null {
+  const apiKey =
+    process.env.AI_API_KEY ??
+    process.env.OPENAI_API_KEY ??
+    null;
+
+  if (!apiKey) return null;
+
+  return {
+    apiKey,
+    baseURL: process.env.AI_BASE_URL,       // undefined = official OpenAI
+    visionModel: process.env.AI_VISION_MODEL, // undefined = gpt-4o
+    textModel: process.env.AI_TEXT_MODEL,    // undefined = gpt-4o
+  };
+}
 
 export interface AiAnalyzeOptions {
   propertyId: string;
@@ -42,8 +73,8 @@ export interface AiAnalyzeSummary {
 export async function runAiAnalysis(
   opts: AiAnalyzeOptions
 ): Promise<AiAnalyzeSummary> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured on this node.");
+  const aiConfig = buildAiConfig();
+  if (!aiConfig) throw new Error("AI is not configured on this node. Set AI_API_KEY (or OPENAI_API_KEY) in .env.");
 
   const {
     propertyId,
@@ -80,7 +111,7 @@ export async function runAiAnalysis(
   // ------------------------------------------------------------------
   let visionFacts: AgentFact[] = [];
   if (photos.length > 0) {
-    const raw = await analyzePhotos(photos, apiKey);
+    const raw = await analyzePhotos(photos, aiConfig);
     visionFacts = raw.filter(
       (f) =>
         ACCESSIBILITY_FIELDS.includes(f.fieldName as never) &&
@@ -98,7 +129,7 @@ export async function runAiAnalysis(
   // ------------------------------------------------------------------
   // 3. Run gap-fill for everything not already covered.
   // ------------------------------------------------------------------
-  const rawGap = await gapFill(propertyName, location, gapSkipFields, apiKey);
+  const rawGap = await gapFill(propertyName, location, gapSkipFields, aiConfig);
   const gapFacts = rawGap.filter(
     (f) =>
       ACCESSIBILITY_FIELDS.includes(f.fieldName as never) &&
@@ -155,6 +186,8 @@ export async function runAiAnalysis(
     })
   );
 
+  // Also respect the old OPENAI_API_KEY guard used in the fire-and-forget call:
+  // `if (process.env.OPENAI_API_KEY && ...)` → replaced with buildAiConfig() check
   return {
     visionFactsAdded: visionFacts.length,
     gapFactsAdded: gapFacts.length,

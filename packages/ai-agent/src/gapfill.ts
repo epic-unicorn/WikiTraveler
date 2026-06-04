@@ -1,24 +1,28 @@
-import OpenAI from "openai";
 import { GAPFILL_SYSTEM_PROMPT } from "./prompts";
+import { createAiClient, extractJson } from "./client";
+import type { AiConfig } from "./client";
 import type { AgentFact } from "./types";
 
 /**
- * Use GPT-4o to estimate accessibility facts for fields not yet covered by
- * any existing data, using just the property name and location.
+ * Estimate accessibility facts for fields not yet covered by any existing
+ * data, using just the property name and location.
+ *
+ * Works with any OpenAI-compatible text model (GPT-4o, qwen2.5, mistral,
+ * llama3.1, etc.).
  *
  * @param propertyName       Human-readable hotel name.
  * @param location           City / address string.
  * @param existingFieldNames Fields that already have OFFICIAL or better data
  *                           — the model is instructed to skip these entirely.
- * @param apiKey             OpenAI API key.
+ * @param config             AI provider configuration.
  */
 export async function gapFill(
   propertyName: string,
   location: string,
   existingFieldNames: string[],
-  apiKey: string
+  config: AiConfig
 ): Promise<AgentFact[]> {
-  const client = new OpenAI({ apiKey });
+  const { client, textModel, isLocal } = createAiClient(config);
 
   const userMessage = [
     `Hotel: ${propertyName}`,
@@ -29,8 +33,8 @@ export async function gapFill(
   ].join("\n");
 
   const response = await client.chat.completions.create({
-    model: "gpt-4o",
-    response_format: { type: "json_object" },
+    model: textModel,
+    ...(!isLocal && { response_format: { type: "json_object" as const } }),
     max_tokens: 800,
     messages: [
       { role: "system", content: GAPFILL_SYSTEM_PROMPT },
@@ -42,7 +46,7 @@ export async function gapFill(
 
   let parsed: { facts?: unknown };
   try {
-    parsed = JSON.parse(raw) as { facts?: unknown };
+    parsed = JSON.parse(extractJson(raw)) as { facts?: unknown };
   } catch {
     return [];
   }

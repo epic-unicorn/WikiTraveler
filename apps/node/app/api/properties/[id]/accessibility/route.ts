@@ -165,7 +165,7 @@ export async function POST(
   // We do not await — the response is already on its way to the client.
   // On Vercel serverless the function may terminate before this completes;
   // the /api/cron/ai-scan job will cover any missed analyses.
-  if (process.env.OPENAI_API_KEY && (body.photoUrls?.length ?? 0) > 0) {
+  if ((process.env.AI_API_KEY || process.env.OPENAI_API_KEY) && (body.photoUrls?.length ?? 0) > 0) {
     void runAiAnalysis({
       propertyId: propertyId,
       propertyName: property.name,

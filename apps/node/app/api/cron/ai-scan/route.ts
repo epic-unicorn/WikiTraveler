@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.AI_API_KEY && !process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { message: "OPENAI_API_KEY is not configured on this node — ai-scan skipped." },
+      { message: "AI is not configured on this node — ai-scan skipped." },
       { status: 503 }
     );
   }

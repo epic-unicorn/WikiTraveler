@@ -24,9 +24,9 @@ export async function POST(
   const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.AI_API_KEY && !process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { message: "OPENAI_API_KEY is not configured on this node." },
+      { message: "AI is not configured on this node. Set AI_API_KEY (or OPENAI_API_KEY) in .env." },
       { status: 503 }
     );
   }
