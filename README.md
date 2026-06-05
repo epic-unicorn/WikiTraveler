@@ -60,6 +60,9 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 | `POST /api/inbox`                         | Real-time signed fact push from peer nodes                        |
 | `POST /api/properties/[id]/accessibility` | Submit an audit; triggers immediate peer push + background vision |
 
+| `GET /api/setup`                          | Returns whether first-run admin setup is required.                |
+| `POST /api/setup`                         | Create the first admin account (username & password); returns a signed JWT |
+
 ---
 
 ## Quick Start
@@ -92,12 +95,36 @@ pnpm db:migrate               # node schema
 pnpm db:seed
 ```
 
-On first start the node auto-creates the admin account from `.env`:
-```env
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=change-me-in-production
+On first start the node no longer auto-seeds an admin from `.env`.
+After running migrations and seeding, start the node (`pnpm dev`) and open the dashboard at `http://localhost:3000`.
+If no admin exists the server will redirect you to `/setup` to create the initial administrator account. The server also logs a notice:
+
 ```
-Comment those lines out after the account is created.
+⚠️  No admin account found. Open the node web UI to complete first-time setup…
+```
+
+You can check whether setup is required via `GET /api/setup`, or create the first admin programmatically via `POST /api/setup` (accepts `username` and `password` and returns a signed JWT). Legacy `ADMIN_USERNAME`/`ADMIN_PASSWORD` env variables are no longer used; use the web UI or the setup API for first-run provisioning.
+
+#### AI Provider Configuration
+
+The node supports local OpenAI-compatible providers (for example Ollama or LM Studio) as well as OpenAI itself. Configure the node with these optional environment variables:
+
+- `AI_API_KEY` — API key for your AI provider (preferred). If not set, `OPENAI_API_KEY` is used for OpenAI.
+- `AI_BASE_URL` — Base URL for a local/remote provider (e.g. `http://localhost:11434` for Ollama).
+- `AI_VISION_MODEL` — Name of the vision model to use for image analysis.
+- `AI_TEXT_MODEL` — Name of the text model for gap-filling/completions.
+
+Example `.env` snippet:
+
+```env
+# Optional AI config (local providers or OpenAI)
+AI_API_KEY=your_api_key_here
+AI_BASE_URL=http://localhost:11434
+AI_VISION_MODEL=your-vision-model
+AI_TEXT_MODEL=your-text-model
+# Backwards compatibility: OPENAI_API_KEY is still supported for OpenAI
+# OPENAI_API_KEY=sk-...
+```
 
 ### 4. Run the apps
 
