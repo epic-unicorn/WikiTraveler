@@ -1,16 +1,5 @@
 // content.js — injected into booking pages
 
-// Quality tier ordering (higher = more reliable)
-const TIER_ORDER = { OFFICIAL: 0, AI_GUESS: 1, VERIFIED: 2, CONFIRMED: 3 };
-
-// Single quality dot color: green = user-verified, amber = AI/official
-function qualityColor(facts) {
-  const topTier = facts.reduce((best, f) => {
-    return (TIER_ORDER[f.tier] ?? 0) > (TIER_ORDER[best.tier] ?? 0) ? f : best;
-  }, facts[0]);
-  return (topTier.tier === "CONFIRMED" || topTier.tier === "VERIFIED") ? "#34d399" : "#fbbf24";
-}
-
 // ---------------------------------------------------------------------------
 // Node URL — resolved once per page via registry (if configured) or storage
 // ---------------------------------------------------------------------------
@@ -92,20 +81,6 @@ async function getNodeUrl() {
 }
 
 // ---------------------------------------------------------------------------
-// Auto-popup setting — cached, reset on storage change
-// ---------------------------------------------------------------------------
-
-let _autoPopup = null;
-
-async function getAutoPopup() {
-  if (_autoPopup !== null) return _autoPopup;
-  _autoPopup = await new Promise((resolve) =>
-    chrome.storage.sync.get({ autoPopup: true }, (items) => resolve(items.autoPopup))
-  );
-  return _autoPopup;
-}
-
-// ---------------------------------------------------------------------------
 // Auth headers — loaded once, invalidated on token change
 // ---------------------------------------------------------------------------
 
@@ -124,7 +99,6 @@ function getAuthHeaders() {
 // Invalidate cache when the user changes settings
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "sync") return;
-  if ("autoPopup" in changes) _autoPopup = null;
   if ("wtToken" in changes) _authHeadersPromise = null;
 });
 
@@ -139,22 +113,6 @@ function isListingPage() {
     /expedia\.com\/(Hotel-Search|flights-Hotel)/.test(url) ||
     /hotels\.com\/search/.test(url)
   );
-}
-
-// ---------------------------------------------------------------------------
-// Hotel name extraction — for detail-page search fallback
-// ---------------------------------------------------------------------------
-
-function extractHotelName() {
-  const og = document.querySelector('meta[property="og:title"]');
-  const raw = (og?.getAttribute("content")?.trim() ?? document.title).trim();
-  return raw
-    // Strip site suffix:  "… | Booking.com"  or  "… – Booking.com"
-    .replace(/\s*[|\u2013\u2014]\s*(Booking\.com|Expedia|Hotels\.com|Agoda).*$/i, "")
-    // Booking.com og:title format: "Hotel Name, City, Country"
-    // Drop everything from the first ", <word>" that looks like a location
-    .replace(/,\s*[A-Z][^,]+.*$/, "")
-    .trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -513,289 +471,28 @@ function extractPropertyId() {
 }
 
 // ---------------------------------------------------------------------------
-// Overlay injection
-// ---------------------------------------------------------------------------
-
-function createOverlay(facts, property) {
-  // Only show overlay if we have facts
-  if (!facts || facts.length === 0) {
-    removeOverlay();
-    return;
-  }
-
-  const existing = document.getElementById("wt-lens-overlay");
-  if (existing) existing.remove();
-
-  // Clamp width to viewport: 320px min, 420px max, 92vw on narrow screens
-  const vw = window.innerWidth;
-  const overlayW = Math.min(420, Math.max(320, vw * 0.92));
-  const rightOffset = vw > 480 ? 20 : Math.round((vw - overlayW) / 2);
-  const topOffset = vw > 480 ? 20 : 12;
-  // Height: leave room for the header (~44px) and some breathing room
-  const maxBodyH = Math.min(420, window.innerHeight - topOffset - 60);
-
-  const overlay = document.createElement("div");
-  overlay.id = "wt-lens-overlay";
-  overlay.style.cssText = `
-    position: fixed;
-    top: ${topOffset}px;
-    right: ${rightOffset}px;
-    z-index: 2147483647;
-    width: ${overlayW}px;
-    background: #fff;
-    border: 2px solid #1e3a5f;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 13px;
-    color: #111827;
-    overflow: hidden;
-  `;
-
-  const header = document.createElement("div");
-  header.style.cssText = `
-    background: #1e3a5f;
-    color: #fff;
-    padding: 10px 14px;
-    flex-shrink: 0;
-  `;
-  const nameHtml = property?.name
-    ? `<div style="font-weight:700;font-size:14px;margin-bottom:${property.location ? 2 : 0}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🌍 ${property.name}</div>`
-    : `<div style="font-weight:700;font-size:14px">🌍 WikiTraveler</div>`;
-  const addressHtml = property?.location
-    ? `<div style="font-size:11px;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">${property.location}</div>`
-    : "";
-  header.innerHTML = `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-      <div style="min-width:0;flex:1">${nameHtml}${addressHtml}</div>
-      <button id="wt-close" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1;flex-shrink:0;padding:0">×</button>
-    </div>
-  `;
-
-  const body = document.createElement("div");
-  body.style.cssText = `padding: 10px 14px; max-height: ${maxBodyH}px; overflow-y: auto;`;
-
-  // Quality summary dot
-  const dotColor = qualityColor(facts);
-  const verifiedCount = facts.filter((f) => f.tier === "CONFIRMED" || f.tier === "VERIFIED").length;
-  const summaryText = verifiedCount > 0
-    ? `${verifiedCount} field${verifiedCount > 1 ? "s" : ""} verified`
-    : "AI / official data";
-  body.innerHTML = `<p style="margin-bottom:8px;font-size:12px;color:#6b7280;display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></span>${summaryText}</p>`;
-
-  // Render facts as stacked rows
-  facts.forEach((f) => {
-    const item = document.createElement("div");
-    item.style.cssText = `
-      padding: 7px 0;
-      border-bottom: 1px solid #f3f4f6;
-    `;
-    item.innerHTML = `
-      <span style="font-weight:600;font-size:12px;color:#374151;display:block">
-        ${f.fieldName.replace(/_/g, " ")}
-      </span>
-      <span style="font-size:12px;color:#111827">${f.value}</span>
-    `;
-    body.appendChild(item);
-  });
-
-  overlay.appendChild(header);
-  overlay.appendChild(body);
-  document.body.appendChild(overlay);
-
-  document.getElementById("wt-close")?.addEventListener("click", () => removeOverlay());
-}
-
-function showLoginRequired() {
-  const existing = document.getElementById("wt-lens-overlay");
-  if (existing) existing.remove();
-
-  const overlay = document.createElement("div");
-  overlay.id = "wt-lens-overlay";
-  overlay.style.cssText = `
-    position: fixed; top: 20px; right: 20px; z-index: 2147483647;
-    background: #1e3a5f; color: #fff; border-radius: 12px;
-    padding: 12px 18px; font-family: sans-serif; font-size: 13px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2); max-width: 260px;
-  `;
-  overlay.innerHTML = `
-    <span style="font-weight:700">🌍 WikiTraveler</span><br>
-    <span style="font-size:12px;opacity:0.85">Sign in via the extension popup to view accessibility data.</span>
-    <button id="wt-close" style="position:absolute;top:8px;right:10px;background:none;border:none;color:#fff;cursor:pointer;font-size:16px">×</button>
-  `;
-  overlay.style.position = "fixed";
-  document.body.appendChild(overlay);
-  document.getElementById("wt-close")?.addEventListener("click", removeOverlay);
-
-  // Auto-dismiss after 6 s
-  setTimeout(removeOverlay, 6000);
-}
-
-function removeOverlay() {
-  const existing = document.getElementById("wt-lens-overlay");
-  if (existing) existing.remove();
-}
-
-function showLoading() {
-  const existing = document.getElementById("wt-lens-overlay");
-  if (existing) existing.remove();
-
-  const overlay = document.createElement("div");
-  overlay.id = "wt-lens-overlay";
-  overlay.style.cssText = `
-    position: fixed; top: 20px; right: 20px; z-index: 2147483647;
-    background: #1e3a5f; color: #fff; border-radius: 12px;
-    padding: 10px 18px; font-family: sans-serif; font-size: 13px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-  `;
-  overlay.textContent = "🌍 WikiTraveler loading…";
-  document.body.appendChild(overlay);
-}
-
-// ---------------------------------------------------------------------------
-// Main
+// Main — listing-page hover tooltips only; detail data is shown in the popup
 // ---------------------------------------------------------------------------
 
 async function run() {
   const thisRunId = ++_runId;
-  const nodeUrl = await getNodeUrl();
-  if (thisRunId !== _runId) return; // superseded by a newer run
+  await getNodeUrl();
+  if (thisRunId !== _runId) return;
 
-  if (_regionMissing) {} // regional warning shown in popup only
-  // ---- Listing page: attach hover tooltips to hotel cards ----
   if (isListingPage()) {
-    removeOverlay();
     startListingMode();
     return;
   }
 
   stopListingMode();
-
-  // Respect the "auto-show overlay" setting — if disabled the user opens
-  // data manually via the WikiTraveler toolbar icon (popup).
-  if (!(await getAutoPopup())) return;
-
-  const propertyId = extractPropertyId();
-  const headers = await getAuthHeaders();
-
-  // ---- Detail page: search fallback when ID extraction failed ----
-  if (propertyId.startsWith("page-")) {
-    const name = extractHotelName();
-    if (name) {
-      showLoading();
-      const coords = extractCoordinates();
-      const { match } = await searchForProperty(name, nodeUrl, coords, headers);
-      if (thisRunId !== _runId) return;
-      if (match) {
-        try {
-          const res = await fetch(
-            `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
-            { signal: AbortSignal.timeout(8000), headers }
-          );
-          if (res.status === 401 || res.status === 403) {
-            _authHeadersPromise = null;
-            showLoginRequired();
-            return;
-          }
-          if (res.ok) {
-            const data = await res.json();
-            const facts = data.facts ?? [];
-            if (thisRunId !== _runId) return;
-            if (facts.length > 0) {
-              createOverlay(facts, data.property);
-              return;
-            }
-          }
-        } catch {
-          // fall through to removeOverlay
-        }
-      }
-    }
-    if (thisRunId !== _runId) return;
-    removeOverlay();
-    return;
-  }
-
-  // ---- Detail page: direct ID lookup, with name-search fallback on 404 ----
-  showLoading();
-
-  try {
-    const res = await fetch(
-      `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`,
-      { signal: AbortSignal.timeout(8000), headers }
-    );
-
-    if (res.status === 401 || res.status === 403) {
-      _authHeadersPromise = null;
-      showLoginRequired();
-      return;
-    }
-
-    if (res.status === 404) {
-      // ID not in node — try matching by hotel name instead
-      const name = extractHotelName();
-      if (name) {
-        const coords = extractCoordinates();
-        const { match } = await searchForProperty(name, nodeUrl, coords, headers);
-        if (thisRunId !== _runId) return;
-        if (match) {
-          const res2 = await fetch(
-            `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
-            { signal: AbortSignal.timeout(8000), headers }
-          );
-          if (res2.ok) {
-            const data2 = await res2.json();
-            const facts2 = data2.facts ?? [];
-            if (thisRunId !== _runId) return;
-            if (facts2.length > 0) {
-              createOverlay(facts2, data2.property);
-              return;
-            }
-          }
-        }
-      }
-      if (thisRunId !== _runId) return;
-      removeOverlay();
-      return;
-    }
-
-    if (!res.ok) {
-      if (thisRunId !== _runId) return;
-      removeOverlay();
-      return;
-    }
-
-    const data = await res.json();
-    const facts = data.facts ?? [];
-    if (thisRunId !== _runId) return;
-    if (facts.length > 0) {
-      createOverlay(facts, data.property);
-    } else {
-      removeOverlay();
-    }
-  } catch {
-    if (thisRunId !== _runId) return;
-    removeOverlay();
-  }
 }
 
 // Debounce to avoid firing on every navigation fragment change
 let runTimer;
 let _runId = 0;
-let _lastScheduledUrl = "";
 
 function scheduleRun() {
   clearTimeout(runTimer);
-
-  // Only clear the overlay when the page URL actually changed.
-  // Booking.com fires spurious popstate events during SPA init which would
-  // otherwise wipe an overlay that was just rendered.
-  const currentUrl = location.href;
-  if (currentUrl !== _lastScheduledUrl) {
-    _lastScheduledUrl = currentUrl;
-    removeOverlay();
-  }
-
   runTimer = setTimeout(run, 800);
 }
 

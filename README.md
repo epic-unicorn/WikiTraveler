@@ -40,7 +40,7 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 | --------------- | ------------------- | --------------------------------------------------------------- |
 | **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker. Search, rich map with "Audited only" filter. |
 | **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits. Login gate — auditors only. |
-| **Lens**        | `apps/lens`         | Chrome MV3 extension. Overlays data on Booking.com and Expedia. Popup login + register link. |
+| **Lens**        | `apps/lens`         | Chrome MV3 extension. Listing-page hover tooltips + popup panel on Booking.com and Expedia. |
 | **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.        |
 | **Core**        | `packages/core`     | Shared types, tier constants, gossip merge logic.               |
 | **SDK**         | `packages/sdk`      | Browser SDK for travel agencies (CJS + ESM + UMD).              |
@@ -135,6 +135,21 @@ AI_TEXT_MODEL=your-text-model
 | 3        | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
 
 See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
+
+---
+
+## Deployment
+
+Production deployments use **two Vercel projects** — one for the node (`apps/node`) and one for Field Kit (`apps/field-kit`). Both require a hosted PostgreSQL database for the node; Field Kit only needs `NEXT_PUBLIC_NODE_API_URL` pointing at your node.
+
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full checklist:
+
+- Database provisioning and migrations
+- Node env vars, cron jobs, RS256 keys, and first-run `/setup`
+- Field Kit env vars and CORS configuration
+- Connecting Lens, Field Kit, and agency SDK clients
+
+Docker self-hosting is also documented there.
 
 ---
 

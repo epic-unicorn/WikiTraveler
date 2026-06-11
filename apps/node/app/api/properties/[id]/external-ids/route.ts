@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireAuth } from "@/lib/auth";
 import { syncPropertyFromWheeelmap, findWheelmapNode } from "@/lib/wheelmap";
 import type { NextRequest } from "next/server";
 

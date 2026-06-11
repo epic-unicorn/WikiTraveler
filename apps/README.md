@@ -70,18 +70,18 @@ pnpm dev:field-kit
 
 ## Flow 3 — Lens Extension on a Live Booking Site
 
-**What it tests:** The Chrome extension overlaying data on a real booking site.
+**What it tests:** The Chrome extension on a real booking site (popup + listing tooltips).
 
 ```bash
 pnpm dev
 ```
 
 1. Chrome → `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select `apps/lens/`.
-2. Click the Lens icon — a login form appears. Enter your node credentials and sign in.
-   - First time? Click **Register on node →** to open `http://localhost:3000/register` in a new tab, create an account, get promoted to AUDITOR by the node admin, then return to the popup and sign in.
+2. Right-click the Lens icon → **Options** — set your node URL and sign in (or use the popup login).
+   - First time? Click **Create account** to register on the node, get promoted to AUDITOR by the node admin, then sign in.
 3. Navigate to a Booking.com or Expedia hotel page for a property in your node.
 
-**Verify:** Overlay panel appears with field name, value, and tier badge. On listing pages, hover a hotel card — a tooltip shows accessibility facts after 350 ms. "Audited only" toggle on the node map highlights only properties with VERIFIED/CONFIRMED facts.
+**Verify:** Click the Lens icon — the popup shows field values and tier badges. On listing pages, hover a hotel card to see a tooltip after 350 ms. "Audited only" toggle on the node map highlights only properties with VERIFIED/CONFIRMED facts.
 
 ---
 
@@ -102,9 +102,9 @@ npx serve apps/lens-demo -p 4001
 
 1. Load the Lens extension (Flow 3, steps 1–2).
 2. Open `http://localhost:4001` and click through to a hotel page.
-3. The Lens overlay fires automatically from the meta tag.
+3. Click the Lens icon — the popup reads the property ID from the `<meta name="wt-property-id">` tag.
 
-**Verify:** Overlay appears without any `<script>` tag on the page.
+**Verify:** Popup shows accessibility data without any `<script>` tag on the page.
 
 ---
 

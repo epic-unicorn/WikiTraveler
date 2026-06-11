@@ -2,14 +2,16 @@
   "manifest_version": 3,
   "name": "WikiTraveler Lens",
   "version": "0.1.0",
-  "description": "Overlay community-verified accessibility data on booking websites.",
+  "description": "Community-verified accessibility data on booking websites — popup panel and listing-page tooltips.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "*://www.booking.com/*",
     "*://*.expedia.com/*",
     "*://*.hotels.com/*",
     "*://localhost/*",
-    "*://127.0.0.1/*"
+    "*://127.0.0.1/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js",

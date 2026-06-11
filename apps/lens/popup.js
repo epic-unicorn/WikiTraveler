@@ -1,5 +1,13 @@
 // popup.js
 
+async function updateNodeStatusBar(nodeUrl) {
+  const bar = document.getElementById("node-status-bar");
+  setNodeStatusChecking(bar);
+  const result = await checkNodeHealth(nodeUrl);
+  applyNodeStatusEl(bar, result);
+  return result;
+}
+
 async function searchForProperty(name, nodeUrl, coords, headers = {}) {
   const words = name.split(/\s+/);
   let bestCandidates = null;
@@ -58,10 +66,13 @@ function extractHotelNameFromTab(tab) {
     .trim();
 }
 
-function showLoginForm(content) {
-  const nodeUrl = document.getElementById("user-line")?.dataset?.nodeUrl ?? "http://localhost:3000";
+function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = null) {
+  const offlineHint = nodeHealth?.state === "offline"
+    ? `<p style="color:#b91c1c;font-size:12px;margin-bottom:10px">Node is unreachable. Update the URL in <a href="options.html">settings</a>.</p>`
+    : "";
   content.innerHTML = `
     <div style="padding:4px 0">
+      ${offlineHint}
       <p style="font-size:13px;color:#374151;margin-bottom:12px;font-weight:500">Sign in to your node</p>
       <input id="wt-login-username" type="text" placeholder="Username"
         style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:8px">
@@ -79,7 +90,7 @@ function showLoginForm(content) {
   `;
 
   // Load node URL from storage to show registration link
-  chrome.storage.sync.get({ nodeUrl: "http://localhost:3000" }, (items) => {
+  chrome.storage.sync.get({ nodeUrl }, (items) => {
     const link = document.getElementById("wt-register-link");
     if (link) {
       // Open in the browser (not inside the popup itself)
@@ -148,6 +159,8 @@ async function init() {
       )
     );
 
+  const nodeHealth = await updateNodeStatusBar(storedNodeUrl);
+
   // Show username@node in header if stored, and expose sign-out button
   const userLine = document.getElementById("user-line");
   const signOutBtn = document.getElementById("wt-signout");
@@ -165,13 +178,13 @@ async function init() {
       );
       signOutBtn.style.display = "none";
       if (userLine) userLine.textContent = "";
-      showLoginForm(content);
+      showLoginForm(content, storedNodeUrl, nodeHealth);
     });
   }
 
   // If no token — show login form
   if (!wtToken) {
-    showLoginForm(content);
+    showLoginForm(content, storedNodeUrl, nodeHealth);
     return;
   }
 
@@ -234,7 +247,7 @@ async function init() {
     if (res.status === 401 || res.status === 403) {
       // Token expired or revoked — clear and show login
       await new Promise((resolve) => chrome.storage.sync.remove(["wtToken"], resolve));
-      showLoginForm(content);
+      showLoginForm(content, storedNodeUrl);
       return;
     }
 

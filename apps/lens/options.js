@@ -1,52 +1,117 @@
 // options.js
 
 const input = document.getElementById("nodeUrl");
-const autoPopupCheckbox = document.getElementById("autoPopup");
 const status = document.getElementById("status");
-const authStatus = document.getElementById("auth-status");
-const loginBox = document.getElementById("login-box");
+const loginFields = document.getElementById("login-fields");
 const loggedInBox = document.getElementById("logged-in-box");
+const loginBtn = document.getElementById("login");
+const registerBtn = document.getElementById("register");
+const logoutBtn = document.getElementById("logout");
+const saveBtn = document.getElementById("save");
+const nodeStatusEl = document.getElementById("node-status");
 
-// ── Node settings ──────────────────────────────────────────────────────────
+let healthCheckTimer = null;
+let healthCheckSeq = 0;
 
-chrome.storage.sync.get({ nodeUrl: "http://localhost:3000", autoPopup: true, wtUsername: "" }, (items) => {
-  input.value = items.nodeUrl;
-  autoPopupCheckbox.checked = items.autoPopup;
-  renderAuthState(items.wtUsername);
-});
+function getNodeUrl() {
+  return input.value.trim().replace(/\/$/, "");
+}
 
-document.getElementById("save").addEventListener("click", () => {
-  const url = input.value.trim().replace(/\/$/, "");
-  if (!url) { status.textContent = "URL cannot be empty."; status.style.color = "#ef4444"; return; }
-  try { new URL(url); } catch { status.textContent = "Invalid URL."; status.style.color = "#ef4444"; return; }
+function setStatus(message, color = "#374151") {
+  status.style.color = color;
+  status.textContent = message;
+}
 
-  chrome.storage.sync.set({ nodeUrl: url, autoPopup: autoPopupCheckbox.checked }, () => {
-    status.style.color = "#059669";
-    status.textContent = "\u2705 Saved!";
-    setTimeout(() => { status.textContent = ""; }, 2500);
-  });
-});
+function clearStatusSoon(delay = 2500) {
+  setTimeout(() => { status.textContent = ""; }, delay);
+}
 
-// ── Auth ───────────────────────────────────────────────────────────────────
-
-function renderAuthState(username) {
-  if (username) {
-    loggedInBox.style.display = "block";
-    document.getElementById("logged-in-user").textContent = username;
-    loginBox.style.display = "none";
-  } else {
-    loggedInBox.style.display = "none";
-    loginBox.style.display = "block";
+function validateNodeUrl(url) {
+  if (!url) {
+    setStatus("Node URL cannot be empty.", "#ef4444");
+    return false;
+  }
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    setStatus("Invalid node URL.", "#ef4444");
+    return false;
   }
 }
 
+async function refreshNodeStatus(url = getNodeUrl()) {
+  const seq = ++healthCheckSeq;
+  setNodeStatusChecking(nodeStatusEl);
+  const result = await checkNodeHealth(url);
+  if (seq !== healthCheckSeq) return result;
+  applyNodeStatusEl(nodeStatusEl, result);
+  return result;
+}
+
+function scheduleNodeStatusCheck() {
+  clearTimeout(healthCheckTimer);
+  healthCheckTimer = setTimeout(() => refreshNodeStatus(), 450);
+}
+
+function renderAuthState(username) {
+  const signedIn = Boolean(username);
+  loggedInBox.style.display = signedIn ? "block" : "none";
+  loginFields.style.display = signedIn ? "none" : "block";
+  loginBtn.style.display = signedIn ? "none" : "inline-block";
+  registerBtn.style.display = signedIn ? "none" : "inline-block";
+  logoutBtn.style.display = signedIn ? "inline-block" : "none";
+  if (signedIn) {
+    document.getElementById("logged-in-user").textContent = username;
+  }
+}
+
+chrome.storage.sync.get({ nodeUrl: "http://localhost:3000", wtUsername: "" }, (items) => {
+  input.value = items.nodeUrl;
+  renderAuthState(items.wtUsername);
+  refreshNodeStatus(items.nodeUrl);
+});
+
+saveBtn.addEventListener("click", async () => {
+  const url = getNodeUrl();
+  if (!validateNodeUrl(url)) {
+    refreshNodeStatus(url);
+    return;
+  }
+
+  chrome.storage.sync.set({ nodeUrl: url }, async () => {
+    const result = await refreshNodeStatus(url);
+    if (result.state === "online") {
+      setStatus("\u2705 Node URL saved and reachable.", "#059669");
+    } else {
+      setStatus("\u2705 Node URL saved, but the node is not reachable.", "#b45309");
+    }
+    clearStatusSoon(3500);
+  });
+});
+
 async function doAuth(mode) {
-  authStatus.textContent = "";
-  authStatus.style.color = "#374151";
-  const nodeUrl = input.value.trim().replace(/\/$/, "") || "http://localhost:3000";
+  const nodeUrl = getNodeUrl() || "http://localhost:3000";
+  if (!validateNodeUrl(nodeUrl)) {
+    refreshNodeStatus(nodeUrl);
+    return;
+  }
+
+  const health = await refreshNodeStatus(nodeUrl);
+  if (health.state !== "online") {
+    setStatus("Cannot sign in — node is not reachable.", "#ef4444");
+    return;
+  }
+
   const username = document.getElementById("username").value.trim().toLowerCase();
   const password = document.getElementById("password").value;
-  if (!username || !password) { authStatus.textContent = "Enter username and password."; authStatus.style.color = "#ef4444"; return; }
+  if (!username || !password) {
+    setStatus("Enter username and password.", "#ef4444");
+    return;
+  }
+
+  loginBtn.disabled = true;
+  registerBtn.disabled = true;
 
   try {
     if (mode === "register") {
@@ -56,7 +121,10 @@ async function doAuth(mode) {
         body: JSON.stringify({ username, password }),
       });
       const regData = await regRes.json();
-      if (!regRes.ok) { authStatus.textContent = regData.message ?? "Registration failed."; authStatus.style.color = "#ef4444"; return; }
+      if (!regRes.ok) {
+        setStatus(regData.message ?? "Registration failed.", "#ef4444");
+        return;
+      }
     }
 
     const res = await fetch(`${nodeUrl}/api/auth/login`, {
@@ -65,32 +133,46 @@ async function doAuth(mode) {
       body: JSON.stringify({ username, password }),
     });
     const data = await res.json();
-    if (!res.ok) { authStatus.textContent = data.message ?? "Login failed."; authStatus.style.color = "#ef4444"; return; }
+    if (!res.ok) {
+      setStatus(data.message ?? "Login failed.", "#ef4444");
+      return;
+    }
 
-    chrome.storage.sync.set({ wtToken: data.token, wtUsername: data.username ?? username, nodeUrl }, () => {
-      renderAuthState(data.username ?? username);
-      authStatus.style.color = "#059669";
-      authStatus.textContent = mode === "register" ? "\u2705 Account created and logged in!" : "\u2705 Logged in!";
-    });
+    chrome.storage.sync.set(
+      { wtToken: data.token, wtUsername: data.username ?? username, nodeUrl },
+      () => {
+        renderAuthState(data.username ?? username);
+        document.getElementById("password").value = "";
+        setStatus(
+          mode === "register" ? "\u2705 Account created and signed in." : "\u2705 Signed in.",
+          "#059669"
+        );
+      }
+    );
   } catch {
-    authStatus.textContent = "Could not reach the node.";
-    authStatus.style.color = "#ef4444";
+    setStatus("Could not reach the node. Check the URL and try again.", "#ef4444");
+  } finally {
+    loginBtn.disabled = false;
+    registerBtn.disabled = false;
   }
 }
 
-document.getElementById("login").addEventListener("click", () => doAuth("login"));
-document.getElementById("register").addEventListener("click", () => doAuth("register"));
+loginBtn.addEventListener("click", () => doAuth("login"));
+registerBtn.addEventListener("click", () => doAuth("register"));
 
-document.getElementById("logout").addEventListener("click", () => {
+logoutBtn.addEventListener("click", () => {
   chrome.storage.sync.remove(["wtToken", "wtUsername"], () => {
     renderAuthState("");
-    authStatus.style.color = "#059669";
-    authStatus.textContent = "Logged out.";
-    setTimeout(() => { authStatus.textContent = ""; }, 2000);
+    setStatus("Signed out.", "#059669");
+    clearStatusSoon(2000);
   });
 });
 
-// Submit on Enter in password field
 document.getElementById("password")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") doAuth("login");
+});
+
+input.addEventListener("input", scheduleNodeStatusCheck);
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") saveBtn.click();
 });

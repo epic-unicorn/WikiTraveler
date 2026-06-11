@@ -60,12 +60,12 @@ Flow: login → search → GPS resolution (auto-detects the nearest regional nod
 
 ### `apps/lens`
 
-Chrome MV3 extension. Injects a tier-coloured accessibility panel on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step.
+Chrome MV3 extension. Injects hover tooltips on listing pages and shows accessibility data in the toolbar popup on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step.
 
 **Auth:** The popup shows a login form when no token is stored. On successful login the RS256 JWT is saved to `chrome.storage.sync`. A register link opens the node's `/register` page in a new browser tab — after account creation (and admin approval to AUDITOR), the user returns to the popup to sign in.
 
 - Listing pages: hover tooltips (350 ms delay) with the top 8 accessibility facts per hotel card.
-- Detail pages: overlay panel with all facts; falls back to name-search + coordinate scoring when only a slug-style ID is available.
+- Detail pages: click the Lens icon to open the popup with all facts; falls back to name-search + coordinate scoring when only a slug-style ID is available.
 - `background.js`: resolves the best regional node via `/api/peers/resolve` (auth token included).
 
 ### `apps/agency-demo`
