@@ -7,10 +7,9 @@
  * exchanging nodeinfo. No central registry needed.
  *
  * BOOTSTRAP_PEERS — comma-separated list of seed node URLs.
- *                   Can also include REGISTRY_URL as a legacy seed.
  */
 
-import { NODE_ID, NODE_URL, NODE_REGION, NODE_BBOX } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { prisma } from "@/lib/prisma";
 
 interface RemoteNodeInfo {
@@ -65,8 +64,6 @@ async function upsertPeer(url: string, info: Partial<RemoteNodeInfo>) {
  *   1. Fetch /api/nodeinfo
  *   2. Upsert the seed as a NodePeer
  *   3. Upsert any peers it advertises (one hop)
- *
- * Also optionally registers with a legacy REGISTRY_URL if provided.
  */
 export async function registerWithRegistry(): Promise<void> {
   // ── Admin account check ──────────────────────────────────────────────────
@@ -79,14 +76,12 @@ export async function registerWithRegistry(): Promise<void> {
   }
 
   // ── Peer exchange ────────────────────────────────────────────────────────
-  const seedEnv = process.env.BOOTSTRAP_PEERS ?? "";
-  const legacyRegistry = process.env.REGISTRY_URL;
-
-  // Collect seed URLs (deduplicated, exclude self)
-  const seeds = [
-    ...seedEnv.split(",").map((s) => s.trim()).filter(Boolean),
-    ...(legacyRegistry ? [legacyRegistry] : []),
-  ].filter((u) => u !== NODE_URL).filter((u, i, a) => a.indexOf(u) === i);
+  const seeds = (process.env.BOOTSTRAP_PEERS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((u) => u !== NODE_URL)
+    .filter((u, i, a) => a.indexOf(u) === i);
 
   if (seeds.length === 0) {
     console.info("[bootstrap] No BOOTSTRAP_PEERS configured — running as isolated node.");
@@ -117,23 +112,6 @@ export async function registerWithRegistry(): Promise<void> {
       if (info.peers.length > 0) {
         console.info(`[bootstrap] Seeded ${info.peers.length} additional peers from ${info.nodeId ?? seedUrl}`);
       }
-    }
-  }
-
-  // ── Legacy registry registration (optional, backward compat) ────────────
-  if (legacyRegistry) {
-    try {
-      const res = await fetch(`${legacyRegistry}/api/v1/nodes/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: NODE_URL, nodeId: NODE_ID, region: NODE_REGION, bbox: NODE_BBOX }),
-        signal: AbortSignal.timeout(3_000),
-      });
-      if (res.ok) {
-        console.info(`[bootstrap] Registered with legacy registry at ${legacyRegistry}`);
-      }
-    } catch {
-      console.info(`[bootstrap] Legacy registry unreachable — continuing without it.`);
     }
   }
 }

@@ -207,8 +207,6 @@ GET /api/peers              → { peers[] }
 GET /api/peers/resolve      → { nodeId, url, region, bbox, matched }
 ```
 
-`REGISTRY_URL` is still accepted as a legacy bootstrap seed source but is not required.
-
 ---
 
 ## AI Agent Flow

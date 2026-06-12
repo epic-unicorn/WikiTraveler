@@ -90,7 +90,6 @@ cd apps/registry
 npx prisma migrate dev --name init
 ```
 
-With `REGISTRY_URL=http://localhost:3002` in `.env`, the node registers itself automatically on startup.
 ### Agency Demo
 
 ```bash
@@ -153,7 +152,6 @@ Build order: `core` â†’ `ai-agent` â†’ `sdk` â†’ `node` / `field-
 | `OPEN_REGISTRATION` | node | No | `"true"` (default) or `"false"` to close public registration |
 | `CORS_ORIGINS` | node | No | Allowed CORS origins (`*` or comma list) |
 | `BOOTSTRAP_PEERS` | node | No | Seed node URLs, comma-separated, fetched on startup |
-| `REGISTRY_URL` | node | No | Legacy: treated as extra bootstrap seed source |
 | `GOSSIP_INTERVAL_HOURS` | node | No | Hours between gossip cron runs |
 | `CRON_SECRET` | node | No | Bearer token for cron endpoints |
 | `OPENAI_API_KEY` | node | No | GPT-4o key; enables AI_GUESS tier features |
