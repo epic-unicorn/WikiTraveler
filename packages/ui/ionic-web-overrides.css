@@ -8,6 +8,8 @@ body {
   overflow-y: auto !important;
 }
 
+/* Force ion-app to use our design tokens so the app background and base text
+   always follow the active theme, regardless of Ionic's own defaults. */
 ion-app.wt-ion-web {
   position: relative !important;
   contain: unset !important;
@@ -15,6 +17,8 @@ ion-app.wt-ion-web {
   height: auto !important;
   min-height: 100vh !important;
   display: block !important;
+  background: var(--wt-bg) !important;
+  color: var(--wt-text) !important;
 }
 
 ion-app.wt-ion-web ion-page {
@@ -34,4 +38,23 @@ ion-app.wt-ion-web ion-content {
 ion-app.wt-ion-web ion-content::part(scroll) {
   position: relative !important;
   overflow: visible !important;
+}
+
+/* Bridge our theme tokens into Ionic's own CSS custom properties so that any
+   remaining Ionic components (inputs, modals, etc.) also go dark correctly. */
+html.wt-dark {
+  --ion-background-color: var(--wt-bg);
+  --ion-background-color-rgb: 15, 23, 42;
+  --ion-text-color: var(--wt-text);
+  --ion-text-color-rgb: 241, 245, 249;
+  --ion-border-color: var(--wt-border);
+  --ion-item-background: var(--wt-bg-elevated);
+  --ion-card-background: var(--wt-bg-elevated);
+  --ion-toolbar-background: var(--wt-bg-header);
+  --ion-tab-bar-background: var(--wt-bg-elevated);
+  --ion-tab-bar-border-color: var(--wt-border);
+  --ion-color-step-50: #1a2744;
+  --ion-color-step-100: #1e293b;
+  --ion-color-step-150: #243046;
+  --ion-color-step-200: #2a3850;
 }

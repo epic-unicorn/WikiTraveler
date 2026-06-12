@@ -4,6 +4,8 @@
   /* Brand blues: vibrant royal blue primary, deep navy header */
   --wt-primary: #1d4ed8;
   --wt-primary-contrast: #ffffff;
+  /* Header bg is always dark navy — this contrast is always white */
+  --wt-bg-header-contrast: #ffffff;
 
   /* Accent: cyan instead of teal — crisper, distinct from success green */
   --wt-accent: #0891b2;
@@ -50,6 +52,8 @@ html.wt-dark {
   /* Primary lightens on dark bg so it pops */
   --wt-primary: #60a5fa;
   --wt-primary-contrast: #0f172a;
+  /* Header bg is always dark navy — this stays white in dark mode too */
+  --wt-bg-header-contrast: #ffffff;
 
   /* Cyan accent lightened for dark */
   --wt-accent: #22d3ee;

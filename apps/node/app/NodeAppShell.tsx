@@ -4,14 +4,45 @@ import Link from "next/link";
 import { AppHeader, AppShell, WikiTravelerLogo } from "@wikitraveler/ui";
 import { SignOutButton } from "./SignOutButton";
 
-interface StatItem {
-  label: string;
-  value: number;
-}
+// ── Shared header pill style ──────────────────────────────────────────────────
+// Every interactive element in the header uses this base. The only variation
+// is the fill opacity, which indicates active state.
+
+const PILL_BASE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  fontSize: 13,
+  lineHeight: 1,
+  borderRadius: 7,
+  padding: "5px 10px",
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+  transition: "opacity 0.12s",
+};
+
+/** Resting state — used by inactive nav, ThemeToggle, SignOut */
+export const PILL_REST: React.CSSProperties = {
+  ...PILL_BASE,
+  fontWeight: 500,
+  color: "rgba(255,255,255,0.82)",
+  background: "rgba(255,255,255,0.08)",
+  border: "1px solid rgba(255,255,255,0.16)",
+};
+
+/** Active state — current nav destination */
+const PILL_ACTIVE: React.CSSProperties = {
+  ...PILL_BASE,
+  fontWeight: 600,
+  color: "#ffffff",
+  background: "rgba(255,255,255,0.22)",
+  border: "1px solid rgba(255,255,255,0.28)",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface Props {
   subtitle?: string;
-  stats?: StatItem[];
   activeNav?: "map" | "stats";
   children: React.ReactNode;
   maxWidth?: number;
@@ -19,44 +50,15 @@ interface Props {
 
 export function NodeAppShell({
   subtitle,
-  stats,
   activeNav = "map",
   children,
   maxWidth,
 }: Props) {
-  const statNodes =
-    stats && stats.length > 0 ? (
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-        {stats.map((s, i) => (
-          <span
-            key={s.label}
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.65)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {i > 0 && (
-              <span style={{ opacity: 0.3, marginRight: 2 }}>·</span>
-            )}
-            <strong style={{ color: "rgba(255,255,255,0.95)", fontWeight: 700, fontSize: 13 }}>
-              {s.value.toLocaleString()}
-            </strong>
-            {" "}{s.label.toLowerCase()}
-          </span>
-        ))}
-      </div>
-    ) : null;
-
   const nav = (
-    <nav style={{ display: "flex", gap: 4, alignItems: "center" }}>
+    <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <NavLink href="/" active={activeNav === "map"}>Map</NavLink>
       <NavLink href="/stats" active={activeNav === "stats"}>Stats</NavLink>
-      <NavLink href="/properties/new" active={false} highlight>
-        + Property
-      </NavLink>
+      <AddPropertyLink />
     </nav>
   );
 
@@ -68,11 +70,10 @@ export function NodeAppShell({
           product="node"
           subtitle={subtitle}
           homeElement={
-            <Link href="/" style={{ color: "inherit", textDecoration: "none" }}>
-              <WikiTravelerLogo product="node" size={26} />
+            <Link href="/" style={{ color: "inherit", textDecoration: "none", display: "flex", alignItems: "center" }}>
+              <WikiTravelerLogo product="node" size={22} />
             </Link>
           }
-          stats={statNodes}
           nav={nav}
           actions={<SignOutButton />}
         />
@@ -86,38 +87,35 @@ export function NodeAppShell({
 function NavLink({
   href,
   active,
-  highlight,
   children,
 }: {
   href: string;
   active: boolean;
-  highlight?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      style={{
-        fontSize: 13,
-        fontWeight: 600,
-        padding: "5px 11px",
-        borderRadius: 8,
-        textDecoration: "none",
-        transition: "background 0.15s, color 0.15s",
-        color: active
-          ? "#ffffff"
-          : highlight
-          ? "rgba(255,255,255,0.95)"
-          : "rgba(255,255,255,0.72)",
-        background: active
-          ? "rgba(255,255,255,0.2)"
-          : highlight
-          ? "rgba(255,255,255,0.1)"
-          : "transparent",
-        border: highlight && !active ? "1px solid rgba(255,255,255,0.25)" : "1px solid transparent",
-      }}
-    >
+    <Link href={href} style={active ? PILL_ACTIVE : PILL_REST}>
       {children}
+    </Link>
+  );
+}
+
+function AddPropertyLink() {
+  return (
+    <Link href="/properties/new" style={{ ...PILL_REST, marginLeft: 4 }}>
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Property
     </Link>
   );
 }

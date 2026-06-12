@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@wikitraveler/ui";
 import { ENV_NODE_URL } from "../lib/fieldKitApi";
-import { CreatePropertyPanel } from "./CreatePropertyPanel";
 
 interface Props {
   nodeUrl: string;
@@ -12,7 +10,6 @@ interface Props {
   nodeReachable: boolean | null;
   onSaveNodeUrl: (url: string) => void;
   onResetNodeUrl: () => void;
-  searchNodeUrl: string;
 }
 
 function CheckIcon() {
@@ -37,12 +34,9 @@ export function SettingsTab({
   nodeReachable,
   onSaveNodeUrl,
   onResetNodeUrl,
-  searchNodeUrl,
 }: Props) {
-  const router = useRouter();
   const [settingsUrl, setSettingsUrl] = useState(nodeUrl);
   const [settingsError, setSettingsError] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     setSettingsUrl(nodeUrl);
@@ -127,36 +121,8 @@ export function SettingsTab({
             <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>Theme</p>
             <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>Light, dark, or system default</p>
           </div>
-          <ThemeToggle compact />
+          <ThemeToggle compact variant="page" />
         </div>
-      </div>
-
-      {/* ——— Properties ——— */}
-      <p className="fk-section-header">Properties</p>
-      <div className="card" style={{ marginTop: 0 }}>
-        <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>Create property</p>
-        <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 14 }}>
-          Add a property that is not yet in the database.
-        </p>
-        {!showCreate ? (
-          <button type="button" className="btn-dashed" onClick={() => setShowCreate(true)}>
-            + New property
-          </button>
-        ) : (
-          <CreatePropertyPanel
-            searchNodeUrl={searchNodeUrl}
-            homeNodeUrl={nodeUrl}
-            onCancel={() => setShowCreate(false)}
-            onCreated={(id) => {
-              setShowCreate(false);
-              const nodeParam =
-                searchNodeUrl !== nodeUrl
-                  ? `?node=${encodeURIComponent(searchNodeUrl)}`
-                  : "";
-              router.push(`/audit/${id}${nodeParam}`);
-            }}
-          />
-        )}
       </div>
 
       {/* ——— Account ——— */}
@@ -180,7 +146,6 @@ export function SettingsTab({
         </button>
       </div>
 
-      {/* Bottom breathing room */}
       <div style={{ height: 8 }} />
     </div>
   );

@@ -95,7 +95,6 @@ export function FieldKitTabs() {
             nodeReachable={nodeReachable}
             onSaveNodeUrl={setNodeUrl}
             onResetNodeUrl={resetNodeUrl}
-            searchNodeUrl={searchNodeUrl}
           />
         )}
       </main>

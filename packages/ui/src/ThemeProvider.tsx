@@ -12,7 +12,10 @@ function resolveDark(mode: ThemeMode): boolean {
 function applyTheme(mode: ThemeMode) {
   const dark = resolveDark(mode);
   document.documentElement.classList.toggle("wt-dark", dark);
+  // Apply on both <html> and <body> — html activates our own CSS tokens,
+  // body is required for Ionic's built-in dark palette CSS to kick in.
   document.documentElement.classList.toggle("ion-palette-dark", dark);
+  document.body.classList.toggle("ion-palette-dark", dark);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

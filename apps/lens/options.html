@@ -8,25 +8,65 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-width: 440px;
-      max-width: 500px;
-      margin: 36px auto;
-      padding: 0 20px 48px;
-      color: #0f172a;
       background: #f8fafc;
+      color: #0f172a;
       font-size: 14px;
+      min-height: 100vh;
     }
 
-    /* ——— Page header ——— */
-    .page-header {
+    /* ——— Header (matches popup.html) ——— */
+    header {
+      background: #1e3a8a;
+      color: #fff;
+      padding: 13px 20px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 6px;
+      gap: 11px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.18);
     }
-    .page-header svg { flex-shrink: 0; color: #1e3a8a; }
-    h1 { font-size: 22px; font-weight: 800; color: #0f172a; }
-    .subtitle { color: #64748b; font-size: 14px; margin: 4px 0 24px; line-height: 1.5; }
+    header .logo {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+    header .header-text { flex: 1; min-width: 0; }
+    header h1 { font-size: 15px; font-weight: 700; margin: 0; line-height: 1.2; }
+    header .header-sub {
+      font-size: 11px;
+      opacity: 0.65;
+      margin-top: 1px;
+      font-weight: 400;
+    }
+
+    /* ——— Content wrapper ——— */
+    main {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+
+    /* ——— Section labels ——— */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #94a3b8;
+      margin-bottom: 14px;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 22px 0;
+    }
 
     /* ——— Card ——— */
     .card {
@@ -34,57 +74,57 @@
       border: 1px solid #e2e8f0;
       border-radius: 14px;
       padding: 22px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: 0 1px 4px rgba(15,23,42,0.05);
     }
 
     /* ——— Form elements ——— */
     label {
       display: block;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
-      color: #334155;
+      color: #475569;
       margin: 0 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
-    label + label { margin-top: 18px; }
     input[type="url"],
     input[type="text"],
     input[type="password"] {
       width: 100%;
-      padding: 11px 13px;
+      padding: 10px 12px;
       border: 1.5px solid #e2e8f0;
-      border-radius: 9px;
+      border-radius: 8px;
       font-size: 14px;
       font-family: inherit;
       background: #fff;
       color: #0f172a;
       transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
     }
     input:focus {
-      outline: none;
       border-color: #1d4ed8;
-      box-shadow: 0 0 0 3px rgba(29,78,216,0.12);
+      box-shadow: 0 0 0 3px rgba(29,78,216,0.1);
     }
     .hint {
       font-size: 12px;
-      color: #64748b;
-      margin: 6px 0 0;
+      color: #94a3b8;
+      margin: 8px 0 0;
       line-height: 1.5;
     }
 
-    /* ——— Node status widget ——— */
+    /* ——— Node status ——— */
     .node-status {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-top: 12px;
+      margin-top: 10px;
       padding: 9px 12px;
-      border-radius: 9px;
+      border-radius: 8px;
       font-size: 13px;
-      line-height: 1.4;
     }
     .node-status-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       flex-shrink: 0;
     }
@@ -97,24 +137,18 @@
     .node-status--invalid { background: #fefce8; color: #854d0e; border: 1px solid #fde68a; }
     .node-status--invalid .node-status-dot { background: #eab308; }
 
-    /* ——— Auth state ——— */
+    /* ——— Auth state box ——— */
     #logged-in-box {
       display: none;
       background: #f0fdf4;
       border: 1px solid #bbf7d0;
-      border-radius: 9px;
-      padding: 12px 14px;
-      margin-top: 18px;
+      border-radius: 8px;
+      padding: 11px 14px;
       font-size: 13px;
       line-height: 1.5;
+      color: #166534;
     }
-    #logged-in-box strong { color: #166534; }
-
-    .divider {
-      border: none;
-      border-top: 1px solid #e2e8f0;
-      margin: 20px 0 18px;
-    }
+    #logged-in-box .hint { color: #166534; opacity: 0.75; }
 
     /* ——— Action row ——— */
     .actions {
@@ -127,16 +161,16 @@
       background: #1d4ed8;
       color: #fff;
       border: none;
-      border-radius: 9px;
+      border-radius: 8px;
       padding: 10px 18px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       transition: opacity 0.15s;
     }
-    button:hover { opacity: 0.9; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:hover { opacity: 0.88; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
     button.secondary {
       background: #fff;
       border: 1.5px solid #e2e8f0;
@@ -154,53 +188,68 @@
     #status {
       font-size: 13px;
       margin-top: 14px;
-      min-height: 20px;
+      min-height: 18px;
       line-height: 1.4;
     }
   </style>
 </head>
 <body>
-  <div class="page-header">
-    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M16 2L28 9v14L16 30 4 23V9L16 2z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
-      <path d="M16 9l4 6H12l4-6z" fill="currentColor"/>
-      <path d="M10 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-    <h1>WikiTraveler Lens</h1>
-  </div>
-  <p class="subtitle">Connect to your node and sign in to view accessibility data on booking sites.</p>
 
-  <div class="card">
-    <label for="nodeUrl">Node URL</label>
-    <input id="nodeUrl" type="url" placeholder="https://node.example.com" autocomplete="url" />
-    <div id="node-status" class="node-status node-status--checking" role="status">
-      <span class="node-status-dot" aria-hidden="true"></span>
-      <span>Checking connection…</span>
+  <header>
+    <div class="logo">
+      <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M16 2L28 9v14L16 30 4 23V9L16 2z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M16 9l4 6H12l4-6z" fill="currentColor"/>
+        <path d="M10 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
     </div>
-    <p class="hint">Base URL of your WikiTraveler node (no trailing slash). Lens routes queries to the best regional peer automatically.</p>
-
-    <div id="logged-in-box">
-      Signed in as <strong id="logged-in-user"></strong>
-      <div class="hint" style="margin-top:4px">Your token is stored in Chrome sync and shared across devices.</div>
+    <div class="header-text">
+      <h1>WikiTraveler Lens</h1>
+      <p class="header-sub">Settings</p>
     </div>
+  </header>
 
-    <div id="login-fields">
-      <hr class="divider" />
-      <label for="username">Username</label>
-      <input id="username" type="text" autocomplete="username" placeholder="your username" />
-      <label for="password" style="margin-top:14px">Password</label>
-      <input id="password" type="password" autocomplete="current-password" placeholder="password" />
+  <main>
+    <p class="subtitle">Connect to your WikiTraveler node and sign in to see accessibility data on booking sites.</p>
+
+    <div class="card">
+
+      <!-- Node connection -->
+      <p class="section-label">Node connection</p>
+      <label for="nodeUrl">Node URL</label>
+      <input id="nodeUrl" type="url" placeholder="https://node.example.com" autocomplete="url" />
+      <div id="node-status" class="node-status node-status--checking" role="status">
+        <span class="node-status-dot" aria-hidden="true"></span>
+        <span>Checking connection…</span>
+      </div>
+      <p class="hint">Base URL of your WikiTraveler node (no trailing slash). Lens routes queries to the best regional peer automatically.</p>
+
+      <hr class="section-divider" />
+
+      <!-- Auth -->
+      <p class="section-label">Account</p>
+      <div id="logged-in-box">
+        Signed in as <strong id="logged-in-user"></strong>
+        <p class="hint" style="margin-top:4px">Your token is stored in Chrome sync and shared across devices.</p>
+      </div>
+
+      <div id="login-fields">
+        <label for="username">Username</label>
+        <input id="username" type="text" autocomplete="username" placeholder="your username" />
+        <label for="password" style="margin-top:16px">Password</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="password" />
+      </div>
+
+      <div class="actions">
+        <button id="save" type="button">Save URL</button>
+        <button id="login" type="button">Sign in</button>
+        <button id="register" type="button" class="secondary">Create account</button>
+        <button id="logout" type="button" class="danger" style="display:none">Sign out</button>
+      </div>
+
+      <p id="status"></p>
     </div>
-
-    <div class="actions">
-      <button id="save" type="button">Save URL</button>
-      <button id="login" type="button">Sign in</button>
-      <button id="register" type="button" class="secondary">Create account</button>
-      <button id="logout" type="button" class="danger" style="display:none">Sign out</button>
-    </div>
-
-    <p id="status"></p>
-  </div>
+  </main>
 
   <script src="nodeStatus.js"></script>
   <script src="options.js"></script>

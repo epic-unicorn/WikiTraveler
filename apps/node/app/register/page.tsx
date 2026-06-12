@@ -2,6 +2,28 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
+import { AuthCard, AuthCardLayout } from "../AuthCardLayout";
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 12,
+  fontWeight: 600,
+  color: "var(--wt-text-muted)",
+  marginBottom: 5,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "11px 13px",
+  border: "1.5px solid var(--wt-border)",
+  borderRadius: "var(--wt-radius-sm)",
+  fontSize: 15,
+  outline: "none",
+  fontFamily: "inherit",
+  background: "var(--wt-bg)",
+  color: "var(--wt-text)",
+};
 
 function RegisterForm() {
   const [username, setUsername] = useState("");
@@ -35,75 +57,61 @@ function RegisterForm() {
 
   if (done) {
     return (
-      <div style={{
-        minHeight: "100vh", background: "#f9fafb",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 20,
-      }}>
-        <div style={{
-          background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb",
-          padding: "36px 32px", width: "100%", maxWidth: 380,
-          boxShadow: "0 4px 24px rgba(0,0,0,0.07)", textAlign: "center",
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827", marginBottom: 10 }}>
-            Account created!
-          </h2>
-          <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 20 }}>
-            Your account <strong>{username.trim().toLowerCase()}</strong> has been registered.
-          </p>
-          <div style={{
-            background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 12,
-            padding: "14px 16px", marginBottom: 20, textAlign: "left",
-          }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#1e40af", marginBottom: 6 }}>
-              Next steps
+      <AuthCardLayout>
+        <AuthCard>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 44, marginBottom: 16 }}>✅</div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Account created!</h2>
+            <p style={{ fontSize: 14, color: "var(--wt-text)", lineHeight: 1.6, marginBottom: 20 }}>
+              Your account <strong>{username.trim().toLowerCase()}</strong> has been registered.
             </p>
-            <ol style={{ fontSize: 13, color: "#1e3a8a", lineHeight: 1.7, margin: 0, paddingLeft: 18 }}>
-              <li>Close this tab</li>
-              <li>Open the WikiTraveler extension</li>
-              <li>Sign in with your new account</li>
-            </ol>
+            <div style={{
+              background: "var(--wt-tier-confirmed-bg)",
+              border: "1px solid var(--wt-border)",
+              borderRadius: "var(--wt-radius-md)",
+              padding: "14px 16px",
+              marginBottom: 20,
+              textAlign: "left",
+            }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--wt-tier-confirmed-text)", marginBottom: 6 }}>
+                Next steps
+              </p>
+              <ol style={{ fontSize: 13, color: "var(--wt-text-muted)", lineHeight: 1.7, margin: 0, paddingLeft: 18 }}>
+                <li>Close this tab</li>
+                <li>Open the WikiTraveler extension</li>
+                <li>Sign in with your new account</li>
+              </ol>
+            </div>
+            <button
+              onClick={() => window.close()}
+              style={{
+                width: "100%",
+                background: "var(--wt-primary)",
+                color: "var(--wt-primary-contrast)",
+                border: "none",
+                borderRadius: "var(--wt-radius-sm)",
+                padding: "12px",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Close this tab
+            </button>
           </div>
-          <button
-            onClick={() => window.close()}
-            style={{
-              width: "100%", background: "#1e3a5f", color: "#fff", border: "none",
-              borderRadius: 10, padding: "12px", fontSize: 15, fontWeight: 600, cursor: "pointer",
-            }}
-          >
-            Close this tab
-          </button>
-        </div>
-      </div>
+        </AuthCard>
+      </AuthCardLayout>
     );
   }
 
-  const labelStyle: React.CSSProperties = {
-    display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 5,
-  };
-  const inputStyle: React.CSSProperties = {
-    width: "100%", boxSizing: "border-box", padding: "11px 13px",
-    border: "1.5px solid #d1d5db", borderRadius: 10, fontSize: 15,
-    outline: "none", fontFamily: "inherit", background: "#f9fafb",
-    marginBottom: 14,
-  };
-
   return (
-    <div style={{
-      minHeight: "100vh", background: "#f9fafb",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20,
-    }}>
-      <div style={{
-        background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb",
-        padding: "36px 32px", width: "100%", maxWidth: 380,
-        boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-      }}>
+    <AuthCardLayout>
+      <AuthCard>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🌍</div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 }}>Create account</h1>
-          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>Register on this WikiTraveler node</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Create account</h1>
+          <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginTop: 6 }}>
+            Register on this WikiTraveler node
+          </p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -116,7 +124,7 @@ function RegisterForm() {
             required
             autoComplete="username"
             autoFocus
-            style={inputStyle}
+            style={{ ...inputStyle, marginBottom: 12 }}
           />
 
           <label style={labelStyle}>Password</label>
@@ -127,7 +135,7 @@ function RegisterForm() {
             placeholder="at least 8 characters"
             required
             autoComplete="new-password"
-            style={inputStyle}
+            style={{ ...inputStyle, marginBottom: 12 }}
           />
 
           <label style={labelStyle}>Confirm password</label>
@@ -142,28 +150,35 @@ function RegisterForm() {
           />
 
           {error && (
-            <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>{error}</p>
+            <p style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
             style={{
-              width: "100%", background: "#1e3a5f", color: "#fff", border: "none",
-              borderRadius: 10, padding: "12px", fontSize: 15, fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1,
+              width: "100%",
+              background: "var(--wt-primary)",
+              color: "var(--wt-primary-contrast)",
+              border: "none",
+              borderRadius: "var(--wt-radius-sm)",
+              padding: "12px",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
             }}
           >
             {loading ? "Creating account…" : "Create account"}
           </button>
         </form>
 
-        <p style={{ textAlign: "center", fontSize: 13, color: "#6b7280", marginTop: 20 }}>
+        <p style={{ textAlign: "center", fontSize: 13, color: "var(--wt-text-muted)", marginTop: 20 }}>
           Already have an account?{" "}
-          <Link href="/login" style={{ color: "#1e3a5f", fontWeight: 600 }}>Sign in</Link>
+          <Link href="/login" style={{ color: "var(--wt-primary)", fontWeight: 600 }}>Sign in</Link>
         </p>
-      </div>
-    </div>
+      </AuthCard>
+    </AuthCardLayout>
   );
 }
 

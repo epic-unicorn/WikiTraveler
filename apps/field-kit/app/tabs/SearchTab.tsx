@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   PropertySearchBar,
   PropertyCard,
@@ -11,7 +10,6 @@ import {
   type PropertySummary,
 } from "@wikitraveler/ui";
 import { searchProperties } from "../lib/fieldKitApi";
-import { CreatePropertyPanel } from "./CreatePropertyPanel";
 
 interface Props {
   searchNodeUrl: string;
@@ -26,13 +24,11 @@ function auditHref(id: string, searchNodeUrl: string, homeNodeUrl: string) {
 }
 
 export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
   const [results, setResults] = useState<PropertySummary[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const hasActiveSearch =
@@ -79,7 +75,7 @@ export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {
 
   return (
     <div className="tab-content">
-      {/* Search bar — no card wrapper, top-flush */}
+      {/* Search bar */}
       <div style={{ paddingTop: 16, marginBottom: 4 }}>
         <PropertySearchBar
           query={query}
@@ -111,31 +107,16 @@ export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {
 
       {/* No results */}
       {results !== null && results.length === 0 && !loading && (
-        <>
-          {!showCreate ? (
-            <div className="fk-empty">
-              <span className="fk-empty-icon">🔍</span>
-              <p className="fk-empty-title">No results</p>
-              <p className="fk-empty-body" style={{ marginBottom: 20 }}>
-                {query.trim() ? `Nothing matched "${query.trim()}"` : "Try a different search or filter"}
-              </p>
-              <button type="button" className="btn-dashed" onClick={() => setShowCreate(true)}>
-                + Create this property
-              </button>
-            </div>
-          ) : (
-            <div className="card" style={{ marginTop: 8 }}>
-              <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>New property</p>
-              <CreatePropertyPanel
-                searchNodeUrl={searchNodeUrl}
-                homeNodeUrl={homeNodeUrl}
-                defaultName={query.trim()}
-                onCancel={() => setShowCreate(false)}
-                onCreated={(id) => router.push(auditHref(id, searchNodeUrl, homeNodeUrl))}
-              />
-            </div>
-          )}
-        </>
+        <div className="fk-empty">
+          <span className="fk-empty-icon">🔍</span>
+          <p className="fk-empty-title">No results</p>
+          <p className="fk-empty-body">
+            {query.trim()
+              ? `Nothing matched "${query.trim()}"`
+              : "Try a different search or filter"}
+            {" "}Tap <strong>+</strong> in the header to add a new property.
+          </p>
+        </div>
       )}
 
       {/* Results */}

@@ -46,3 +46,72 @@ input, select, textarea, button { font-family: inherit; font-size: inherit; }
     max-height: min(50vh, 480px);
   }
 }
+
+/* ── Leaflet map popup ──────────────────────────────────────────────────────── */
+
+.wt-popup { min-width: 180px; }
+
+.wt-popup-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wt-text);
+  margin: 0 0 3px;
+}
+
+.wt-popup-loc {
+  font-size: 12px;
+  color: var(--wt-text-muted);
+  margin: 0 0 8px;
+}
+
+.wt-popup-facts { margin-bottom: 10px; }
+
+.wt-popup-fact {
+  font-size: 12px;
+  color: var(--wt-text);
+  margin-top: 3px;
+}
+
+.wt-popup-cta {
+  display: inline-block;
+  background: var(--wt-primary);
+  color: var(--wt-primary-contrast) !important;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none !important;
+}
+
+/* Leaflet popup wrapper — dark mode */
+html.wt-dark .leaflet-popup-content-wrapper,
+html.wt-dark .leaflet-popup-tip {
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text);
+  border: 1px solid var(--wt-border);
+}
+
+html.wt-dark .leaflet-popup-content-wrapper {
+  box-shadow: var(--wt-shadow);
+}
+
+/* Attribution control */
+html.wt-dark .leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.85) !important;
+  color: var(--wt-text-muted) !important;
+}
+
+html.wt-dark .leaflet-control-attribution a {
+  color: var(--wt-primary) !important;
+}
+
+/* Zoom control */
+html.wt-dark .leaflet-control-zoom a {
+  background: var(--wt-bg-elevated) !important;
+  color: var(--wt-text) !important;
+  border-color: var(--wt-border) !important;
+}
+
+html.wt-dark .leaflet-control-zoom a:hover {
+  background: var(--wt-bg-secondary) !important;
+}

@@ -13,29 +13,31 @@ input, select, textarea, button {
 /* ——— Shell layout ——— */
 
 .page {
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
   padding: 0 16px 24px;
 }
 
+/* The shell occupies the full viewport and uses an internal scroll model so
+   that the header and tab bar always stay in place regardless of scroll. */
 .fk-shell {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .fk-main {
   flex: 1;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 /* ——— Custom Tab Bar ——— */
 
 .fk-tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   z-index: 100;
   background: var(--wt-bg-elevated);
   border-top: 1px solid var(--wt-border);

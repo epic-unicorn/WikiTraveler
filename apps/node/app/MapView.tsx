@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useTheme } from "@wikitraveler/ui";
 
 export interface MapPin {
   id: string;
@@ -27,47 +28,67 @@ const FACT_LABELS: Record<string, string> = {
   parking_accessible: "Accessible parking",
 };
 
+// ── Tile layer helpers ────────────────────────────────────────────────────────
+
+function isDarkMode() {
+  return typeof document !== "undefined" && document.documentElement.classList.contains("wt-dark");
+}
+
+function getTileConfig() {
+  if (isDarkMode()) {
+    return {
+      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    };
+  }
+  return {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  };
+}
+
+// ── Popup builder (uses CSS classes, not inline colors) ────────────────────────
+
 function buildPopup(pin: MapPin): string {
   const facts = pin.facts ?? {};
-  const knownFields = Object.keys(FACT_LABELS);
-  const factRows = knownFields
+  const factRows = Object.keys(FACT_LABELS)
     .map((key) => {
       const fact = facts[key];
       if (!fact) return "";
       const icon = fact.value === "yes" ? "✅" : fact.value === "no" ? "❌" : "❓";
-      return `<div style="font-size:12px;margin-top:3px">${icon} ${FACT_LABELS[key]}</div>`;
+      return `<div class="wt-popup-fact">${icon} ${FACT_LABELS[key]}</div>`;
     })
     .filter(Boolean)
     .join("");
 
-  const hasFacts = factRows.length > 0;
-
   return `
-    <div style="min-width:180px;font-family:system-ui,sans-serif">
-      <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:2px">${pin.name}</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:${hasFacts ? "8px" : "10px"}">📍 ${pin.location}</div>
-      ${hasFacts ? `<div style="margin-bottom:10px">${factRows}</div>` : ""}
-      <a href="/properties/${pin.id}" style="display:inline-block;background:#1e3a5f;color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none">
-        View / Audit →
-      </a>
+    <div class="wt-popup">
+      <p class="wt-popup-title">${pin.name}</p>
+      <p class="wt-popup-loc">📍 ${pin.location}</p>
+      ${factRows ? `<div class="wt-popup-facts">${factRows}</div>` : ""}
+      <a href="/properties/${pin.id}" class="wt-popup-cta">View / Audit →</a>
     </div>
   `;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function MapView({ focusPins, auditedOnly }: Props) {
+  const { mode } = useTheme();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const allPinsRef = useRef<MapPin[]>([]);
   const layerGroupRef = useRef<unknown>(null);
   const leafletRef = useRef<unknown>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
+  const tileLayerRef = useRef<unknown>(null);
 
-  // Initial mount: load all pins and render them
+  // ── Initial mount: load pins, create map, add first tile layer ──────────────
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     let cancelled = false;
-    setStatus("loading");
 
     const token = (() => {
       const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
@@ -79,22 +100,22 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       import("leaflet"),
       fetch("/api/properties/map", { headers }).then((r) => r.json() as Promise<{ pins: MapPin[] }>),
     ]).then(([L, data]) => {
-      // Discard if the effect was cleaned up before the promise resolved
       if (cancelled || !containerRef.current || mapRef.current) return;
 
       const pins = (data.pins ?? []).filter((p) => p.lat !== 0 && p.lon !== 0);
       allPinsRef.current = pins;
       leafletRef.current = L;
 
-      if (pins.length === 0) { setStatus("done"); return; }
+      if (pins.length === 0) return;
 
       const map = (L as typeof import("leaflet")).map(containerRef.current, { preferCanvas: false }).setView([52.3, 5.3], 7);
       mapRef.current = map;
 
-      (L as typeof import("leaflet")).tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-        maxZoom: 19,
-      }).addTo(map);
+      // Add the correct tile layer for the current theme
+      const { url, attribution } = getTileConfig();
+      tileLayerRef.current = (L as typeof import("leaflet"))
+        .tileLayer(url, { attribution, maxZoom: 19 })
+        .addTo(map);
 
       const group = (L as typeof import("leaflet")).featureGroup();
       layerGroupRef.current = group;
@@ -102,8 +123,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       group.addTo(map);
 
       if (pins.length > 1) map.fitBounds(group.getBounds(), { padding: [32, 32] });
-
-      setStatus("done");
     });
 
     return () => {
@@ -112,6 +131,7 @@ export function MapView({ focusPins, auditedOnly }: Props) {
         (mapRef.current as { remove: () => void }).remove();
         mapRef.current = null;
         layerGroupRef.current = null;
+        tileLayerRef.current = null;
         allPinsRef.current = [];
         if (containerRef.current) {
           delete (containerRef.current as HTMLDivElement & { _leaflet_id?: number })._leaflet_id;
@@ -120,7 +140,20 @@ export function MapView({ focusPins, auditedOnly }: Props) {
     };
   }, []);
 
-  // React to focusPins / auditedOnly changes
+  // ── Swap tile layer whenever the theme changes ──────────────────────────────
+  useEffect(() => {
+    const L = leafletRef.current as typeof import("leaflet") | null;
+    const map = mapRef.current as import("leaflet").Map | null;
+    if (!L || !map || !tileLayerRef.current) return;
+
+    map.removeLayer(tileLayerRef.current as import("leaflet").TileLayer);
+    const { url, attribution } = getTileConfig();
+    tileLayerRef.current = (L as typeof import("leaflet"))
+      .tileLayer(url, { attribution, maxZoom: 19 })
+      .addTo(map);
+  }, [mode]);
+
+  // ── React to focusPins / auditedOnly changes ───────────────────────────────
   useEffect(() => {
     const L = leafletRef.current as typeof import("leaflet") | null;
     const map = mapRef.current as import("leaflet").Map | null;
@@ -129,8 +162,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
 
     group.clearLayers();
 
-    // When auditedOnly is on, dim pins that have not been field-audited.
-    // The dim set is determined BEFORE checking focusPins.
     const auditDimIds = auditedOnly
       ? new Set(allPinsRef.current.filter((p) => !p.audited).map((p) => p.id))
       : null;
@@ -140,7 +171,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       if (allPinsRef.current.length > 1) map.fitBounds(group.getBounds(), { padding: [32, 32] });
     } else {
       const focusIds = new Set(focusPins.map((p) => p.id));
-      // A pin is dim if it's not in the focus set OR if it's not audited (when filter is on)
       const dimIds = new Set(
         allPinsRef.current
           .filter((p) => !focusIds.has(p.id) || (auditDimIds?.has(p.id) ?? false))
@@ -161,20 +191,19 @@ export function MapView({ focusPins, auditedOnly }: Props) {
     <div style={{ position: "relative" }}>
       <div
         ref={containerRef}
-        style={{ width: "100%", height: 420, borderRadius: 12, overflow: "hidden", border: "1px solid #e5e7eb" }}
+        style={{
+          width: "100%",
+          height: 420,
+          borderRadius: 12,
+          overflow: "hidden",
+          border: "1px solid var(--wt-border)",
+        }}
       />
-      {status === "loading" && (
-        <div style={{
-          position: "absolute", inset: 0, display: "flex", alignItems: "center",
-          justifyContent: "center", background: "rgba(249,250,251,0.7)",
-          borderRadius: 12, fontSize: 14, color: "#6b7280",
-        }}>
-          Loading map…
-        </div>
-      )}
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function renderPins(
   L: typeof import("leaflet"),
@@ -184,17 +213,17 @@ function renderPins(
   highlightIds?: Set<string>,
   dimIds?: Set<string>
 ) {
-  // Render dim pins first so highlighted always sit on top
   const isDim = (p: MapPin) =>
-    dimIds ? dimIds.has(p.id) : (dimAll ? !(highlightIds?.has(p.id) ?? false) : false);
+    dimIds ? dimIds.has(p.id) : dimAll ? !(highlightIds?.has(p.id) ?? false) : false;
+
   const dimPins = pins.filter(isDim);
   const brightPins = pins.filter((p) => !isDim(p));
 
   for (const pin of dimPins) {
     L.circleMarker([pin.lat, pin.lon], {
       radius: 4,
-      color: "#d1d5db",
-      fillColor: "#e5e7eb",
+      color: "#94a3b8",
+      fillColor: "#cbd5e1",
       fillOpacity: 0.5,
       weight: 1,
     })
@@ -205,7 +234,7 @@ function renderPins(
   for (const pin of brightPins) {
     L.circleMarker([pin.lat, pin.lon], {
       radius: 8,
-      color: "#1e3a5f",
+      color: "#1e40af",
       fillColor: "#60a5fa",
       fillOpacity: 0.9,
       weight: 2,
