@@ -9,11 +9,12 @@ export function SignOutButton() {
 
   return (
     <button
+      type="button"
       onClick={signOut}
       style={{
         background: "rgba(255,255,255,0.12)",
         border: "1px solid rgba(255,255,255,0.3)",
-        color: "#fff",
+        color: "inherit",
         borderRadius: 8,
         cursor: "pointer",
         fontSize: 12,

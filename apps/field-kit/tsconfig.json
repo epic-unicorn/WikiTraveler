@@ -17,6 +17,9 @@
       }
     ],
     "paths": {
+      "@wikitraveler/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
       "@/*": [
         "./*"
       ]

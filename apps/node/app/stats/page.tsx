@@ -1,16 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
-import Link from "next/link";
 import { AdminSection } from "../AdminSection";
-import { SignOutButton } from "../SignOutButton";
+import { NodeAppShell } from "../NodeAppShell";
 
 export const dynamic = "force-dynamic";
 
 const TIER_COLOR: Record<string, string> = {
-  OFFICIAL: "#9ca3af",
-  AI_GUESS: "#fbbf24",
-  VERIFIED: "#34d399",
-  CONFIRMED: "#60a5fa",
+  OFFICIAL: "var(--wt-tier-official-text)",
+  AI_GUESS: "var(--wt-warning)",
+  VERIFIED: "var(--wt-success)",
+  CONFIRMED: "var(--wt-primary)",
 };
 
 const SOURCE_COLOR: Record<string, string> = {
@@ -96,25 +95,11 @@ export default async function StatsPage() {
   const coveragePct = propertyCount > 0 ? Math.round((propertiesWithFacts / propertyCount) * 100) : 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
-      {/* Header */}
-      <header style={{ background: "#1e3a5f", color: "#fff", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <Link href="/" style={{ textDecoration: "none", color: "inherit" }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700 }}>🌍 WikiTraveler Node</h1>
-          </Link>
-          <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-            {NODE_REGION} · {NODE_ID} · v{NODE_VERSION}
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Link href="/" style={{ color: "#93c5fd", fontSize: 13, textDecoration: "none" }}>← Dashboard</Link>
-          <SignOutButton />
-        </div>
-      </header>
-
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px" }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>Statistics</h2>
+    <NodeAppShell
+      subtitle={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`}
+      activeNav="stats"
+    >
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, color: "var(--wt-text)" }}>Statistics</h2>
 
         <AdminSection />
 
@@ -162,9 +147,9 @@ export default async function StatsPage() {
                 <div key={tier}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
                     <span style={{ fontWeight: 600 }}>{tier.replace("_", " ")}</span>
-                    <span style={{ color: "#6b7280" }}>{count.toLocaleString()} ({pct}%)</span>
+                    <span style={{ color: "var(--wt-text-muted)" }}>{count.toLocaleString()} ({pct}%)</span>
                   </div>
-                  <div style={{ background: "#e5e7eb", borderRadius: 4, height: 8 }}>
+                  <div style={{ background: "var(--wt-border)", borderRadius: 4, height: 8 }}>
                     <div style={{ width: `${pct}%`, background: TIER_COLOR[tier], height: 8, borderRadius: 4, transition: "width 0.3s" }} />
                   </div>
                 </div>
@@ -184,10 +169,10 @@ export default async function StatsPage() {
                   <div key={sourceType}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
                       <span style={{ fontWeight: 600 }}>{sourceType}</span>
-                      <span style={{ color: "#6b7280" }}>{_count._all.toLocaleString()} ({pct}%)</span>
+                      <span style={{ color: "var(--wt-text-muted)" }}>{_count._all.toLocaleString()} ({pct}%)</span>
                     </div>
-                    <div style={{ background: "#e5e7eb", borderRadius: 4, height: 8 }}>
-                      <div style={{ width: `${pct}%`, background: SOURCE_COLOR[sourceType] ?? "#9ca3af", height: 8, borderRadius: 4 }} />
+                    <div style={{ background: "var(--wt-border)", borderRadius: 4, height: 8 }}>
+                      <div style={{ width: `${pct}%`, background: SOURCE_COLOR[sourceType] ?? "var(--wt-text-muted)", height: 8, borderRadius: 4 }} />
                     </div>
                   </div>
                 );
@@ -199,14 +184,14 @@ export default async function StatsPage() {
         <Section title="Most Audited Fields">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ background: "#f3f4f6" }}>
+              <tr style={{ background: "var(--wt-bg-secondary)" }}>
                 <Th>Field</Th>
                 <Th align="right">Facts</Th>
               </tr>
             </thead>
             <tbody>
               {fieldCounts.map(({ fieldName, _count }) => (
-                <tr key={fieldName} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <tr key={fieldName} style={{ borderBottom: "1px solid var(--wt-border)" }}>
                   <Td>{fieldName.replace(/_/g, " ")}</Td>
                   <Td align="right">{_count._all.toLocaleString()}</Td>
                 </tr>
@@ -219,20 +204,20 @@ export default async function StatsPage() {
         <Section title="Most Audited Properties">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ background: "#f3f4f6" }}>
+              <tr style={{ background: "var(--wt-bg-secondary)" }}>
                 <Th>Property</Th>
                 <Th align="right">Audit submissions</Th>
               </tr>
             </thead>
             <tbody>
               {topAuditedWithNames.map(({ name, count }) => (
-                <tr key={name} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <tr key={name} style={{ borderBottom: "1px solid var(--wt-border)" }}>
                   <Td>{name}</Td>
                   <Td align="right">{count}</Td>
                 </tr>
               ))}
               {topAuditedWithNames.length === 0 && (
-                <tr><td colSpan={2} style={{ padding: "12px 8px", color: "#9ca3af", textAlign: "center" }}>No audits yet</td></tr>
+                <tr><td colSpan={2} style={{ padding: "12px 8px", color: "var(--wt-text-muted)", textAlign: "center" }}>No audits yet</td></tr>
               )}
             </tbody>
           </table>
@@ -242,7 +227,7 @@ export default async function StatsPage() {
         <Section title="Peer Network">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ background: "#f3f4f6" }}>
+              <tr style={{ background: "var(--wt-bg-secondary)" }}>
                 <Th>URL</Th>
                 <Th>Status</Th>
                 <Th align="right">Last seen</Th>
@@ -250,10 +235,25 @@ export default async function StatsPage() {
             </thead>
             <tbody>
               {peers.map((p) => (
-                <tr key={p.url} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                  <Td><a href={p.url} style={{ color: "#1e3a5f" }}>{p.url}</a></Td>
+                <tr key={p.url} style={{ borderBottom: "1px solid var(--wt-border)" }}>
                   <Td>
-                    <span style={{ background: p.isActive ? "#dcfce7" : "#fee2e2", color: p.isActive ? "#166534" : "#991b1b", borderRadius: 999, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
+                    <a href={p.url} style={{ color: "var(--wt-primary)", fontFamily: "var(--wt-font-mono)", fontSize: 12 }}>
+                      {p.url}
+                    </a>
+                  </Td>
+                  <Td>
+                    <span
+                      style={{
+                        background: p.isActive
+                          ? "color-mix(in srgb, var(--wt-success) 15%, var(--wt-bg-elevated))"
+                          : "color-mix(in srgb, var(--wt-danger) 15%, var(--wt-bg-elevated))",
+                        color: p.isActive ? "var(--wt-success)" : "var(--wt-danger)",
+                        borderRadius: 999,
+                        padding: "2px 8px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
                       {p.isActive ? "active" : "inactive"}
                     </span>
                   </Td>
@@ -261,7 +261,7 @@ export default async function StatsPage() {
                 </tr>
               ))}
               {peers.length === 0 && (
-                <tr><td colSpan={3} style={{ padding: "12px 8px", color: "#9ca3af", textAlign: "center" }}>No peers known yet</td></tr>
+                <tr><td colSpan={3} style={{ padding: "12px 8px", color: "var(--wt-text-muted)", textAlign: "center" }}>No peers known yet</td></tr>
               )}
             </tbody>
           </table>
@@ -272,7 +272,7 @@ export default async function StatsPage() {
           <Section title="Recent Gossip Syncs">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ background: "#f3f4f6" }}>
+                <tr style={{ background: "var(--wt-bg-secondary)" }}>
                   <Th>From node</Th>
                   <Th align="right">Facts ingested</Th>
                   <Th align="right">When</Th>
@@ -280,8 +280,8 @@ export default async function StatsPage() {
               </thead>
               <tbody>
                 {gossipHistory.map((g, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                    <Td style={{ fontFamily: "monospace" }}>{g.fromNodeId}</Td>
+                  <tr key={i} style={{ borderBottom: "1px solid var(--wt-border)" }}>
+                    <Td style={{ fontFamily: "var(--wt-font-mono)", fontSize: 12 }}>{g.fromNodeId}</Td>
                     <Td align="right">{g.factCount}</Td>
                     <Td align="right">{g.appliedAt.toLocaleString()}</Td>
                   </tr>
@@ -290,8 +290,7 @@ export default async function StatsPage() {
             </table>
           </Section>
         )}
-      </main>
-    </div>
+    </NodeAppShell>
   );
 }
 
@@ -299,8 +298,16 @@ export default async function StatsPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: "20px 24px", marginBottom: 24 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "#111827" }}>{title}</h3>
+    <section
+      style={{
+        background: "var(--wt-bg-elevated)",
+        borderRadius: "var(--wt-radius-md)",
+        border: "1px solid var(--wt-border)",
+        padding: "20px 24px",
+        marginBottom: 24,
+      }}
+    >
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "var(--wt-text)" }}>{title}</h3>
       {children}
     </section>
   );
@@ -308,16 +315,37 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function BigStat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
-    <div style={{ background: "#f9fafb", borderRadius: 10, padding: "14px 16px", border: "1px solid #e5e7eb" }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: "#1e3a5f" }}>{typeof value === "number" ? value.toLocaleString() : value}</div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{sub}</div>}
+    <div
+      style={{
+        background: "var(--wt-bg)",
+        borderRadius: 10,
+        padding: "14px 16px",
+        border: "1px solid var(--wt-border)",
+      }}
+    >
+      <div style={{ fontSize: 24, fontWeight: 700, color: "var(--wt-primary)" }}>
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--wt-text)", marginTop: 2 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
 
 function Th({ children, align }: { children: React.ReactNode; align?: "right" }) {
-  return <th style={{ textAlign: align ?? "left", padding: "8px 8px", fontWeight: 600, fontSize: 12, color: "#6b7280" }}>{children}</th>;
+  return (
+    <th
+      style={{
+        textAlign: align ?? "left",
+        padding: "8px 8px",
+        fontWeight: 600,
+        fontSize: 12,
+        color: "var(--wt-text-muted)",
+      }}
+    >
+      {children}
+    </th>
+  );
 }
 
 function Td({ children, align, style }: { children: React.ReactNode; align?: "right"; style?: React.CSSProperties }) {

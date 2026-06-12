@@ -23,6 +23,9 @@
       "@wikitraveler/ai-agent": [
         "../../packages/ai-agent/src/index.ts"
       ],
+      "@wikitraveler/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
       "@/*": [
         "./*"
       ]

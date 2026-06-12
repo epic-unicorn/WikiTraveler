@@ -1,0 +1,37 @@
+/* Import AFTER @ionic/react/css/* — restores document scrolling on web */
+
+html,
+body {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+ion-app.wt-ion-web {
+  position: relative !important;
+  contain: unset !important;
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  display: block !important;
+}
+
+ion-app.wt-ion-web ion-page {
+  position: relative !important;
+  contain: unset !important;
+  display: block !important;
+  height: auto !important;
+  min-height: unset !important;
+}
+
+ion-app.wt-ion-web ion-content {
+  position: relative !important;
+  contain: unset !important;
+  --overflow: visible;
+}
+
+ion-app.wt-ion-web ion-content::part(scroll) {
+  position: relative !important;
+  overflow: visible !important;
+}

@@ -1,0 +1,90 @@
+/* WikiTraveler design tokens — light & dark */
+
+:root {
+  /* Brand blues: vibrant royal blue primary, deep navy header */
+  --wt-primary: #1d4ed8;
+  --wt-primary-contrast: #ffffff;
+
+  /* Accent: cyan instead of teal — crisper, distinct from success green */
+  --wt-accent: #0891b2;
+  --wt-accent-muted: #e0f2fe;
+
+  /* Surfaces */
+  --wt-bg: #f8fafc;
+  --wt-bg-elevated: #ffffff;
+  --wt-bg-secondary: #f1f5f9;
+  --wt-bg-header: #1e3a8a;
+
+  /* Borders & text */
+  --wt-border: #e2e8f0;
+  --wt-text: #0f172a;
+  --wt-text-muted: #64748b;
+
+  /* Semantic */
+  --wt-danger: #dc2626;
+  --wt-warning: #d97706;
+  --wt-success: #059669;
+
+  /* Trust-tier badge colors */
+  --wt-tier-official-bg: #f1f5f9;
+  --wt-tier-official-text: #64748b;
+  --wt-tier-ai-bg: #fef3c7;
+  --wt-tier-ai-text: #92400e;
+  --wt-tier-verified-bg: #d1fae5;
+  --wt-tier-verified-text: #065f46;
+  --wt-tier-confirmed-bg: #dbeafe;
+  --wt-tier-confirmed-text: #1e40af;
+
+  /* Misc */
+  --wt-radius-sm: 8px;
+  --wt-radius-md: 12px;
+  --wt-radius-lg: 16px;
+  --wt-shadow: 0 2px 16px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --wt-shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.12);
+  --wt-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --wt-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+}
+
+.ion-palette-dark,
+html.wt-dark {
+  /* Primary lightens on dark bg so it pops */
+  --wt-primary: #60a5fa;
+  --wt-primary-contrast: #0f172a;
+
+  /* Cyan accent lightened for dark */
+  --wt-accent: #22d3ee;
+  --wt-accent-muted: #164e63;
+
+  /* Surfaces — deep navy, not plain black */
+  --wt-bg: #0f172a;
+  --wt-bg-elevated: #1e293b;
+  --wt-bg-secondary: #162032;
+  /* Header is distinct deep navy (not same as bg) */
+  --wt-bg-header: #0c1a3a;
+
+  --wt-border: #334155;
+  --wt-text: #f1f5f9;
+  --wt-text-muted: #94a3b8;
+
+  --wt-danger: #f87171;
+  --wt-warning: #fbbf24;
+  --wt-success: #34d399;
+
+  --wt-tier-official-bg: #334155;
+  --wt-tier-official-text: #94a3b8;
+  --wt-tier-ai-bg: #78350f;
+  --wt-tier-ai-text: #fcd34d;
+  --wt-tier-verified-bg: #064e3b;
+  --wt-tier-verified-text: #6ee7b7;
+  --wt-tier-confirmed-bg: #1e3a8a;
+  --wt-tier-confirmed-text: #93c5fd;
+
+  --wt-shadow: 0 2px 16px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --wt-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+body {
+  font-family: var(--wt-font);
+  background: var(--wt-bg);
+  color: var(--wt-text);
+}

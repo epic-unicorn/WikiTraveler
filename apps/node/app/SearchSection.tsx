@@ -1,277 +1,197 @@
 "use client";
 
-import { useState, useCallback, useTransition, useRef } from "react";
+import { useState, useCallback, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
+import {
+  PropertySearchBar,
+  PropertyCard,
+  EMPTY_FILTERS,
+  type SearchFilters,
+  type PropertySummary,
+} from "@wikitraveler/ui";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const TIER_COLOR: Record<string, string> = {
-  OFFICIAL: "#9ca3af",
-  AI_GUESS: "#fbbf24",
-  VERIFIED: "#34d399",
-  CONFIRMED: "#60a5fa",
-};
-
-const TIER_RANK: Record<string, number> = {
-  OFFICIAL: 0,
-  AI_GUESS: 1,
-  VERIFIED: 2,
-  CONFIRMED: 3,
-};
-
-const FEATURES: Array<{ key: string; label: string; emoji: string }> = [
-  { key: "step_free_entrance", label: "Step-free entrance", emoji: "♿" },
-  { key: "accessible_bathroom", label: "Accessible bathroom", emoji: "🚿" },
-  { key: "ramp_present", label: "Ramp", emoji: "🔧" },
-  { key: "hearing_loop", label: "Hearing loop", emoji: "🔊" },
-  { key: "tactile_paving", label: "Tactile paving", emoji: "👣" },
-];
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface Fact {
-  fieldName: string;
-  value: string;
-  tier: string;
-  sourceType: string;
-}
-
-interface Property {
-  id: string;
-  name: string;
-  location: string;
-  canonicalId: string;
-  lat: number | null;
-  lon: number | null;
-  facts: Fact[];
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+type MapPin = { id: string; name: string; location: string; lat: number; lon: number };
 
 interface Props {
-  onResults?: (pins: Array<{ id: string; name: string; lat: number; lon: number }> | null) => void;
+  onResults?: (pins: MapPin[] | null) => void;
+}
+
+function authHeaders(): HeadersInit {
+  const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
+  const token = m ? decodeURIComponent(m[1]) : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function buildParams(q: string, filters: SearchFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (q.trim()) params.set("q", q.trim());
+  if (filters.features.length) params.set("feature", filters.features.join(","));
+  if (filters.audited === true) params.set("audited", "true");
+  if (filters.audited === false) params.set("audited", "false");
+  if (filters.location.trim()) params.set("location", filters.location.trim());
+  return params;
 }
 
 export function SearchSection({ onResults }: Props) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Property[] | null>(null);
+  const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
+  const [results, setResults] = useState<PropertySummary[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback(
-    (q: string) => {
-      if (!q.trim()) {
+    (q: string, f: SearchFilters) => {
+      const hasQuery = q.trim().length > 0;
+      const hasFilters =
+        f.features.length > 0 ||
+        f.audited !== null ||
+        f.location.trim().length > 0;
+
+      if (!hasQuery && !hasFilters) {
         setResults(null);
         onResults?.(null);
         return;
       }
+
       startTransition(async () => {
-        const params = new URLSearchParams();
-        params.set("q", q.trim());
-        const token = (() => {
-          const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
-          return m ? decodeURIComponent(m[1]) : null;
-        })();
-        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await fetch(`/api/properties?${params}`, { headers });
-        const data = await res.json() as { properties?: Property[] };
+        const params = buildParams(q, f);
+        const res = await fetch(`/api/properties?${params}`, { headers: authHeaders() });
+        const data = (await res.json()) as { properties?: PropertySummary[] };
         const properties = data.properties ?? [];
         setResults(properties);
         onResults?.(
           properties
             .filter((p) => p.lat != null && p.lon != null)
-            .map((p) => ({ id: p.id, name: p.name, lat: p.lat!, lon: p.lon! }))
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              location: p.location,
+              lat: p.lat!,
+              lon: p.lon!,
+            }))
         );
       });
     },
     [onResults]
   );
 
-  const debouncedSearch = useCallback(
-    (q: string) => {
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => search(query, filters), 300);
+    return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      debounceTimer.current = setTimeout(() => search(q), 300);
-    },
-    [search]
-  );
+    };
+  }, [query, filters, search]);
 
-  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
-    setQuery(q);
-    debouncedSearch(q);
-  };
+  const hasActiveSearch =
+    query.trim().length > 0 ||
+    filters.features.length > 0 ||
+    filters.audited !== null ||
+    filters.location.trim().length > 0;
 
   return (
     <div>
-      {/* Search input */}
-      <div style={{ marginBottom: 16 }}>
-        <input
-          type="search"
-          value={query}
-          onChange={handleQueryChange}
-          placeholder="Search by hotel name, street or city…"
-          style={{
-            width: "100%",
-            padding: "12px 16px",
-            fontSize: 16,
-            border: "1.5px solid #d1d5db",
-            borderRadius: 10,
-            outline: "none",
-            boxSizing: "border-box",
-            background: "#fff",
-          }}
-        />
-      </div>
+      <PropertySearchBar
+        query={query}
+        onQueryChange={setQuery}
+        filters={filters}
+        onFiltersChange={setFilters}
+        placeholder="Search by name, city, canonical ID, OSM or Wheelmap ID…"
+      />
 
-      {/* Results */}
+      {/* Loading */}
       {isPending && (
-        <p style={{ color: "#6b7280", fontSize: 14 }}>Searching…</p>
+        <p style={{ color: "var(--wt-text-muted)", fontSize: 14, marginTop: 12 }}>
+          Searching…
+        </p>
       )}
 
-      {!isPending && results === null && (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "#9ca3af" }}>
-          <p style={{ fontSize: 48, marginBottom: 12 }}>🔍</p>
-          <p style={{ fontSize: 16 }}>Search by name, city, or street.</p>
-        </div>
-      )}
-
-      {!isPending && results !== null && results.length === 0 && (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "#9ca3af" }}>
-          <p style={{ fontSize: 48, marginBottom: 12 }}>🏨</p>
-          <p style={{ fontSize: 16 }}>No properties found. Try a different search.</p>
-        </div>
-      )}
-
-      {!isPending && results !== null && results.length > 0 && (
-        <div style={{ display: "grid", gap: 6 }}>
-          {results.map((p) => <ResultRow key={p.id} property={p} />)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Result row
-// ---------------------------------------------------------------------------
-
-function ResultRow({ property }: { property: Property }) {
-  const [open, setOpen] = useState(false);
-
-  // Best fact per field
-  const best = new Map<string, Fact>();
-  for (const f of property.facts) {
-    const existing = best.get(f.fieldName);
-    if (!existing || (TIER_RANK[f.tier] ?? 0) > (TIER_RANK[existing.tier] ?? 0)) {
-      best.set(f.fieldName, f);
-    }
-  }
-  const displayFacts = Array.from(best.entries());
-
-  return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: "14px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          cursor: "pointer",
-          userSelect: "none",
-        }}
-        onClick={() => setOpen((o) => !o)}
-        role="button"
-        aria-expanded={open}
-      >
-        <span style={{ fontSize: 12, color: "#9ca3af", transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }}>▶</span>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {property.name}
-          </p>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 1 }}>📍 {property.location}</p>
-        </div>
-
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", flexShrink: 0 }}>
-          {displayFacts.slice(0, 4).map(([field, fact]) => (
-            <span
-              key={field}
-              style={{
-                background: TIER_COLOR[fact.tier] ?? "#9ca3af",
-                color: "#fff",
-                borderRadius: 999,
-                padding: "2px 10px",
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            >
-              {fieldLabel(field)}
-            </span>
-          ))}
-          {displayFacts.length > 4 && (
-            <span style={{ fontSize: 11, color: "#9ca3af", alignSelf: "center" }}>
-              +{displayFacts.length - 4}
-            </span>
-          )}
-        </div>
-
-        <Link
-          href={`/properties/${property.id}`}
-          onClick={(e) => e.stopPropagation()}
-          style={{ fontSize: 12, color: "#1e3a5f", textDecoration: "none", flexShrink: 0, fontWeight: 600 }}
+      {/* Idle default state */}
+      {!isPending && results === null && !hasActiveSearch && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "40px 20px",
+            color: "var(--wt-text-muted)",
+            border: "1.5px dashed var(--wt-border)",
+            borderRadius: "var(--wt-radius-md)",
+            marginTop: 12,
+          }}
         >
-          Audit →
-        </Link>
-      </div>
+          <p style={{ fontSize: 28, marginBottom: 10 }}>🗺️</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--wt-text)", marginBottom: 6 }}>
+            Find properties
+          </p>
+          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+            Search by name, location, or ID — or use the filter chips to browse by accessibility feature or audit status.
+          </p>
+        </div>
+      )}
 
-      {open && displayFacts.length > 0 && (
-        <div style={{ borderTop: "1px solid #f3f4f6", padding: "12px 20px", display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {displayFacts.map(([field, fact]) => (
-            <div
-              key={field}
-              style={{
-                background: "#f9fafb",
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                padding: "6px 12px",
-                fontSize: 12,
-              }}
-            >
-              <span style={{ color: "#6b7280" }}>{fieldLabel(field)}: </span>
-              <span style={{ fontWeight: 600 }}>{fact.value}</span>
-              <span
+      {/* No results */}
+      {!isPending && results !== null && results.length === 0 && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "36px 20px",
+            border: "1px solid var(--wt-border)",
+            borderRadius: "var(--wt-radius-md)",
+            background: "var(--wt-bg-elevated)",
+            marginTop: 12,
+          }}
+        >
+          <p style={{ fontSize: 24, marginBottom: 10 }}>🔍</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--wt-text)", marginBottom: 6 }}>
+            No properties found
+          </p>
+          {query.trim() ? (
+            <>
+              <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 16 }}>
+                No results matched &ldquo;{query.trim()}&rdquo;
+              </p>
+              <Link
+                href={`/properties/new?name=${encodeURIComponent(query.trim())}`}
                 style={{
-                  marginLeft: 6,
-                  background: TIER_COLOR[fact.tier] ?? "#9ca3af",
-                  color: "#fff",
-                  borderRadius: 999,
-                  padding: "1px 7px",
-                  fontSize: 10,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "var(--wt-primary)",
+                  color: "var(--wt-primary-contrast)",
+                  padding: "9px 18px",
+                  borderRadius: "var(--wt-radius-sm)",
+                  fontSize: 14,
+                  fontWeight: 600,
                 }}
               >
-                {fact.tier}
-              </span>
-            </div>
-          ))}
+                + Create &ldquo;{query.trim()}&rdquo;
+              </Link>
+            </>
+          ) : (
+            <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>
+              Try adjusting your filters.
+            </p>
+          )}
         </div>
       )}
+
+      {/* Results */}
+      {!isPending && results !== null && results.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 12, marginBottom: 4 }}>
+            {results.length} {results.length === 1 ? "property" : "properties"}
+          </p>
+          <div className="wt-search-results">
+            {results.map((p) => (
+              <PropertyCard
+                key={p.id}
+                property={p}
+                href={`/properties/${p.id}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
     </div>
   );
-}
-
-function fieldLabel(field: string): string {
-  return field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

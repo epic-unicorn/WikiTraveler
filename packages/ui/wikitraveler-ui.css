@@ -1,0 +1,66 @@
+@import "./tokens.css";
+
+/* Lens-compatible utility classes (no React required) */
+
+.wt-header {
+  background: var(--wt-bg-header);
+  color: var(--wt-primary-contrast);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wt-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.wt-card {
+  background: var(--wt-bg-elevated);
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius-md);
+  padding: 16px;
+}
+
+.wt-text-muted {
+  color: var(--wt-text-muted);
+  font-size: 13px;
+}
+
+.wt-btn-primary {
+  background: var(--wt-primary);
+  color: var(--wt-primary-contrast);
+  border: none;
+  border-radius: var(--wt-radius-sm);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wt-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1.5px solid var(--wt-border);
+  border-radius: var(--wt-radius-sm);
+  font-size: 14px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text);
+  font-family: inherit;
+}
+
+.wt-tier-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.wt-tier-official { background: var(--wt-tier-official-bg); color: var(--wt-tier-official-text); }
+.wt-tier-ai_guess { background: var(--wt-tier-ai-bg); color: var(--wt-tier-ai-text); }
+.wt-tier-verified { background: var(--wt-tier-verified-bg); color: var(--wt-tier-verified-text); }
+.wt-tier-confirmed { background: var(--wt-tier-confirmed-bg); color: var(--wt-tier-confirmed-text); }

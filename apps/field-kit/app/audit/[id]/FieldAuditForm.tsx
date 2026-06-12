@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { FieldKitHeader } from "../../FieldKitHeader";
 
 const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 
@@ -221,15 +222,12 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   if (status === "ok") {
     return (
       <>
-        <header>
-          <span style={{ fontSize: 24 }}>✅</span>
-          <h1>Audit Submitted!</h1>
-        </header>
+        <FieldKitHeader title="Audit submitted!" />
         <main className="page">
           <div className="card" style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
             <p style={{ fontSize: 40, marginBottom: 16 }}>🎉</p>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Thank you!</h2>
-            <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>
+            <p className="status-muted" style={{ marginBottom: 24 }}>
               Your audit for <strong>{propertyName}</strong> has been recorded.
             </p>
             <button className="btn-secondary" onClick={() => router.push("/")}>
@@ -243,28 +241,24 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
   return (
     <>
-      <header>
-        <button
-          onClick={() => router.push("/")}
-          aria-label="Back"
-          style={{ background: "none", border: "none", color: "#93c5fd", fontSize: 20, cursor: "pointer", padding: "0 4px" }}
-        >←</button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{propertyName}</h1>
-          <p style={{ fontSize: 11, opacity: 0.7, marginTop: 1 }}>📍 {location}</p>
-          {targetNodeUrl && targetNodeUrl !== nodeUrl && (
-            <p style={{ fontSize: 10, color: "#f59e0b", marginTop: 1 }}>📤 Remote audit · {new URL(targetNodeUrl).hostname}</p>
-          )}
-        </div>
-      </header>
+      <FieldKitHeader
+        showBack
+        backHref="/"
+        title={propertyName}
+        subtitle={
+          targetNodeUrl && targetNodeUrl !== nodeUrl
+            ? `Remote audit · ${new URL(targetNodeUrl).hostname}`
+            : location
+        }
+      />
 
       <main className="page">
 
         {/* Auth gate — only rendered after client hydration to avoid mismatch */}
         {!mounted ? (
-          <div className="card" style={{ textAlign: "center", padding: "32px 16px", color: "#9ca3af" }}>Loading…</div>
+          <div className="card" style={{ textAlign: "center", padding: "32px 16px", color: "var(--wt-text-muted)" }}>Loading…</div>
         ) : !token ? (
-          <div className="card">
+              <div className="card">
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
               {authMode === "login" ? "Log in to submit" : "Create an account"}
             </h2>
@@ -278,7 +272,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (authMode === "login" ? login() : register())}
             />
-            <label htmlFor="password" style={{ marginTop: 12 }}>Password</label>
+            <label htmlFor="password">Password</label>
             <input
               id="password"
               type="password"
@@ -292,11 +286,11 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
             <button className="btn-primary" onClick={authMode === "login" ? login : register} disabled={authLoading}>
               {authLoading ? "…" : authMode === "login" ? "Log in" : "Create account"}
             </button>
-            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 12, textAlign: "center" }}>
+            <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 12, textAlign: "center" }}>
               {authMode === "login" ? (
-                <>No account? <button onClick={() => { setAuthMode("register"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#1e3a5f", cursor: "pointer", fontSize: 12, padding: 0 }}>Register</button></>
+                <>No account? <button onClick={() => { setAuthMode("register"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>Register</button></>
               ) : (
-                <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "#1e3a5f", cursor: "pointer", fontSize: 12, padding: 0 }}>Log in</button></>
+                <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>Log in</button></>
               )}
             </p>
           </div>
@@ -304,16 +298,16 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
           <>
             {/* Logged-in indicator */}
             {loggedInAs && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, fontSize: 12, color: "#6b7280" }}>
-                <span>Logged in as <strong>{loggedInAs}</strong></span>
-                <button onClick={logout} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", fontSize: 12 }}>Log out</button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, fontSize: 12, color: "var(--wt-text-muted)" }}>
+                <span>Logged in as <strong style={{ color: "var(--wt-text)" }}>{loggedInAs}</strong></span>
+                <button onClick={logout} style={{ background: "none", border: "none", color: "var(--wt-text-muted)", cursor: "pointer", fontSize: 12 }}>Log out</button>
               </div>
             )}
 
             {/* Existing data summary — quiet, one line */}
             {existingFacts.length > 0 && (
-              <div style={{ padding: "8px 12px", background: "#f0fdf4", borderRadius: 8, marginBottom: 12, fontSize: 12, color: "#374151" }}>
-                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: confirmedCount > 0 ? "#34d399" : "#fbbf24", marginRight: 6, verticalAlign: "middle" }} />
+              <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--wt-success) 10%, var(--wt-bg-elevated))", borderRadius: 8, marginBottom: 12, fontSize: 12, color: "var(--wt-text)" }}>
+                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: confirmedCount > 0 ? "var(--wt-success)" : "var(--wt-warning)", marginRight: 6, verticalAlign: "middle" }} />
                 {confirmedCount > 0 ? `${confirmedCount} field${confirmedCount > 1 ? "s" : ""} verified` : ""}
                 {confirmedCount > 0 && aiCount > 0 ? ", " : ""}
                 {aiCount > 0 ? `${aiCount} AI estimate${aiCount > 1 ? "s" : ""}` : ""}
@@ -321,9 +315,9 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               </div>
             )}
             {/* Accessibility fields */}
-            <div className="card">
+              <div className="card">
               <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Accessibility Audit</h2>
-              <p style={{ fontSize: 13, color: "#6b7280" }}>
+              <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>
                 Fill in what you can observe on-site. Leave unknown fields blank.
               </p>
 
@@ -336,7 +330,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                       <div>
                         <span className="toggle-label">{field.label}</span>
                         {existing && (
-                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: 2 }}>
                             Previously: {existing.value}
                           </div>
                         )}
@@ -361,10 +355,10 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                   <div key={field.name}>
                     <label htmlFor={field.name}>
                       {field.label}
-                      {field.unit && <span style={{ fontWeight: 400, color: "#9ca3af" }}> ({field.unit})</span>}
+                      {field.unit && <span style={{ fontWeight: 400, color: "var(--wt-text-muted)" }}> ({field.unit})</span>}
                     </label>
                     {existing && (
-                      <p style={{ fontSize: 11, color: "#9ca3af", marginTop: -2, marginBottom: 4 }}>
+                      <p style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: -2, marginBottom: 4 }}>
                         Previously: {existing.value}
                       </p>
                     )}
@@ -393,7 +387,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
             {/* Photo upload */}
             <div className="card" style={{ marginTop: 16 }}>
               <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Photos (optional, max 3)</h2>
-              <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 12 }}>
+              <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 12 }}>
                 Attach evidence photos. Stored securely on the node.
               </p>
               {photos.length < 3 && (
@@ -401,8 +395,9 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                   htmlFor="photos"
                   style={{
                     display: "block", textAlign: "center", padding: "20px",
-                    border: "2px dashed #d1d5db", borderRadius: 10,
-                    color: "#6b7280", cursor: "pointer", fontSize: 14,
+                    border: "2px dashed var(--wt-border)", borderRadius: 10,
+                    color: "var(--wt-text-muted)", cursor: "pointer", fontSize: 14,
+                    marginTop: 0,
                   }}
                 >
                   📷 Tap to add photo
@@ -426,7 +421,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                       onClick={() => setPhotos((p) => p.filter((_, idx) => idx !== i))}
                       style={{
                         position: "absolute", top: -6, right: -6,
-                        background: "#ef4444", color: "#fff",
+                        background: "var(--wt-danger)", color: "#fff",
                         border: "none", borderRadius: "50%",
                         width: 20, height: 20, cursor: "pointer", fontSize: 12,
                       }}
