@@ -67,7 +67,6 @@ function extractCoordinates() {
 async function getNodeUrl() {
   if (_nodeUrl) return _nodeUrl;
   const coords = extractCoordinates();
-  console.log("[lens] coords", coords);
   const result = await new Promise((resolve) => {
     chrome.runtime.sendMessage(
       { type: "RESOLVE_NODE", lat: coords?.lat ?? null, lon: coords?.lon ?? null },
@@ -76,7 +75,6 @@ async function getNodeUrl() {
   });
   _nodeUrl = result.nodeUrl ?? "http://localhost:3000";
   _regionMissing = result.regionMissing === true && coords != null;
-  console.log("[lens] resolved node →", _nodeUrl, _regionMissing ? "(no regional node)" : "");
   return _nodeUrl;
 }
 
@@ -213,39 +211,65 @@ function showTooltip(anchorEl, facts, propertyName) {
     z-index: 2147483647;
     width: 280px;
     background: #fff;
-    border: 2px solid #1e3a5f;
+    border: 2px solid #1e3a8a;
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 12px;
-    color: #111827;
+    color: #0f172a;
     overflow: hidden;
     pointer-events: none;
   `;
 
   const hdr = document.createElement("div");
   hdr.style.cssText =
-    "background:#1e3a5f;color:#fff;padding:8px 12px;font-weight:700;font-size:12px;" +
-    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
-  hdr.textContent = `\uD83C\uDF0D ${propertyName ?? "WikiTraveler"}`;
+    "background:#1e3a8a;color:#fff;padding:8px 12px;font-weight:700;font-size:12px;" +
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px";
+
+  const logoSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  logoSvg.setAttribute("width", "14");
+  logoSvg.setAttribute("height", "14");
+  logoSvg.setAttribute("viewBox", "0 0 32 32");
+  logoSvg.setAttribute("fill", "none");
+  logoSvg.style.flexShrink = "0";
+  const hexPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  hexPath.setAttribute("d", "M16 2L28 9v14L16 30 4 23V9L16 2z");
+  hexPath.setAttribute("stroke", "currentColor");
+  hexPath.setAttribute("stroke-width", "2");
+  hexPath.setAttribute("stroke-linejoin", "round");
+  logoSvg.appendChild(hexPath);
+  hdr.appendChild(logoSvg);
+
+  const hdrText = document.createElement("span");
+  hdrText.style.overflow = "hidden";
+  hdrText.style.textOverflow = "ellipsis";
+  hdrText.textContent = propertyName ?? "WikiTraveler";
+  hdr.appendChild(hdrText);
   _tooltip.appendChild(hdr);
 
   const bodyEl = document.createElement("div");
   bodyEl.style.cssText = "padding:8px 12px;max-height:200px;overflow-y:auto";
 
   if (!facts || facts.length === 0) {
-    bodyEl.style.color = "#9ca3af";
+    bodyEl.style.color = "#94a3b8";
     bodyEl.textContent = "No accessibility data yet.";
   } else {
     const table = document.createElement("table");
     table.style.cssText = "width:100%;border-collapse:collapse";
     facts.slice(0, 8).forEach((f) => {
       const row = document.createElement("tr");
-      row.style.borderBottom = "1px solid #f3f4f6";
-      row.innerHTML = `
-        <td style="padding:4px 2px;color:#374151;font-weight:500">${f.fieldName.replace(/_/g, " ")}</td>
-        <td style="padding:4px 2px">${f.value}</td>
-      `;
+      row.style.borderBottom = "1px solid #e2e8f0";
+
+      const labelCell = document.createElement("td");
+      labelCell.style.cssText = "padding:5px 6px 5px 0;color:#0f172a;font-weight:500;vertical-align:middle";
+      labelCell.textContent = f.fieldName.replace(/_/g, " ");
+
+      const valueCell = document.createElement("td");
+      valueCell.style.cssText = "padding:5px 0;color:#334155;text-align:right;vertical-align:middle";
+      valueCell.textContent = f.value;
+
+      row.appendChild(labelCell);
+      row.appendChild(valueCell);
       table.appendChild(row);
     });
     bodyEl.appendChild(table);

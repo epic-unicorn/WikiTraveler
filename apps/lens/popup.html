@@ -5,84 +5,269 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WikiTraveler Lens</title>
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       width: 320px;
       min-height: 200px;
-      margin: 0;
-      background: #f9fafb;
-      color: #111827;
+      background: #f8fafc;
+      color: #0f172a;
+      font-size: 13px;
     }
+
+    /* ——— Header ——— */
     header {
-      background: #1e3a5f;
+      background: #1e3a8a;
       color: #fff;
-      padding: 12px 16px;
+      padding: 11px 14px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
-    header h1 { font-size: 15px; font-weight: 700; margin: 0; }
-    #content { padding: 16px; }
-    .badge {
-      display: inline-block;
-      border-radius: 999px;
-      padding: 2px 10px;
-      font-size: 11px;
-      font-weight: 700;
+    header .logo {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+    header .header-text { flex: 1; min-width: 0; }
+    header h1 { font-size: 14px; font-weight: 700; margin: 0; }
+    #user-line { font-size: 10px; opacity: 0.7; margin: 1px 0 0; }
+    #wt-signout {
+      display: none;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.4);
       color: #fff;
-      margin-left: 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 9px;
+      flex-shrink: 0;
+      font-family: inherit;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    td { padding: 6px 4px; border-bottom: 1px solid #f3f4f6; }
-    .empty { color: #9ca3af; text-align: center; padding: 24px 0; font-size: 13px; }
-    .property-id { font-size: 11px; color: #9ca3af; margin-bottom: 12px; word-break: break-all; }
-    a { color: #1e3a5f; font-size: 12px; }
+    #wt-signout:hover { background: rgba(255,255,255,0.15); }
+
+    /* ——— Node status bar ——— */
     #node-status-bar {
       display: flex;
       align-items: center;
       gap: 7px;
-      padding: 7px 16px;
+      padding: 7px 14px;
       font-size: 11px;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e2e8f0;
       background: #fff;
     }
-    #node-status-bar .node-status-dot {
+    .node-status-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
       flex-shrink: 0;
     }
-    #node-status-bar.node-status--checking { color: #6b7280; }
-    #node-status-bar.node-status--checking .node-status-dot { background: #9ca3af; }
-    #node-status-bar.node-status--online { color: #166534; background: #f0fdf4; border-bottom-color: #bbf7d0; }
-    #node-status-bar.node-status--online .node-status-dot { background: #22c55e; }
-    #node-status-bar.node-status--offline { color: #b91c1c; background: #fef2f2; border-bottom-color: #fecaca; }
-    #node-status-bar.node-status--offline .node-status-dot { background: #ef4444; }
-    #node-status-bar.node-status--invalid { color: #b45309; background: #fffbeb; border-bottom-color: #fde68a; }
-    #node-status-bar.node-status--invalid .node-status-dot { background: #f59e0b; }
+    .node-status--checking { color: #64748b; }
+    .node-status--checking .node-status-dot { background: #94a3b8; }
+    .node-status--online  { color: #166534; background: #f0fdf4; border-bottom-color: #bbf7d0; }
+    .node-status--online  .node-status-dot { background: #22c55e; }
+    .node-status--offline { color: #991b1b; background: #fef2f2; border-bottom-color: #fecaca; }
+    .node-status--offline .node-status-dot { background: #ef4444; }
+    .node-status--invalid { color: #854d0e; background: #fefce8; border-bottom-color: #fde68a; }
+    .node-status--invalid .node-status-dot { background: #eab308; }
+
+    /* ——— Content area ——— */
+    #content { padding: 14px; }
+
+    .property-header { margin-bottom: 12px; }
+    .property-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .property-location { font-size: 11px; color: #64748b; margin: 0; }
+    .property-id { font-size: 11px; color: #94a3b8; margin-bottom: 10px; word-break: break-all; }
+
+    /* ——— Facts table ——— */
+    .facts-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .facts-table td { padding: 7px 0; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    .facts-table tr:last-child td { border-bottom: none; }
+    .fact-label { font-weight: 500; color: #0f172a; }
+    .fact-value-cell { text-align: right; white-space: nowrap; }
+
+    /* ——— Tier badges ——— */
+    .tier-badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 1px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+    .tier--confirmed  { background: #dbeafe; color: #1e40af; }
+    .tier--verified   { background: #d1fae5; color: #065f46; }
+    .tier--ai-guess   { background: #fef3c7; color: #92400e; }
+    .tier--official   { background: #f1f5f9; color: #64748b; }
+
+    /* ——— Empty / loading states ——— */
+    .state-empty {
+      text-align: center;
+      padding: 20px 0 12px;
+      color: #64748b;
+    }
+    .state-empty .state-icon { font-size: 32px; margin-bottom: 8px; }
+    .state-empty p { font-size: 13px; line-height: 1.5; }
+
+    /* ——— Login form ——— */
+    .login-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff;
+      color: #0f172a;
+      outline: none;
+      margin-bottom: 8px;
+      transition: border-color 0.15s;
+    }
+    .login-input:focus { border-color: #1d4ed8; }
+    .login-btn {
+      width: 100%;
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      margin-bottom: 4px;
+      transition: opacity 0.15s;
+    }
+    .login-btn:hover { opacity: 0.9; }
+    .login-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .login-error { color: #dc2626; font-size: 12px; margin-top: 5px; display: none; }
+    .login-footer { font-size: 11px; color: #94a3b8; margin-top: 10px; text-align: center; }
+    .login-footer a { color: #1d4ed8; text-decoration: none; font-weight: 600; }
+
+    /* ——— Search section ——— */
+    #search-section {
+      border-top: 1px solid #e2e8f0;
+      padding: 12px 14px;
+      background: #f8fafc;
+    }
+    .search-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .search-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff;
+      color: #0f172a;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: #1d4ed8; }
+    #search-results { margin-top: 6px; display: grid; gap: 4px; max-height: 180px; overflow-y: auto; }
+    .search-result-btn {
+      width: 100%;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .search-result-btn:hover { background: #eff6ff; border-color: #bfdbfe; }
+    .search-result-name { display: block; font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 1px; }
+    .search-result-loc  { display: block; font-size: 11px; color: #64748b; }
+    .search-empty { font-size: 12px; color: #94a3b8; text-align: center; padding: 8px 0; }
+
+    /* ——— Search toggle ——— */
+    #search-toggle-bar {
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+    }
+    #search-toggle-btn {
+      width: 100%;
+      padding: 9px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1d4ed8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #search-toggle-btn:hover { background: #eff6ff; }
+
+    /* ——— Misc ——— */
+    a { color: #1d4ed8; }
+    .warning-banner {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 8px 14px;
+      background: #fef9c3;
+      border-bottom: 1px solid #fde68a;
+      font-size: 11px;
+      color: #854d0e;
+    }
   </style>
 </head>
 <body>
   <header>
-    <span style="font-size:20px">🌍</span>
-    <div style="flex:1;min-width:0">
-      <h1>WikiTraveler Lens</h1>
-      <p id="user-line" style="font-size:10px;opacity:0.7;margin:0"></p>
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M16 2L28 9v14L16 30 4 23V9L16 2z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M16 9l4 6H12l4-6z" fill="currentColor"/>
+        <path d="M10 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
     </div>
-    <button id="wt-signout" title="Sign out"
-      style="display:none;background:none;border:1px solid rgba(255,255,255,0.45);color:#fff;
-             border-radius:6px;cursor:pointer;font-size:10px;padding:3px 8px;flex-shrink:0;
-             margin-left:4px">
-      Sign out
-    </button>
+    <div class="header-text">
+      <h1>WikiTraveler Lens</h1>
+      <p id="user-line"></p>
+    </div>
+    <button id="wt-signout" title="Sign out">Sign out</button>
   </header>
+
   <div id="node-status-bar" class="node-status--checking" role="status">
     <span class="node-status-dot" aria-hidden="true"></span>
     <span>Checking node…</span>
   </div>
+
   <div id="content">
-    <p style="color:#9ca3af;font-size:13px">Loading…</p>
+    <p style="color:#94a3b8;font-size:13px">Loading…</p>
   </div>
+
+  <!-- Search toggle (shown below facts when a property is found) -->
+  <div id="search-toggle-bar" style="display:none">
+    <button id="search-toggle-btn" type="button">🔍 Search for different property</button>
+  </div>
+
+  <!-- Manual search section (always rendered, shown/hidden by JS) -->
+  <div id="search-section" style="display:none">
+    <p class="search-label">Search properties</p>
+    <input id="search-input" class="search-input" type="search" placeholder="Name, city, or ID…" autocomplete="off" />
+    <div id="search-results"></div>
+  </div>
+
   <script src="nodeStatus.js"></script>
   <script src="popup.js"></script>
 </body>

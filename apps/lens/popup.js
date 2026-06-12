@@ -1,5 +1,27 @@
 // popup.js
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TIER_LABELS = {
+  CONFIRMED: "Confirmed",
+  VERIFIED: "Verified",
+  AI_GUESS: "AI",
+  OFFICIAL: "Official",
+};
+
+const TIER_CLASSES = {
+  CONFIRMED: "tier--confirmed",
+  VERIFIED: "tier--verified",
+  AI_GUESS: "tier--ai-guess",
+  OFFICIAL: "tier--official",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Node status bar
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function updateNodeStatusBar(nodeUrl) {
   const bar = document.getElementById("node-status-bar");
   setNodeStatusChecking(bar);
@@ -7,6 +29,10 @@ async function updateNodeStatusBar(nodeUrl) {
   applyNodeStatusEl(bar, result);
   return result;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Search for a property by name with progressive truncation + coordinate scoring
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function searchForProperty(name, nodeUrl, coords, headers = {}) {
   const words = name.split(/\s+/);
@@ -25,26 +51,22 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
       if (results.length === 0) continue;
 
       const lower = name.toLowerCase();
-      // 1. Exact match
       const exact = results.find((p) => p.name.toLowerCase() === lower);
       if (exact) return exact;
-      // 2. Stored name is a unique prefix of the extracted name
+
       const prefixMatches = results.filter((p) => lower.startsWith(p.name.toLowerCase()));
       if (prefixMatches.length === 1) return prefixMatches[0];
 
       if (!bestCandidates) bestCandidates = results;
       break;
     } catch {
-      // network error on this attempt, try shorter
+      // network error — try shorter
     }
   }
 
   if (!bestCandidates) return null;
-
-  // Single unambiguous result — no coordinates needed to confirm
   if (bestCandidates.length === 1) return bestCandidates[0];
 
-  // Use coordinates to pick the closest candidate
   if (coords?.lat != null && coords?.lon != null) {
     const scored = bestCandidates
       .filter((p) => p.lat != null && p.lon != null)
@@ -57,8 +79,6 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
 }
 
 function extractHotelNameFromTab(tab) {
-  // Ask content script for og:title via GET_PROPERTY_ID message isn't enough —
-  // we derive the name from the tab title which Chrome exposes.
   const title = tab.title ?? "";
   return title
     .replace(/\s*[|\u2013\u2014]\s*(Booking\.com|Expedia|Hotels\.com|Agoda).*$/i, "")
@@ -66,39 +86,195 @@ function extractHotelNameFromTab(tab) {
     .trim();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DOM helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function createTierBadge(tier) {
+  const badge = document.createElement("span");
+  badge.className = `tier-badge ${TIER_CLASSES[tier] ?? TIER_CLASSES.OFFICIAL}`;
+  badge.textContent = TIER_LABELS[tier] ?? tier;
+  return badge;
+}
+
+function createFactsTable(facts) {
+  const table = document.createElement("table");
+  table.className = "facts-table";
+
+  facts.forEach((f) => {
+    const row = table.insertRow();
+
+    const labelCell = row.insertCell();
+    labelCell.className = "fact-label";
+    labelCell.textContent = f.fieldName.replace(/_/g, " ");
+
+    const valueCell = row.insertCell();
+    valueCell.className = "fact-value-cell";
+
+    const valueText = document.createTextNode(f.value + " ");
+    valueCell.appendChild(valueText);
+    valueCell.appendChild(createTierBadge(f.tier ?? "OFFICIAL"));
+  });
+
+  return table;
+}
+
+function createPropertyHeader(prop, displayName) {
+  const header = document.createElement("div");
+  header.className = "property-header";
+
+  if (prop?.name) {
+    const name = document.createElement("p");
+    name.className = "property-name";
+    name.textContent = prop.name;
+    header.appendChild(name);
+  } else if (displayName) {
+    const name = document.createElement("p");
+    name.className = "property-name";
+    name.textContent = displayName;
+    header.appendChild(name);
+  }
+
+  if (prop?.location) {
+    const loc = document.createElement("p");
+    loc.className = "property-location";
+    loc.textContent = prop.location;
+    header.appendChild(loc);
+  }
+
+  return header;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Search section
+// ─────────────────────────────────────────────────────────────────────────────
+
+function initSearchSection(nodeUrl, authHeaders, onSelect) {
+  const section = document.getElementById("search-section");
+  const input = document.getElementById("search-input");
+  const results = document.getElementById("search-results");
+
+  section.style.display = "block";
+
+  // Clear previous listeners by replacing the input
+  const freshInput = input.cloneNode(true);
+  input.parentNode.replaceChild(freshInput, input);
+
+  let searchTimer;
+  freshInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    const q = freshInput.value.trim();
+    results.innerHTML = "";
+
+    if (q.length < 2) return;
+
+    searchTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`,
+          { signal: AbortSignal.timeout(6000), headers: authHeaders }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const properties = data.properties ?? [];
+
+        results.innerHTML = "";
+
+        if (properties.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "search-empty";
+          empty.textContent = "No results found";
+          results.appendChild(empty);
+          return;
+        }
+
+        properties.slice(0, 8).forEach((prop) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "search-result-btn";
+
+          const nameEl = document.createElement("span");
+          nameEl.className = "search-result-name";
+          nameEl.textContent = prop.name;
+
+          const locEl = document.createElement("span");
+          locEl.className = "search-result-loc";
+          locEl.textContent = prop.location ?? "";
+
+          btn.appendChild(nameEl);
+          btn.appendChild(locEl);
+          btn.addEventListener("click", () => {
+            section.style.display = "none";
+            document.getElementById("search-toggle-bar").style.display = "none";
+            onSelect(prop.id, prop.name);
+          });
+
+          results.appendChild(btn);
+        });
+      } catch {
+        // silent — network or abort
+      }
+    }, 350);
+  });
+}
+
+function showSearchToggle(nodeUrl, authHeaders, onSelect) {
+  const bar = document.getElementById("search-toggle-bar");
+  const btn = document.getElementById("search-toggle-btn");
+  bar.style.display = "block";
+
+  let open = false;
+
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+
+  newBtn.addEventListener("click", () => {
+    open = !open;
+    if (open) {
+      newBtn.textContent = "✕ Close search";
+      initSearchSection(nodeUrl, authHeaders, onSelect);
+    } else {
+      newBtn.textContent = "🔍 Search for different property";
+      document.getElementById("search-section").style.display = "none";
+      document.getElementById("search-results").innerHTML = "";
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Login form
+// ─────────────────────────────────────────────────────────────────────────────
+
 function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = null) {
-  const offlineHint = nodeHealth?.state === "offline"
-    ? `<p style="color:#b91c1c;font-size:12px;margin-bottom:10px">Node is unreachable. Update the URL in <a href="options.html">settings</a>.</p>`
-    : "";
+  hideSearchUI();
+
+  const offlineMsg =
+    nodeHealth?.state === "offline"
+      ? `<p style="color:#dc2626;font-size:12px;margin-bottom:10px">Node is unreachable. Update the URL in <a href="#" id="wt-settings-link" style="color:#1d4ed8">settings</a>.</p>`
+      : "";
+
   content.innerHTML = `
-    <div style="padding:4px 0">
-      ${offlineHint}
-      <p style="font-size:13px;color:#374151;margin-bottom:12px;font-weight:500">Sign in to your node</p>
-      <input id="wt-login-username" type="text" placeholder="Username"
-        style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:8px">
-      <input id="wt-login-password" type="password" placeholder="Password"
-        style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:10px">
-      <button id="wt-login-btn"
-        style="width:100%;background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">
-        Sign in
-      </button>
-      <p id="wt-login-error" style="color:#ef4444;font-size:12px;margin-top:6px;display:none"></p>
-      <p style="font-size:11px;color:#9ca3af;margin-top:10px;text-align:center">
-        No account? <a id="wt-register-link" href="#" style="color:#1e3a5f">Register on node →</a>
-      </p>
+    <div style="padding:2px 0">
+      ${offlineMsg}
+      <p style="font-size:13px;color:#334155;margin-bottom:12px;font-weight:600">Sign in to your node</p>
+      <input id="wt-login-username" type="text" placeholder="Username" class="login-input" autocomplete="username">
+      <input id="wt-login-password" type="password" placeholder="Password" class="login-input" autocomplete="current-password">
+      <button id="wt-login-btn" class="login-btn">Sign in</button>
+      <p id="wt-login-error" class="login-error"></p>
+      <p class="login-footer">No account? <a id="wt-register-link" href="#">Register on node →</a></p>
     </div>
   `;
 
-  // Load node URL from storage to show registration link
+  document.getElementById("wt-settings-link")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.runtime.openOptionsPage();
+  });
+
   chrome.storage.sync.get({ nodeUrl }, (items) => {
-    const link = document.getElementById("wt-register-link");
-    if (link) {
-      // Open in the browser (not inside the popup itself)
-      link.addEventListener("click", (e) => {
-        e.preventDefault();
-        chrome.tabs.create({ url: `${items.nodeUrl}/register` });
-      });
-    }
+    document.getElementById("wt-register-link")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: `${items.nodeUrl}/register` });
+    });
 
     document.getElementById("wt-login-btn").addEventListener("click", async () => {
       const username = document.getElementById("wt-login-username").value.trim();
@@ -112,6 +288,10 @@ function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = 
         return;
       }
 
+      const btn = document.getElementById("wt-login-btn");
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+
       try {
         const res = await fetch(`${items.nodeUrl}/api/auth/login`, {
           method: "POST",
@@ -123,34 +303,133 @@ function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = 
         if (!res.ok) {
           errEl.textContent = data.message ?? "Login failed.";
           errEl.style.display = "block";
+          btn.disabled = false;
+          btn.textContent = "Sign in";
           return;
         }
         await new Promise((resolve) =>
           chrome.storage.sync.set({ wtToken: data.token, wtUsername: username }, resolve)
         );
-        // Reload popup to fetch data with the new token
         init();
       } catch {
         errEl.textContent = "Could not reach node.";
         errEl.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Sign in";
       }
     });
 
-    // Allow Enter key in password field
     document.getElementById("wt-login-password").addEventListener("keydown", (e) => {
       if (e.key === "Enter") document.getElementById("wt-login-btn").click();
     });
   });
 }
 
+function hideSearchUI() {
+  document.getElementById("search-section").style.display = "none";
+  document.getElementById("search-toggle-bar").style.display = "none";
+  document.getElementById("search-results").innerHTML = "";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fetch and render property facts
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHeaders, tab) {
+  const res = await fetch(
+    `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
+    { signal: AbortSignal.timeout(6000), headers: authHeaders }
+  );
+
+  if (res.status === 401 || res.status === 403) {
+    await new Promise((resolve) => chrome.storage.sync.remove(["wtToken"], resolve));
+    showLoginForm(content, nodeUrl);
+    return;
+  }
+
+  if (res.status === 404) {
+    // Name-search fallback using tab title
+    if (tab) {
+      const name = extractHotelNameFromTab(tab);
+      if (name) {
+        const match = await searchForProperty(name, nodeUrl, null, authHeaders);
+        if (match) {
+          return fetchAndRender(match.id, match.name, content, nodeUrl, authHeaders, null);
+        }
+      }
+    }
+    renderNotFound(content, nodeUrl, authHeaders, displayName);
+    return;
+  }
+
+  if (!res.ok) {
+    renderNotFound(content, nodeUrl, authHeaders, displayName);
+    return;
+  }
+
+  const data = await res.json();
+  const facts = data.facts ?? [];
+  const prop = data.property;
+
+  content.innerHTML = "";
+  content.appendChild(createPropertyHeader(prop, displayName));
+
+  if (facts.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "state-empty";
+    empty.style.paddingTop = "8px";
+    empty.innerHTML = `<p>No accessibility facts yet.<br>Use the Field Kit to submit an audit.</p>`;
+    content.appendChild(empty);
+  } else {
+    content.appendChild(createFactsTable(facts));
+  }
+
+  // Show search toggle below facts
+  showSearchToggle(nodeUrl, authHeaders, (id, name) => {
+    content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:8px 0">Loading…</p>`;
+    fetchAndRender(id, name, content, nodeUrl, authHeaders, null);
+  });
+}
+
+function renderNotFound(content, nodeUrl, authHeaders, displayName) {
+  content.innerHTML = "";
+
+  const empty = document.createElement("div");
+  empty.className = "state-empty";
+
+  const icon = document.createElement("div");
+  icon.className = "state-icon";
+  icon.textContent = "🏨";
+  empty.appendChild(icon);
+
+  const msg = document.createElement("p");
+  msg.textContent = displayName
+    ? `No data found for "${displayName}".`
+    : "No data found for this property.";
+  empty.appendChild(msg);
+
+  content.appendChild(empty);
+
+  // Show search section expanded
+  initSearchSection(nodeUrl, authHeaders, (id, name) => {
+    content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:8px 0">Loading…</p>`;
+    fetchAndRender(id, name, content, nodeUrl, authHeaders, null);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialise popup
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function init() {
   const content = document.getElementById("content");
+  hideSearchUI();
 
-  // Get active tab
+  content.innerHTML = `<p style="color:#94a3b8;font-size:13px">Loading…</p>`;
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? "";
 
-  // Load stored auth token
   const { wtToken, wtUsername: storedUsername, nodeUrl: storedNodeUrl } =
     await new Promise((resolve) =>
       chrome.storage.sync.get(
@@ -161,40 +440,48 @@ async function init() {
 
   const nodeHealth = await updateNodeStatusBar(storedNodeUrl);
 
-  // Show username@node in header if stored, and expose sign-out button
+  // Header: username + sign-out button
   const userLine = document.getElementById("user-line");
   const signOutBtn = document.getElementById("wt-signout");
+
   if (storedUsername) {
     try {
       const host = new URL(storedNodeUrl).hostname;
       if (userLine) userLine.textContent = `${storedUsername}@${host}`;
-    } catch { /* ignore */ }
+    } catch { /* invalid URL */ }
+  } else {
+    if (userLine) userLine.textContent = "";
   }
+
   if (wtToken && signOutBtn) {
     signOutBtn.style.display = "block";
-    signOutBtn.addEventListener("click", async () => {
+    // Use a one-time handler to avoid stacking listeners across init() calls
+    signOutBtn.onclick = async () => {
       await new Promise((resolve) =>
         chrome.storage.sync.remove(["wtToken", "wtUsername"], resolve)
       );
       signOutBtn.style.display = "none";
       if (userLine) userLine.textContent = "";
       showLoginForm(content, storedNodeUrl, nodeHealth);
-    });
+    };
+  } else if (signOutBtn) {
+    signOutBtn.style.display = "none";
+    signOutBtn.onclick = null;
   }
 
-  // If no token — show login form
   if (!wtToken) {
     showLoginForm(content, storedNodeUrl, nodeHealth);
     return;
   }
 
-  // Ask content script for coordinates, then resolve the best node via peers
+  // Get coordinates from content script
   let coords = null;
   try {
     const coordRes = await chrome.tabs.sendMessage(tab.id, { type: "GET_COORDS" });
     if (coordRes?.lat != null && coordRes?.lon != null) coords = coordRes;
-  } catch { /* content script not injected on this page */ }
+  } catch { /* content script not on this page */ }
 
+  // Resolve best regional node via peers
   const { nodeUrl, regionMissing } = await new Promise((resolve) =>
     chrome.runtime.sendMessage(
       { type: "RESOLVE_NODE", lat: coords?.lat ?? null, lon: coords?.lon ?? null },
@@ -202,27 +489,22 @@ async function init() {
     )
   );
 
-  // Show regional warning if no bbox-matched node was found
+  // Regional fallback warning
   if (regionMissing && coords != null) {
     const banner = document.createElement("div");
-    banner.style.cssText = `
-      background:#fef3c7;color:#92400e;font-size:12px;padding:8px 16px;
-      border-bottom:1px solid #fde68a;display:flex;gap:8px;align-items:flex-start;
-    `;
-    banner.innerHTML = `<span>⚠️</span><span>No regional node available for this location. Data may be from another region.</span>`;
-    document.querySelector("header").after(banner);
+    banner.className = "warning-banner";
+    banner.innerHTML = `<span aria-hidden="true">⚠️</span><span>No regional node for this location — data may be from another region.</span>`;
+    document.getElementById("node-status-bar").after(banner);
   }
 
-  // Try to get property ID from the content script first (handles meta tags)
+  // Extract property ID via content script
   let propertyId = "unknown";
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: "GET_PROPERTY_ID" });
-    if (response?.propertyId) {
-      propertyId = response.propertyId;
-    }
+    if (response?.propertyId) propertyId = response.propertyId;
   } catch {
-    // Content script not available, fall back to URL heuristics
-    const bookingQuery = new URLSearchParams(new URL(url).search).get("hotelid");
+    const params = (() => { try { return new URLSearchParams(new URL(url).search); } catch { return new URLSearchParams(); } })();
+    const bookingQuery = params.get("hotelid");
     if (bookingQuery) propertyId = `booking-${bookingQuery}`;
     else {
       const bookingPath = url.match(/booking\.com\/hotel\/[^/]+\/([^.?#]+)/);
@@ -232,85 +514,26 @@ async function init() {
     }
   }
 
-  content.innerHTML = `
-    <p class="property-id">Property: ${propertyId}</p>
-    <p style="color:#9ca3af;font-size:12px">Fetching from <code>${nodeUrl}</code>…</p>`;
+  content.innerHTML = `<p style="color:#94a3b8;font-size:13px">Fetching from <code>${nodeUrl}</code>…</p>`;
 
   const authHeaders = { Authorization: `Bearer ${wtToken}` };
 
-  async function fetchAndRender(resolvedId, displayId) {
-    const res = await fetch(
-      `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
-      { signal: AbortSignal.timeout(6000), headers: authHeaders }
-    );
-
-    if (res.status === 401 || res.status === 403) {
-      // Token expired or revoked — clear and show login
-      await new Promise((resolve) => chrome.storage.sync.remove(["wtToken"], resolve));
-      showLoginForm(content, storedNodeUrl);
-      return;
-    }
-
-    if (res.status === 404) {
-      // Try name-search fallback using the tab title
-      const name = extractHotelNameFromTab(tab);
-      if (name) {
-        const match = await searchForProperty(name, nodeUrl, coords, authHeaders);
-        if (match) {
-          return fetchAndRender(match.id, match.name);
-        }
-      }
-      content.innerHTML = `
-        <p class="property-id">Property: ${displayId}</p>
-        <p class="empty">No data found for this property.</p>`;
-      return;
-    }
-
-    if (!res.ok) {
-      content.innerHTML = `
-        <p class="property-id">Property: ${displayId}</p>
-        <p class="empty">No data found for this property.</p>`;
-      return;
-    }
-
-    const data = await res.json();
-    const facts = data.facts ?? [];
-    const prop = data.property;
-
-    const propNameHtml = prop?.name
-      ? `<p style="font-weight:700;font-size:13px;margin:0 0 2px">${prop.name}</p>`
-      : "";
-    const propAddressHtml = prop?.location
-      ? `<p style="font-size:11px;color:#6b7280;margin:0 0 10px">${prop.location}</p>`
-      : "";
-    const propHeader = propNameHtml || propAddressHtml
-      ? `${propNameHtml}${propAddressHtml}`
-      : `<p class="property-id">Property: ${displayId}</p>`;
-
-    if (facts.length === 0) {
-      content.innerHTML = `
-        ${propHeader}
-        <p class="empty">No accessibility facts yet.<br>Use the Field Kit to submit an audit.</p>`;
-      return;
-    }
-
-    let html = `${propHeader}<table><tbody>`;
-    for (const f of facts) {
-      html += `
-        <tr>
-          <td style="font-weight:500;color:#374151">${f.fieldName.replace(/_/g, " ")}</td>
-          <td>${f.value}</td>
-        </tr>`;
-    }
-    html += `</tbody></table>`;
-    content.innerHTML = html;
-  }
-
   try {
-    await fetchAndRender(propertyId, propertyId);
+    await fetchAndRender(propertyId, null, content, nodeUrl, authHeaders, tab);
   } catch {
-    content.innerHTML = `<p class="empty">Could not reach node.<br>
-      <a href="options.html">Check settings →</a></p>`;
+    content.innerHTML = "";
+    const empty = document.createElement("div");
+    empty.className = "state-empty";
+    empty.innerHTML = `<div class="state-icon">⚡</div><p>Could not reach node.<br><a href="#" id="wt-settings-link2">Check settings →</a></p>`;
+    content.appendChild(empty);
+    document.getElementById("wt-settings-link2")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    });
+    initSearchSection(nodeUrl, authHeaders, (id, name) => {
+      content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:8px 0">Loading…</p>`;
+      fetchAndRender(id, name, content, nodeUrl, authHeaders, null);
+    });
   }
 }
 

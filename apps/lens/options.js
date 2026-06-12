@@ -17,7 +17,7 @@ function getNodeUrl() {
   return input.value.trim().replace(/\/$/, "");
 }
 
-function setStatus(message, color = "#374151") {
+function setStatus(message, color = "#334155") {
   status.style.color = color;
   status.textContent = message;
 }
@@ -28,14 +28,14 @@ function clearStatusSoon(delay = 2500) {
 
 function validateNodeUrl(url) {
   if (!url) {
-    setStatus("Node URL cannot be empty.", "#ef4444");
+    setStatus("Node URL cannot be empty.", "#dc2626");
     return false;
   }
   try {
     new URL(url);
     return true;
   } catch {
-    setStatus("Invalid node URL.", "#ef4444");
+    setStatus("Invalid node URL — must start with http:// or https://", "#dc2626");
     return false;
   }
 }
@@ -82,9 +82,9 @@ saveBtn.addEventListener("click", async () => {
   chrome.storage.sync.set({ nodeUrl: url }, async () => {
     const result = await refreshNodeStatus(url);
     if (result.state === "online") {
-      setStatus("\u2705 Node URL saved and reachable.", "#059669");
+      setStatus("✅ Node URL saved and reachable.", "#059669");
     } else {
-      setStatus("\u2705 Node URL saved, but the node is not reachable.", "#b45309");
+      setStatus("✅ Node URL saved — but the node is not reachable right now.", "#854d0e");
     }
     clearStatusSoon(3500);
   });
@@ -99,14 +99,14 @@ async function doAuth(mode) {
 
   const health = await refreshNodeStatus(nodeUrl);
   if (health.state !== "online") {
-    setStatus("Cannot sign in — node is not reachable.", "#ef4444");
+    setStatus("Cannot sign in — node is not reachable.", "#dc2626");
     return;
   }
 
   const username = document.getElementById("username").value.trim().toLowerCase();
   const password = document.getElementById("password").value;
   if (!username || !password) {
-    setStatus("Enter username and password.", "#ef4444");
+    setStatus("Enter username and password.", "#dc2626");
     return;
   }
 
@@ -122,7 +122,7 @@ async function doAuth(mode) {
       });
       const regData = await regRes.json();
       if (!regRes.ok) {
-        setStatus(regData.message ?? "Registration failed.", "#ef4444");
+        setStatus(regData.message ?? "Registration failed.", "#dc2626");
         return;
       }
     }
@@ -134,7 +134,7 @@ async function doAuth(mode) {
     });
     const data = await res.json();
     if (!res.ok) {
-      setStatus(data.message ?? "Login failed.", "#ef4444");
+      setStatus(data.message ?? "Login failed.", "#dc2626");
       return;
     }
 
@@ -144,13 +144,13 @@ async function doAuth(mode) {
         renderAuthState(data.username ?? username);
         document.getElementById("password").value = "";
         setStatus(
-          mode === "register" ? "\u2705 Account created and signed in." : "\u2705 Signed in.",
+          mode === "register" ? "✅ Account created and signed in." : "✅ Signed in.",
           "#059669"
         );
       }
     );
   } catch {
-    setStatus("Could not reach the node. Check the URL and try again.", "#ef4444");
+    setStatus("Could not reach the node. Check the URL and try again.", "#dc2626");
   } finally {
     loginBtn.disabled = false;
     registerBtn.disabled = false;
