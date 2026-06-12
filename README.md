@@ -1,23 +1,36 @@
-﻿# WikiTraveler 🌍
+﻿<p align="center">
+  <img src="docs/assets/wikitraveler-mark.svg" width="72" alt="WikiTraveler logo" />
+</p>
 
-WikiTraveler is a open-source, federated protocol that sidecars real-world accessibility intelligence onto global travel platforms. Traditional booking sites provide outdated, vague, or missing data. WikiTraveler provides the Ground Truth — community-audited, multi-auditor confirmed, and impossible to paywall.
+<h1 align="center">WikiTraveler</h1>
+
+<p align="center">
+  <strong>Open-source, federated accessibility intelligence for travel.</strong><br />
+  Real specs from the field — not marketing copy from a booking site.
+</p>
+
+<p align="center">
+  WikiTraveler sidecars verified accessibility facts onto hotels and destinations.
+  Auditors capture ground truth with Field Kit and Lens; independent nodes gossip those facts
+  across a peer mesh so the data stays community-owned and free to use.
+</p>
 
 ---
 
-## The Manifesto
+## Why WikiTraveler exists
 
-**The Vision** — Replace the broken, unreliable data of corporate booking apps with a Distributed Truth Layer. Travelers deserve certainties, not best guesses. Community-driven data stays free, open, and verified by people who actually stand on the ground.
+Corporate travel platforms often show accessibility information that is vague, outdated, or missing entirely. WikiTraveler treats that gap as a protocol problem, not a content problem: structured facts, clear trust tiers, and federation so no single vendor can gatekeep the truth.
 
-**The Mission** — Bypass the "performative accuracy" of global travel sites. WikiTraveler is an open-source sidecar that injects high-resolution, community-audited intelligence directly into your browser. Field Audits confirm ground truth. A Federated Mesh of nodes ensures the truth can never be paywalled.
+---
 
-**The Strategy: Community-Owned Certainty**
+## How it works
 
-1. **Expose** — Ingest open directory records (Wikidata, OpenStreetMap) to highlight where accessibility data is missing or vague.
-2. **Verify** — Use the Field Kit and Lens to override corporate claims with real-world specs.
-3. **Decentralize** — Deploy a distributed network of nodes on Vercel or Docker for data sovereignty.
-4. **Gossip** — Sync verified insights via delta snapshots so community truth scales faster than any booking app.
-5. **Federate** — Push new `VERIFIED` facts to peer nodes in real time via signed inbox messages (ActivityPub-inspired). Each node publishes its identity and public key at `/.well-known/webfinger` for automatic discovery.
-6. **Open-Source** — Keep the protocol 100% free and open, allowing anyone to build on top of the mesh.
+1. **Baseline** — Ingest open directory data (Wikidata, OpenStreetMap) as a starting `OFFICIAL` layer.
+2. **Audit** — Field Kit and Lens let auditors record what is actually on the ground, upgrading facts to `VERIFIED`.
+3. **Confirm** — When independent auditors agree, facts rise to `CONFIRMED` — the highest tier wins.
+4. **Deploy** — Run a node on Vercel or Docker; each operator keeps sovereignty over their region.
+5. **Sync** — Gossip deltas and signed inbox pushes spread verified facts between peer nodes in near real time.
+6. **Build** — The protocol, SDK, and mesh APIs stay open so agencies, apps, and extensions can plug in freely.
 
 ---
 

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WikiTraveler">
+  <rect width="64" height="64" rx="14" fill="#1e3a8a"/>
+  <g transform="translate(16 16)" fill="none">
+    <path
+      d="M16 2L28 9v14L16 30 4 23V9L16 2z"
+      stroke="#ffffff"
+      stroke-width="1.75"
+      stroke-linejoin="round"
+    />
+    <path d="M16 9l4 6H12l4-6z" fill="#ffffff"/>
+    <path
+      d="M10 20h12"
+      stroke="#ffffff"
+      stroke-width="2"
+      stroke-linecap="round"
+    />
+  </g>
+</svg>
