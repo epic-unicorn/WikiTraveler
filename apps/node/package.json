@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:migrate-photos": "tsx scripts/migrate-photos.ts"
   },
   "dependencies": {
@@ -34,6 +36,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "tsx": "^4.15.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

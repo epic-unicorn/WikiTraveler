@@ -9,6 +9,7 @@
     "dev:agency-demo": "pnpm --filter @wikitraveler/sdk build && npx serve -p 4000 .",
     "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ui build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build",
     "lint": "pnpm --recursive lint",
+    "test": "pnpm --filter @wikitraveler/node test",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed.ts",

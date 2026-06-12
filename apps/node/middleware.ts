@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { getClientIp, getRateLimitProfile } from "@/lib/rateLimitRoutes";
 
 // Paths that don't require a login cookie
 const SKIP_PREFIXES = ["/_next/", "/api/", "/.well-known/"];
@@ -35,14 +36,6 @@ function getLimiters(): { auth: Ratelimit | null; audit: Ratelimit | null } {
   return { auth: authLimiter, audit: auditLimiter! };
 }
 
-function getClientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "anonymous"
-  );
-}
-
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const method = req.method;
@@ -51,15 +44,11 @@ export async function middleware(req: NextRequest) {
   // Only applies when UPSTASH_REDIS_REST_URL / _TOKEN are set.
   const { auth: al, audit: audl } = getLimiters();
   if (al && audl) {
-    const isAuthRoute =
-      method === "POST" && /^\/api\/auth\/(login|register)$/.test(pathname);
-    const isAuditRoute =
-      method === "POST" &&
-      /^\/api\/properties\/[^/]+\/accessibility$/.test(pathname);
-
-    const limiter = isAuthRoute ? al : isAuditRoute ? audl : null;
+    const profile = getRateLimitProfile(pathname, method);
+    const limiter =
+      profile === "auth" ? al : profile === "audit" ? audl : null;
     if (limiter) {
-      const ip = getClientIp(req);
+      const ip = getClientIp(req.headers);
       const { success, reset } = await limiter.limit(ip);
       if (!success) {
         const retryAfter = Math.ceil((reset - Date.now()) / 1000);

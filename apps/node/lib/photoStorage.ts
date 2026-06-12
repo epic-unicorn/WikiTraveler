@@ -168,6 +168,11 @@ export async function getPhotoStorage(): Promise<PhotoStorageAdapter> {
   return _adapter;
 }
 
+/** Clears the cached adapter — for tests only. */
+export function resetPhotoStorageCache(): void {
+  _adapter = null;
+}
+
 /**
  * Normalise a stored photo reference into a data-URI suitable for AI vision.
  * - HTTPS URLs: returned as-is (OpenAI / hosted models accept them natively).
