@@ -9,7 +9,10 @@ import type { AgentFact } from "./types";
  * Works with any OpenAI-compatible vision model (GPT-4o, llama3.2-vision,
  * llava, moondream, etc.).
  *
- * @param photos  Array of base64 strings or full data-URI strings (max 3).
+ * @param photos  Array of base64 strings, data-URI strings, or HTTPS URLs (max 3).
+ *   HTTPS URLs are passed directly — supported by OpenAI and most hosted providers.
+ *   Local Ollama instances cannot fetch public URLs; use the base64 storage
+ *   adapter (PHOTO_STORAGE_PROVIDER unset) when running AI locally.
  * @param config  AI provider configuration.
  */
 export async function analyzePhotos(
@@ -20,11 +23,16 @@ export async function analyzePhotos(
 
   const { client, visionModel, isLocal } = createAiClient(config);
 
-  // Normalise to data-URI format expected by vision models.
+  // Normalise photo references for the vision API:
+  //   HTTPS URL  → passed as-is (OpenAI and hosted providers accept them directly)
+  //   data: URI  → passed as-is
+  //   plain base64 → wrapped in data:image/jpeg;base64,… for backward compat
   const imageContent = photos.slice(0, 3).map((photo) => ({
     type: "image_url" as const,
     image_url: {
-      url: photo.startsWith("data:") ? photo : `data:image/jpeg;base64,${photo}`,
+      url: /^(data:|https?:\/\/)/.test(photo)
+        ? photo
+        : `data:image/jpeg;base64,${photo}`,
       detail: "auto" as const,
     },
   }));

@@ -6,11 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate-photos": "tsx scripts/migrate-photos.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1067.0",
     "@prisma/client": "^5.14.0",
+    "@supabase/storage-js": "^2.108.1",
     "@types/bcryptjs": "^3.0.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "@wikitraveler/ai-agent": "workspace:*",
     "@wikitraveler/core": "workspace:*",
     "@wikitraveler/ui": "workspace:*",
@@ -28,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "tsx": "^4.15.0",
     "typescript": "^5"
   }
 }

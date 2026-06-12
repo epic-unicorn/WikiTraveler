@@ -1,4 +1,4 @@
-﻿# Deployment Guide
+# Deployment Guide
 
 WikiTraveler ships two deployable Next.js apps: the **node** (API + dashboard) and the **field-kit** (mobile audit UI). Both run on Vercel. The node requires an external PostgreSQL database; the field-kit is a static frontend that calls the node over HTTPS.
 
@@ -14,8 +14,8 @@ WikiTraveler ships two deployable Next.js apps: the **node** (API + dashboard) a
 Recommended production layout:
 
 ```
-https://node.example.com      ← Node (API + dashboard)
-https://audit.example.com     ← Field Kit (points at node via env var)
+https://node.example.com      ? Node (API + dashboard)
+https://audit.example.com     ? Field Kit (points at node via env var)
 ```
 
 The Chrome **Lens** extension and agency SDK both call the node URL directly. Configure Lens in its settings page; set `NEXT_PUBLIC_NODE_API_URL` on Field Kit.
@@ -26,8 +26,8 @@ The Chrome **Lens** extension and agency SDK both call the node URL directly. Co
 
 Before deploying either app:
 
-1. **PostgreSQL** — [Neon](https://neon.tech), [Supabase](https://supabase.com), [Vercel Postgres](https://vercel.com/storage/postgres), or self-hosted. Enable SSL (`?sslmode=require` on the connection string).
-2. **RS256 keypair** — required for cross-node auth and Field Kit / Lens JWT verification:
+1. **PostgreSQL** ? [Neon](https://neon.tech), [Supabase](https://supabase.com), [Vercel Postgres](https://vercel.com/storage/postgres), or self-hosted. Enable SSL (`?sslmode=require` on the connection string).
+2. **RS256 keypair** ? required for cross-node auth and Field Kit / Lens JWT verification:
 
    ```bash
    openssl genrsa -out node_private.pem 2048
@@ -36,14 +36,14 @@ Before deploying either app:
 
    Paste PEM contents into Vercel env vars. Use literal `\n` for newlines, or paste multi-line values in the Vercel dashboard.
 
-3. **pnpm monorepo** — both apps depend on workspace packages (`@wikitraveler/core`, `@wikitraveler/ai-agent`). Vercel must install from the **repository root**, not from the app subdirectory alone.
+3. **pnpm monorepo** ? both apps depend on workspace packages (`@wikitraveler/core`, `@wikitraveler/ai-agent`). Vercel must install from the **repository root**, not from the app subdirectory alone.
 
 ---
 
-## Step 1 — Provision the database
+## Step 1 ? Provision the database
 
 1. Create a PostgreSQL database with your provider.
-2. Copy the connection string (pooler URL if available — recommended for serverless).
+2. Copy the connection string (pooler URL if available ? recommended for serverless).
 3. Apply migrations **once** from your machine or CI:
 
    ```bash
@@ -58,7 +58,7 @@ Before deploying either app:
 
 ---
 
-## Step 2 — Deploy the node on Vercel
+## Step 2 ? Deploy the node on Vercel
 
 ### 2a. Create the Vercel project
 
@@ -85,7 +85,7 @@ Before deploying either app:
 
 ### 2b. Environment variables (node)
 
-Set these in the Vercel project **Settings → Environment Variables**:
+Set these in the Vercel project **Settings ? Environment Variables**:
 
 | Variable | Required | Description |
 | --- | --- | --- |
@@ -140,7 +140,7 @@ curl https://node.example.com/.well-known/pubkey
 
 On first deploy, no admin account exists. Either:
 
-1. Open `https://node.example.com` in a browser — you are redirected to `/setup` to create the first administrator, or
+1. Open `https://node.example.com` in a browser ? you are redirected to `/setup` to create the first administrator, or
 2. Call the setup API:
 
    ```bash
@@ -149,7 +149,7 @@ On first deploy, no admin account exists. Either:
      -d '{"username":"admin","password":"your-secure-password"}'
    ```
 
-Then promote auditors via **Stats → Users** on the dashboard.
+Then promote auditors via **Stats ? Users** on the dashboard.
 
 ### 2f. Register peers (optional)
 
@@ -160,11 +160,11 @@ curl -X POST https://node-a.example.com/api/nodes \
   -d '{"url":"https://node-b.example.com"}'
 ```
 
-Or set matching `BOOTSTRAP_PEERS` on each node — the gossip cron auto-registers on first run.
+Or set matching `BOOTSTRAP_PEERS` on each node ? the gossip cron auto-registers on first run.
 
 ---
 
-## Step 3 — Deploy Field Kit on Vercel
+## Step 3 ? Deploy Field Kit on Vercel
 
 Field Kit is a separate Vercel project with no database and no cron jobs.
 
@@ -205,7 +205,7 @@ Without this, browser login and audit submissions from Field Kit will be blocked
 vercel deploy --prod
 ```
 
-1. Open the Field Kit URL — you should land on `/login`.
+1. Open the Field Kit URL ? you should land on `/login`.
 2. Enter the node URL (pre-filled from `NEXT_PUBLIC_NODE_API_URL`), auditor credentials, and sign in.
 3. Search for a property and submit a test audit.
 4. Confirm the fact appears on the node dashboard.
@@ -214,11 +214,11 @@ Auditors need role `AUDITOR` or `ADMIN`. New registrations default to `USER` (pe
 
 ---
 
-## Step 4 — Connect clients
+## Step 4 ? Connect clients
 
 | Client | Configuration |
 | --- | --- |
-| **Lens extension** | Load unpacked from `apps/lens/` → **Extension options** → set Node URL and sign in |
+| **Lens extension** | Load unpacked from `apps/lens/` ? **Extension options** ? set Node URL and sign in |
 | **Agency SDK** | Point widget at `https://node.example.com`; add agency origin to `CORS_ORIGINS` |
 | **Field Kit** | `NEXT_PUBLIC_NODE_API_URL` env var (users can override in login UI via localStorage) |
 
@@ -239,10 +239,12 @@ Use this before going live:
 - [ ] `/api/health` returns 200
 - [ ] Test audit from Field Kit appears on node dashboard
 - [ ] Lens extension signed in against production node
+- [ ] (Optional) `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` set for rate limiting
+- [ ] (Optional) `PHOTO_STORAGE_PROVIDER` + credentials set if moving photos off Postgres
 
 ---
 
-## Option — Docker (single node)
+## Option ? Docker (single node)
 
 For self-hosted deployments without Vercel:
 
@@ -285,7 +287,7 @@ docker compose -f docker/docker-compose.yml down        # keeps data
 docker compose -f docker/docker-compose.yml down -v   # removes data
 ```
 
-Field Kit is not included in the Docker compose stack — deploy it separately on Vercel or run locally with `pnpm dev:field-kit`.
+Field Kit is not included in the Docker compose stack ? deploy it separately on Vercel or run locally with `pnpm dev:field-kit`.
 
 ---
 
@@ -297,11 +299,36 @@ Field Kit is not included in the Docker compose stack — deploy it separately o
 
 **CORS:** Lock `CORS_ORIGINS` to exact production domains. Avoid `*` when handling authenticated audits.
 
-**Rate limiting:** The node has no built-in rate limiting. Put it behind a reverse proxy or Vercel firewall rules for `/api/auth/login`, `/api/auth/register`, and `/api/properties/*/accessibility`.
+**Rate limiting:** Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (from [Upstash](https://upstash.com) ? free tier is sufficient for most nodes) to enable sliding-window rate limiting in Next.js middleware:
 
-**AI cost control:** The `?limit=N` param on `/api/cron/ai-scan` caps properties processed per run (default 20, max 50).
+| Path | Limit |
+| --- | --- |
+| `POST /api/auth/login` | 10 req / 60 s per IP |
+| `POST /api/auth/register` | 10 req / 60 s per IP |
+| `POST /api/properties/*/accessibility` | 20 req / 60 s per IP |
 
-**Photo storage:** Photos are stored as base64 in Postgres for the MVP. For high-volume production, switch to S3/R2/Supabase Storage and store URLs instead.
+Without these env vars the node runs without rate limiting (safe for private deployments; not recommended for public nodes).
+
+**AI cost control:** Set `MAX_AI_SCAN_PER_RUN` to control how many properties the daily AI scan processes per run (default `20`, hard ceiling `50`). The `?limit=N` query param can override it per-call.
+
+**Photo storage:** Controlled by `PHOTO_STORAGE_PROVIDER`:
+
+| Value | Backend | Extra env vars required |
+| --- | --- | --- |
+| _(unset)_ | Base64 in Postgres ? zero config, good for demos | ? |
+| `r2` | Cloudflare R2 ? 10 GB / 1 M writes free forever | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` |
+| `supabase` | Supabase Storage ? 1 GB free on Supabase free plan | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET` (default: `photos`) |
+
+When switching from base64 to an object-storage backend, run the one-off migration script to upload existing photos and replace the stored data-URIs with URLs:
+
+```bash
+PHOTO_STORAGE_PROVIDER=r2 R2_ACCOUNT_ID=... R2_BUCKET=... \
+  R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_PUBLIC_URL=https://... \
+  DATABASE_URL=postgresql://... \
+  pnpm --filter @wikitraveler/node db:migrate-photos
+```
+
+The script is idempotent ? rows that already contain HTTPS URLs are skipped.
 
 ---
 
@@ -309,16 +336,28 @@ Field Kit is not included in the Docker compose stack — deploy it separately o
 
 | Variable | Docker default | Node (Vercel) | Field Kit (Vercel) |
 | --- | --- | --- | --- |
-| `DATABASE_URL` | `postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler` | From provider | — |
-| `NODE_ID` | `docker-node-1` | Set in dashboard | — |
-| `NODE_URL` | `http://localhost:3000` | Production URL | — |
-| `NODE_PRIVATE_KEY` | _(empty)_ | **Recommended** | — |
-| `NODE_PUBLIC_KEY` | _(empty)_ | **Recommended** | — |
-| `OPEN_REGISTRATION` | `true` | Set in dashboard | — |
-| `CORS_ORIGINS` | `*` | Locked-down list | — |
-| `BOOTSTRAP_PEERS` | _(empty)_ | Optional | — |
-| `CRON_SECRET` | _(empty)_ | **Required** | — |
-| `OPENAI_API_KEY` / `AI_*` | _(empty)_ | Optional | — |
-| `WHEELMAP_API_KEY` | _(empty)_ | Optional | — |
-| `OSM_BBOX` | Netherlands default | Set per region | — |
-| `NEXT_PUBLIC_NODE_API_URL` | `http://localhost:3000` (local) | — | **Required** |
+| `DATABASE_URL` | `postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler` | From provider | ? |
+| `NODE_ID` | `docker-node-1` | Set in dashboard | ? |
+| `NODE_URL` | `http://localhost:3000` | Production URL | ? |
+| `NODE_PRIVATE_KEY` | _(empty)_ | **Recommended** | ? |
+| `NODE_PUBLIC_KEY` | _(empty)_ | **Recommended** | ? |
+| `OPEN_REGISTRATION` | `true` | Set in dashboard | ? |
+| `CORS_ORIGINS` | `*` | Locked-down list | ? |
+| `BOOTSTRAP_PEERS` | _(empty)_ | Optional | ? |
+| `CRON_SECRET` | _(empty)_ | **Required** | ? |
+| `OPENAI_API_KEY` / `AI_*` | _(empty)_ | Optional | ? |
+| `WHEELMAP_API_KEY` | _(empty)_ | Optional | ? |
+| `OSM_BBOX` | Netherlands default | Set per region | ? |
+| `MAX_AI_SCAN_PER_RUN` | `20` | Optional (default 20, max 50) | ? |
+| `UPSTASH_REDIS_REST_URL` | _(empty)_ | Optional (rate limiting) | ? |
+| `UPSTASH_REDIS_REST_TOKEN` | _(empty)_ | Optional (rate limiting) | ? |
+| `PHOTO_STORAGE_PROVIDER` | _(empty, base64)_ | Optional: `r2` or `supabase` | ? |
+| `R2_ACCOUNT_ID` | _(empty)_ | Required when provider=`r2` | ? |
+| `R2_ACCESS_KEY_ID` | _(empty)_ | Required when provider=`r2` | ? |
+| `R2_SECRET_ACCESS_KEY` | _(empty)_ | Required when provider=`r2` | ? |
+| `R2_BUCKET` | _(empty)_ | Required when provider=`r2` | ? |
+| `R2_PUBLIC_URL` | _(empty)_ | Required when provider=`r2` | ? |
+| `SUPABASE_URL` | _(empty)_ | Required when provider=`supabase` | ? |
+| `SUPABASE_SERVICE_KEY` | _(empty)_ | Required when provider=`supabase` | ? |
+| `SUPABASE_STORAGE_BUCKET` | `photos` | Optional when provider=`supabase` | ? |
+| `NEXT_PUBLIC_NODE_API_URL` | `http://localhost:3000` (local) | ? | **Required** |

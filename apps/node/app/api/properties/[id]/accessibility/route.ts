@@ -5,6 +5,7 @@ import { evaluateMeshTruth } from "@wikitraveler/core";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import { pushFactsToPeers } from "@/lib/push";
+import { getPhotoStorage } from "@/lib/photoStorage";
 import type { NextRequest } from "next/server";
 import type { Tier, SourceType } from "@wikitraveler/core";
 
@@ -124,12 +125,30 @@ export async function POST(
     }
   }
 
+  // Upload photos to the configured storage backend (base64 passthrough by
+  // default; Cloudflare R2 or Supabase when PHOTO_STORAGE_PROVIDER is set).
+  // Stored references are URLs for object-storage backends and data-URIs for
+  // the base64 fallback — either form is accepted by the AI vision pipeline.
+  const rawPhotos = (body.photoUrls ?? []).slice(0, 3);
+  let storedPhotoRefs: string[] = [];
+
+  if (rawPhotos.length > 0) {
+    const storage = await getPhotoStorage();
+    storedPhotoRefs = await Promise.all(
+      rawPhotos.map((dataUri, i) => {
+        const ext = dataUri.match(/data:image\/(\w+)/)?.[1] ?? "jpg";
+        const key = `photos/${propertyId}/${crypto.randomUUID()}-${i}.${ext}`;
+        return storage.upload(dataUri, key);
+      })
+    );
+  }
+
   // Store audit submission
   await prisma.auditSubmission.create({
     data: {
       propertyId: propertyId,
       facts: body.facts,
-      photoUrls: body.photoUrls ?? [],
+      photoUrls: storedPhotoRefs,
     },
   });
 
@@ -165,12 +184,12 @@ export async function POST(
   // We do not await — the response is already on its way to the client.
   // On Vercel serverless the function may terminate before this completes;
   // the /api/cron/ai-scan job will cover any missed analyses.
-  if ((process.env.AI_API_KEY || process.env.OPENAI_API_KEY) && (body.photoUrls?.length ?? 0) > 0) {
+  if ((process.env.AI_API_KEY || process.env.OPENAI_API_KEY) && storedPhotoRefs.length > 0) {
     void runAiAnalysis({
       propertyId: propertyId,
       propertyName: property.name,
       location: property.location,
-      photos: body.photoUrls!,
+      photos: storedPhotoRefs,
       skipExistingAiGuess: false, // refresh vision when new photos arrive
     }).catch((err) =>
       console.error("[accessibility] background vision analysis failed:", err)

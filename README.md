@@ -38,7 +38,7 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 
 | Component       | Path                | Description                                                     |
 | --------------- | ------------------- | --------------------------------------------------------------- |
-| **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker. Search, rich map with "Audited only" filter. |
+| **Node**        | `apps/node`         | Next.js API + dashboard. Deploy on Vercel or Docker. Search, rich map, AI gap-fill cron. |
 | **Field Kit**   | `apps/field-kit`    | Mobile-first Next.js app for on-site photo audits. Login gate — auditors only. |
 | **Lens**        | `apps/lens`         | Chrome MV3 extension. Listing-page hover tooltips + popup panel on Booking.com and Expedia. |
 | **Agency Demo** | `apps/agency-demo`  | Static HTML demo showing three SDK integration patterns.        |
@@ -148,6 +148,9 @@ See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full checklist:
 - Node env vars, cron jobs, RS256 keys, and first-run `/setup`
 - Field Kit env vars and CORS configuration
 - Connecting Lens, Field Kit, and agency SDK clients
+- **Rate limiting** — Upstash Redis sliding-window limits on auth and audit routes
+- **AI cost control** — `MAX_AI_SCAN_PER_RUN` to cap the daily AI scan
+- **Photo storage** — Cloudflare R2 or Supabase Storage (base64-in-Postgres is the zero-config default)
 
 Docker self-hosting is also documented there.
 
@@ -182,10 +185,11 @@ wikitraveler/
 | `pnpm dev:field-kit`   | Start field-kit on :3001                 |
 | `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
 | `pnpm build`           | Build all packages and apps              |
-| `pnpm db:migrate`      | Apply pending node schema migrations     |
-| `pnpm db:seed`         | Seed database with sample properties     |
-| `pnpm db:setup`        | Full reset of both databases + seed      |
-| `pnpm osm:ingest`      | Ingest OpenStreetMap data                |
+| `pnpm db:migrate`           | Apply pending node schema migrations          |
+| `pnpm db:seed`              | Seed database with sample properties          |
+| `pnpm db:setup`             | Full reset of both databases + seed           |
+| `pnpm db:migrate-photos`    | Migrate base64 photos to object storage (R2/Supabase) |
+| `pnpm osm:ingest`           | Ingest OpenStreetMap data                     |
 
 ---
 

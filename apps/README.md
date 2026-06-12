@@ -81,7 +81,7 @@ pnpm dev
    - First time? Click **Create account** to register on the node, get promoted to AUDITOR by the node admin, then sign in.
 3. Navigate to a Booking.com or Expedia hotel page for a property in your node.
 
-**Verify:** Click the Lens icon — the popup shows field values and tier badges. On listing pages, hover a hotel card to see a tooltip after 350 ms. "Audited only" toggle on the node map highlights only properties with VERIFIED/CONFIRMED facts.
+**Verify:** Click the Lens icon — the popup shows field values and tier badges. On listing pages, hover a hotel card to see a tooltip after 350 ms. The node map at `http://localhost:3000` shows all properties; use the search filters to narrow by tier.
 
 ---
 
@@ -104,7 +104,7 @@ npx serve apps/lens-demo -p 4001
 2. Open `http://localhost:4001` and click through to a hotel page.
 3. Click the Lens icon — the popup reads the property ID from the `<meta name="wt-property-id">` tag.
 
-**Verify:** Popup shows accessibility data without any `<script>` tag on the page.
+**Verify:** Popup shows field values and tier badges without any `<script>` tag on the page.
 
 ---
 
