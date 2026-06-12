@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
+import { resolveAiScanLimit } from "@/lib/aiScanLimit";
 import type { NextRequest } from "next/server";
 
 /**
@@ -31,12 +32,10 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const defaultLimit = Math.min(
-    parseInt(process.env.MAX_AI_SCAN_PER_RUN ?? "20", 10) || 20,
-    50
+  const limit = resolveAiScanLimit(
+    req.nextUrl.searchParams.get("limit"),
+    process.env.MAX_AI_SCAN_PER_RUN
   );
-  const limitParam = req.nextUrl.searchParams.get("limit");
-  const limit = Math.min(parseInt(limitParam ?? String(defaultLimit), 10) || defaultLimit, 50);
 
   // Find properties that have no AI_GUESS facts at all
   const propertiesWithAiGuess = await prisma.accessibilityFact.findMany({

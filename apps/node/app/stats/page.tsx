@@ -26,7 +26,6 @@ export default async function StatsPage() {
     factCount,
     auditCount,
     peerCount,
-    peers,
     tierCounts,
     sourceCounts,
     fieldCounts,
@@ -43,11 +42,6 @@ export default async function StatsPage() {
     prisma.accessibilityFact.count(),
     prisma.auditSubmission.count(),
     prisma.nodePeer.count({ where: { isActive: true } }),
-    prisma.nodePeer.findMany({
-      orderBy: { lastSeen: "desc" },
-      take: 10,
-      select: { url: true, isActive: true, lastSeen: true },
-    }),
     prisma.accessibilityFact.groupBy({ by: ["tier"], _count: { _all: true } }),
     prisma.accessibilityFact.groupBy({ by: ["sourceType"], _count: { _all: true } }),
     prisma.accessibilityFact.groupBy({
@@ -218,50 +212,6 @@ export default async function StatsPage() {
               ))}
               {topAuditedWithNames.length === 0 && (
                 <tr><td colSpan={2} style={{ padding: "12px 8px", color: "var(--wt-text-muted)", textAlign: "center" }}>No audits yet</td></tr>
-              )}
-            </tbody>
-          </table>
-        </Section>
-
-        {/* ── Peer network ── */}
-        <Section title="Peer Network">
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "var(--wt-bg-secondary)" }}>
-                <Th>URL</Th>
-                <Th>Status</Th>
-                <Th align="right">Last seen</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {peers.map((p) => (
-                <tr key={p.url} style={{ borderBottom: "1px solid var(--wt-border)" }}>
-                  <Td>
-                    <a href={p.url} style={{ color: "var(--wt-primary)", fontFamily: "var(--wt-font-mono)", fontSize: 12 }}>
-                      {p.url}
-                    </a>
-                  </Td>
-                  <Td>
-                    <span
-                      style={{
-                        background: p.isActive
-                          ? "color-mix(in srgb, var(--wt-success) 15%, var(--wt-bg-elevated))"
-                          : "color-mix(in srgb, var(--wt-danger) 15%, var(--wt-bg-elevated))",
-                        color: p.isActive ? "var(--wt-success)" : "var(--wt-danger)",
-                        borderRadius: 999,
-                        padding: "2px 8px",
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {p.isActive ? "active" : "inactive"}
-                    </span>
-                  </Td>
-                  <Td align="right">{p.lastSeen.toLocaleString()}</Td>
-                </tr>
-              ))}
-              {peers.length === 0 && (
-                <tr><td colSpan={3} style={{ padding: "12px 8px", color: "var(--wt-text-muted)", textAlign: "center" }}>No peers known yet</td></tr>
               )}
             </tbody>
           </table>

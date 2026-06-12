@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { AdminPanel } from "./AdminPanel";
 import { UsersPanel } from "./UsersPanel";
+import { PeersPanel } from "./PeersPanel";
 
 const STORAGE_KEY = "wt_node_token";
 
@@ -61,6 +62,7 @@ export function AdminSection() {
   return (
     <div>
       <AdminPanel token={token} />
+      <PeersPanel token={token} />
       <UsersPanel token={token} />
     </div>
   );
