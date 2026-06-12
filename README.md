@@ -1,19 +1,15 @@
-﻿<p align="center">
+﻿<p align="left">
   <img src="docs/assets/wikitraveler-mark.svg" width="72" alt="WikiTraveler logo" />
 </p>
 
-<h1 align="center">WikiTraveler</h1>
+<h1 align="left">WikiTraveler</h1>
 
-<p align="center">
-  <strong>Open-source, federated accessibility intelligence for travel.</strong><br />
-  Real specs from the field — not marketing copy from a booking site.
-</p>
+<strong>Open-source, federated accessibility intelligence for travel.</strong><br />
+Real specs from the field — not marketing copy from a booking site.
 
-<p align="center">
-  WikiTraveler sidecars verified accessibility facts onto hotels and destinations.
-  Auditors capture ground truth with Field Kit and Lens; independent nodes gossip those facts
-  across a peer mesh so the data stays community-owned and free to use.
-</p>
+WikiTraveler sidecars verified accessibility facts onto hotels and destinations.
+Auditors capture ground truth with Field Kit and Lens; independent nodes gossip those facts
+across a peer mesh so the data stays community-owned and free to use.
 
 ---
 
