@@ -40,13 +40,33 @@
       color: #fff;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
-      padding: 4px 9px;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
       flex-shrink: 0;
       font-family: inherit;
     }
     #wt-signout:hover { background: rgba(255,255,255,0.15); }
+    #wt-signout:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+    .wt-sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    :focus-visible {
+      outline: 2px solid #1d4ed8;
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
 
     /* ——— Node status bar ——— */
     #node-status-bar {
@@ -231,11 +251,10 @@
       font-family: inherit;
       background: #fff;
       color: #0f172a;
-      outline: none;
       margin-bottom: 8px;
       transition: border-color 0.15s;
     }
-    .login-input:focus { border-color: #1d4ed8; }
+    .login-input:focus-visible { border-color: #1d4ed8; outline: 2px solid #1d4ed8; outline-offset: 2px; }
     .login-btn {
       width: 100%;
       background: #1d4ed8;
@@ -279,10 +298,9 @@
       font-family: inherit;
       background: #fff;
       color: #0f172a;
-      outline: none;
       transition: border-color 0.15s;
     }
-    .search-input:focus { border-color: #1d4ed8; }
+    .search-input:focus-visible { border-color: #1d4ed8; outline: 2px solid #1d4ed8; outline-offset: 2px; }
     #search-results { margin-top: 6px; display: grid; gap: 4px; max-height: 180px; overflow-y: auto; }
     .search-result-btn {
       width: 100%;
@@ -353,18 +371,18 @@
     <span>Checking node…</span>
   </div>
 
-  <div id="content">
+  <main id="content">
     <p style="color:#94a3b8;font-size:13px">Loading…</p>
-  </div>
+  </main>
 
   <!-- Search toggle (shown below facts when a property is found) -->
   <div id="search-toggle-bar" style="display:none">
-    <button id="search-toggle-btn" type="button">🔍 Search for different property</button>
+    <button id="search-toggle-btn" type="button" aria-expanded="false" aria-controls="search-section">Search for different property</button>
   </div>
 
   <!-- Manual search section (always rendered, shown/hidden by JS) -->
   <div id="search-section" style="display:none">
-    <p class="search-label">Search properties</p>
+    <label class="search-label" for="search-input">Search properties</label>
     <input id="search-input" class="search-input" type="search" placeholder="Name, city, or ID…" autocomplete="off" />
     <div id="search-results"></div>
   </div>

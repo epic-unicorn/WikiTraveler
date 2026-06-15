@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ThemeToggle } from "@wikitraveler/ui";
 import { ENV_NODE_URL } from "../lib/fieldKitApi";
+import { clearAuth } from "../lib/authStorage";
 
 interface Props {
   nodeUrl: string;
@@ -137,8 +138,7 @@ export function SettingsTab({
             borderColor: "color-mix(in srgb, var(--wt-danger) 35%, var(--wt-border))",
           }}
           onClick={() => {
-            document.cookie = "wt_token=; path=/; max-age=0";
-            sessionStorage.removeItem("wt_auth_token");
+            clearAuth();
             window.location.href = "/login";
           }}
         >

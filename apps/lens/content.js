@@ -192,6 +192,77 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
 
 let _tooltip = null;
 let _tooltipHideTimer = null;
+let _keyboardTooltip = false;
+
+function injectLensA11yStyles() {
+  if (document.getElementById("wt-lens-a11y-styles")) return;
+  const style = document.createElement("style");
+  style.id = "wt-lens-a11y-styles";
+  style.textContent = `
+    .wt-lens-card-trigger {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 9999;
+      width: 44px;
+      height: 44px;
+      border: 2px solid #1e3a8a;
+      border-radius: 999px;
+      background: #fff;
+      color: #1e3a8a;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .wt-lens-card-trigger:focus-visible {
+      outline: 2px solid #1d4ed8;
+      outline-offset: 2px;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function ensureCardTrigger(card) {
+  if (card.__wtTrigger) return card.__wtTrigger;
+  injectLensA11yStyles();
+  const computed = getComputedStyle(card);
+  if (computed.position === "static") card.style.position = "relative";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "wt-lens-card-trigger";
+  btn.setAttribute("aria-label", "Show WikiTraveler accessibility information");
+  btn.textContent = "A11y";
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    _keyboardTooltip = true;
+    handleCardEnter(card, true);
+  });
+
+  btn.addEventListener("focus", () => {
+    _keyboardTooltip = true;
+    handleCardEnter(card, true);
+  });
+
+  btn.addEventListener("blur", () => {
+    _tooltipHideTimer = setTimeout(() => {
+      if (!_keyboardTooltip) return;
+      removeTooltip();
+      _keyboardTooltip = false;
+    }, 200);
+  });
+
+  card.appendChild(btn);
+  card.__wtTrigger = btn;
+  return btn;
+}
 
 function removeTooltip() {
   if (_tooltip) {
@@ -200,12 +271,16 @@ function removeTooltip() {
   }
 }
 
-function showTooltip(anchorEl, facts, propertyName) {
+function showTooltip(anchorEl, facts, propertyName, interactive = false) {
   clearTimeout(_tooltipHideTimer);
   removeTooltip();
 
   _tooltip = document.createElement("div");
   _tooltip.id = "wt-lens-tooltip";
+  _tooltip.setAttribute("role", interactive ? "dialog" : "tooltip");
+  if (interactive) {
+    _tooltip.setAttribute("aria-label", `Accessibility data for ${propertyName ?? "property"}`);
+  }
   _tooltip.style.cssText = `
     position: fixed;
     z-index: 2147483647;
@@ -218,7 +293,7 @@ function showTooltip(anchorEl, facts, propertyName) {
     font-size: 12px;
     color: #0f172a;
     overflow: hidden;
-    pointer-events: none;
+    pointer-events: ${interactive ? "auto" : "none"};
   `;
 
   const hdr = document.createElement("div");
@@ -231,6 +306,7 @@ function showTooltip(anchorEl, facts, propertyName) {
   logoSvg.setAttribute("height", "14");
   logoSvg.setAttribute("viewBox", "0 0 32 32");
   logoSvg.setAttribute("fill", "none");
+  logoSvg.setAttribute("aria-hidden", "true");
   logoSvg.style.flexShrink = "0";
   const hexPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   hexPath.setAttribute("d", "M16 2L28 9v14L16 30 4 23V9L16 2z");
@@ -256,6 +332,18 @@ function showTooltip(anchorEl, facts, propertyName) {
   } else {
     const table = document.createElement("table");
     table.style.cssText = "width:100%;border-collapse:collapse";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Feature", "Value"].forEach((label) => {
+      const th = document.createElement("th");
+      th.scope = "col";
+      th.style.cssText = "padding:5px 6px 5px 0;color:#64748b;font-size:10px;text-align:left;font-weight:700";
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
     facts.slice(0, 8).forEach((f) => {
       const row = document.createElement("tr");
       row.style.borderBottom = "1px solid #e2e8f0";
@@ -270,8 +358,9 @@ function showTooltip(anchorEl, facts, propertyName) {
 
       row.appendChild(labelCell);
       row.appendChild(valueCell);
-      table.appendChild(row);
+      tbody.appendChild(row);
     });
+    table.appendChild(tbody);
     bodyEl.appendChild(table);
   }
   _tooltip.appendChild(bodyEl);
@@ -338,7 +427,7 @@ function extractKeyFromCard(card) {
 let _hoverTimer = null;
 const _cardCache = new Map(); // key -> { facts, name } | null
 
-async function handleCardEnter(card) {
+async function handleCardEnter(card, fromKeyboard = false) {
   const nodeUrl = await getNodeUrl();
   const key = extractKeyFromCard(card);
   if (!key) return;
@@ -349,7 +438,7 @@ async function handleCardEnter(card) {
   _hoverTimer = setTimeout(async () => {
     if (_cardCache.has(key)) {
       const cached = _cardCache.get(key);
-      if (cached) showTooltip(card, cached.facts, cached.name);
+      if (cached) showTooltip(card, cached.facts, cached.name, fromKeyboard);
       return;
     }
 
@@ -411,7 +500,7 @@ async function handleCardEnter(card) {
       const data = await res.json();
       const entry = { facts: data.facts ?? [], name: propertyName };
       _cardCache.set(key, entry);
-      if (card.matches(":hover")) showTooltip(card, entry.facts, entry.name);
+      if (card.matches(":hover") || fromKeyboard) showTooltip(card, entry.facts, entry.name, fromKeyboard);
     } catch {
       _cardCache.set(key, null);
     }
@@ -426,7 +515,11 @@ function handleCardLeave() {
 function attachCardListeners(card) {
   if (card.__wtAttached) return;
   card.__wtAttached = true;
-  card.addEventListener("mouseenter", () => handleCardEnter(card));
+  ensureCardTrigger(card);
+  card.addEventListener("mouseenter", () => {
+    _keyboardTooltip = false;
+    handleCardEnter(card, false);
+  });
   card.addEventListener("mouseleave", handleCardLeave);
 }
 

@@ -25,6 +25,7 @@ input, select, textarea, button {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .fk-main {
@@ -32,6 +33,10 @@ input, select, textarea, button {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+}
+
+.fk-main:focus {
+  outline: none;
 }
 
 /* ——— Custom Tab Bar ——— */
@@ -229,9 +234,14 @@ input[type=range]::-moz-range-thumb {
 }
 
 input:focus, select:focus, textarea:focus {
-  outline: none;
   border-color: var(--wt-primary);
   background: var(--wt-bg-elevated);
+}
+
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--wt-primary);
+  outline-offset: 2px;
 }
 
 textarea { min-height: 80px; resize: vertical; }
@@ -245,6 +255,7 @@ textarea { min-height: 80px; resize: vertical; }
   padding: 14px 0;
   border-bottom: 1px solid var(--wt-border);
   min-height: 52px;
+  cursor: pointer;
 }
 
 .toggle-row:last-child { border-bottom: none; }
@@ -347,8 +358,10 @@ textarea { min-height: 80px; resize: vertical; }
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   border: 1.5px solid var(--wt-border);
   background: var(--wt-bg);

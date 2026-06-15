@@ -31,23 +31,24 @@ const FIELD_LABELS: Record<string, string> = {
 function badge(tier: Tier): string {
   const color = TIER_COLOR[tier] ?? "#9ca3af";
   const label = TIER_LABEL[tier] ?? tier;
+  const textColor = tier === "AI_GUESS" || tier === "OFFICIAL" ? "#1e293b" : "#ffffff";
   return `<span style="
     display:inline-block;
     padding:2px 8px;
     border-radius:999px;
     font-size:11px;
     font-weight:600;
-    color:#fff;
+    color:${textColor};
     background:${color};
     margin-left:8px;
     vertical-align:middle;
     font-family:var(--wt-font-family,sans-serif);
-  ">${label}</span>`;
+  " aria-label="Trust tier: ${label}">${label}</span>`;
 }
 
 function renderFacts(data: AccessibilityResponse): string {
   if (data.facts.length === 0) {
-    return `<p style="color:#9ca3af;font-style:italic;font-family:var(--wt-font-family,sans-serif)">No accessibility data available for this property yet.</p>`;
+    return `<div role="region" aria-label="WikiTraveler accessibility data"><p style="color:#9ca3af;font-style:italic;font-family:var(--wt-font-family,sans-serif)">No accessibility data available for this property yet.</p></div>`;
   }
   const rows = data.facts
     .map(
@@ -60,19 +61,21 @@ function renderFacts(data: AccessibilityResponse): string {
     )
     .join("");
   return `
+    <div role="region" aria-label="WikiTraveler accessibility data">
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <thead>
         <tr style="border-bottom:1px solid #e5e7eb">
-          <th style="padding:6px 8px;text-align:left;color:#6b7280;font-size:12px;font-family:var(--wt-font-family,sans-serif)">Feature</th>
-          <th style="padding:6px 8px;text-align:left;color:#6b7280;font-size:12px;font-family:var(--wt-font-family,sans-serif)">Value</th>
-          <th style="padding:6px 8px;text-align:left;color:#6b7280;font-size:12px;font-family:var(--wt-font-family,sans-serif)">Trust</th>
+          <th scope="col" style="padding:6px 8px;text-align:left;color:#6b7280;font-size:12px;font-family:var(--wt-font-family,sans-serif)">Feature</th>
+          <th scope="col" style="padding:6px 8px;text-align:left;color:#6b7280;font-size:12px;font-family:var(--wt-font-family,sans-serif)">Value</th>
+          <th scope="col" style="padding:6px 8px;text-align:left;color:#6b7280;font-size:12px;font-family:var(--wt-font-family,sans-serif)">Trust</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
     <p style="font-size:11px;color:#9ca3af;margin-top:8px;font-family:var(--wt-font-family,sans-serif)">
       Powered by <a href="https://github.com/wikitraveler" style="color:#60a5fa;text-decoration:none">WikiTraveler</a>
-    </p>`;
+    </p>
+    </div>`;
 }
 
 /**
@@ -125,17 +128,26 @@ export async function mountWidget(
   token ??= el.dataset.token;
 
   if (!propertyId || !nodeUrl) {
+    el.setAttribute("role", "alert");
     el.innerHTML = `<p style="color:#f87171">WikiTraveler: missing data-property-id or data-node-url</p>`;
     return;
   }
 
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  el.setAttribute("aria-busy", "true");
   el.innerHTML = `<p style="color:#9ca3af;font-family:sans-serif">Loading accessibility data…</p>`;
 
   try {
     const client = new WikiTraveler({ nodeUrl, token });
     const data = await client.getAccessibility(propertyId);
+    el.removeAttribute("aria-busy");
+    el.removeAttribute("role");
+    el.removeAttribute("aria-live");
     el.innerHTML = renderFacts(data);
   } catch (err) {
+    el.removeAttribute("aria-busy");
+    el.setAttribute("role", "alert");
     el.innerHTML = `<p style="color:#f87171;font-family:sans-serif">Could not load accessibility data. Is the node reachable?</p>`;
     console.error("WikiTraveler widget error:", err);
   }

@@ -109,7 +109,6 @@ function LoginForm() {
     borderRadius: "var(--wt-radius-sm)",
     fontSize: 15,
     outline: "none",
-    fontFamily: "inherit",
     background: "var(--wt-bg)",
     color: "var(--wt-text)",
   };
@@ -125,8 +124,9 @@ function LoginForm() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Username</label>
+          <label htmlFor="login-username" style={labelStyle}>Username</label>
           <input
+            id="login-username"
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -134,22 +134,25 @@ function LoginForm() {
             required
             autoComplete="username"
             autoFocus
+            aria-invalid={error ? true : undefined}
             style={{ ...inputStyle, marginBottom: 12 }}
           />
 
-          <label style={labelStyle}>Password</label>
+          <label htmlFor="login-password" style={labelStyle}>Password</label>
           <input
+            id="login-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
             required
             autoComplete="current-password"
+            aria-invalid={error ? true : undefined}
             style={{ ...inputStyle, marginBottom: 20 }}
           />
 
           {error && (
-            <p style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
+            <p role="alert" style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
           )}
 
           <button

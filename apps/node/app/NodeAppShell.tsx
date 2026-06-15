@@ -55,7 +55,7 @@ export function NodeAppShell({
   maxWidth,
 }: Props) {
   const nav = (
-    <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <nav style={{ display: "flex", alignItems: "center", gap: 4 }} aria-label="Main navigation">
       <NavLink href="/" active={activeNav === "map"}>Map</NavLink>
       <NavLink href="/stats" active={activeNav === "stats"}>Stats</NavLink>
       <AddPropertyLink />
@@ -80,6 +80,19 @@ export function NodeAppShell({
       }
     >
       {children}
+      <footer
+        style={{
+          marginTop: 48,
+          paddingTop: 16,
+          borderTop: "1px solid var(--wt-border)",
+          fontSize: 12,
+          color: "var(--wt-text-muted)",
+        }}
+      >
+        <Link href="/accessibility" style={{ color: "var(--wt-primary)", textDecoration: "none" }}>
+          Accessibility statement
+        </Link>
+      </footer>
     </AppShell>
   );
 }

@@ -9,8 +9,12 @@ interface Props {
 export function AppShell({ header, children, maxWidth = 960 }: Props) {
   return (
     <div style={{ minHeight: "100vh", background: "var(--wt-bg)" }}>
+      <a href="#main-content" className="wt-skip-link">
+        Skip to main content
+      </a>
       {header}
       <main
+        id="main-content"
         style={{
           maxWidth,
           margin: "0 auto",

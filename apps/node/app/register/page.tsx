@@ -115,8 +115,9 @@ function RegisterForm() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Username</label>
+          <label htmlFor="register-username" style={labelStyle}>Username</label>
           <input
+            id="register-username"
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -124,33 +125,38 @@ function RegisterForm() {
             required
             autoComplete="username"
             autoFocus
+            aria-invalid={error ? true : undefined}
             style={{ ...inputStyle, marginBottom: 12 }}
           />
 
-          <label style={labelStyle}>Password</label>
+          <label htmlFor="register-password" style={labelStyle}>Password</label>
           <input
+            id="register-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="at least 8 characters"
             required
             autoComplete="new-password"
+            aria-invalid={error ? true : undefined}
             style={{ ...inputStyle, marginBottom: 12 }}
           />
 
-          <label style={labelStyle}>Confirm password</label>
+          <label htmlFor="register-confirm" style={labelStyle}>Confirm password</label>
           <input
+            id="register-confirm"
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="repeat password"
             required
             autoComplete="new-password"
+            aria-invalid={error ? true : undefined}
             style={{ ...inputStyle, marginBottom: 20 }}
           />
 
           {error && (
-            <p style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
+            <p role="alert" style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
           )}
 
           <button

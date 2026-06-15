@@ -7,8 +7,10 @@ interface Props {
 
 export function TierBadge({ tier, label }: Props) {
   const style = getTierStyle(tier);
+  const text = label ?? tier.replace(/_/g, " ");
   return (
     <span
+      aria-label={`Trust tier: ${text}`}
       style={{
         ...style,
         borderRadius: 999,
@@ -19,7 +21,7 @@ export function TierBadge({ tier, label }: Props) {
         whiteSpace: "nowrap",
       }}
     >
-      {label ?? tier.replace(/_/g, " ")}
+      {text}
     </span>
   );
 }

@@ -27,9 +27,9 @@
   --wt-warning: #d97706;
   --wt-success: #059669;
 
-  /* Trust-tier badge colors */
-  --wt-tier-official-bg: #f1f5f9;
-  --wt-tier-official-text: #64748b;
+  /* Trust-tier badge colors — AA contrast on badge backgrounds */
+  --wt-tier-official-bg: #e2e8f0;
+  --wt-tier-official-text: #475569;
   --wt-tier-ai-bg: #fef3c7;
   --wt-tier-ai-text: #92400e;
   --wt-tier-verified-bg: #d1fae5;

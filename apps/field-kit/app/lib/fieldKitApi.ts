@@ -1,5 +1,6 @@
 import type { SearchFilters } from "@wikitraveler/ui";
 import type { PropertySummary } from "@wikitraveler/ui";
+import { readAuthToken } from "./authStorage";
 
 export const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 export const RADIUS_STORAGE_KEY = "wt_nearby_radius_km";
@@ -10,11 +11,7 @@ export function getStoredNodeUrl(): string {
 }
 
 export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  const fromSession = sessionStorage.getItem("wt_auth_token");
-  if (fromSession) return fromSession;
-  const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
+  return readAuthToken();
 }
 
 export function getAuthHeaders(): HeadersInit {

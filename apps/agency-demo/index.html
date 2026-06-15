@@ -57,6 +57,23 @@
     }
     .copy-btn:hover { background: #4b5563; }
 
+    .wt-sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    :focus-visible {
+      outline: 2px solid #1d4ed8;
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
     /* node URL configurator */
     .node-config { display: flex; gap: 8px; margin-bottom: 20px; }
     .node-config input {
@@ -123,18 +140,21 @@
         Point the SDK to your running WikiTraveler node. You can also pass <code>?node=URL</code> in the address bar.
       </p>
       <div class="node-config">
-        <input id="node-url-input" type="url" placeholder="http://localhost:3000" />
-        <button onclick="applyNodeUrl()">Connect</button>
+        <label for="node-url-input" class="wt-sr-only">WikiTraveler node URL</label>
+        <input id="node-url-input" type="url" placeholder="http://localhost:3000" aria-describedby="node-status" />
+        <button type="button" onclick="applyNodeUrl()">Connect</button>
       </div>
 
       <!-- Login form -->
       <div id="login-area">
         <div class="login-grid">
+          <label for="login-username" class="wt-sr-only">Username</label>
           <input id="login-username" type="text" placeholder="Username" autocomplete="username" />
+          <label for="login-password" class="wt-sr-only">Password</label>
           <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" />
-          <button class="btn-login" id="btn-login" onclick="doLogin()">Log in</button>
+          <button type="button" class="btn-login" id="btn-login" onclick="doLogin()">Log in</button>
         </div>
-        <p id="login-error" class="auth-status" style="color:#f87171;display:none"></p>
+        <p id="login-error" class="auth-status" role="alert" style="color:#f87171;display:none"></p>
       </div>
       <div id="logged-in-area" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between">
@@ -144,6 +164,7 @@
       </div>
 
       <div style="margin-top:10px">
+        <label for="property-select" class="wt-sr-only">Select property</label>
         <select id="property-select"
           style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff">
           <option value="">— log in and click Connect to load properties —</option>
@@ -174,20 +195,20 @@
         Copy any of the following patterns into your existing booking website.
       </p>
 
-      <div class="snippet-tabs">
-        <button class="tab-btn active" onclick="showTab('widget')">Drop-in Widget</button>
-        <button class="tab-btn" onclick="showTab('fetch')">Raw JSON Fetch</button>
-        <button class="tab-btn" onclick="showTab('esm')">npm ESM</button>
+      <div class="snippet-tabs" role="tablist" aria-label="Integration snippets">
+        <button type="button" class="tab-btn active" role="tab" id="tab-btn-widget" aria-selected="true" aria-controls="tab-widget" onclick="showTab('widget', this)">Drop-in Widget</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-btn-fetch" aria-selected="false" aria-controls="tab-fetch" tabindex="-1" onclick="showTab('fetch', this)">Raw JSON Fetch</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-btn-esm" aria-selected="false" aria-controls="tab-esm" tabindex="-1" onclick="showTab('esm', this)">npm ESM</button>
       </div>
 
       <!-- Pattern 1: CDN widget -->
-      <div id="tab-widget" class="snippet-panel active">
+      <div id="tab-widget" class="snippet-panel active" role="tabpanel" aria-labelledby="tab-btn-widget">
         <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Paste into any HTML page — no build step required.</p>
         <pre id="snippet-widget"><button class="copy-btn" onclick="copySnippet('snippet-widget')">Copy</button><span class="code"></span></pre>
       </div>
 
       <!-- Pattern 2: raw fetch -->
-      <div id="tab-fetch" class="snippet-panel">
+      <div id="tab-fetch" class="snippet-panel" role="tabpanel" aria-labelledby="tab-btn-fetch" hidden>
         <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Fetch raw JSON and render your own UI.</p>
         <pre id="snippet-fetch"><button class="copy-btn" onclick="copySnippet('snippet-fetch')">Copy</button><span class="code"></span></pre>
 
@@ -199,7 +220,7 @@
       </div>
 
       <!-- Pattern 3: ESM import -->
-      <div id="tab-esm" class="snippet-panel">
+      <div id="tab-esm" class="snippet-panel" role="tabpanel" aria-labelledby="tab-btn-esm" hidden>
         <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Use the npm package in any bundler (React, Vue, Next.js…).</p>
         <pre id="snippet-esm"><button class="copy-btn" onclick="copySnippet('snippet-esm')">Copy</button><span class="code"></span></pre>
       </div>
@@ -281,7 +302,7 @@
       authUsername = data.username ?? username;
       document.getElementById("login-area").style.display = "none";
       document.getElementById("logged-in-area").style.display = "block";
-      document.getElementById("logged-in-label").textContent = `✓ Logged in as ${authUsername}`;
+      document.getElementById("logged-in-label").textContent = `Logged in as ${authUsername}`;
       // Now load the property list
       loadProperties(currentNodeUrl).then(() => {
         updateSnippets();
@@ -477,11 +498,23 @@ mountWidget({
   }
 
   // ── Tabs ──
-  function showTab(id) {
-    document.querySelectorAll(".snippet-panel").forEach(p => p.classList.remove("active"));
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.getElementById(`tab-${id}`).classList.add("active");
-    event.target.classList.add("active");
+  function showTab(id, btn) {
+    document.querySelectorAll(".snippet-panel").forEach((p) => {
+      p.classList.remove("active");
+      p.hidden = true;
+    });
+    document.querySelectorAll(".tab-btn").forEach((b) => {
+      b.classList.remove("active");
+      b.setAttribute("aria-selected", "false");
+      b.tabIndex = -1;
+    });
+    const panel = document.getElementById(`tab-${id}`);
+    panel.classList.add("active");
+    panel.hidden = false;
+    const activeBtn = btn ?? document.getElementById(`tab-btn-${id}`);
+    activeBtn.classList.add("active");
+    activeBtn.setAttribute("aria-selected", "true");
+    activeBtn.tabIndex = 0;
   }
 
   // ── Copy ──

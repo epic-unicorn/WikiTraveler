@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FieldKitHeader } from "../../FieldKitHeader";
 import ExistingDataPanel, { type AuditPhotos, type ExistingFact } from "./ExistingDataPanel";
 import { resolveFactDisplay, TIER_LABELS } from "../../lib/factDisplay";
+import { canAccessFieldKit, clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
 
 const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 
@@ -62,16 +63,9 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
     if (storedUrl) setNodeUrl(storedUrl);
 
     // Populate auth state from storage — must happen client-side only
-    const fromSession = sessionStorage.getItem("wt_auth_token");
+    const fromSession = readAuthToken();
     if (fromSession) {
       setToken(fromSession);
-    } else {
-      const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
-      const fromCookie = m ? decodeURIComponent(m[1]) : null;
-      if (fromCookie) {
-        sessionStorage.setItem("wt_auth_token", fromCookie);
-        setToken(fromCookie);
-      }
     }
     setLoggedInAs(localStorage.getItem("wt_username"));
     setMounted(true);
@@ -86,12 +80,15 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
       });
-      const data = await res.json() as { token?: string; username?: string; message?: string };
+      const data = await res.json() as { token?: string; username?: string; message?: string; role?: string };
       if (!res.ok) { setAuthError(data.message ?? "Invalid credentials"); return; }
-      const t = data.token ?? "";
-      sessionStorage.setItem("wt_auth_token", t);
-      localStorage.setItem("wt_username", data.username ?? username);
-      setToken(t);
+      if (!data.token) { setAuthError("No token returned from node."); return; }
+      if (!canAccessFieldKit(data.role)) {
+        setAuthError("Your account needs the AUDITOR or ADMIN role. Ask a node admin to upgrade you.");
+        return;
+      }
+      persistAuth(data.token, data.username ?? username.trim().toLowerCase(), nodeUrl);
+      setToken(data.token);
       setLoggedInAs(data.username ?? username);
     } catch {
       setAuthError("Could not reach the node. Check settings.");
@@ -119,8 +116,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   }
 
   function logout() {
-    sessionStorage.removeItem("wt_auth_token");
-    localStorage.removeItem("wt_username");
+    clearAuth();
     setToken(null);
     setLoggedInAs(null);
     setUsername("");
@@ -265,9 +261,8 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
     return (
       <>
         <FieldKitHeader title="Audit submitted!" />
-        <main className="page">
+        <main id="main-content" className="page" role="status" aria-live="polite">
           <div className="card" style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
-            <p style={{ fontSize: 40, marginBottom: 16 }}>🎉</p>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Thank you!</h2>
             <p className="status-muted" style={{ marginBottom: 24 }}>
               Your audit for <strong>{propertyName}</strong> has been recorded.
@@ -304,9 +299,9 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
               {authMode === "login" ? "Log in to submit" : "Create an account"}
             </h2>
-            <label htmlFor="username">Username</label>
+            <label htmlFor="audit-username">Username</label>
             <input
-              id="username"
+              id="audit-username"
               type="text"
               autoComplete="username"
               placeholder="your username"
@@ -314,9 +309,9 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (authMode === "login" ? login() : register())}
             />
-            <label htmlFor="password">Password</label>
+            <label htmlFor="audit-password">Password</label>
             <input
-              id="password"
+              id="audit-password"
               type="password"
               autoComplete={authMode === "login" ? "current-password" : "new-password"}
               placeholder="password"
@@ -324,7 +319,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (authMode === "login" ? login() : register())}
             />
-            {authError && <p className="status-err">{authError}</p>}
+            {authError && <p className="status-err" role="alert">{authError}</p>}
             <button className="btn-primary" onClick={authMode === "login" ? login : register} disabled={authLoading}>
               {authLoading ? "…" : authMode === "login" ? "Log in" : "Create account"}
             </button>
@@ -364,7 +359,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                 {FIELDS.filter((f) => f.type === "toggle").map((field) => {
                   const existing = existingByField[field.name];
                   return (
-                    <div className="toggle-row" key={field.name}>
+                    <label className="toggle-row" key={field.name} htmlFor={`toggle-${field.name}`}>
                       <div>
                         <span className="toggle-label">{field.label}</span>
                         {existing && (
@@ -373,15 +368,16 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                           </div>
                         )}
                       </div>
-                      <label className="toggle">
+                      <span className="toggle">
                         <input
+                          id={`toggle-${field.name}`}
                           type="checkbox"
                           checked={values[field.name] === "yes"}
                           onChange={(e) => setValue(field.name, e.target.checked ? "yes" : "no")}
                         />
                         <span className="toggle-slider" />
-                      </label>
-                    </div>
+                      </span>
+                    </label>
                   );
                 })}
               </div>
@@ -456,6 +452,8 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={src} alt={`Photo ${i + 1}`} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
                     <button
+                      type="button"
+                      aria-label={`Remove photo ${i + 1}`}
                       onClick={() => setPhotos((p) => p.filter((_, idx) => idx !== i))}
                       style={{
                         position: "absolute", top: -6, right: -6,
@@ -469,7 +467,10 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               </div>
             </div>
 
-            {status === "error" && <p className="status-err">⚠️ {errorMsg}</p>}
+            {status === "error" && <p className="status-err" role="alert">{errorMsg}</p>}
+            {status === "loading" && (
+              <p className="wt-sr-only" role="status" aria-live="polite">Submitting audit…</p>
+            )}
 
             <button
               className="btn-primary"

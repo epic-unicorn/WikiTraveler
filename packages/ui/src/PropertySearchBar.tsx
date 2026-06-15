@@ -47,7 +47,8 @@ export function PropertySearchBar({
 
   const chipBase: React.CSSProperties = {
     borderRadius: 20,
-    padding: "5px 12px",
+    padding: "8px 14px",
+    minHeight: 44,
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
@@ -63,33 +64,39 @@ export function PropertySearchBar({
     borderColor: "var(--wt-primary)",
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "12px 16px",
+    fontSize: 16,
+    border: "1.5px solid var(--wt-border)",
+    borderRadius: "var(--wt-radius-sm)",
+    boxSizing: "border-box",
+    background: "var(--wt-bg-elevated)",
+    color: "var(--wt-text)",
+    marginBottom: showFilters ? 12 : 0,
+  };
+
   return (
     <div style={{ marginBottom: 16 }}>
+      <label htmlFor="wt-property-search" className="wt-sr-only">
+        Search properties
+      </label>
       <input
+        id="wt-property-search"
         type="search"
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder={placeholder}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          fontSize: 16,
-          border: "1.5px solid var(--wt-border)",
-          borderRadius: "var(--wt-radius-sm)",
-          outline: "none",
-          boxSizing: "border-box",
-          background: "var(--wt-bg-elevated)",
-          color: "var(--wt-text)",
-          marginBottom: showFilters ? 12 : 0,
-        }}
+        style={inputStyle}
       />
 
       {showFilters && (
         <>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }} role="group" aria-label="Audit status filter">
             <button
               type="button"
               style={filters.audited === true ? chipActive : chipBase}
+              aria-pressed={filters.audited === true}
               onClick={() => toggleAudited(true)}
             >
               Audited
@@ -97,18 +104,20 @@ export function PropertySearchBar({
             <button
               type="button"
               style={filters.audited === false ? chipActive : chipBase}
+              aria-pressed={filters.audited === false}
               onClick={() => toggleAudited(false)}
             >
               Not audited
             </button>
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }} role="group" aria-label="Feature filter">
             {SEARCH_FEATURES.map((f) => (
               <button
                 key={f.key}
                 type="button"
                 style={filters.features.includes(f.key) ? chipActive : chipBase}
+                aria-pressed={filters.features.includes(f.key)}
                 onClick={() => toggleFeature(f.key)}
               >
                 {f.label}
@@ -116,7 +125,11 @@ export function PropertySearchBar({
             ))}
           </div>
 
+          <label htmlFor="wt-location-filter" className="wt-sr-only">
+            Filter by location
+          </label>
           <input
+            id="wt-location-filter"
             type="text"
             value={filters.location}
             onChange={(e) => onFiltersChange({ ...filters, location: e.target.value })}

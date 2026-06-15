@@ -1,34 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useTheme } from "@wikitraveler/ui";
+import { buildPopup, type MapPin } from "@/lib/mapPopup";
 
-export interface MapPin {
-  id: string;
-  name: string;
-  location: string;
-  lat: number;
-  lon: number;
-  audited?: boolean;
-  facts?: Record<string, { value: string; tier: string }>;
-}
+export type { MapPin };
 
 interface Props {
-  /** When provided, zoom to and highlight only these pins. Pass null to reset to all. */
   focusPins?: MapPin[] | null;
-  /** When true, dim pins that have not been field-audited. */
   auditedOnly?: boolean;
 }
-
-const FACT_LABELS: Record<string, string> = {
-  step_free_entrance: "Step-free entrance",
-  accessible_bathroom: "Accessible bathroom",
-  elevator_present: "Elevator",
-  ramp_present: "Ramp",
-  parking_accessible: "Accessible parking",
-};
-
-// ── Tile layer helpers ────────────────────────────────────────────────────────
 
 function isDarkMode() {
   return typeof document !== "undefined" && document.documentElement.classList.contains("wt-dark");
@@ -48,34 +30,22 @@ function getTileConfig() {
   };
 }
 
-// ── Popup builder (uses CSS classes, not inline colors) ────────────────────────
-
-function buildPopup(pin: MapPin): string {
-  const facts = pin.facts ?? {};
-  const factRows = Object.keys(FACT_LABELS)
-    .map((key) => {
-      const fact = facts[key];
-      if (!fact) return "";
-      const icon = fact.value === "yes" ? "✅" : fact.value === "no" ? "❌" : "❓";
-      return `<div class="wt-popup-fact">${icon} ${FACT_LABELS[key]}</div>`;
-    })
-    .filter(Boolean)
-    .join("");
-
-  return `
-    <div class="wt-popup">
-      <p class="wt-popup-title">${pin.name}</p>
-      <p class="wt-popup-loc">📍 ${pin.location}</p>
-      ${factRows ? `<div class="wt-popup-facts">${factRows}</div>` : ""}
-      <a href="/properties/${pin.id}" class="wt-popup-cta">View / Audit →</a>
-    </div>
-  `;
+function getVisiblePins(allPins: MapPin[], focusPins: MapPin[] | null | undefined, auditedOnly?: boolean): MapPin[] {
+  let pins = allPins;
+  if (focusPins && focusPins.length > 0) {
+    const focusIds = new Set(focusPins.map((p) => p.id));
+    pins = allPins.filter((p) => focusIds.has(p.id));
+  }
+  if (auditedOnly) {
+    pins = pins.filter((p) => p.audited);
+  }
+  return pins;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function MapView({ focusPins, auditedOnly }: Props) {
   const { mode } = useTheme();
+  const [allPins, setAllPins] = useState<MapPin[]>([]);
+  const [listOpen, setListOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
@@ -84,7 +54,11 @@ export function MapView({ focusPins, auditedOnly }: Props) {
   const leafletRef = useRef<unknown>(null);
   const tileLayerRef = useRef<unknown>(null);
 
-  // ── Initial mount: load pins, create map, add first tile layer ──────────────
+  const visiblePins = useMemo(
+    () => getVisiblePins(allPins, focusPins, auditedOnly),
+    [allPins, focusPins, auditedOnly]
+  );
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -104,6 +78,7 @@ export function MapView({ focusPins, auditedOnly }: Props) {
 
       const pins = (data.pins ?? []).filter((p) => p.lat !== 0 && p.lon !== 0);
       allPinsRef.current = pins;
+      setAllPins(pins);
       leafletRef.current = L;
 
       if (pins.length === 0) return;
@@ -111,7 +86,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       const map = (L as typeof import("leaflet")).map(containerRef.current, { preferCanvas: false }).setView([52.3, 5.3], 7);
       mapRef.current = map;
 
-      // Add the correct tile layer for the current theme
       const { url, attribution } = getTileConfig();
       tileLayerRef.current = (L as typeof import("leaflet"))
         .tileLayer(url, { attribution, maxZoom: 19 })
@@ -140,7 +114,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
     };
   }, []);
 
-  // ── Swap tile layer whenever the theme changes ──────────────────────────────
   useEffect(() => {
     const L = leafletRef.current as typeof import("leaflet") | null;
     const map = mapRef.current as import("leaflet").Map | null;
@@ -153,7 +126,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       .addTo(map);
   }, [mode]);
 
-  // ── React to focusPins / auditedOnly changes ───────────────────────────────
   useEffect(() => {
     const L = leafletRef.current as typeof import("leaflet") | null;
     const map = mapRef.current as import("leaflet").Map | null;
@@ -191,6 +163,8 @@ export function MapView({ focusPins, auditedOnly }: Props) {
     <div style={{ position: "relative" }}>
       <div
         ref={containerRef}
+        role="application"
+        aria-label="Interactive map of properties with accessibility data. Use the property list below for keyboard access."
         style={{
           width: "100%",
           height: 420,
@@ -199,11 +173,69 @@ export function MapView({ focusPins, auditedOnly }: Props) {
           border: "1px solid var(--wt-border)",
         }}
       />
+      {visiblePins.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            onClick={() => setListOpen((v) => !v)}
+            aria-expanded={listOpen}
+            aria-controls="map-property-list"
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid var(--wt-border)",
+              background: "var(--wt-bg-elevated)",
+              color: "var(--wt-text)",
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {listOpen ? "Hide" : "Show"} keyboard-accessible property list ({visiblePins.length})
+          </button>
+          {listOpen && (
+            <ul
+              id="map-property-list"
+              style={{
+                listStyle: "none",
+                marginTop: 8,
+                maxHeight: 220,
+                overflowY: "auto",
+                border: "1px solid var(--wt-border)",
+                borderRadius: 10,
+                background: "var(--wt-bg-elevated)",
+              }}
+            >
+              {visiblePins.map((pin) => (
+                <li key={pin.id} style={{ borderBottom: "1px solid var(--wt-border)" }}>
+                  <Link
+                    href={`/properties/${pin.id}`}
+                    style={{
+                      display: "block",
+                      padding: "10px 14px",
+                      color: "var(--wt-text)",
+                      textDecoration: "none",
+                      fontSize: 14,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{pin.name}</span>
+                    <span style={{ display: "block", fontSize: 12, color: "var(--wt-text-muted)", marginTop: 2 }}>
+                      {pin.location}
+                      {pin.audited ? " · Audited" : " · Not audited"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function renderPins(
   L: typeof import("leaflet"),

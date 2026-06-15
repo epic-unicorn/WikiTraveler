@@ -109,7 +109,7 @@ export function FieldKitHeader({
       <div style={{ flex: 1, minWidth: 0 }}>
         {title ? (
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "8px 0" }}>
-            <p
+            <h1
               style={{
                 fontSize: 15,
                 fontWeight: 700,
@@ -121,7 +121,7 @@ export function FieldKitHeader({
               }}
             >
               {title}
-            </p>
+            </h1>
             {resolvedSubtitle && (
               <p
                 style={{
@@ -140,6 +140,7 @@ export function FieldKitHeader({
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <h1 className="wt-sr-only">Field Kit</h1>
             <WikiTravelerLogo product="field-kit" size={20} />
             {resolvedSubtitle && (
               <span
@@ -183,8 +184,10 @@ export function FieldKitHeader({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 32,
-              height: 32,
+              width: 44,
+              height: 44,
+              minWidth: 44,
+              minHeight: 44,
               borderRadius: 8,
               background: "rgba(255,255,255,0.12)",
               border: "1px solid rgba(255,255,255,0.22)",

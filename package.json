@@ -10,17 +10,23 @@
     "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ui build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/field-kit build",
     "lint": "pnpm --recursive lint",
     "test": "pnpm --filter @wikitraveler/node test",
+    "test:a11y": "pnpm --filter @wikitraveler/node test:a11y",
+    "lighthouse:prepare": "node scripts/prepare-lighthouse.mjs",
+    "lighthouse:ci": "lhci autorun",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed.ts",
     "db:setup": "prisma migrate reset --force && tsx scripts/seed.ts",
-    "osm:ingest": "tsx scripts/osm-ingest.ts"
+    "db:migrate-photos": "pnpm --filter @wikitraveler/node db:migrate-photos",
+    "osm:ingest": "tsx scripts/osm-ingest.ts",
+    "postinstall": "prisma generate"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "devDependencies": {
+    "@lhci/cli": "^0.14.0",
     "@types/node": "^20.19.37",
     "prisma": "^5.14.0",
     "tsx": "^4.15.0",

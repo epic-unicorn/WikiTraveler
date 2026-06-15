@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { decodeAuthCookie, looksLikeJwt } from "./lib/authCookie";
 
 const SKIP_PREFIXES = ["/_next/"];
 const SKIP_EXACT = new Set(["/login", "/register", "/favicon.ico"]);
@@ -11,8 +12,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("wt_token")?.value;
-  if (!token) {
+  const raw = req.cookies.get("wt_token")?.value;
+  const token = decodeAuthCookie(raw);
+  if (!token || !looksLikeJwt(token)) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     if (pathname !== "/") url.searchParams.set("next", pathname);

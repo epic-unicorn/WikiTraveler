@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@wikitraveler/ui/tokens.css";
+import "@wikitraveler/ui/wikitraveler-ui.css";
 import "leaflet/dist/leaflet.css";
 import { Providers } from "./providers";
 

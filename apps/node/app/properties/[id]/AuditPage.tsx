@@ -62,7 +62,7 @@ interface Props {
   initialFacts: Fact[];
 }
 
-export default function AuditPage({ propertyId, propertyName, initialFacts }: Props) {
+export default function AuditPage({ propertyId, initialFacts }: Props) {
   const [facts, setFacts] = useState<Fact[]>(initialFacts);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -130,23 +130,22 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: "32px auto", padding: "0 20px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{propertyName}</h1>
-      <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 32 }}>
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <p style={{ color: "var(--wt-text-muted)", fontSize: 14, marginBottom: 32 }}>
         Property ID: <code>{propertyId}</code>
       </p>
 
       {/* Current facts */}
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 16 }}>Current Accessibility Facts</h2>
+      <section style={{ marginBottom: 40 }} aria-labelledby="facts-heading">
+        <h2 id="facts-heading" style={{ fontSize: 17, fontWeight: 600, marginBottom: 16 }}>Current Accessibility Facts</h2>
         {facts.length === 0 ? (
           <p style={{ color: "#9ca3af" }}>No facts yet — submit an audit below.</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
+              <tr style={{ borderBottom: "2px solid var(--wt-border)" }}>
                 {["Feature", "Value", "Trust", "Source", "When"].map((h) => (
-                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#6b7280", fontSize: 12, textTransform: "uppercase" }}>{h}</th>
+                  <th key={h} scope="col" style={{ padding: "8px 12px", textAlign: "left", color: "var(--wt-text-muted)", fontSize: 12, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -179,41 +178,49 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
       {!token && (
         <section
           style={{
-            background: "#fff", border: "1px solid #e5e7eb",
+            background: "var(--wt-bg-elevated)", border: "1px solid var(--wt-border)",
             borderRadius: 12, padding: 24, marginBottom: 24,
           }}
+          aria-labelledby="auth-heading"
         >
-          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>Authenticate</h2>
-          <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
+          <h2 id="auth-heading" style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>Authenticate</h2>
+          <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 16 }}>
             Sign in with your node account to submit a field audit.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+            <label htmlFor="audit-auth-username" className="wt-sr-only">Username</label>
             <input
+              id="audit-auth-username"
               type="text"
               placeholder="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              style={{ padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
+              autoComplete="username"
+              style={{ padding: "8px 12px", border: "1px solid var(--wt-border)", borderRadius: 8, fontSize: 14 }}
             />
             <div style={{ display: "flex", gap: 8 }}>
+              <label htmlFor="audit-auth-password" className="wt-sr-only">Password</label>
               <input
+                id="audit-auth-password"
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && getToken()}
-                style={{ flex: 1, padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
+                autoComplete="current-password"
+                style={{ flex: 1, padding: "8px 12px", border: "1px solid var(--wt-border)", borderRadius: 8, fontSize: 14 }}
               />
               <button
+                type="button"
                 onClick={getToken}
                 disabled={status.type === "loading"}
-                style={{ background: "#1e3a5f", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontWeight: 600 }}
+                style={{ background: "var(--wt-bg-header)", color: "var(--wt-bg-header-contrast)", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontWeight: 600 }}
               >
                 Sign in
               </button>
             </div>
           </div>
-          {status.type === "error" && <p style={{ color: "#ef4444", fontSize: 13, marginTop: 8 }}>{status.msg}</p>}
+          {status.type === "error" && <p role="alert" style={{ color: "var(--wt-danger)", fontSize: 13, marginTop: 8 }}>{status.msg}</p>}
         </section>
       )}
 
@@ -232,8 +239,11 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
 
           {auditRows.map((row, i) => (
             <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <label htmlFor={`audit-field-${i}`} className="wt-sr-only">Field {i + 1}</label>
               <select
+                id={`audit-field-${i}`}
                 value={row.fieldName}
+                aria-label={`Field name row ${i + 1}`}
                 onChange={(e) =>
                   setAuditRows((rows) =>
                     rows.map((r, idx) => idx === i ? { ...r, fieldName: e.target.value } : r)
@@ -245,8 +255,11 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
                   <option key={k} value={k}>{v}</option>
                 ))}
               </select>
+              <label htmlFor={`audit-value-${i}`} className="wt-sr-only">Value {i + 1}</label>
               <input
+                id={`audit-value-${i}`}
                 placeholder="Value"
+                aria-label={`Field value row ${i + 1}`}
                 value={row.value}
                 onChange={(e) =>
                   setAuditRows((rows) =>
@@ -256,8 +269,10 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
                 style={{ flex: 1, padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 13 }}
               />
               <button
+                type="button"
+                aria-label={`Remove row ${i + 1}`}
                 onClick={() => removeRow(i)}
-                style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer" }}
+                style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer", minWidth: 44, minHeight: 44 }}
               >×</button>
             </div>
           ))}
@@ -274,8 +289,12 @@ export default function AuditPage({ propertyId, propertyName, initialFacts }: Pr
             >Submit Audit</button>
           </div>
 
-          {status.type === "ok" && <p style={{ color: "#059669", fontSize: 13, marginTop: 12 }}>✅ {status.msg}</p>}
-          {status.type === "error" && <p style={{ color: "#ef4444", fontSize: 13, marginTop: 12 }}>⚠️ {status.msg}</p>}
+          {status.type === "ok" && (
+            <p role="status" style={{ color: "#059669", fontSize: 13, marginTop: 12 }}>{status.msg}</p>
+          )}
+          {status.type === "error" && (
+            <p role="alert" style={{ color: "#ef4444", fontSize: 13, marginTop: 12 }}>{status.msg}</p>
+          )}
         </section>
       )}
     </div>

@@ -4,3 +4,5 @@ dist
 .env
 .env.local
 *.tsbuildinfo
+.lighthouse-secrets.json
+.lighthouseci

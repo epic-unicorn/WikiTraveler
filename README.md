@@ -128,7 +128,7 @@ Example `.env` snippet:
 ```env
 # Optional AI config (local providers or OpenAI)
 AI_API_KEY=your_api_key_here
-AI_BASE_URL=http://localhost:11434
+AI_BASE_URL=http://localhost:11434/v1
 AI_VISION_MODEL=your-vision-model
 AI_TEXT_MODEL=your-text-model
 # Backwards compatibility: OPENAI_API_KEY is still supported for OpenAI
@@ -144,6 +144,10 @@ AI_TEXT_MODEL=your-text-model
 | 3        | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
 
 See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
+
+### Accessibility
+
+WikiTraveler targets **WCAG 2.1 Level AA**. The public statement lives at `/accessibility` on each node. Developer checklist: [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md). Formal report: [docs/CONFORMANCE.md](docs/CONFORMANCE.md). Run `pnpm test:a11y` and `pnpm lighthouse:ci` before merging UI changes.
 
 ---
 
@@ -198,6 +202,9 @@ wikitraveler/
 | `pnpm db:seed`              | Seed database with sample properties          |
 | `pnpm db:setup`             | Full reset of both databases + seed           |
 | `pnpm db:migrate-photos`    | Migrate base64 photos to object storage (R2/Supabase) |
+| `pnpm test`            | Run node unit tests                      |
+| `pnpm test:a11y`       | Run accessibility regression tests (axe + map) |
+| `pnpm lighthouse:ci`   | Lighthouse accessibility gate (≥ 90; needs running apps) |
 | `pnpm osm:ingest`           | Ingest OpenStreetMap data                     |
 
 ---

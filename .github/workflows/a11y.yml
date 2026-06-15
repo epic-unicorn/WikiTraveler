@@ -1,0 +1,101 @@
+name: Accessibility tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  axe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm test:a11y
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wikitraveler
+          POSTGRES_PASSWORD: wikitraveler
+          POSTGRES_DB: wikitraveler
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U wikitraveler
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://wikitraveler:wikitraveler@localhost:5432/wikitraveler
+      JWT_SECRET: ci-lighthouse-secret
+      NODE_URL: http://localhost:3000
+      NODE_ID: ci-lighthouse
+      NODE_REGION: CI
+      NEXT_PUBLIC_NODE_API_URL: http://localhost:3000
+      OPEN_REGISTRATION: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec prisma migrate deploy
+
+      - run: pnpm db:seed
+
+      - run: pnpm build
+
+      - name: Start node
+        run: pnpm --filter @wikitraveler/node start &
+
+      - name: Start field-kit
+        run: pnpm --filter @wikitraveler/field-kit start &
+
+      - name: Wait for servers
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/health >/dev/null && curl -sf http://localhost:3001/login >/dev/null; then
+              echo "Servers ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Servers did not become ready in time"
+          exit 1
+
+      - run: node scripts/prepare-lighthouse.mjs
+
+      - run: pnpm lighthouse:ci
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          if-no-files-found: ignore

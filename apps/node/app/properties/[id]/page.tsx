@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import AuditPage from "./AuditPage";
 import { NodeAppShell } from "../../NodeAppShell";
 
@@ -11,6 +12,26 @@ const TIER_RANK: Record<string, number> = {
   VERIFIED: 2,
   CONFIRMED: 3,
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const property = await prisma.property.findFirst({
+    where: {
+      OR: [
+        { id: params.id },
+        { canonicalId: params.id },
+        { osmId: params.id },
+      ],
+    },
+    select: { name: true },
+  });
+  return {
+    title: property ? `${property.name} — WikiTraveler` : "Property — WikiTraveler",
+  };
+}
 
 export default async function PropertyPage({
   params,

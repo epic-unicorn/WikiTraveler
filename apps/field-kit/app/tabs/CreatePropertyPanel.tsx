@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getAuthHeaders, getAuthToken } from "../lib/fieldKitApi";
+import { clearAuth } from "../lib/authStorage";
 
 interface Props {
   searchNodeUrl: string;
@@ -82,7 +83,7 @@ export function CreatePropertyPanel({
       });
 
       if (res.status === 401) {
-        sessionStorage.removeItem("wt_auth_token");
+        clearAuth();
         setError("Session expired — please sign in again.");
         return;
       }

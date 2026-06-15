@@ -171,6 +171,15 @@ function createFactsTable(facts) {
   const table = document.createElement("table");
   table.className = "facts-table";
 
+  const thead = table.createTHead();
+  const headerRow = thead.insertRow();
+  ["Feature", "Value"].forEach((heading) => {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = heading;
+    headerRow.appendChild(th);
+  });
+
   facts.forEach((f) => {
     const { tier, displayValue, confidence, evidence, rawValue } = resolveFactDisplay(f);
     const label = formatFieldLabel(f.fieldName);
@@ -403,13 +412,18 @@ function showSearchToggle(nodeUrl, authHeaders, onSelect) {
   const newBtn = btn.cloneNode(true);
   btn.parentNode.replaceChild(newBtn, btn);
 
+  newBtn.setAttribute("aria-expanded", "false");
+  newBtn.setAttribute("aria-controls", "search-section");
+  newBtn.textContent = "Search for different property";
+
   newBtn.addEventListener("click", () => {
     open = !open;
+    newBtn.setAttribute("aria-expanded", open ? "true" : "false");
     if (open) {
-      newBtn.textContent = "✕ Close search";
+      newBtn.textContent = "Close property search";
       initSearchSection(nodeUrl, authHeaders, onSelect);
     } else {
-      newBtn.textContent = "🔍 Search for different property";
+      newBtn.textContent = "Search for different property";
       document.getElementById("search-section").style.display = "none";
       document.getElementById("search-results").innerHTML = "";
     }
@@ -432,10 +446,12 @@ function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = 
     <div style="padding:2px 0">
       ${offlineMsg}
       <p style="font-size:13px;color:#334155;margin-bottom:12px;font-weight:600">Sign in to your node</p>
+      <label class="wt-sr-only" for="wt-login-username">Username</label>
       <input id="wt-login-username" type="text" placeholder="Username" class="login-input" autocomplete="username">
+      <label class="wt-sr-only" for="wt-login-password">Password</label>
       <input id="wt-login-password" type="password" placeholder="Password" class="login-input" autocomplete="current-password">
       <button id="wt-login-btn" class="login-btn">Sign in</button>
-      <p id="wt-login-error" class="login-error"></p>
+      <p id="wt-login-error" class="login-error" role="alert"></p>
       <p class="login-footer">No account? <a id="wt-register-link" href="#">Register on node →</a></p>
     </div>
   `;

@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "pnpm exec next dev",
+    "build": "pnpm exec next build",
+    "start": "pnpm exec next start",
+    "lint": "pnpm exec next lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:a11y": "vitest run lib/a11yStatic.test.ts lib/mapPopup.test.ts",
     "db:migrate-photos": "tsx scripts/migrate-photos.ts"
   },
   "dependencies": {
@@ -37,6 +38,8 @@
     "@types/react-dom": "^18",
     "tsx": "^4.15.0",
     "typescript": "^5",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "axe-core": "^4.10.3",
+    "happy-dom": "^17.4.4"
   }
 }

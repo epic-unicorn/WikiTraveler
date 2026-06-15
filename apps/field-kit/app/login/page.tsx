@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { WikiTravelerLogo } from "@wikitraveler/ui";
+import { canAccessFieldKit, persistAuth } from "../lib/authStorage";
 
 const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 
@@ -31,7 +32,6 @@ const inputStyle: React.CSSProperties = {
 };
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
   const [username, setUsername] = useState("");
@@ -63,24 +63,27 @@ function LoginForm() {
         signal: AbortSignal.timeout(8000),
       });
       const data = await res.json() as { token?: string; message?: string; username?: string; role?: string };
-      if (!res.ok) { setError(data.message ?? "Login failed"); return; }
+      if (!res.ok) {
+        setError(data.message ?? `Login failed (${res.status})`);
+        return;
+      }
+      if (!data.token) {
+        setError("Login succeeded but no token was returned. Check the node logs.");
+        return;
+      }
 
-      const role = (data.role ?? "USER").toUpperCase();
-      if (role === "USER") {
+      if (!canAccessFieldKit(data.role)) {
         setPendingApproval(true);
         setPendingUsername(data.username ?? username.trim().toLowerCase());
         return;
       }
 
-      const maxAge = 30 * 24 * 60 * 60;
-      document.cookie = `wt_token=${encodeURIComponent(data.token!)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-      sessionStorage.setItem("wt_auth_token", data.token!);
-      localStorage.setItem("wt_node_url", cleanUrl);
-      localStorage.setItem("wt_username", data.username ?? username.trim().toLowerCase());
+      persistAuth(data.token, data.username ?? username.trim().toLowerCase(), cleanUrl);
 
-      router.replace(searchParams.get("next") ?? "/");
+      const next = searchParams.get("next") ?? "/";
+      window.location.assign(next);
     } catch {
-      setError("Could not reach node. Check the URL and try again.");
+      setError(`Could not reach node at ${cleanUrl}. Is it running? Check the Node URL above.`);
     } finally {
       setLoading(false);
     }
@@ -123,8 +126,9 @@ function LoginForm() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <label style={labelStyle}>Node URL</label>
+            <label htmlFor="fk-login-node-url" style={labelStyle}>Node URL</label>
             <input
+              id="fk-login-node-url"
               type="url"
               value={nodeUrl}
               onChange={(e) => setNodeUrl(e.target.value)}
@@ -133,8 +137,9 @@ function LoginForm() {
               style={{ ...inputStyle, marginBottom: 16 }}
             />
 
-            <label style={labelStyle}>Username</label>
+            <label htmlFor="fk-login-username" style={labelStyle}>Username</label>
             <input
+              id="fk-login-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -144,8 +149,9 @@ function LoginForm() {
               style={{ ...inputStyle, marginBottom: 12 }}
             />
 
-            <label style={labelStyle}>Password</label>
+            <label htmlFor="fk-login-password" style={labelStyle}>Password</label>
             <input
+              id="fk-login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -156,7 +162,7 @@ function LoginForm() {
             />
 
             {error && (
-              <p style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
+              <p role="alert" style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
             )}
 
             <button
