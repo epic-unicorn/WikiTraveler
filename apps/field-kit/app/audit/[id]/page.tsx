@@ -14,7 +14,19 @@ export default async function AuditPage({ params, searchParams }: { params: { id
   const authHeaders: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
   let property: { id: string; name: string; location: string } | null = null;
-  let existingFacts: Array<{ fieldName: string; value: string; tier: string }> = [];
+  let existingFacts: Array<{
+    fieldName: string;
+    value: string;
+    tier: string;
+    signatureHash?: string | null;
+    timestamp?: string;
+  }> = [];
+  let auditPhotos: {
+    submissionId: string;
+    capturedAt: string;
+    photos: string[];
+  } | null = null;
+  let hasAiGuess = false;
 
   try {
     const res = await fetch(
@@ -24,10 +36,24 @@ export default async function AuditPage({ params, searchParams }: { params: { id
     if (res.ok) {
       const data = await res.json() as {
         property: { id: string; name: string; location: string };
-        facts: Array<{ fieldName: string; value: string; tier: string }>;
+        facts: Array<{
+          fieldName: string;
+          value: string;
+          tier: string;
+          signatureHash?: string | null;
+          timestamp?: string;
+        }>;
+        auditPhotos: {
+          submissionId: string;
+          capturedAt: string;
+          photos: string[];
+        } | null;
+        hasAiGuess?: boolean;
       };
       property = data.property;
       existingFacts = data.facts ?? [];
+      auditPhotos = data.auditPhotos ?? null;
+      hasAiGuess = data.hasAiGuess ?? existingFacts.some((f) => f.tier === "AI_GUESS");
     }
   } catch {
     // node unreachable — will still render the form with fallback
@@ -39,6 +65,8 @@ export default async function AuditPage({ params, searchParams }: { params: { id
       propertyName={property?.name ?? "Unknown Property"}
       location={property?.location ?? "Unknown Location"}
       existingFacts={existingFacts}
+      auditPhotos={auditPhotos}
+      hasAiGuess={hasAiGuess}
       targetNodeUrl={targetNodeUrl !== homeNodeUrl ? targetNodeUrl : undefined}
     />
   );

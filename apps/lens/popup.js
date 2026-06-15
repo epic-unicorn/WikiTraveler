@@ -18,6 +18,23 @@ const TIER_CLASSES = {
   OFFICIAL: "tier--official",
 };
 
+const FIELD_LABELS = {
+  door_width_cm: "Door width (cm)",
+  ramp_present: "Ramp present",
+  elevator_present: "Elevator",
+  elevator_floor_count: "Elevator floors",
+  quiet_hours_start: "Quiet hours start",
+  quiet_hours_end: "Quiet hours end",
+  accessible_bathroom: "Accessible bathroom",
+  hearing_loop: "Hearing loop",
+  braille_signage: "Braille signage",
+  step_free_entrance: "Step-free entrance",
+  parking_accessible: "Accessible parking",
+  notes: "Notes",
+};
+
+const CONFIDENCE_ONLY = new Set(["high", "medium", "low"]);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Node status bar
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,26 +114,184 @@ function createTierBadge(tier) {
   return badge;
 }
 
+function parseAiMeta(signatureHash) {
+  if (!signatureHash) return null;
+  try {
+    const parsed = JSON.parse(signatureHash);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function formatFieldLabel(fieldName) {
+  return FIELD_LABELS[fieldName] ?? fieldName.replace(/_/g, " ");
+}
+
+function resolveFactDisplay(fact) {
+  const tier = fact.tier ?? "OFFICIAL";
+  const meta = tier === "AI_GUESS" ? parseAiMeta(fact.signatureHash) : null;
+  const rawValue = String(fact.value ?? "").trim();
+  const confidence =
+    typeof meta?.confidence === "string" ? meta.confidence.toLowerCase() : null;
+  const evidence = typeof meta?.evidence === "string" ? meta.evidence.trim() : "";
+
+  let displayValue = rawValue;
+  if (
+    tier === "AI_GUESS" &&
+    CONFIDENCE_ONLY.has(rawValue.toLowerCase()) &&
+    evidence
+  ) {
+    displayValue = evidence;
+  } else if (
+    tier === "AI_GUESS" &&
+    CONFIDENCE_ONLY.has(rawValue.toLowerCase())
+  ) {
+    displayValue = "Estimate unavailable";
+  }
+
+  return { tier, displayValue, confidence, evidence, rawValue };
+}
+
+function appendFactBadges(container, tier, confidence) {
+  const badges = document.createElement("span");
+  badges.className = "fact-badges";
+  badges.appendChild(createTierBadge(tier));
+  if (tier === "AI_GUESS" && confidence) {
+    const conf = document.createElement("span");
+    conf.className = "confidence-badge";
+    conf.textContent = confidence;
+    badges.appendChild(conf);
+  }
+  container.appendChild(badges);
+}
+
 function createFactsTable(facts) {
   const table = document.createElement("table");
   table.className = "facts-table";
 
   facts.forEach((f) => {
+    const { tier, displayValue, confidence, evidence, rawValue } = resolveFactDisplay(f);
+    const label = formatFieldLabel(f.fieldName);
+    const useStackedLayout =
+      f.fieldName === "notes" || displayValue.length > 48;
+
     const row = table.insertRow();
+    if (useStackedLayout) {
+      row.className = "fact-row--stacked";
+      const cell = row.insertCell();
+      cell.colSpan = 2;
+
+      const labelEl = document.createElement("div");
+      labelEl.className = "fact-stacked-label";
+      labelEl.appendChild(document.createTextNode(label));
+      appendFactBadges(labelEl, tier, confidence);
+      cell.appendChild(labelEl);
+
+      const valueEl = document.createElement("div");
+      valueEl.className = "fact-stacked-value";
+      valueEl.textContent = displayValue;
+      cell.appendChild(valueEl);
+
+      if (
+        tier === "AI_GUESS" &&
+        evidence &&
+        evidence !== displayValue &&
+        !CONFIDENCE_ONLY.has(rawValue.toLowerCase())
+      ) {
+        const evidenceEl = document.createElement("div");
+        evidenceEl.className = "fact-evidence";
+        evidenceEl.textContent = evidence;
+        cell.appendChild(evidenceEl);
+      }
+      return;
+    }
 
     const labelCell = row.insertCell();
     labelCell.className = "fact-label";
-    labelCell.textContent = f.fieldName.replace(/_/g, " ");
+    labelCell.textContent = label;
 
     const valueCell = row.insertCell();
     valueCell.className = "fact-value-cell";
 
-    const valueText = document.createTextNode(f.value + " ");
-    valueCell.appendChild(valueText);
-    valueCell.appendChild(createTierBadge(f.tier ?? "OFFICIAL"));
+    const valueWrap = document.createElement("div");
+    valueWrap.textContent = displayValue;
+    valueCell.appendChild(valueWrap);
+
+    const badgeWrap = document.createElement("div");
+    badgeWrap.style.marginTop = "4px";
+    appendFactBadges(badgeWrap, tier, confidence);
+    valueCell.appendChild(badgeWrap);
   });
 
   return table;
+}
+
+function createAuditPhotosSection(auditPhotos, hasAiGuess) {
+  if (!auditPhotos?.photos?.length) return null;
+
+  const section = document.createElement("div");
+  section.className = "audit-photos";
+
+  const title = document.createElement("p");
+  title.className = "audit-photos-title";
+  title.textContent = hasAiGuess
+    ? "Photos used for AI analysis"
+    : "Audit photos";
+  section.appendChild(title);
+
+  const strip = document.createElement("div");
+  strip.className = "audit-photos-strip";
+
+  let expandedWrap = null;
+
+  auditPhotos.photos.forEach((src, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "audit-photo-btn";
+    btn.title = `Audit photo ${i + 1}`;
+
+    const img = document.createElement("img");
+    img.className = "audit-photo";
+    img.src = src;
+    img.alt = `Audit photo ${i + 1}`;
+    img.loading = "lazy";
+
+    btn.appendChild(img);
+    btn.addEventListener("click", () => {
+      const isActive = btn.classList.contains("is-active");
+      strip.querySelectorAll(".audit-photo-btn").forEach((el) => el.classList.remove("is-active"));
+      if (expandedWrap) {
+        expandedWrap.remove();
+        expandedWrap = null;
+      }
+      if (isActive) return;
+
+      btn.classList.add("is-active");
+      expandedWrap = document.createElement("div");
+      expandedWrap.className = "audit-photo-expanded";
+
+      const big = document.createElement("img");
+      big.src = src;
+      big.alt = `Audit photo ${i + 1}`;
+      expandedWrap.appendChild(big);
+      section.appendChild(expandedWrap);
+    });
+
+    strip.appendChild(btn);
+  });
+
+  section.appendChild(strip);
+
+  if (auditPhotos.capturedAt) {
+    const date = document.createElement("p");
+    date.className = "audit-photos-date";
+    date.textContent = `Captured ${new Date(auditPhotos.capturedAt).toLocaleString()}`;
+    section.appendChild(date);
+  }
+
+  return section;
 }
 
 function createPropertyHeader(prop, displayName) {
@@ -373,6 +548,9 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
 
   content.innerHTML = "";
   content.appendChild(createPropertyHeader(prop, displayName));
+
+  const photosSection = createAuditPhotosSection(data.auditPhotos, data.hasAiGuess);
+  if (photosSection) content.appendChild(photosSection);
 
   if (facts.length === 0) {
     const empty = document.createElement("div");

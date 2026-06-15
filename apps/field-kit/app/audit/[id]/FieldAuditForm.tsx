@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { FieldKitHeader } from "../../FieldKitHeader";
+import ExistingDataPanel, { type AuditPhotos, type ExistingFact } from "./ExistingDataPanel";
+import { resolveFactDisplay, TIER_LABELS } from "../../lib/factDisplay";
 
 const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 
@@ -31,18 +33,18 @@ const FIELDS: AuditField[] = [
   { name: "notes", label: "Additional Notes", type: "textarea", placeholder: "Any extra details…" },
 ];
 
-interface ExistingFact { fieldName: string; value: string; tier: string; }
-
 interface Props {
   propertyId: string;
   propertyName: string;
   location: string;
   existingFacts: ExistingFact[];
+  auditPhotos: AuditPhotos | null;
+  hasAiGuess: boolean;
   /** The node that hosts this property — may differ from the user's home node. */
   targetNodeUrl?: string;
 }
 
-export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, targetNodeUrl }: Props) {
+export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, auditPhotos, hasAiGuess, targetNodeUrl }: Props) {
   const router = useRouter();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
   const [mounted, setMounted] = useState(false);
@@ -148,6 +150,44 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   const [photos, setPhotos] = useState<string[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [loadedFacts, setLoadedFacts] = useState(existingFacts);
+  const [loadedPhotos, setLoadedPhotos] = useState(auditPhotos);
+  const [loadedHasAiGuess, setLoadedHasAiGuess] = useState(hasAiGuess);
+
+  useEffect(() => {
+    setLoadedFacts(existingFacts);
+    setLoadedPhotos(auditPhotos);
+    setLoadedHasAiGuess(hasAiGuess);
+  }, [existingFacts, auditPhotos, hasAiGuess]);
+
+  useEffect(() => {
+    if (!mounted || !token) return;
+    const url = targetNodeUrl ?? nodeUrl;
+    let cancelled = false;
+
+    fetch(`${url}/api/properties/${encodeURIComponent(propertyId)}/accessibility`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: {
+        facts?: ExistingFact[];
+        auditPhotos?: AuditPhotos | null;
+        hasAiGuess?: boolean;
+      } | null) => {
+        if (cancelled || !data) return;
+        setLoadedFacts(data.facts ?? []);
+        setLoadedPhotos(data.auditPhotos ?? null);
+        setLoadedHasAiGuess(
+          data.hasAiGuess ?? (data.facts ?? []).some((f) => f.tier === "AI_GUESS")
+        );
+      })
+      .catch(() => { /* keep SSR props */ });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, token, propertyId, nodeUrl, targetNodeUrl]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []).slice(0, 3 - photos.length);
@@ -213,11 +253,13 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
     }
   }
 
-  const existingByField = Object.fromEntries(existingFacts.map((f) => [f.fieldName, f]));
+  const existingByField = Object.fromEntries(loadedFacts.map((f) => [f.fieldName, f]));
 
-  // One-line data quality summary shown at top of form
-  const confirmedCount = existingFacts.filter((f) => f.tier === "CONFIRMED" || f.tier === "VERIFIED").length;
-  const aiCount = existingFacts.filter((f) => f.tier === "AI_GUESS").length;
+  function formatPreviousValue(fact: ExistingFact): string {
+    const { displayValue } = resolveFactDisplay(fact);
+    const tierLabel = TIER_LABELS[fact.tier] ?? fact.tier;
+    return `${displayValue} (${tierLabel})`;
+  }
 
   if (status === "ok") {
     return (
@@ -304,16 +346,12 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               </div>
             )}
 
-            {/* Existing data summary — quiet, one line */}
-            {existingFacts.length > 0 && (
-              <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--wt-success) 10%, var(--wt-bg-elevated))", borderRadius: 8, marginBottom: 12, fontSize: 12, color: "var(--wt-text)" }}>
-                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: confirmedCount > 0 ? "var(--wt-success)" : "var(--wt-warning)", marginRight: 6, verticalAlign: "middle" }} />
-                {confirmedCount > 0 ? `${confirmedCount} field${confirmedCount > 1 ? "s" : ""} verified` : ""}
-                {confirmedCount > 0 && aiCount > 0 ? ", " : ""}
-                {aiCount > 0 ? `${aiCount} AI estimate${aiCount > 1 ? "s" : ""}` : ""}
-                {confirmedCount === 0 && aiCount === 0 ? `${existingFacts.length} fields recorded` : ""}
-              </div>
-            )}
+            <ExistingDataPanel
+              facts={loadedFacts}
+              auditPhotos={loadedPhotos}
+              hasAiGuess={loadedHasAiGuess}
+            />
+
             {/* Accessibility fields */}
               <div className="card">
               <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Accessibility Audit</h2>
@@ -331,7 +369,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                         <span className="toggle-label">{field.label}</span>
                         {existing && (
                           <div style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: 2 }}>
-                            Previously: {existing.value}
+                            Previously: {formatPreviousValue(existing)}
                           </div>
                         )}
                       </div>
@@ -359,7 +397,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                     </label>
                     {existing && (
                       <p style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: -2, marginBottom: 4 }}>
-                        Previously: {existing.value}
+                        Previously: {formatPreviousValue(existing)}
                       </p>
                     )}
                     {field.type === "textarea" ? (

@@ -5,9 +5,17 @@ import { evaluateMeshTruth } from "@wikitraveler/core";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import { pushFactsToPeers } from "@/lib/push";
-import { getPhotoStorage } from "@/lib/photoStorage";
+import { getPhotoStorage, photoToDisplayUrl } from "@/lib/photoStorage";
 import type { NextRequest } from "next/server";
 import type { Tier, SourceType } from "@wikitraveler/core";
+
+function normalizeAuditPhotos(photoUrls: unknown): string[] {
+  if (!Array.isArray(photoUrls)) return [];
+  return photoUrls
+    .filter((p): p is string => typeof p === "string" && p.length > 0)
+    .slice(0, 3)
+    .map(photoToDisplayUrl);
+}
 
 // GET /api/properties/:id/accessibility
 export async function GET(
@@ -65,10 +73,32 @@ export async function GET(
     }
   }
 
+  const collapsedFacts = Array.from(collapsed.values());
+  const hasAiGuess = collapsedFacts.some((f) => f.tier === "AI_GUESS");
+
+  const latestAudit = await prisma.auditSubmission.findFirst({
+    where: {
+      propertyId: property.id,
+      NOT: { photoUrls: { equals: [] } },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, photoUrls: true, createdAt: true },
+  });
+
+  const auditPhotos = latestAudit
+    ? {
+        submissionId: latestAudit.id,
+        capturedAt: latestAudit.createdAt.toISOString(),
+        photos: normalizeAuditPhotos(latestAudit.photoUrls),
+      }
+    : null;
+
   return NextResponse.json({
     propertyId: params.id,
     property,
-    facts: Array.from(collapsed.values()),
+    facts: collapsedFacts,
+    auditPhotos,
+    hasAiGuess,
   });
 }
 

@@ -185,3 +185,6 @@ export function photoToVisionInput(ref: string): string {
   if (/^https?:\/\//.test(ref) || ref.startsWith("data:")) return ref;
   return `data:image/jpeg;base64,${ref}`;
 }
+
+/** Same normalisation as vision input — suitable for <img src> in clients. */
+export const photoToDisplayUrl = photoToVisionInput;
