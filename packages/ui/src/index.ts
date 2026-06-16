@@ -1,5 +1,11 @@
-export { AppHeader } from "./AppHeader";
-export type { AppHeaderProps } from "./AppHeader";
+export { AppToolbar, ToolbarBackLink, PageLead } from "./AppToolbar";
+export type { AppToolbarProps } from "./AppToolbar";
+export {
+  toolbarLinkClass,
+  type ToolbarLink,
+  type ToolbarLinkWrap,
+} from "./toolbarTypes";
+export { defaultToolbarLinkWrap } from "./AppToolbar";
 export { AppShell } from "./AppShell";
 export { WikiTravelerLogo, LogoMark } from "./logos/WikiTravelerLogo";
 export { TierBadge } from "./TierBadge";

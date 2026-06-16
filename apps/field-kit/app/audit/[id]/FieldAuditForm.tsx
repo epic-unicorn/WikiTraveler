@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { FieldKitHeader } from "../../FieldKitHeader";
+import { FieldKitToolbar } from "../../FieldKitToolbar";
 import ExistingDataPanel, { type AuditPhotos, type ExistingFact } from "./ExistingDataPanel";
 import { resolveFactDisplay, TIER_LABELS } from "../../lib/factDisplay";
 import { canAccessFieldKit, clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
-
-const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
+import { ENV_NODE_URL } from "../../lib/fieldKitApi";
+import { findRecentAudit, removeRecentAudit, upsertRecentAudit } from "../../lib/recentAudits";
 
 interface AuditField {
   name: string;
@@ -149,6 +149,25 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   const [loadedFacts, setLoadedFacts] = useState(existingFacts);
   const [loadedPhotos, setLoadedPhotos] = useState(auditPhotos);
   const [loadedHasAiGuess, setLoadedHasAiGuess] = useState(hasAiGuess);
+  const [displayName, setDisplayName] = useState(propertyName);
+  const [displayLocation, setDisplayLocation] = useState(location);
+  const [propertyMissing, setPropertyMissing] = useState(false);
+  const [propertyLoading, setPropertyLoading] = useState(true);
+
+  useEffect(() => {
+    setDisplayName(propertyName);
+    setDisplayLocation(location);
+  }, [propertyName, location]);
+
+  // Use cached recent-list labels when SSR could not load the property.
+  useEffect(() => {
+    if (propertyName !== "Unknown Property" && location !== "Unknown Location") return;
+    const cached = findRecentAudit(propertyId);
+    if (cached) {
+      setDisplayName(cached.name);
+      setDisplayLocation(cached.location);
+    }
+  }, [propertyId, propertyName, location]);
 
   useEffect(() => {
     setLoadedFacts(existingFacts);
@@ -157,33 +176,60 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   }, [existingFacts, auditPhotos, hasAiGuess]);
 
   useEffect(() => {
-    if (!mounted || !token) return;
+    if (!mounted) return;
+    if (!token) {
+      setPropertyLoading(false);
+      return;
+    }
     const url = targetNodeUrl ?? nodeUrl;
     let cancelled = false;
+    setPropertyLoading(true);
 
     fetch(`${url}/api/properties/${encodeURIComponent(propertyId)}/accessibility`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: {
-        facts?: ExistingFact[];
-        auditPhotos?: AuditPhotos | null;
-        hasAiGuess?: boolean;
-      } | null) => {
-        if (cancelled || !data) return;
+      .then(async (res) => {
+        if (cancelled) return;
+        if (res.status === 404) {
+          setPropertyMissing(true);
+          const cached = findRecentAudit(propertyId);
+          if (cached) {
+            setDisplayName(cached.name);
+            setDisplayLocation(cached.location);
+          }
+          return;
+        }
+        if (!res.ok) return;
+        setPropertyMissing(false);
+        const data = (await res.json()) as {
+          property?: { name?: string; location?: string };
+          facts?: ExistingFact[];
+          auditPhotos?: AuditPhotos | null;
+          hasAiGuess?: boolean;
+        };
+        if (data.property?.name) setDisplayName(data.property.name);
+        if (data.property?.location) setDisplayLocation(data.property.location);
         setLoadedFacts(data.facts ?? []);
         setLoadedPhotos(data.auditPhotos ?? null);
         setLoadedHasAiGuess(
           data.hasAiGuess ?? (data.facts ?? []).some((f) => f.tier === "AI_GUESS")
         );
       })
-      .catch(() => { /* keep SSR props */ });
+      .catch(() => { /* keep SSR / cached props */ })
+      .finally(() => {
+        if (!cancelled) setPropertyLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
   }, [mounted, token, propertyId, nodeUrl, targetNodeUrl]);
+
+  function dismissMissingProperty() {
+    removeRecentAudit(propertyId);
+    router.push("/");
+  }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []).slice(0, 3 - photos.length);
@@ -231,15 +277,14 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
     if (res.ok) {
       sessionStorage.removeItem(`wt_draft_${propertyId}`);
-      // Record in recently audited list
       try {
-        const key = "wt_recent_audits";
-        const existing = JSON.parse(localStorage.getItem(key) ?? "[]") as Array<{ id: string; name: string; location: string; auditedAt: string }>;
-        const updated = [
-          { id: propertyId, name: propertyName, location, auditedAt: new Date().toISOString() },
-          ...existing.filter((e) => e.id !== propertyId),
-        ].slice(0, 10);
-        localStorage.setItem(key, JSON.stringify(updated));
+        upsertRecentAudit({
+          id: propertyId,
+          name: displayName,
+          location: displayLocation,
+          auditedAt: new Date().toISOString(),
+          nodeUrl: targetNodeUrl ?? nodeUrl,
+        });
       } catch { /* ignore */ }
       setStatus("ok");
     } else {
@@ -260,12 +305,12 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   if (status === "ok") {
     return (
       <>
-        <FieldKitHeader title="Audit submitted!" />
+        <FieldKitToolbar title="Audit submitted!" />
         <main id="main-content" className="page" role="status" aria-live="polite">
           <div className="card" style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Thank you!</h2>
             <p className="status-muted" style={{ marginBottom: 24 }}>
-              Your audit for <strong>{propertyName}</strong> has been recorded.
+              Your audit for <strong>{displayName}</strong> has been recorded.
             </p>
             <button className="btn-secondary" onClick={() => router.push("/")}>
               Audit another property
@@ -278,18 +323,18 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
   return (
     <>
-      <FieldKitHeader
+      <FieldKitToolbar
         showBack
         backHref="/"
-        title={propertyName}
-        subtitle={
-          targetNodeUrl && targetNodeUrl !== nodeUrl
-            ? `Remote audit · ${new URL(targetNodeUrl).hostname}`
-            : location
-        }
+        title={displayName}
       />
 
       <main className="page">
+        <p className="wt-fk-page-lead">
+          {targetNodeUrl && targetNodeUrl !== nodeUrl
+            ? `Remote audit · ${new URL(targetNodeUrl).hostname}`
+            : displayLocation}
+        </p>
 
         {/* Auth gate — only rendered after client hydration to avoid mismatch */}
         {!mounted ? (
@@ -330,6 +375,30 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                 <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>Log in</button></>
               )}
             </p>
+          </div>
+        ) : propertyMissing ? (
+          <div className="card" role="alert">
+            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+              Property no longer on this node
+            </h2>
+            <p className="status-muted" style={{ marginBottom: 16 }}>
+              <strong>{displayName}</strong> is not in the node database anymore. That often
+              happens after a database reset or re-seed — the recent list still has your old
+              audit, but the property ID no longer exists. Search for the property again to
+              re-audit it.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button className="btn-primary" onClick={() => router.push("/")}>
+                Search properties
+              </button>
+              <button className="btn-secondary" onClick={dismissMissingProperty}>
+                Remove from recent
+              </button>
+            </div>
+          </div>
+        ) : propertyLoading ? (
+          <div className="card" style={{ textAlign: "center", padding: "32px 16px", color: "var(--wt-text-muted)" }}>
+            Loading property…
           </div>
         ) : (
           <>

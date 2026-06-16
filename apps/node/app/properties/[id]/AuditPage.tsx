@@ -2,13 +2,6 @@
 
 import { useState, useEffect } from "react";
 
-const TIER_COLOR: Record<string, string> = {
-  OFFICIAL: "#9ca3af",
-  AI_GUESS: "#fbbf24",
-  VERIFIED: "#34d399",
-  CONFIRMED: "#60a5fa",
-};
-
 const TIER_LABEL: Record<string, string> = {
   OFFICIAL: "Official",
   AI_GUESS: "AI Estimate",
@@ -16,12 +9,11 @@ const TIER_LABEL: Record<string, string> = {
   CONFIRMED: "Confirmed",
 };
 
-const SOURCE_COLOR: Record<string, string> = {
-  AMADEUS: "#6366f1",
-  WHEELMAP: "#0ea5e9",
-  OSM: "#16a34a",
-  WHEEL_THE_WORLD: "#f97316",
-  AUDITOR: "#10b981",
+const TIER_BADGE_CLASS: Record<string, string> = {
+  OFFICIAL: "wt-fact-badge--official",
+  AI_GUESS: "wt-fact-badge--ai_guess",
+  VERIFIED: "wt-fact-badge--verified",
+  CONFIRMED: "wt-fact-badge--confirmed",
 };
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -46,6 +38,13 @@ const FIELD_LABELS: Record<string, string> = {
   parking_accessible: "Accessible Parking",
   notes: "Notes",
 };
+
+function formatFactValue(fieldName: string, value: string): string {
+  if (fieldName === "notes") return value;
+  if (value === "yes") return "Yes";
+  if (value === "no") return "No";
+  return value;
+}
 
 interface Fact {
   fieldName: string;
@@ -130,7 +129,7 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+    <div>
       <p style={{ color: "var(--wt-text-muted)", fontSize: 14, marginBottom: 32 }}>
         Property ID: <code>{propertyId}</code>
       </p>
@@ -139,38 +138,33 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
       <section style={{ marginBottom: 40 }} aria-labelledby="facts-heading">
         <h2 id="facts-heading" style={{ fontSize: 17, fontWeight: 600, marginBottom: 16 }}>Current Accessibility Facts</h2>
         {facts.length === 0 ? (
-          <p style={{ color: "#9ca3af" }}>No facts yet — submit an audit below.</p>
+          <p style={{ color: "var(--wt-text-muted)" }}>No facts yet — submit an audit below.</p>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-              <tr style={{ borderBottom: "2px solid var(--wt-border)" }}>
-                {["Feature", "Value", "Trust", "Source", "When"].map((h) => (
-                  <th key={h} scope="col" style={{ padding: "8px 12px", textAlign: "left", color: "var(--wt-text-muted)", fontSize: 12, textTransform: "uppercase" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {facts.map((f, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                  <td style={{ padding: "10px 12px", fontWeight: 500 }}>{FIELD_LABELS[f.fieldName] ?? f.fieldName}</td>
-                  <td style={{ padding: "10px 12px" }}>{f.value}</td>
-                  <td style={{ padding: "10px 12px" }}>
-                    <span style={{ background: TIER_COLOR[f.tier] ?? "#9ca3af", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>
-                      {TIER_LABEL[f.tier] ?? f.tier}
-                    </span>
-                  </td>
-                  <td style={{ padding: "10px 12px" }}>
-                    <span style={{ background: SOURCE_COLOR[f.sourceType] ?? "#9ca3af", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>
-                      {SOURCE_LABEL[f.sourceType] ?? f.sourceType}
-                    </span>
-                  </td>
-                  <td style={{ padding: "10px 12px", color: "#9ca3af", fontSize: 12 }}>
-                    {new Date(f.timestamp).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="wt-facts-list" role="list">
+            {facts.map((f) => (
+              <li key={f.fieldName} className="wt-fact-row">
+                <div className="wt-fact-row-main">
+                  <span className="wt-fact-label">{FIELD_LABELS[f.fieldName] ?? f.fieldName}</span>
+                  <span className="wt-fact-value">{formatFactValue(f.fieldName, f.value)}</span>
+                </div>
+                <div className="wt-fact-row-meta">
+                  <span className={`wt-fact-badge ${TIER_BADGE_CLASS[f.tier] ?? "wt-fact-badge--official"}`}>
+                    {TIER_LABEL[f.tier] ?? f.tier}
+                  </span>
+                  <span className="wt-fact-badge wt-fact-badge--source">
+                    {SOURCE_LABEL[f.sourceType] ?? f.sourceType}
+                  </span>
+                  <time className="wt-fact-when" dateTime={f.timestamp}>
+                    {new Date(f.timestamp).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </time>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

@@ -6,6 +6,7 @@ import {
   getStoredNodeUrl,
   resolvePeerNode,
 } from "../lib/fieldKitApi";
+import { persistNodeUrlCookie } from "../lib/authStorage";
 
 interface NodeInfo {
   nodeId?: string;
@@ -21,7 +22,9 @@ export function useNodeContext() {
   const [nodeReachable, setNodeReachable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    setNodeUrlState(getStoredNodeUrl());
+    const stored = getStoredNodeUrl();
+    setNodeUrlState(stored);
+    persistNodeUrlCookie(stored);
   }, []);
 
   useEffect(() => {
@@ -56,11 +59,13 @@ export function useNodeContext() {
 
   const setNodeUrl = useCallback((url: string) => {
     localStorage.setItem("wt_node_url", url);
+    persistNodeUrlCookie(url);
     setNodeUrlState(url);
   }, []);
 
   const resetNodeUrl = useCallback(() => {
     localStorage.removeItem("wt_node_url");
+    persistNodeUrlCookie(ENV_NODE_URL);
     setNodeUrlState(ENV_NODE_URL);
   }, []);
 

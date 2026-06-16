@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FieldKitHeader } from "../../FieldKitHeader";
+import { FieldKitToolbar } from "../../FieldKitToolbar";
 import { CreatePropertyPanel } from "../../tabs/CreatePropertyPanel";
 import { useNodeContext } from "../../hooks/useNodeContext";
 
@@ -17,13 +17,9 @@ export default function NewPropertyPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--wt-bg)" }}>
-      <FieldKitHeader
-        title="New property"
-        subtitle="Add a place to the network"
-        showBack
-        backHref="/"
-      />
+      <FieldKitToolbar title="New property" showBack backHref="/" />
       <div className="page" style={{ paddingTop: 20 }}>
+        <p className="wt-fk-page-lead">Add a place to the network</p>
         <CreatePropertyPanel
           searchNodeUrl={searchNodeUrl}
           homeNodeUrl={nodeUrl}

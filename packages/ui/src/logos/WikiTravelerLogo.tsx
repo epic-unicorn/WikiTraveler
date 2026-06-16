@@ -52,26 +52,18 @@ export function WikiTravelerLogo({
   size = 28,
   showWordmark = true,
   style,
-}: LogoProps) {
+  className,
+}: LogoProps & { className?: string }) {
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 10,
-        color: "inherit",
-        ...style,
-      }}
-    >
-      <LogoMark size={size} />
+    <span className={className ? `wt-logo ${className}` : "wt-logo"} style={style}>
+      <LogoMark size={size} className="wt-logo-mark" />
       {showWordmark && (
-        <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
-          <span style={{ fontSize: size * 0.55, fontWeight: 700, letterSpacing: "-0.02em" }}>
-            WikiTraveler
+        <span className="wt-logo-wordmark">
+          <span className="wt-logo-brand">WikiTraveler</span>
+          <span className="wt-logo-sep" aria-hidden="true">
+            ·
           </span>
-          <span style={{ fontSize: size * 0.38, opacity: 0.85, fontWeight: 500 }}>
-            {WORDMARK[product]}
-          </span>
+          <span className="wt-logo-product">{WORDMARK[product]}</span>
         </span>
       )}
     </span>

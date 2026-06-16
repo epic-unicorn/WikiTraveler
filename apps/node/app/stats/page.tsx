@@ -90,7 +90,7 @@ export default async function StatsPage() {
 
   return (
     <NodeAppShell
-      subtitle={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`}
+      lead={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`}
       activeNav="stats"
     >
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, color: "var(--wt-text)" }}>Statistics</h2>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState, type KeyboardEvent } from "react";
-import { FieldKitHeader } from "./FieldKitHeader";
+import Link from "next/link";
+import { FieldKitToolbar } from "./FieldKitToolbar";
 import { useNodeContext } from "./hooks/useNodeContext";
 import { SearchTab } from "./tabs/SearchTab";
 import { NearbyTab } from "./tabs/NearbyTab";
@@ -53,6 +54,15 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+function PlusIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
 export function FieldKitTabs() {
   const [activeTab, setActiveTab] = useState<TabId>("search");
   const {
@@ -97,10 +107,18 @@ export function FieldKitTabs() {
       <a href="#main-content" className="wt-skip-link">
         Skip to main content
       </a>
-      <FieldKitHeader
-        region={nodeInfo?.region}
+      <FieldKitToolbar
         nodeReachable={nodeReachable}
-        activeTab={activeTab}
+        end={
+          <Link
+            href="/properties/new"
+            className="wt-toolbar-btn"
+            title="Add new property"
+            aria-label="Add new property"
+          >
+            <PlusIcon />
+          </Link>
+        }
       />
       <main
         id="main-content"
@@ -123,7 +141,7 @@ export function FieldKitTabs() {
             active={activeTab === "nearby"}
           />
         )}
-        {activeTab === "recent" && <RecentTab />}
+        {activeTab === "recent" && <RecentTab homeNodeUrl={nodeUrl} />}
         {activeTab === "settings" && (
           <SettingsTab
             nodeUrl={nodeUrl}

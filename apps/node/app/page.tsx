@@ -14,7 +14,7 @@ export default async function DashboardPage() {
 
   return (
     <NodeAppShell
-      subtitle={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`}
+      lead={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`}
       activeNav="map"
     >
       <SearchMapLayout

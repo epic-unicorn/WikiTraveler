@@ -9,17 +9,12 @@ import {
   setStoredRadiusKm,
   resolvePeerNode,
 } from "../lib/fieldKitApi";
+import { auditHref } from "../lib/auditHref";
 
 interface Props {
   searchNodeUrl: string;
   homeNodeUrl: string;
   active: boolean;
-}
-
-function auditHref(id: string, searchNodeUrl: string, homeNodeUrl: string) {
-  const nodeParam =
-    searchNodeUrl !== homeNodeUrl ? `?node=${encodeURIComponent(searchNodeUrl)}` : "";
-  return `/audit/${id}${nodeParam}`;
 }
 
 export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {

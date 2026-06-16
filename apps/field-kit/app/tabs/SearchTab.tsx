@@ -10,17 +10,12 @@ import {
   type PropertySummary,
 } from "@wikitraveler/ui";
 import { searchProperties } from "../lib/fieldKitApi";
+import { auditHref } from "../lib/auditHref";
 
 interface Props {
   searchNodeUrl: string;
   homeNodeUrl: string;
   gpsResolved: { region: string | null } | null;
-}
-
-function auditHref(id: string, searchNodeUrl: string, homeNodeUrl: string) {
-  const nodeParam =
-    searchNodeUrl !== homeNodeUrl ? `?node=${encodeURIComponent(searchNodeUrl)}` : "";
-  return `/audit/${id}${nodeParam}`;
 }
 
 export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {

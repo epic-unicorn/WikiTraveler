@@ -20,18 +20,34 @@ const LABEL: Record<ThemeMode, string> = {
 interface Props {
   compact?: boolean;
   /**
-   * "header"  — white pill, for use on dark header backgrounds (default)
+   * "header"  — legacy pill on dark header (deprecated)
+   * "toolbar" — flat toolbar button (default for AppToolbar)
    * "page"    — token-based pill, for use on page/card backgrounds
    */
-  variant?: "header" | "page";
+  variant?: "header" | "toolbar" | "page";
 }
 
-export function ThemeToggle({ compact, variant = "header" }: Props) {
+export function ThemeToggle({ compact, variant = "toolbar" }: Props) {
   const { mode, setMode } = useTheme();
 
   function cycle() {
     const idx = CYCLE.indexOf(mode);
     setMode(CYCLE[(idx + 1) % CYCLE.length]);
+  }
+
+  if (variant === "toolbar") {
+    return (
+      <button
+        type="button"
+        onClick={cycle}
+        className="wt-toolbar-btn"
+        title={`Theme: ${LABEL[mode]}`}
+        aria-label={`Theme: ${LABEL[mode]}. Click to change.`}
+      >
+        {ICON[mode]}
+        {!compact && <span>{LABEL[mode]}</span>}
+      </button>
+    );
   }
 
   const isPage = variant === "page";

@@ -1,7 +1,16 @@
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import FieldAuditForm from "./FieldAuditForm";
-import { decodeAuthCookie } from "../../lib/authStorage";
+import { decodeAuthCookie, readNodeUrlCookie } from "../../lib/authStorage";
+
+const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
+
+function resolveTargetNodeUrl(searchParams: { node?: string }) {
+  const cookieStore = cookies();
+  const configuredNodeUrl =
+    readNodeUrlCookie(cookieStore.get("wt_node_url")?.value) ?? ENV_NODE_URL;
+  return searchParams.node ?? configuredNodeUrl;
+}
 
 export async function generateMetadata({
   params,
@@ -10,8 +19,7 @@ export async function generateMetadata({
   params: { id: string };
   searchParams: { node?: string };
 }): Promise<Metadata> {
-  const homeNodeUrl = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
-  const targetNodeUrl = searchParams.node ?? homeNodeUrl;
+  const targetNodeUrl = resolveTargetNodeUrl(searchParams);
   let name = "Property";
   try {
     const res = await fetch(
@@ -30,9 +38,7 @@ export async function generateMetadata({
 
 // Fetch property metadata server-side so the form receives it as props
 export default async function AuditPage({ params, searchParams }: { params: { id: string }; searchParams: { node?: string } }) {
-  const homeNodeUrl = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
-  // If the property lives on a peer node (passed via ?node=), fetch from there.
-  const targetNodeUrl = searchParams.node ?? homeNodeUrl;
+  const targetNodeUrl = resolveTargetNodeUrl(searchParams);
 
   // Pass the auth cookie so the authenticated API endpoint accepts the request
   const cookieStore = cookies();
@@ -94,7 +100,7 @@ export default async function AuditPage({ params, searchParams }: { params: { id
       existingFacts={existingFacts}
       auditPhotos={auditPhotos}
       hasAiGuess={hasAiGuess}
-      targetNodeUrl={targetNodeUrl !== homeNodeUrl ? targetNodeUrl : undefined}
+      targetNodeUrl={searchParams.node}
     />
   );
 }

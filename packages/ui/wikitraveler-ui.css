@@ -1,6 +1,191 @@
 @import "./tokens.css";
 @import "./accessibility.css";
 
+/* ── App toolbar (Node, Field Kit, Agency demo) ─────────────────────────── */
+
+.wt-toolbar {
+  background: var(--wt-bg-header);
+  color: var(--wt-bg-header-contrast);
+  padding: 0 16px;
+  min-height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.14);
+}
+
+.wt-toolbar--field-kit {
+  padding-top: env(safe-area-inset-top, 0px);
+  min-height: calc(60px + env(safe-area-inset-top, 0px));
+}
+
+/* Brand lockup — WikiTraveler + product subtitle */
+.wt-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  min-width: 0;
+}
+
+.wt-logo-mark {
+  flex-shrink: 0;
+}
+
+.wt-logo-wordmark {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.wt-logo-brand {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.wt-logo-sep {
+  font-size: 0.95em;
+  font-weight: 700;
+  opacity: 0.55;
+  user-select: none;
+}
+
+.wt-logo-product {
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.95;
+  white-space: nowrap;
+}
+
+/* Toolbar — larger inline lockup */
+.wt-toolbar .wt-logo {
+  gap: 14px;
+}
+
+.wt-toolbar .wt-logo-brand,
+.wt-toolbar .wt-logo-wordmark .wt-logo-brand {
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.wt-toolbar .wt-logo-sep,
+.wt-toolbar .wt-logo-wordmark .wt-logo-sep {
+  font-size: 20px;
+}
+
+.wt-toolbar .wt-logo-product,
+.wt-toolbar .wt-logo-wordmark .wt-logo-product {
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.wt-toolbar-start {
+  flex-shrink: 0;
+}
+
+.wt-toolbar-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wt-toolbar-title--link {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wt-toolbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.wt-toolbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.wt-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wt-toolbar-link,
+.wt-toolbar-btn,
+.wt-toolbar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 8px 10px;
+  min-height: 44px;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.wt-toolbar-link:hover,
+.wt-toolbar-btn:hover,
+.wt-toolbar-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.wt-toolbar-link--active {
+  font-weight: 700;
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.wt-toolbar-back {
+  font-weight: 600;
+  padding-left: 4px;
+}
+
+.wt-page-lead {
+  font-size: 13px;
+  color: var(--wt-text-muted);
+  margin: -12px 0 20px;
+}
+
+.wt-fk-page-lead {
+  font-size: 14px;
+  color: var(--wt-text-muted);
+  margin: 0 0 16px;
+  line-height: 1.45;
+}
+
 /* Lens-compatible utility classes (no React required) */
 
 .wt-header {
