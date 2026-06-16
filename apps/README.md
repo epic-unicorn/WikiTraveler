@@ -3,12 +3,8 @@
 All flows assume you've completed setup (see root [README](../README.md)):
 
 ```bash
-# Postgres
 docker compose -f docker/docker-compose.dev.yml up postgres -d
-
-# Migrate + seed
-pnpm db:migrate
-pnpm db:seed
+pnpm db:setup
 ```
 
 `.env` must have `DATABASE_URL` and (optionally) `NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY` set (copy `.env.example` to get started).
@@ -29,10 +25,10 @@ pnpm dev:agency-demo
 ```
 
 1. Open `http://localhost:4000/apps/agency-demo/`.
-2. The demo auto-connects to `http://localhost:3000` and populates the property dropdown.
-3. Select a property — the widget renders with tier badges and live data.
+2. Enter your node URL (default `http://localhost:3000`) and log in.
+3. Search for a hotel by name or city, then click a result — details appear below and the SDK widget updates on the right.
 
-**Verify:** Widget shows facts with `Official` / `AI Guess` / `Verified` / `Confirmed` badges. Changing the dropdown updates the widget and raw JSON output.
+**Verify:** Search results show fact counts; selecting a hotel updates the detail panel, live widget, and raw JSON output. Integration snippet tabs reflect the selected property ID.
 
 ---
 

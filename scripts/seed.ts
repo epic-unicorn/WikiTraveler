@@ -7,7 +7,7 @@
  * Usage:
  *   pnpm db:seed           — ingest from fixture (fast, offline)
  *   pnpm osm:ingest        — fetch fresh data from Overpass + save fixture
- *   pnpm db:reset          — wipe DB, run migrations, then seed
+ *   pnpm db:setup          — wipe DB, run migrations, then seed
  */
 
 import { PrismaClient } from "@prisma/client";

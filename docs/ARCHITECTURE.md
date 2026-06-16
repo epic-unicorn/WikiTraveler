@@ -157,7 +157,7 @@ Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/
 
 Any node accepting the JWT decodes `homeNodeUrl`, fetches the issuer's public key from `GET homeNodeUrl/.well-known/pubkey`, and verifies the signature locally. No shared secrets needed — user identity is `username@homeNodeUrl` and is globally unique across the mesh.
 
-See **Authentication & Roles** section below for the full role hierarchy and admin seeding.
+See **Authentication & Roles** section below for the full role hierarchy and first-run `/setup`.
 
 ---
 
@@ -237,12 +237,7 @@ This means a user registered on Node A can submit audits to Node B (e.g. while t
 
 New registrations default to `USER`. An admin promotes users via the Stats page → Users panel or `PATCH /api/admin/users/:username`.
 
-The **first admin** is seeded from environment variables on startup:
-```
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=change-me-in-production
-```
-After creating the account, remove these variables to avoid re-seeding.
+The **first admin** is created via the web UI at `/setup` on first run (or `POST /api/setup`). Legacy `ADMIN_USERNAME` / `ADMIN_PASSWORD` env vars are no longer used.
 
 ### Node-to-Node Auth
 

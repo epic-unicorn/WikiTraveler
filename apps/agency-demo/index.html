@@ -3,195 +3,353 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Leonardo Hotel Eindhoven — Agency Demo | WikiTraveler SDK</title>
+  <title>Agency Demo — WikiTraveler SDK</title>
+  <link rel="stylesheet" href="/packages/ui/tokens.css" />
+  <link rel="stylesheet" href="/packages/ui/accessibility.css" />
+  <link rel="stylesheet" href="/packages/ui/wikitraveler-ui.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f9fafb; color: #111827; font-size: 15px;
+      font-family: var(--wt-font);
+      background: var(--wt-bg);
+      color: var(--wt-text);
+      font-size: 15px;
     }
-    a { color: #1e3a5f; }
+    a { color: var(--wt-primary); }
 
-    /* ── Page layout ── */
-    .page-header {
-      background: #1e3a5f; color: #fff;
-      padding: 14px 24px; display: flex; align-items: center; gap: 12px;
+    .wt-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* AppHeader — matches packages/ui AppHeader + NodeAppShell nav */
+    .wt-app-header {
+      background: var(--wt-bg-header);
+      color: var(--wt-bg-header-contrast);
+      padding: 0 20px;
+      min-height: 52px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.14);
     }
-    .page-header h1 { font-size: 18px; }
-    .page-header span { font-size: 11px; background: #34d399; color: #fff; border-radius: 999px; padding: 2px 10px; }
-    main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; display: grid; grid-template-columns: 1fr 340px; gap: 32px; }
-    @media (max-width: 700px) { main { grid-template-columns: 1fr; } }
+    .wt-app-header-brand {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      color: inherit; text-decoration: none;
+    }
+    .wt-logo-wordmark {
+      display: flex; flex-direction: column; line-height: 1.15;
+    }
+    .wt-logo-wordmark strong {
+      font-size: 12px; font-weight: 700; letter-spacing: -0.02em;
+    }
+    .wt-logo-wordmark span {
+      font-size: 8.5px; opacity: 0.85; font-weight: 500;
+    }
+    .wt-header-subtitle {
+      font-size: 11px; opacity: 0.55;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 180px;
+    }
+    .wt-header-spacer { flex: 1; }
+    .wt-header-actions {
+      display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+    .wt-header-divider {
+      width: 1px; height: 16px; background: rgba(255,255,255,0.18);
+      margin: 0 6px; flex-shrink: 0;
+    }
+    .wt-nav { display: flex; align-items: center; gap: 4px; }
+    .wt-nav-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 13px; line-height: 1; border-radius: 7px;
+      padding: 5px 10px; text-decoration: none; white-space: nowrap;
+      transition: opacity 0.12s;
+      font-weight: 500;
+      color: rgba(255,255,255,0.82);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+    }
+    .wt-nav-pill:hover { opacity: 0.92; }
+    .wt-nav-pill.active {
+      font-weight: 600; color: #fff;
+      background: rgba(255,255,255,0.22);
+      border-color: rgba(255,255,255,0.28);
+    }
+    .wt-theme-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 500; line-height: 1;
+      border-radius: 7px; padding: 5px 10px; min-width: 44px; min-height: 44px;
+      cursor: pointer; color: rgba(255,255,255,0.82);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      font-family: inherit;
+    }
 
-    /* ── Hotel card (left) ── */
-    .hotel-img { width: 100%; height: 220px; object-fit: cover; border-radius: 14px; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 80px; }
-    .hotel-name { font-size: 26px; font-weight: 700; margin: 20px 0 4px; }
-    .hotel-meta { color: #6b7280; font-size: 14px; margin-bottom: 20px; }
-    .price-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-    .price-box .price { font-size: 32px; font-weight: 800; color: #1e3a5f; }
-    .btn-book { display: block; width: 100%; padding: 14px; background: #059669; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; text-align: center; cursor: pointer; }
+    .wt-main {
+      flex: 1;
+      max-width: 1200px; width: 100%; margin: 0 auto;
+      padding: 24px 20px 32px;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); gap: 24px; align-items: start;
+    }
+    @media (max-width: 900px) { .wt-main { grid-template-columns: 1fr; } }
 
-    /* ── Sidebar (right) ── */
-    .sidebar > section { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
-    .sidebar h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .sidebar { min-width: 0; }
+    .sidebar-widget-card .wt-card { overflow: hidden; }
+    #wt-widget {
+      min-width: 0;
+      margin-top: 12px;
+    }
+    #wt-widget .wt-widget-facts {
+      max-height: min(520px, 55vh);
+    }
 
-    /* ── Code snippet blocks ── */
+    .wt-footer {
+      max-width: 1200px; width: 100%; margin: 0 auto;
+      padding: 16px 20px 32px;
+      border-top: 1px solid var(--wt-border);
+      font-size: 12px; color: var(--wt-text-muted);
+    }
+
+    .content > section, .sidebar > section {
+      margin-bottom: 20px;
+    }
+    .content h2, .sidebar h2 {
+      font-size: 17px; font-weight: 700; margin-bottom: 4px; color: var(--wt-text);
+    }
+    .section-hint { font-size: 13px; color: var(--wt-text-muted); margin-bottom: 16px; line-height: 1.5; }
+
+    .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .search-row input { flex: 1; }
+    .search-row button:disabled { opacity: 0.5; cursor: default; }
+
+    .search-status { font-size: 12px; color: var(--wt-text-muted); min-height: 18px; margin-bottom: 8px; }
+
+    .search-results {
+      display: flex; flex-direction: column; gap: 6px;
+      max-height: 280px; overflow-y: auto;
+    }
+    .search-result {
+      width: 100%; text-align: left; padding: 12px 14px;
+      border: 1.5px solid var(--wt-border); border-radius: var(--wt-radius-sm);
+      background: var(--wt-bg-elevated); color: var(--wt-text);
+      cursor: pointer; font-family: inherit;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .search-result:hover { border-color: var(--wt-primary); background: var(--wt-bg-secondary); }
+    .search-result.selected { border-color: var(--wt-primary); background: var(--wt-bg-secondary); }
+    .search-result-name { display: block; font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .search-result-loc { display: block; font-size: 12px; color: var(--wt-text-muted); }
+    .search-result-meta { display: block; font-size: 11px; color: var(--wt-text-muted); margin-top: 4px; opacity: 0.85; }
+
+    .hotel-detail-empty {
+      text-align: center; padding: 40px 16px; color: var(--wt-text-muted); font-size: 14px;
+    }
+    .hotel-hero {
+      width: 100%; height: 180px; border-radius: var(--wt-radius-md);
+      background: linear-gradient(135deg, var(--wt-tier-confirmed-bg), var(--wt-bg-secondary));
+      display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
+      font-size: 14px; font-weight: 600; color: var(--wt-primary);
+    }
+    .hotel-name { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .hotel-meta { color: var(--wt-text-muted); font-size: 14px; margin-bottom: 6px; }
+    .hotel-id { font-size: 11px; color: var(--wt-text-muted); font-family: var(--wt-font-mono); margin-bottom: 16px; word-break: break-all; }
+
+    .price-box {
+      background: var(--wt-bg-secondary); border: 1px solid var(--wt-border);
+      border-radius: var(--wt-radius-md); padding: 18px; margin-bottom: 20px;
+    }
+    .price-box .price { font-size: 28px; font-weight: 800; color: var(--wt-primary); }
+    .btn-book { display: block; width: 100%; margin-top: 14px; }
+
+    .snapshot-facts {
+      margin-top: 8px;
+    }
+    .snapshot-heading {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 16px 0 8px;
+      color: var(--wt-text);
+    }
+    .snapshot-facts.wt-widget-facts {
+      max-height: none;
+      overflow: visible;
+    }
+
     .snippet-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
     .tab-btn {
-      padding: 5px 14px; border-radius: 8px; border: 1.5px solid #d1d5db;
-      background: #f3f4f6; font-size: 12px; font-weight: 600; cursor: pointer;
-      transition: all 0.15s;
+      padding: 5px 14px; border-radius: var(--wt-radius-sm);
+      border: 1.5px solid var(--wt-border);
+      background: var(--wt-bg-secondary); color: var(--wt-text);
+      font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
     }
-    .tab-btn.active { background: #1e3a5f; color: #fff; border-color: #1e3a5f; }
+    .tab-btn.active {
+      background: var(--wt-primary); color: var(--wt-primary-contrast);
+      border-color: var(--wt-primary);
+    }
     .snippet-panel { display: none; }
     .snippet-panel.active { display: block; }
     pre {
-      background: #1e2433; color: #e2e8f0; border-radius: 10px;
+      background: #1e2433; color: #e2e8f0; border-radius: var(--wt-radius-sm);
       padding: 14px 16px; font-size: 12px; line-height: 1.6;
-      overflow-x: auto; white-space: pre-wrap; word-break: break-all;
-      position: relative;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-all; position: relative;
     }
     .copy-btn {
       position: absolute; top: 8px; right: 8px;
       background: #374151; color: #e2e8f0; border: none; border-radius: 6px;
-      padding: 3px 10px; font-size: 11px; cursor: pointer;
-    }
-    .copy-btn:hover { background: #4b5563; }
-
-    .wt-sr-only {
-      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+      padding: 3px 10px; font-size: 11px; cursor: pointer; min-height: 44px;
     }
 
-    :focus-visible {
-      outline: 2px solid #1d4ed8;
-      outline-offset: 2px;
-    }
+    .node-config { display: flex; gap: 8px; margin-bottom: 16px; }
+    .node-config input { flex: 1; }
+    .node-config button { min-height: 44px; white-space: nowrap; }
 
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-      }
-    }
-
-    /* node URL configurator */
-    .node-config { display: flex; gap: 8px; margin-bottom: 20px; }
-    .node-config input {
-      flex: 1; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px;
-    }
-    .node-config button {
-      background: #1e3a5f; color: #fff; border: none; border-radius: 8px;
-      padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600;
-    }
-
-    /* login form */
     .login-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-    .login-grid input {
-      padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px; width: 100%;
-    }
-    .login-grid input.error { border-color: #f87171; }
-    .btn-login {
-      grid-column: span 2;
-      background: #059669; color: #fff; border: none; border-radius: 8px;
-      padding: 8px 0; font-size: 13px; cursor: pointer; font-weight: 600; width: 100%;
-    }
+    .login-grid input { width: 100%; }
+    .btn-login { grid-column: span 2; width: 100%; min-height: 44px; }
     .btn-login:disabled { opacity: 0.5; cursor: default; }
     .btn-logout {
-      background: none; border: 1px solid #d1d5db; border-radius: 8px;
-      padding: 4px 12px; font-size: 12px; cursor: pointer; color: #6b7280;
+      background: var(--wt-bg-secondary); border: 1px solid var(--wt-border);
+      border-radius: var(--wt-radius-sm); padding: 4px 12px;
+      font-size: 12px; cursor: pointer; color: var(--wt-text-muted);
+      min-height: 44px; font-family: inherit;
     }
     .auth-status { font-size: 12px; margin-top: 6px; }
+    .wt-badge-live {
+      font-size: 11px; background: var(--wt-primary); color: var(--wt-primary-contrast);
+      border-radius: 999px; padding: 1px 8px; font-weight: 600; vertical-align: middle;
+    }
   </style>
+  <script>
+    (function initTheme() {
+      const KEY = "wt-theme";
+      const CYCLE = ["system", "light", "dark"];
+      const stored = localStorage.getItem(KEY) || "system";
+      function apply(mode) {
+        const dark = mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("wt-dark", dark);
+        const btn = document.getElementById("theme-toggle");
+        if (btn) {
+          const icon = mode === "light" ? "☀" : mode === "dark" ? "☾" : "◐";
+          btn.textContent = icon;
+          btn.title = `Theme: ${mode}. Click to change.`;
+          btn.setAttribute("aria-label", btn.title);
+        }
+      }
+      apply(stored);
+      window.cycleTheme = function () {
+        const cur = localStorage.getItem(KEY) || "system";
+        const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+        localStorage.setItem(KEY, next);
+        apply(next);
+      };
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+        if ((localStorage.getItem(KEY) || "system") === "system") apply("system");
+      });
+    })();
+  </script>
 </head>
 <body>
 
-<div class="page-header">
-  <span style="font-size:22px">🏨</span>
-  <h1>Mock Agency Booking Page</h1>
-  <span>WikiTraveler SDK Demo</span>
-</div>
+<div class="wt-shell">
+  <a href="#main-content" class="wt-skip-link">Skip to main content</a>
 
-<main>
-  <!-- Left: hotel card -->
-  <div>
-    <div class="hotel-img" style="background:#dbeafe">🏨</div>
-    <h2 class="hotel-name" id="hotel-name">—</h2>
-    <p class="hotel-meta" id="hotel-meta">📍 —</p>
+  <header class="wt-app-header">
+    <a href="/apps/agency-demo/" class="wt-app-header-brand" aria-label="WikiTraveler Agency Demo home">
+      <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path d="M16 2L28 9v14L16 30 4 23V9L16 2z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M16 9l4 6H12l4-6z" fill="currentColor"/>
+        <path d="M10 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="wt-logo-wordmark">
+        <strong>WikiTraveler</strong>
+        <span>Agency Demo</span>
+      </span>
+    </a>
+    <span class="wt-header-subtitle">SDK integration preview</span>
 
-    <div class="price-box">
-      <p style="font-size:12px;color:#6b7280;margin-bottom:4px">From</p>
-      <span class="price">—</span>
-      <span style="color:#6b7280;font-size:14px"> / night</span>
-      <button class="btn-book" style="margin-top:16px">Book Now</button>
+    <div class="wt-header-spacer"></div>
+
+    <div class="wt-header-actions">
+      <nav class="wt-nav" aria-label="Main navigation">
+        <a href="#search-heading" class="wt-nav-pill active">Search</a>
+        <a href="#integration-section" class="wt-nav-pill">Integration</a>
+        <a href="http://localhost:3000" class="wt-nav-pill" id="nav-node-link" target="_blank" rel="noopener">Node</a>
+        <a href="http://localhost:3001" class="wt-nav-pill" target="_blank" rel="noopener">Field Kit</a>
+      </nav>
+      <span class="wt-header-divider" aria-hidden="true"></span>
+      <button type="button" class="wt-theme-btn" id="theme-toggle" onclick="cycleTheme()" aria-label="Theme">◐</button>
     </div>
+  </header>
 
-    <p id="hotel-desc" style="color:#6b7280;font-size:14px;line-height:1.7">
-      Select a property to see details.
-    </p>
+  <main id="main-content" class="wt-main">
+  <!-- Left: search + selected hotel -->
+  <div class="content">
+    <section class="wt-card" aria-labelledby="search-heading">
+      <h2 id="search-heading">Search hotels</h2>
+      <p class="section-hint">
+        Log in via the panel on the right, then search your WikiTraveler node. Pick a listing to preview how accessibility data appears on a booking page.
+      </p>
+      <div class="search-row">
+        <label for="hotel-search" class="wt-sr-only">Search hotels by name or city</label>
+        <input id="hotel-search" class="wt-input" type="search" placeholder="Name, city, or property ID…" autocomplete="off" disabled />
+        <button type="button" class="wt-btn-primary" id="btn-search" onclick="runSearch()" disabled>Search</button>
+      </div>
+      <p id="search-status" class="search-status" role="status">Sign in to search listings.</p>
+      <div id="search-results" class="search-results" role="listbox" aria-label="Search results"></div>
+    </section>
+
+    <section class="wt-card" id="hotel-detail-section" aria-labelledby="detail-heading" aria-live="polite">
+      <h2 id="detail-heading">Hotel details</h2>
+      <div id="hotel-detail">
+        <div class="hotel-detail-empty">Select a hotel from the search results to view details and live accessibility data.</div>
+      </div>
+    </section>
   </div>
 
-  <!-- Right: sidebar -->
+  <!-- Right: node config + SDK -->
   <aside class="sidebar">
-
-    <!-- Node configurator -->
-    <section>
-      <h2>⚙️ Node Configuration</h2>
-      <p style="font-size:12px;color:#6b7280;margin-bottom:10px">
-        Point the SDK to your running WikiTraveler node. You can also pass <code>?node=URL</code> in the address bar.
+    <section class="wt-card">
+      <h2>Node configuration</h2>
+      <p class="wt-text-muted" style="margin-bottom:10px">
+        Point the SDK at your WikiTraveler node. You can also pass <code>?node=URL&amp;id=PROPERTY_ID</code> in the address bar.
       </p>
       <div class="node-config">
         <label for="node-url-input" class="wt-sr-only">WikiTraveler node URL</label>
-        <input id="node-url-input" type="url" placeholder="http://localhost:3000" aria-describedby="node-status" />
-        <button type="button" onclick="applyNodeUrl()">Connect</button>
+        <input id="node-url-input" class="wt-input" type="url" placeholder="http://localhost:3000" aria-describedby="node-status" />
+        <button type="button" class="wt-btn-primary" onclick="applyNodeUrl()">Connect</button>
       </div>
 
-      <!-- Login form -->
       <div id="login-area">
         <div class="login-grid">
           <label for="login-username" class="wt-sr-only">Username</label>
-          <input id="login-username" type="text" placeholder="Username" autocomplete="username" />
+          <input id="login-username" class="wt-input" type="text" placeholder="Username" autocomplete="username" />
           <label for="login-password" class="wt-sr-only">Password</label>
-          <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" />
-          <button type="button" class="btn-login" id="btn-login" onclick="doLogin()">Log in</button>
+          <input id="login-password" class="wt-input" type="password" placeholder="Password" autocomplete="current-password" />
+          <button type="button" class="btn-login wt-btn-primary" id="btn-login" onclick="doLogin()">Log in</button>
         </div>
-        <p id="login-error" class="auth-status" role="alert" style="color:#f87171;display:none"></p>
+        <p id="login-error" class="auth-status" role="alert" style="color:var(--wt-error,#f87171);display:none"></p>
       </div>
       <div id="logged-in-area" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <span id="logged-in-label" class="auth-status" style="color:#059669"></span>
-          <button class="btn-logout" onclick="doLogout()">Log out</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span id="logged-in-label" class="auth-status" style="color:var(--wt-success,#059669)"></span>
+          <button type="button" class="btn-logout" onclick="doLogout()">Log out</button>
         </div>
       </div>
-
-      <div style="margin-top:10px">
-        <label for="property-select" class="wt-sr-only">Select property</label>
-        <select id="property-select"
-          style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff">
-          <option value="">— log in and click Connect to load properties —</option>
-        </select>
-      </div>
-      <p id="node-status" style="font-size:12px;color:#9ca3af;margin-top:6px"></p>
+      <p id="node-status" class="wt-text-muted" style="margin-top:10px"></p>
     </section>
 
-    <!-- Pattern 1: Drop-in widget -->
-    <section>
-      <h2>♿ Accessibility Info <span style="font-size:11px;background:#60a5fa;color:#fff;border-radius:999px;padding:1px 8px">Live</span></h2>
-
-      <!--
-        PATTERN 1: Drop-in widget (zero config).
-        The SDK reads data-property-id and data-node-url from the element.
-      -->
-      <div id="wt-widget"
-           data-wt-widget
-           data-property-id="osm:977610529"
-           data-node-url="http://localhost:3000">
+    <section class="wt-card sidebar-widget-card">
+      <h2>Accessibility info <span class="wt-badge-live">Live</span></h2>
+      <p class="wt-text-muted" style="margin-top:4px">Live SDK widget — each fact shows value and trust tier.</p>
+      <div id="wt-widget" data-wt-widget data-property-id="" data-node-url="http://localhost:3000">
+        <p class="wt-text-muted" style="font-style:italic">Select a hotel to load the widget.</p>
       </div>
     </section>
 
-    <!-- SDK Code snippets -->
-    <section>
-      <h2>📋 Integration Snippets</h2>
-      <p style="font-size:12px;color:#6b7280;margin-bottom:14px">
+    <section class="wt-card" id="integration-section" aria-labelledby="integration-heading">
+      <h2 id="integration-heading">Integration snippets</h2>
+      <p class="wt-text-muted" style="margin-bottom:14px">
         Copy any of the following patterns into your existing booking website.
       </p>
 
@@ -201,76 +359,274 @@
         <button type="button" class="tab-btn" role="tab" id="tab-btn-esm" aria-selected="false" aria-controls="tab-esm" tabindex="-1" onclick="showTab('esm', this)">npm ESM</button>
       </div>
 
-      <!-- Pattern 1: CDN widget -->
       <div id="tab-widget" class="snippet-panel active" role="tabpanel" aria-labelledby="tab-btn-widget">
-        <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Paste into any HTML page — no build step required.</p>
-        <pre id="snippet-widget"><button class="copy-btn" onclick="copySnippet('snippet-widget')">Copy</button><span class="code"></span></pre>
+        <p class="wt-text-muted" style="margin-bottom:8px">Paste into any HTML page — no build step required.</p>
+        <pre id="snippet-widget"><button type="button" class="copy-btn" onclick="copySnippet('snippet-widget')">Copy</button><span class="code"></span></pre>
       </div>
 
-      <!-- Pattern 2: raw fetch -->
       <div id="tab-fetch" class="snippet-panel" role="tabpanel" aria-labelledby="tab-btn-fetch" hidden>
-        <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Fetch raw JSON and render your own UI.</p>
-        <pre id="snippet-fetch"><button class="copy-btn" onclick="copySnippet('snippet-fetch')">Copy</button><span class="code"></span></pre>
-
-        <!-- Live raw output -->
+        <p class="wt-text-muted" style="margin-bottom:8px">Fetch raw JSON and render your own UI.</p>
+        <pre id="snippet-fetch"><button type="button" class="copy-btn" onclick="copySnippet('snippet-fetch')">Copy</button><span class="code"></span></pre>
         <div style="margin-top:16px">
           <p style="font-size:12px;font-weight:600;margin-bottom:6px">Live response:</p>
-          <pre id="raw-output" style="max-height:200px;font-size:11px"><span style="color:#9ca3af">Waiting for Apply…</span></pre>
+          <pre id="raw-output" style="max-height:200px;font-size:11px"><span class="wt-text-muted">Select a hotel…</span></pre>
         </div>
       </div>
 
-      <!-- Pattern 3: ESM import -->
       <div id="tab-esm" class="snippet-panel" role="tabpanel" aria-labelledby="tab-btn-esm" hidden>
-        <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Use the npm package in any bundler (React, Vue, Next.js…).</p>
-        <pre id="snippet-esm"><button class="copy-btn" onclick="copySnippet('snippet-esm')">Copy</button><span class="code"></span></pre>
+        <p class="wt-text-muted" style="margin-bottom:8px">Use the npm package in any bundler (React, Vue, Next.js…).</p>
+        <pre id="snippet-esm"><button type="button" class="copy-btn" onclick="copySnippet('snippet-esm')">Copy</button><span class="code"></span></pre>
       </div>
     </section>
-
   </aside>
-</main>
+  </main>
 
-<!--
-  Fallback shim — MUST be defined before the SDK script tag so the onerror
-  handler can reference it (onerror fires before the next inline script runs).
--->
+  <footer class="wt-footer">
+    <a href="http://localhost:3000/accessibility">Accessibility statement</a>
+    · WikiTraveler Agency Demo — SDK integration preview
+  </footer>
+</div>
+
 <script>
   function loadFallbackSdk() {
     window.WikiTraveler = {
       mountWidget(selector) {
         const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
         if (!el) return;
-        el.innerHTML = '<p style="color:#fbbf24;font-size:13px">⚠️ SDK not built — run <code>pnpm --filter @wikitraveler/sdk build</code> first, then reload.</p>';
+        el.innerHTML = '<p style="color:#fbbf24;font-size:13px">SDK not built — run <code>pnpm --filter @wikitraveler/sdk build</code> first, then reload.</p>';
       },
       WikiTraveler: class {
         constructor(cfg) { this._cfg = cfg; }
         async getAccessibility(id) { throw new Error('SDK not built — run pnpm --filter @wikitraveler/sdk build'); }
       }
     };
-    document.querySelectorAll('[data-wt-widget]').forEach(el => window.WikiTraveler.mountWidget(el));
   }
 </script>
-
-<!--
-  WikiTraveler SDK loaded from local dist/ for demo.
-  In production: <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"></script>
--->
 <script src="/packages/sdk/dist/wikitraveler.umd.js" onerror="loadFallbackSdk()"></script>
 <script>
+  const FIELD_LABELS = {
+    door_width_cm: "Door width",
+    ramp_present: "Ramp",
+    elevator_present: "Elevator",
+    step_free_entrance: "Step-free entrance",
+    accessible_bathroom: "Accessible bathroom",
+    parking_accessible: "Accessible parking",
+    hearing_loop: "Hearing loop",
+    braille_signage: "Braille signage",
+    notes: "Notes",
+  };
 
-  // Read ?node= and ?id= query params on load
+  const TIER_LABEL = {
+    OFFICIAL: "Official",
+    AI_GUESS: "AI",
+    VERIFIED: "Verified",
+    CONFIRMED: "Confirmed",
+  };
+
+  const TIER_RANK = { OFFICIAL: 0, AI_GUESS: 1, VERIFIED: 2, CONFIRMED: 3 };
+
+  const TIER_CLASS = {
+    OFFICIAL: "wt-tier-official",
+    AI_GUESS: "wt-tier-ai_guess",
+    VERIFIED: "wt-tier-verified",
+    CONFIRMED: "wt-tier-confirmed",
+  };
+
   const urlParams = new URLSearchParams(location.search);
   let PROPERTY_ID = urlParams.get("id") || "";
-  let currentNodeUrl = (urlParams.get("node") || "http://localhost:3000");
+  let currentNodeUrl = (urlParams.get("node") || "http://localhost:3000").replace(/\/$/, "");
   document.getElementById("node-url-input").value = currentNodeUrl;
+  syncNavNodeLink();
 
-  // JWT state — kept in memory only (no localStorage for security)
   let authToken = null;
   let authUsername = null;
+  let searchResults = [];
+  let selectedProperty = null;
+  let searchTimer = null;
 
-  // Loaded property list
-  let loadedProperties = [];
+  function authHeaders() {
+    return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  }
 
-  // ── Auth ──
+  function syncNavNodeLink() {
+    const link = document.getElementById("nav-node-link");
+    if (link) link.href = currentNodeUrl;
+  }
+
+  function setSearchEnabled(on) {
+    document.getElementById("hotel-search").disabled = !on;
+    document.getElementById("btn-search").disabled = !on;
+  }
+
+  function setSearchStatus(msg) {
+    document.getElementById("search-status").textContent = msg;
+  }
+
+  function bestFacts(facts) {
+    const best = new Map();
+    for (const f of facts ?? []) {
+      const existing = best.get(f.fieldName);
+      if (!existing || (TIER_RANK[f.tier] ?? 0) > (TIER_RANK[existing.tier] ?? 0)) {
+        best.set(f.fieldName, f);
+      }
+    }
+    return Array.from(best.values());
+  }
+
+  function formatFactRows(facts) {
+    const rows = bestFacts(facts);
+    if (rows.length === 0) {
+      return '<p class="wt-text-muted" style="margin-top:8px">No accessibility facts on file yet.</p>';
+    }
+    const priority = ["step_free_entrance", "ramp_present", "elevator_present", "accessible_bathroom", "door_width_cm", "parking_accessible"];
+    rows.sort((a, b) => {
+      const ai = priority.indexOf(a.fieldName);
+      const bi = priority.indexOf(b.fieldName);
+      return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+    });
+    return `<ul class="wt-widget-facts snapshot-facts">${rows.slice(0, 8).map((f) => `
+      <li class="wt-widget-fact">
+        <span class="wt-widget-fact-label">${FIELD_LABELS[f.fieldName] ?? f.fieldName}</span>
+        <span class="wt-widget-fact-body">
+          <span class="wt-widget-fact-value">${f.value}</span>
+          <span class="wt-tier-badge ${TIER_CLASS[f.tier] ?? ""}">${TIER_LABEL[f.tier] ?? f.tier}</span>
+        </span>
+      </li>`).join("")}</ul>`;
+  }
+
+  function renderHotelDetail(prop) {
+    const el = document.getElementById("hotel-detail");
+    if (!prop) {
+      el.innerHTML = '<div class="hotel-detail-empty">Select a hotel from the search results to view details and live accessibility data.</div>';
+      document.title = "Agency Demo — WikiTraveler SDK";
+      return;
+    }
+
+    const coords = prop.lat != null && prop.lon != null
+      ? `${prop.lat.toFixed(4)}, ${prop.lon.toFixed(4)}`
+      : null;
+
+    el.innerHTML = `
+      <div class="hotel-hero">${prop.location || "Hotel listing"}</div>
+      <h3 class="hotel-name">${prop.name}</h3>
+      <p class="hotel-meta">${prop.location}${coords ? ` · ${coords}` : ""}</p>
+      <p class="hotel-id">Property ID: ${prop.id}</p>
+      <div class="price-box">
+        <p class="wt-text-muted" style="margin-bottom:4px">From</p>
+        <span class="price">€129</span>
+        <span class="wt-text-muted" style="font-size:14px"> / night</span>
+        <button type="button" class="btn-book wt-btn-primary">Book now</button>
+      </div>
+      <p class="wt-text-muted" style="line-height:1.7;margin-bottom:4px">
+        Accessibility data below is loaded live from <strong>${currentNodeUrl}</strong> via the WikiTraveler SDK — the same integration your agency site would use.
+      </p>
+      <h4 class="snapshot-heading">Accessibility snapshot</h4>
+      ${formatFactRows(prop.facts)}
+    `;
+    document.title = `${prop.name} — Agency Demo | WikiTraveler SDK`;
+  }
+
+  function renderSearchResults() {
+    const container = document.getElementById("search-results");
+    container.innerHTML = "";
+
+    if (!authToken) return;
+
+    if (searchResults.length === 0) {
+      container.innerHTML = '<p class="wt-text-muted" style="padding:8px 0">No hotels found. Try another search term.</p>';
+      return;
+    }
+
+    searchResults.forEach((prop) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "search-result" + (prop.id === PROPERTY_ID ? " selected" : "");
+      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", prop.id === PROPERTY_ID ? "true" : "false");
+      const factCount = bestFacts(prop.facts).length;
+      btn.innerHTML = `
+        <span class="search-result-name">${prop.name}</span>
+        <span class="search-result-loc">${prop.location}</span>
+        <span class="search-result-meta">${factCount} accessibility fact${factCount === 1 ? "" : "s"} on file</span>`;
+      btn.addEventListener("click", () => selectProperty(prop));
+      container.appendChild(btn);
+    });
+  }
+
+  function selectProperty(prop) {
+    selectedProperty = prop;
+    PROPERTY_ID = prop.id;
+    renderSearchResults();
+    renderHotelDetail(prop);
+    updateSnippets();
+    mountDemoWidget();
+    runRawFetch();
+
+    const u = new URL(location.href);
+    u.searchParams.set("id", PROPERTY_ID);
+    u.searchParams.set("node", currentNodeUrl);
+    history.replaceState(null, "", u);
+  }
+
+  async function runSearch() {
+    if (!authToken) {
+      setSearchStatus("Sign in to search listings.");
+      return;
+    }
+
+    const q = document.getElementById("hotel-search").value.trim();
+    setSearchStatus("Searching…");
+    document.getElementById("btn-search").disabled = true;
+
+    try {
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      const res = await fetch(`${currentNodeUrl}/api/properties?${params}`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      searchResults = data.properties ?? [];
+      setSearchStatus(searchResults.length
+        ? `${searchResults.length} result${searchResults.length === 1 ? "" : "s"}`
+        : "No results");
+
+      if (searchResults.length === 0) {
+        selectedProperty = null;
+        PROPERTY_ID = "";
+        renderSearchResults();
+        renderHotelDetail(null);
+        mountDemoWidget();
+        return;
+      }
+
+      renderSearchResults();
+
+      const preselect = PROPERTY_ID && searchResults.find((p) => p.id === PROPERTY_ID);
+      selectProperty(preselect ?? searchResults[0]);
+    } catch (e) {
+      setSearchStatus(`Search failed: ${e.message}`);
+      searchResults = [];
+      renderSearchResults();
+    } finally {
+      document.getElementById("btn-search").disabled = false;
+    }
+  }
+
+  async function loadInitialProperty() {
+    if (!authToken) return;
+
+    if (PROPERTY_ID) {
+      document.getElementById("hotel-search").value = PROPERTY_ID;
+      await runSearch();
+      return;
+    }
+
+    setSearchStatus("Showing sample listings — type to refine");
+    document.getElementById("hotel-search").value = "";
+    await runSearch();
+  }
+
   async function doLogin() {
     const username = document.getElementById("login-username").value.trim();
     const password = document.getElementById("login-password").value;
@@ -303,12 +659,9 @@
       document.getElementById("login-area").style.display = "none";
       document.getElementById("logged-in-area").style.display = "block";
       document.getElementById("logged-in-label").textContent = `Logged in as ${authUsername}`;
-      // Now load the property list
-      loadProperties(currentNodeUrl).then(() => {
-        updateSnippets();
-        mountDemoWidget();
-        if (PROPERTY_ID) runRawFetch();
-      });
+      setSearchEnabled(true);
+      setSearchStatus("Ready — search for a hotel");
+      await loadInitialProperty();
     } catch (e) {
       errEl.textContent = `Could not reach node: ${e.message}`;
       errEl.style.display = "block";
@@ -321,83 +674,37 @@
   function doLogout() {
     authToken = null;
     authUsername = null;
-    loadedProperties = [];
+    searchResults = [];
+    selectedProperty = null;
+    PROPERTY_ID = "";
     document.getElementById("login-area").style.display = "block";
     document.getElementById("logged-in-area").style.display = "none";
     document.getElementById("login-password").value = "";
-    document.getElementById("property-select").innerHTML =
-      '<option value="">— log in and click Connect to load properties —</option>';
-    document.getElementById("wt-widget").innerHTML = "";
-    document.getElementById("raw-output").innerHTML =
-      '<span style="color:#9ca3af">Waiting for Apply…</span>';
-    updateHotelCard(null);
+    document.getElementById("search-results").innerHTML = "";
+    document.getElementById("wt-widget").innerHTML = '<p class="wt-text-muted" style="font-style:italic">Select a hotel to load the widget.</p>';
+    document.getElementById("raw-output").innerHTML = '<span class="wt-text-muted">Select a hotel…</span>';
+    renderHotelDetail(null);
+    setSearchEnabled(false);
+    setSearchStatus("Sign in to search listings.");
+    updateSnippets();
   }
 
-  // ── Hotel card ──
-  function updateHotelCard(prop) {
-    document.getElementById("hotel-name").textContent = prop ? prop.name : "—";
-    document.getElementById("hotel-meta").textContent = prop ? `\uD83D\uDCCD ${prop.location}` : "\uD83D\uDCCD —";
-    document.getElementById("hotel-desc").textContent = prop
-      ? `${prop.name} is listed in the WikiTraveler node at ${currentNodeUrl}. Use the panel on the right to inspect its live accessibility data.`
-      : "Select a property to see details.";
-  }
-
-  async function loadProperties(nodeUrl) {
-    if (!authToken) return;
-    const select = document.getElementById("property-select");
-    select.innerHTML = '<option value="">Loading…</option>';
-    try {
-      const res = await fetch(`${nodeUrl}/api/properties`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const props = data.properties ?? [];
-      loadedProperties = props;
-      if (props.length === 0) {
-        select.innerHTML = '<option value="">No properties found — run pnpm db:seed</option>';
-        updateHotelCard(null);
-        return;
-      }
-      select.innerHTML = props.map(p =>
-        `<option value="${p.id}">${p.name} — ${p.location}</option>`
-      ).join("");
-      // Pre-select ?id= param if present, otherwise first result
-      if (PROPERTY_ID && props.find(p => p.id === PROPERTY_ID)) {
-        select.value = PROPERTY_ID;
-      } else {
-        PROPERTY_ID = props[0].id;
-        select.value = PROPERTY_ID;
-      }
-      updateHotelCard(props.find(p => p.id === PROPERTY_ID) ?? props[0]);
-      select.onchange = () => {
-        PROPERTY_ID = select.value;
-        updateHotelCard(loadedProperties.find(p => p.id === PROPERTY_ID) ?? null);
-        updateSnippets();
-        mountDemoWidget();
-        runRawFetch();
-      };
-    } catch (e) {
-      select.innerHTML = `<option value="">Could not reach node: ${e.message}</option>`;
-    }
-  }
-
-  // ── Pattern 1: Auto-mount widget ──
   function mountDemoWidget() {
     const el = document.getElementById("wt-widget");
-    if (!el) return;
+    if (!el || !PROPERTY_ID || !authToken) return;
     el.dataset.nodeUrl = currentNodeUrl;
     el.dataset.propertyId = PROPERTY_ID;
-    if (authToken) el.dataset.token = authToken;
-    if (window.WikiTraveler && WikiTraveler.mountWidget) {
-      WikiTraveler.mountWidget(el);
-    }
+    el.dataset.token = authToken;
+    if (window.WikiTraveler?.mountWidget) WikiTraveler.mountWidget(el);
   }
 
-  // ── Pattern 2: Raw JSON fetch (live demo) ──
   async function runRawFetch() {
     const output = document.getElementById("raw-output");
-    output.innerHTML = '<span style="color:#9ca3af">Fetching…</span>';
+    if (!PROPERTY_ID || !authToken) {
+      output.innerHTML = '<span class="wt-text-muted">Select a hotel…</span>';
+      return;
+    }
+    output.innerHTML = '<span class="wt-text-muted">Fetching…</span>';
     try {
       const client = new WikiTraveler.WikiTraveler({ nodeUrl: currentNodeUrl, token: authToken });
       const data = await client.getAccessibility(PROPERTY_ID);
@@ -411,83 +718,45 @@
     const val = document.getElementById("node-url-input").value.trim().replace(/\/$/, "");
     if (!val) return;
     currentNodeUrl = val;
-    document.getElementById("node-status").textContent = `Connected to ${val}`;
-    if (!authToken) {
-      document.getElementById("node-status").textContent += " — please log in";
-      return;
-    }
-    loadProperties(val).then(() => {
-      updateSnippets();
-      mountDemoWidget();
-      runRawFetch();
-    });
+    syncNavNodeLink();
+    document.getElementById("node-status").textContent = authToken
+      ? `Connected to ${val}`
+      : `Node set to ${val} — please log in`;
+    if (!authToken) return;
+    loadInitialProperty();
   }
 
-  // ── Snippet builders ──
   function updateSnippets() {
+    const id = PROPERTY_ID || "PROPERTY_ID";
     const widgetSnippet = `<!-- Pattern 1: Drop-in Widget (CDN, no build step) -->
 <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"><\/script>
 
-<!-- Obtain a token first via POST /api/auth/login, then pass it as data-token -->
 <div id="wt-widget"
      data-wt-widget
-     data-property-id="${PROPERTY_ID}"
+     data-property-id="${id}"
      data-node-url="${currentNodeUrl}"
      data-token="YOUR_JWT_TOKEN">
-</div>
+</div>`;
 
-<!-- Optional: override colours with CSS variables -->
-<style>
-  #wt-widget {
-    --wt-badge-color: #059669;
-    --wt-font-family: 'Georgia', serif;
-  }
-</style>`;
-
-    const fetchSnippet = `<!-- Pattern 2: Raw JSON fetch — render your own UI -->
+    const fetchSnippet = `<!-- Pattern 2: Raw JSON fetch -->
 <script src="https://cdn.wikitraveler.org/wikitraveler.umd.js"><\/script>
-<div id="accessibility-section"></div>
 <script>
-  // Obtain token once via POST /api/auth/login
-  const token = "YOUR_JWT_TOKEN";
-
   const wt = new WikiTraveler.WikiTraveler({
     nodeUrl: "${currentNodeUrl}",
-    token,
+    token: "YOUR_JWT_TOKEN",
   });
-
-  wt.getAccessibility("${PROPERTY_ID}").then(data => {
-    const el = document.getElementById("accessibility-section");
-    el.innerHTML = data.facts.map(f =>
-      \`<div>
-        <strong>\${f.fieldName}</strong>: \${f.value}
-        <span style="color:\${f.color}">\${f.label}</span>
-      </div>\`
-    ).join("");
-  });
+  const data = await wt.getAccessibility("${id}");
+  console.log(data.facts);
 <\/script>`;
 
-    const esmSnippet = `// Pattern 3: npm ESM import (React / Vue / Next.js / Vite…)
-// npm install @wikitraveler/sdk
+    const esmSnippet = `import { WikiTraveler, mountWidget } from "@wikitraveler/sdk";
 
-import { WikiTraveler, mountWidget } from "@wikitraveler/sdk";
-
-// Obtain token once via POST /api/auth/login
-const { token } = await fetch("${currentNodeUrl}/api/auth/login", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username: "demo", password: "••••" }),
-}).then(r => r.json());
-
-// Option A — use the client directly
 const wt = new WikiTraveler({ nodeUrl: "${currentNodeUrl}", token });
-const data = await wt.getAccessibility("${PROPERTY_ID}");
-console.log(data.facts); // [{ fieldName, value, tier, label, color }]
+const data = await wt.getAccessibility("${id}");
 
-// Option B — mount the pre-styled widget
 mountWidget({
   target: "#wt-widget",
-  propertyId: "${PROPERTY_ID}",
+  propertyId: "${id}",
   nodeUrl: "${currentNodeUrl}",
   token,
 });`;
@@ -497,7 +766,6 @@ mountWidget({
     document.querySelector("#snippet-esm .code").textContent = esmSnippet;
   }
 
-  // ── Tabs ──
   function showTab(id, btn) {
     document.querySelectorAll(".snippet-panel").forEach((p) => {
       p.classList.remove("active");
@@ -517,7 +785,6 @@ mountWidget({
     activeBtn.tabIndex = 0;
   }
 
-  // ── Copy ──
   function copySnippet(preId) {
     const text = document.querySelector(`#${preId} .code`)?.textContent ?? "";
     navigator.clipboard.writeText(text).then(() => {
@@ -526,14 +793,28 @@ mountWidget({
     });
   }
 
-  // ── Boot ──
   document.addEventListener("DOMContentLoaded", () => {
     updateSnippets();
-    // Do not auto-connect — the user must log in first
-  });
-
-  // Allow pressing Enter in the password field to submit
-  document.addEventListener("DOMContentLoaded", () => {
+    const navPills = document.querySelectorAll(".wt-nav-pill[href^='#']");
+    function syncNavActive() {
+      const hash = location.hash || "#search-heading";
+      navPills.forEach((a) => {
+        a.classList.toggle("active", a.getAttribute("href") === hash);
+      });
+    }
+    syncNavActive();
+    window.addEventListener("hashchange", syncNavActive);
+    navPills.forEach((a) => a.addEventListener("click", () => {
+      navPills.forEach((p) => p.classList.remove("active"));
+      a.classList.add("active");
+    }));
+    document.getElementById("hotel-search").addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(runSearch, 350);
+    });
+    document.getElementById("hotel-search").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); runSearch(); }
+    });
     document.getElementById("login-password").addEventListener("keydown", (e) => {
       if (e.key === "Enter") doLogin();
     });

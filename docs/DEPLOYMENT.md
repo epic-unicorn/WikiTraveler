@@ -50,11 +50,13 @@ Before deploying either app:
    DATABASE_URL="postgresql://..." pnpm db:deploy
    ```
 
-4. Optionally seed sample properties (dev/demo only):
+4. Optionally ingest the OSM baseline for demos (uses the bundled fixture; dev only):
 
    ```bash
    DATABASE_URL="postgresql://..." pnpm db:seed
    ```
+
+   For a full local reset including migrations, use `pnpm db:setup` instead.
 
 ---
 
@@ -260,11 +262,13 @@ On first run this builds the image, starts Postgres, runs `prisma migrate deploy
 curl http://localhost:3000/api/health
 ```
 
-**Seed (once):**
+**OSM baseline (once, optional):**
 
 ```bash
 docker compose -f docker/docker-compose.yml exec node sh -c "pnpm db:seed"
 ```
+
+Ingests the committed OSM fixture. Use only for demos; production nodes typically rely on their configured `OSM_BBOX` cron sync instead.
 
 **Customise `docker/docker-compose.yml`:**
 

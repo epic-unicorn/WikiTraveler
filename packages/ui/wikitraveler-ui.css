@@ -65,3 +65,78 @@
 .wt-tier-ai_guess { background: var(--wt-tier-ai-bg); color: var(--wt-tier-ai-text); }
 .wt-tier-verified { background: var(--wt-tier-verified-bg); color: var(--wt-tier-verified-text); }
 .wt-tier-confirmed { background: var(--wt-tier-confirmed-bg); color: var(--wt-tier-confirmed-text); }
+
+/* SDK drop-in widget (@wikitraveler/sdk mountWidget) */
+.wt-widget {
+  font-family: var(--wt-font, sans-serif);
+  color: var(--wt-text, #0f172a);
+  font-size: 13px;
+  line-height: 1.45;
+  min-width: 0;
+}
+.wt-widget-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(480px, 60vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.wt-widget-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--wt-bg-secondary, #f1f5f9);
+  border: 1px solid var(--wt-border, #e2e8f0);
+  border-radius: var(--wt-radius-sm, 8px);
+}
+.wt-widget-fact-label {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--wt-text-muted, #64748b);
+}
+.wt-widget-fact-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+.wt-widget-fact-value {
+  color: var(--wt-text, #0f172a);
+  word-break: break-word;
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.wt-widget-fact .wt-tier-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.wt-widget-empty {
+  color: var(--wt-text-muted, #64748b);
+  font-style: italic;
+  margin: 0;
+}
+.wt-widget-attribution {
+  font-size: 11px;
+  color: var(--wt-text-muted, #64748b);
+  margin: 10px 0 0;
+}
+.wt-widget-attribution a {
+  color: var(--wt-primary, #1d4ed8);
+  text-decoration: none;
+}
+.wt-widget-attribution a:hover { text-decoration: underline; }
+.wt-widget-loading,
+.wt-widget-error {
+  margin: 0;
+  font-size: 13px;
+}
+.wt-widget-error { color: var(--wt-danger, #dc2626); }

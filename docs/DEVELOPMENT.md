@@ -41,21 +41,21 @@ NODE_PUBLIC_KEY=
 # Start Postgres
 docker compose -f docker/docker-compose.dev.yml up postgres -d
 
-# Apply migrations
-pnpm db:migrate
-
-# Seed sample hotels
-pnpm db:seed
+# Fresh local database: migrations + OSM fixture ingest
+pnpm db:setup
 ```
 
-The seed creates three hotels (Grand Hotel Vienna, Hotel Arts Barcelona, Pulitzer Amsterdam) with `OFFICIAL`-tier facts. Re-running `pnpm db:seed` is safe â€” it uses `upsert`.
+`db:setup` runs `prisma migrate reset` and ingests the committed OSM fixture in `scripts/fixtures/` (`OFFICIAL`-tier baseline). Re-running it wipes local data.
+
+After pulling schema changes on an existing database, use `pnpm db:migrate` instead.
 
 | Command | Description |
 |---------|-------------|
-| `pnpm db:migrate` | Create and apply a new migration |
-| `pnpm db:generate` | Regenerate Prisma client after schema changes |
+| `pnpm db:setup` | Reset DB, migrate, ingest OSM fixture |
+| `pnpm db:migrate` | Apply pending migrations (keep data) |
+| `pnpm db:seed` | Re-ingest fixture only (no reset) |
+| `pnpm osm:ingest` | Fetch fresh OSM data from Overpass and update the fixture |
 | `pnpm exec prisma studio` | Open Prisma Studio (visual DB browser) |
-| `pnpm exec prisma migrate reset` | Drop and recreate the database (dev only) |
 
 ---
 
@@ -76,20 +76,6 @@ pnpm dev:field-kit
 ```
 
 Open in a mobile browser or use Chrome DevTools device emulation.
-### Registry
-
-```bash
-pnpm dev:registry
-# → http://localhost:3002
-```
-
-The registry requires its own migration (first time only):
-
-```bash
-cd apps/registry
-npx prisma migrate dev --name init
-```
-
 ### Agency Demo
 
 ```bash
@@ -97,7 +83,7 @@ pnpm dev:agency-demo
 # â†’ http://localhost:4000/apps/agency-demo/
 ```
 
-Builds the SDK and serves from the repo root. The demo auto-connects to `http://localhost:3000` and populates a property dropdown.
+Builds the SDK and serves from the repo root. The demo connects to `http://localhost:3000` by default.
 
 ### Lens Extension
 

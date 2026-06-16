@@ -1,6 +1,6 @@
 /**
  * Provisions a CI admin account and writes .lighthouse-secrets.json for Lighthouse.
- * Run after the node is up (pnpm db:seed + next start).
+ * Run after the node is up (pnpm db:setup + next start).
  */
 import { PrismaClient } from "@prisma/client";
 import { writeFileSync } from "fs";

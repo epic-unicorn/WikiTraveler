@@ -3,8 +3,8 @@
  *
  * Fetches accessibility data from the Overpass API for the configured
  * bounding box and ingests it into the database. On first run the raw
- * Overpass response is saved as a fixture so subsequent `pnpm db:reset`
- * calls work offline.
+ * Overpass response is saved as a fixture so subsequent `pnpm db:setup`
+ * / `pnpm db:seed` calls work offline.
  *
  * Usage:
  *   pnpm osm:ingest                # fetch from Overpass, save + ingest

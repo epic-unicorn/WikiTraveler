@@ -99,12 +99,13 @@ cp .env.example .env        # edit DATABASE_URL, NODE_PRIVATE_KEY, NODE_PUBLIC_K
 docker compose -f docker/docker-compose.dev.yml up postgres -d
 ```
 
-### 3. Migrate & seed
+### 3. Database
 
 ```bash
-pnpm db:migrate               # node schema
-pnpm db:seed
+pnpm db:setup               # migrations + OSM baseline from scripts/fixtures/
 ```
+
+This resets the local database, applies migrations, and ingests the committed OSM fixture (`OFFICIAL`-tier properties). For an existing database after pulling schema changes, use `pnpm db:migrate` instead.
 
 On first start the node no longer auto-seeds an admin from `.env`.
 After running migrations and seeding, start the node (`pnpm dev`) and open the dashboard at `http://localhost:3000`.
@@ -186,7 +187,7 @@ wikitraveler/
 │   └── ai-agent/        # GPT-4o vision + gap-fill engine
 ├── prisma/schema.prisma # Database schema (PostgreSQL)
 ├── docker/              # Dockerfiles + compose files
-├── scripts/             # seed.ts, osm-ingest.ts
+├── scripts/             # seed.ts, osm-ingest.ts, lighthouse helpers
 └── .env.example         # Environment variable reference
 ```
 
@@ -194,20 +195,38 @@ wikitraveler/
 
 ## Scripts
 
-| Script                 | Description                              |
-| ---------------------- | ---------------------------------------- |
-| `pnpm dev`             | Start node on :3000                      |
-| `pnpm dev:field-kit`   | Start field-kit on :3001                 |
-| `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000   |
-| `pnpm build`           | Build all packages and apps              |
-| `pnpm db:migrate`           | Apply pending node schema migrations          |
-| `pnpm db:seed`              | Seed database with sample properties          |
-| `pnpm db:setup`             | Full reset of both databases + seed           |
-| `pnpm db:migrate-photos`    | Migrate base64 photos to object storage (R2/Supabase) |
-| `pnpm test`            | Run node unit tests                      |
-| `pnpm test:a11y`       | Run accessibility regression tests (axe + map) |
-| `pnpm lighthouse:ci`   | Lighthouse accessibility gate (≥ 90; needs running apps) |
-| `pnpm osm:ingest`           | Ingest OpenStreetMap data                     |
+### Apps
+
+| Script | Description |
+| ------ | ----------- |
+| `pnpm dev` | Start node on :3000 |
+| `pnpm dev:field-kit` | Start field-kit on :3001 |
+| `pnpm dev:agency-demo` | Build SDK + serve agency demo on :4000 |
+| `pnpm build` | Build all packages and apps |
+
+### Database
+
+| Script | Description |
+| ------ | ----------- |
+| `pnpm db:setup` | **Local fresh start:** reset DB, run migrations, ingest OSM fixture |
+| `pnpm db:migrate` | Apply pending schema migrations (keep existing data) |
+
+Re-ingest the fixture without wiping the DB: `pnpm db:seed`. Production migrations: `pnpm db:deploy` (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
+
+### Quality
+
+| Script | Description |
+| ------ | ----------- |
+| `pnpm test` | Run node unit tests |
+| `pnpm test:a11y` | Accessibility regression tests (axe + map) |
+| `pnpm lighthouse:ci` | Lighthouse accessibility gate (≥ 90; needs running apps) |
+
+### Maintainers
+
+| Script | When you need it |
+| ------ | ---------------- |
+| `pnpm osm:ingest` | Refresh `scripts/fixtures/` from Overpass (new region or updated baseline) |
+| `pnpm db:migrate-photos` | One-time upload of base64 photos to R2/Supabase after changing `PHOTO_STORAGE_PROVIDER` — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 
 ---
 
