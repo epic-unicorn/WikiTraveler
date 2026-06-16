@@ -24,9 +24,11 @@ module.exports = {
         `http://localhost:3001/audit/${propertyId}`,
       ],
       puppeteerScript: "./scripts/lhci-auth.cjs",
+      puppeteerLaunchOptions: {
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      },
       settings: {
         onlyCategories: ["accessibility"],
-        chromeFlags: "--no-sandbox --headless",
       },
     },
     assert: {
