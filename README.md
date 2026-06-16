@@ -152,6 +152,8 @@ See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
 
 WikiTraveler targets **WCAG 2.1 Level AA**. The public statement lives at `/accessibility` on each node. Developer checklist: [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md). Formal report: [docs/CONFORMANCE.md](docs/CONFORMANCE.md). Run `pnpm test:a11y` and `pnpm lighthouse:ci` before merging UI changes.
 
+**Product roadmap:** [docs/PROPOSAL-i18n-attributes-photos-rooms.md](docs/PROPOSAL-i18n-attributes-photos-rooms.md) — languages, extended attributes, photo evidence, and room audits.
+
 ---
 
 ## Deployment
