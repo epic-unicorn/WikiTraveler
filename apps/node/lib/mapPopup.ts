@@ -1,5 +1,3 @@
-import { fieldLabel } from "@wikitraveler/ui";
-
 export interface MapPin {
   id: string;
   name: string;
@@ -35,6 +33,10 @@ export function formatFactStatus(value: string): string {
   if (value === "no") return "No";
   if (value === "partial") return "Partial";
   return value || "Unknown";
+}
+
+function fieldLabel(field: string): string {
+  return field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function labelForField(fieldName: string): string {

@@ -547,7 +547,6 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
             </div>
 
             <RoomAuditSection
-              locale={locale}
               roomFields={roomFieldDefs}
               selectedTypes={selectedRoomTypes}
               onTypesChange={setSelectedRoomTypes}
