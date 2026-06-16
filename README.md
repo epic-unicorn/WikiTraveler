@@ -227,6 +227,8 @@ Re-ingest the fixture without wiping the DB: `pnpm db:seed`. Production migratio
 | ------ | ---------------- |
 | `pnpm osm:ingest` | Refresh `scripts/fixtures/` from Overpass (new region or updated baseline) |
 | `pnpm db:migrate-photos` | One-time upload of base64 photos to R2/Supabase after changing `PHOTO_STORAGE_PROVIDER` — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| `pnpm dev:gossip-lab` | Docker: two nodes for peer gossip testing — see [docs/GOSSIP-DEV.md](docs/GOSSIP-DEV.md) |
+| `pnpm gossip:check` | Smoke-check gossip lab peer registration |
 
 ---
 

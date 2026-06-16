@@ -96,15 +96,7 @@ No build step â€” load as unpacked:
    - Register creates a `USER` account. Promote it to `AUDITOR` via the node dashboard (Stats → Users) before the extension can show data.
 4. Lens icon → **Extension options** → set Node URL, sign in, and confirm connection
 
-**Two-node local dev** (peer discovery testing):
-```bash
-# Terminal 1 — node A on port 3000
-NODE_ID=node-a NODE_URL=http://localhost:3000 pnpm dev
-
-# Terminal 2 — node B on port 3010
-NODE_ID=node-b NODE_URL=http://localhost:3010 BOOTSTRAP_PEERS=http://localhost:3000 PORT=3010 pnpm dev
-```
-Node B bootstraps by fetching nodeinfo from node A and seeds the local `NodePeer` table. Gossip cron will then exchange facts bidirectionally.
+**Two-node local dev** (peer gossip testing): use the gossip lab instead of ad-hoc env vars — see [docs/GOSSIP-DEV.md](../docs/GOSSIP-DEV.md) and `pnpm dev:gossip-lab`.
 
 ---
 

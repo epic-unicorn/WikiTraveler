@@ -9,64 +9,27 @@
  * BOOTSTRAP_PEERS — comma-separated list of seed node URLs.
  */
 
-import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
+import { NODE_URL } from "@/lib/nodeInfo";
 import { prisma } from "@/lib/prisma";
-
-interface RemoteNodeInfo {
-  nodeId?: string;
-  nodeUrl?: string;
-  region?: string;
-  bbox?: string | null;
-  peers?: Array<{ nodeId?: string | null; url: string; region?: string | null; bbox?: string | null }>;
-}
-
-async function fetchNodeInfo(url: string): Promise<RemoteNodeInfo | null> {
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/api/nodeinfo`, {
-      signal: AbortSignal.timeout(5_000),
-      headers: { "User-Agent": `WikiTraveler-Node/${NODE_ID}` },
-    });
-    if (!res.ok) return null;
-    return await res.json() as RemoteNodeInfo;
-  } catch {
-    return null;
-  }
-}
-
-async function upsertPeer(url: string, info: Partial<RemoteNodeInfo>) {
-  try {
-    await prisma.nodePeer.upsert({
-      where: { url },
-      update: {
-        nodeId: info.nodeId ?? undefined,
-        region: info.region ?? undefined,
-        bbox: info.bbox ?? undefined,
-        lastSeen: new Date(),
-        isActive: true,
-      },
-      create: {
-        url,
-        nodeId: info.nodeId,
-        region: info.region,
-        bbox: info.bbox ?? null,
-        isActive: true,
-      },
-    });
-  } catch (err) {
-    console.warn(`[bootstrap] Failed to upsert peer ${url}:`, err);
-  }
-}
+import { isSelfPeer, linkPeerUrl } from "@/lib/linkPeer";
 
 /**
  * Bootstrap peer discovery from BOOTSTRAP_PEERS env var.
- *
- * For each seed URL:
- *   1. Fetch /api/nodeinfo
- *   2. Upsert the seed as a NodePeer
- *   3. Upsert any peers it advertises (one hop)
  */
 export async function registerWithRegistry(): Promise<void> {
-  // ── Admin account check ──────────────────────────────────────────────────
+  const activePeers = await prisma.nodePeer.findMany({
+    where: { isActive: true },
+    select: { id: true, url: true, nodeId: true },
+  });
+  for (const peer of activePeers) {
+    if (isSelfPeer(peer.url, peer.nodeId)) {
+      await prisma.nodePeer.update({
+        where: { id: peer.id },
+        data: { isActive: false },
+      });
+    }
+  }
+
   const adminExists = await prisma.user.findFirst({ where: { role: "ADMIN" } });
   if (!adminExists) {
     console.warn(
@@ -75,12 +38,11 @@ export async function registerWithRegistry(): Promise<void> {
     );
   }
 
-  // ── Peer exchange ────────────────────────────────────────────────────────
   const seeds = (process.env.BOOTSTRAP_PEERS ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
-    .filter((u) => u !== NODE_URL)
+    .filter((u) => u.replace(/\/$/, "") !== NODE_URL.replace(/\/$/, ""))
     .filter((u, i, a) => a.indexOf(u) === i);
 
   if (seeds.length === 0) {
@@ -89,30 +51,46 @@ export async function registerWithRegistry(): Promise<void> {
   }
 
   for (const seedUrl of seeds) {
-    const info = await fetchNodeInfo(seedUrl);
-    if (!info) {
-      console.warn(`[bootstrap] Could not reach seed ${seedUrl}`);
+    const result = await linkPeerUrl(seedUrl);
+    if (!result.ok) {
+      console.warn(`[bootstrap] Could not reach seed ${seedUrl}: ${result.error}`);
       continue;
     }
-
-    // Seed itself
-    await upsertPeer(seedUrl, {
-      nodeId: info.nodeId,
-      region: info.region,
-      bbox: info.bbox,
-    });
-    console.info(`[bootstrap] Discovered peer ${info.nodeId ?? seedUrl}`);
-
-    // Peers advertised by the seed (one-hop expansion)
-    if (Array.isArray(info.peers)) {
-      for (const p of info.peers) {
-        if (!p.url || p.url === NODE_URL) continue;
-        await upsertPeer(p.url, { nodeId: p.nodeId ?? undefined, region: p.region ?? undefined, bbox: p.bbox });
-      }
-      if (info.peers.length > 0) {
-        console.info(`[bootstrap] Seeded ${info.peers.length} additional peers from ${info.nodeId ?? seedUrl}`);
-      }
-    }
+    console.info(`[bootstrap] Discovered peer ${result.nodeId ?? seedUrl}`);
   }
 }
 
+/** GOSSIP_DEV: retry bootstrap until peers appear (docker gossip lab cold start). */
+export async function registerWithRegistryDevRetry(): Promise<void> {
+  const maxAttempts = process.env.GOSSIP_DEV === "true" ? 24 : 1;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await registerWithRegistry();
+    const peerCount = await prisma.nodePeer.count({ where: { isActive: true } });
+    if (peerCount > 0 || attempt === maxAttempts) break;
+    console.info(`[bootstrap] No peers yet — retry ${attempt}/${maxAttempts} in 5s…`);
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
+}
+
+/** Keep trying bootstrap in gossip lab until the other node finishes starting. */
+export function startGossipDevBootstrapWatcher(): void {
+  if (process.env.GOSSIP_DEV !== "true") return;
+
+  const intervalMs = 30_000;
+  const timer = setInterval(async () => {
+    try {
+      const peerCount = await prisma.nodePeer.count({ where: { isActive: true } });
+      if (peerCount > 0) {
+        clearInterval(timer);
+        return;
+      }
+      console.info("[bootstrap] Gossip lab: still no peers — retrying discovery…");
+      await registerWithRegistry();
+    } catch (err) {
+      console.warn("[bootstrap] Gossip lab retry failed:", err);
+    }
+  }, intervalMs);
+
+  // Stop after 15 minutes so we don't leak timers in long-running dev
+  setTimeout(() => clearInterval(timer), 15 * 60 * 1000);
+}

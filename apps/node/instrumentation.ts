@@ -23,9 +23,10 @@ export async function register() {
       process.exit(1);
     }
 
-    const { registerWithRegistry } = await import("@/lib/bootstrap");
+    const { registerWithRegistryDevRetry, startGossipDevBootstrapWatcher } = await import("@/lib/bootstrap");
     try {
-      await registerWithRegistry();
+      await registerWithRegistryDevRetry();
+      startGossipDevBootstrapWatcher();
     } catch (err) {
       console.error("[instrumentation] registerWithRegistry failed:", err);
     }

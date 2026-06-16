@@ -126,27 +126,58 @@ curl http://localhost:3000/api/cron/ai-scan
 
 ## Flow 6 — Peer Gossip
 
-**What it tests:** Two nodes exchanging facts via gossip delta and automatic peer discovery.
+**What it tests:** Two nodes exchanging facts via inbox push and gossip pull.
+
+Use the **gossip lab** (Docker) — two nodes, two databases, dev keys, matching `OSM_BBOX`.
+
+### 1. Start the lab
 
 ```bash
-# Terminal 1 — Node A (Netherlands)
-pnpm dev
-
-# Terminal 2 — Node B (London) — needs its own DATABASE_URL
-PORT=3001 DATABASE_URL=<node-b-db> NODE_ID=node-b NODE_URL=http://localhost:3001 \
-  OSM_BBOX="51.3,-.5,51.7,.3" \
-  BOOTSTRAP_PEERS=http://localhost:3000 \
-  pnpm --filter @wikitraveler/node dev
+pnpm dev:gossip-lab
+# → Node A http://localhost:3000
+# → Node B http://localhost:3010
 ```
 
-Node B bootstraps automatically: on startup it fetches `/api/nodeinfo` from Node A and upserts it as a peer.
+Wait until both nodes log `Starting WikiTraveler node` (~30–60s on first build).
 
-1. Submit a fact to Node A via the Field Kit.
-2. Node A pushes the signed fact to Node B's `/api/inbox`.
-3. Every 6 hours (or trigger manually: `curl http://localhost:3001/api/cron/gossip`), Node B also pulls a full delta from Node A.
-4. Open `http://localhost:3001` — the fact appears only if its property coordinates fall inside Node B's `OSM_BBOX`.
+### 2. Link peers
 
-**Verify:** `GET http://localhost:3000/api/nodeinfo` shows Node B in the `peers[]` list after the first gossip cycle. Out-of-bbox properties are silently skipped. Tampered inbox signatures are rejected with `401`.
+```bash
+pnpm gossip:link-peers
+pnpm gossip:check
+```
+
+Bootstrap may link peers automatically after both nodes finish starting; if `gossip:check` shows no peers, run `gossip:link-peers` (required once per fresh lab).
+
+### 3. First-run setup
+
+1. Open `http://localhost:3000/setup` and create an admin on **Node A**.
+2. Open `http://localhost:3010/setup` and create an admin on **Node B**.
+3. Promote yourself to **AUDITOR** on Node A (Stats → Users) if using Field Kit.
+
+### 4. Propagate a fact
+
+**Inbox push (fast path):**
+
+1. Submit an audit on Node A (Field Kit with `NEXT_PUBLIC_NODE_API_URL=http://localhost:3000`, or the node UI).
+2. Pick a property inside the shared bbox (Eindhoven region if you have the OSM fixture).
+3. Open Node B’s map — the fact should appear within seconds.
+
+**Gossip pull (fallback):**
+
+```bash
+pnpm gossip:sync
+```
+
+### 5. Verify
+
+```bash
+pnpm gossip:check
+```
+
+**Verify:** Each node lists the other in `peers[]`. Facts on A appear on B for in-bbox properties.
+
+Manual two-terminal setup: [docs/GOSSIP-DEV.md](../docs/GOSSIP-DEV.md).
 
 ---
 
@@ -159,4 +190,4 @@ Node B bootstraps automatically: on startup it fetches `/api/nodeinfo` from Node
 | 3 — Lens on Booking.com | :3000 (node) |
 | 4 — Lens on Lens Demo | :3000 (node), :4001 (lens-demo) |
 | 5 — AI Scan | :3000 (node) |
-| 6 — Peer Gossip | :3000 (node A), :3001 (node B) |
+| 6 — Peer Gossip | :3000 (node A), :3010 (node B) |

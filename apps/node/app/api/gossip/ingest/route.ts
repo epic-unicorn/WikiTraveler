@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { mergeGossipDelta } from "@wikitraveler/core";
 import { createHash } from "crypto";
 import { requireNodeAuth } from "@/lib/auth";
+import { remapFactsPropertyIds, upsertGossipProperties } from "@/lib/gossipProperties";
+import { isSelfPeer } from "@/lib/linkPeer";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 // ---------------------------------------------------------------------------
@@ -53,7 +55,7 @@ export async function POST(req: Request) {
   const allowedPropertyIds = new Set(allowedProperties.map((p) => p.id));
 
   // Also filter facts to only those belonging to allowed properties
-  const allowedFacts = delta.facts.filter((f) => !bboxFilter || allowedPropertyIds.has(f.propertyId));
+  let allowedFacts = delta.facts.filter((f) => !bboxFilter || allowedPropertyIds.has(f.propertyId));
 
   if (bboxFilter && allowedProperties.length < (delta.properties?.length ?? 0)) {
     const skipped = (delta.properties?.length ?? 0) - allowedProperties.length;
@@ -61,27 +63,8 @@ export async function POST(req: Request) {
   }
 
   if (allowedProperties.length > 0) {
-    await Promise.all(
-      allowedProperties.map((p) =>
-        prisma.property.upsert({
-          where: { canonicalId: p.canonicalId },
-          update: {
-            name: p.name,
-            location: p.location,
-            osmId: p.osmId ?? undefined,
-            wheelmapId: p.wheelmapId ?? undefined,
-          },
-          create: {
-            id: p.id,
-            canonicalId: p.canonicalId,
-            name: p.name,
-            location: p.location,
-            osmId: p.osmId,
-            wheelmapId: p.wheelmapId,
-          },
-        })
-      )
-    );
+    const idMap = await upsertGossipProperties(allowedProperties);
+    allowedFacts = remapFactsPropertyIds(allowedFacts, idMap);
   }
 
   // ------------------------------------------------------------------
@@ -147,10 +130,11 @@ export async function POST(req: Request) {
     },
   });
 
-  // Upsert any peers that arrived in the delta (peer exchange)
+  // Upsert any peers that arrived in the delta (peer exchange) — never register self
   if (Array.isArray(delta.peers) && delta.peers.length > 0) {
+    const remotePeers = delta.peers.filter((peer) => !isSelfPeer(peer.url, peer.nodeId));
     await Promise.all(
-      delta.peers.map((peer) =>
+      remotePeers.map((peer) =>
         prisma.nodePeer.upsert({
           where: { url: peer.url },
           update: { nodeId: peer.nodeId ?? undefined, region: peer.region ?? undefined, bbox: peer.bbox ?? undefined, lastSeen: new Date(), isActive: true },

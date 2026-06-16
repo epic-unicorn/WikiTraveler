@@ -9,10 +9,13 @@ import { prisma } from "@/lib/prisma";
  * Clients/peers cache the public key here for RS256 JWT verification.
  */
 export async function GET() {
-  const peers = await prisma.nodePeer.findMany({
+  const peerRows = await prisma.nodePeer.findMany({
     where: { isActive: true },
     select: { url: true, nodeId: true, region: true, bbox: true },
   });
+  const peers = peerRows
+    .filter((p) => p.nodeId !== NODE_ID)
+    .map((p) => ({ nodeId: p.nodeId ?? null, url: p.url, region: p.region ?? null, bbox: p.bbox ?? null }));
 
   return NextResponse.json({
     nodeId: NODE_ID,
@@ -21,6 +24,6 @@ export async function GET() {
     region: NODE_REGION,
     bbox: NODE_BBOX,
     publicKeyPem: process.env.NODE_PUBLIC_KEY ?? null,
-    peers: peers.map((p) => ({ nodeId: p.nodeId ?? null, url: p.url, region: p.region ?? null, bbox: p.bbox ?? null })),
+    peers,
   });
 }

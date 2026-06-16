@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
+import { createSign } from "crypto";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { NODE_URL } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { prisma } from "@/lib/prisma";
 
 // Role hierarchy — higher index = more permissions
@@ -111,8 +112,33 @@ export async function requireAuth(req: NextRequest): Promise<NextResponse | null
 
 // ---------------------------------------------------------------------------
 // Node-to-node auth — for gossip and /api/nodes routes
-// Uses X-Node-Signature: <nodeId>.<timestampMs> signed with sender's private key
+// Uses X-Node-Signature: base64url(RSA-SHA256("<nodeId>.<timestampMs>"))
 // ---------------------------------------------------------------------------
+
+function privateKeyPem(): string | null {
+  const raw = process.env.NODE_PRIVATE_KEY;
+  if (!raw) return null;
+  return raw.replace(/\\n/g, "\n");
+}
+
+/**
+ * Build signed headers for outbound node-to-node requests (gossip snapshot/ingest).
+ * Returns null when NODE_PRIVATE_KEY is not configured.
+ */
+export function buildNodeAuthHeaders(): Record<string, string> | null {
+  const pem = privateKeyPem();
+  if (!pem) return null;
+
+  const timestamp = Date.now().toString();
+  const message = `${NODE_ID}.${timestamp}`;
+  const signature = createSign("RSA-SHA256").update(message).sign(pem, "base64url");
+
+  return {
+    "X-Node-Id": NODE_ID,
+    "X-Node-Timestamp": timestamp,
+    "X-Node-Signature": signature,
+  };
+}
 
 /**
  * Verify an incoming node-to-node request.
@@ -132,6 +158,15 @@ export async function requireNodeAuth(req: NextRequest): Promise<NextResponse | 
   const timestamp = parseInt(timestampStr, 10);
   if (isNaN(timestamp) || Math.abs(Date.now() - timestamp) > 5 * 60 * 1000) {
     return NextResponse.json({ message: "Request expired" }, { status: 401 });
+  }
+
+  // Gossip cron signs local ingest with this node's key (not listed as a peer).
+  if (nodeId === NODE_ID) {
+    const pubKey = PUBLIC_KEY?.replace(/\\n/g, "\n");
+    if (!pubKey) {
+      return NextResponse.json({ message: "No public key configured" }, { status: 401 });
+    }
+    return verifyNodeSignature(nodeId, timestamp, signature, pubKey);
   }
 
   // Look up the peer's public key (cached in NodePeer table)

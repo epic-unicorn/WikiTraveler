@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const properties = propertyIds.length > 0
     ? await prisma.property.findMany({
         where: { id: { in: propertyIds } },
-        select: { id: true, canonicalId: true, name: true, location: true, osmId: true, wheelmapId: true },
+        select: { id: true, canonicalId: true, name: true, location: true, lat: true, lon: true, osmId: true, wheelmapId: true },
       })
     : [];
 

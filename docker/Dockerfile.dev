@@ -1,5 +1,11 @@
 # Development image — hot-reloading via bind-mounted source
-FROM node:20-alpine
+FROM node:20-bookworm-slim
+
+# Prisma query engine requires OpenSSL at runtime (migrate, generate, dev)
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 WORKDIR /app
 
@@ -7,6 +13,7 @@ WORKDIR /app
 # doesn't clobber them (named volumes protect node_modules at runtime).
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/core/package.json        ./packages/core/
+COPY packages/ui/package.json          ./packages/ui/
 COPY packages/ai-agent/package.json    ./packages/ai-agent/
 COPY packages/sdk/package.json         ./packages/sdk/
 COPY apps/node/package.json            ./apps/node/

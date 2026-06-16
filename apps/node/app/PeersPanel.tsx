@@ -206,27 +206,38 @@ export function PeersPanel({ token }: { token: string }) {
                 const ago = formatAgo(p.lastSeen);
                 return (
                   <tr key={p.url}>
-                    <td style={{ ...cell, fontFamily: "var(--wt-font-mono)", fontSize: 12 }}>
-                      <a
-                        href={p.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "var(--wt-primary)" }}
-                      >
-                        {p.url}
-                      </a>
-                      {p.nodeId && (
-                        <span
+                    <td style={cell}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{
-                            marginLeft: 8,
-                            fontSize: 11,
-                            color: "var(--wt-text-muted)",
-                            fontFamily: "inherit",
+                            color: "var(--wt-primary)",
+                            fontFamily: "var(--wt-font-mono)",
+                            fontSize: 12,
+                            wordBreak: "break-all",
                           }}
                         >
-                          {p.nodeId}
-                        </span>
-                      )}
+                          {p.url}
+                        </a>
+                        {p.nodeId && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: "var(--wt-text-muted)",
+                              background: "var(--wt-bg-secondary)",
+                              border: "1px solid var(--wt-border)",
+                              borderRadius: 999,
+                              padding: "2px 8px",
+                              fontFamily: "var(--wt-font-mono)",
+                            }}
+                          >
+                            {p.nodeId}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ ...cell, color: "var(--wt-text-muted)" }}>
                       {p.region ?? "—"}

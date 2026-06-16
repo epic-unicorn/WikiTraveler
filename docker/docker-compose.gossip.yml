@@ -1,0 +1,135 @@
+# Gossip lab — two isolated nodes for local peer sync testing
+#
+# Usage:
+#   pnpm dev:gossip-lab          # start (foreground)
+#   pnpm gossip:link-peers       # after both nodes are up (~30s)
+#   pnpm gossip:sync             # pull gossip deltas on both nodes
+#   pnpm gossip:check            # verify peer registration
+#
+# Node A → http://localhost:3000
+# Node B → http://localhost:3010  (Field Kit keeps :3001)
+
+services:
+  postgres-a:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wikitraveler
+      POSTGRES_PASSWORD: wikitraveler
+      POSTGRES_DB: wikitraveler
+    ports:
+      - "5433:5432"
+    volumes:
+      - gossip_pg_a:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikitraveler"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  postgres-b:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wikitraveler
+      POSTGRES_PASSWORD: wikitraveler
+      POSTGRES_DB: wikitraveler
+    ports:
+      - "5434:5432"
+    volumes:
+      - gossip_pg_b:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikitraveler"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  node-a:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      postgres-a:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - ..:/app
+      - node_modules:/app/node_modules
+      - node_modules_core:/app/packages/core/node_modules
+      - node_modules_ui:/app/packages/ui/node_modules
+      - node_modules_ai_agent:/app/packages/ai-agent/node_modules
+      - node_modules_sdk:/app/packages/sdk/node_modules
+      - node_modules_node_app:/app/apps/node/node_modules
+      - ./gossip-lab/node-a.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-a.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres-a:5432/wikitraveler
+      NODE_ID: node-a
+      NODE_URL: http://localhost:3000
+      NODE_REGION: Eindhoven Lab A
+      OSM_BBOX: "51.39,5.42,51.49,5.52"
+      BOOTSTRAP_PEERS: http://node-b:3000
+      GOSSIP_DEV: "true"
+      GOSSIP_KEY_DIR: /run/gossip-keys
+      GOSSIP_LAB_SEED: "true"
+      OPEN_REGISTRATION: "true"
+      CORS_ORIGINS: "*"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NODE_ENV: development
+
+  node-b:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      postgres-b:
+        condition: service_healthy
+      node-a:
+        condition: service_started
+    ports:
+      - "3010:3000"
+    volumes:
+      - ..:/app
+      - node_modules_b:/app/node_modules
+      - node_modules_core_b:/app/packages/core/node_modules
+      - node_modules_ui_b:/app/packages/ui/node_modules
+      - node_modules_ai_agent_b:/app/packages/ai-agent/node_modules
+      - node_modules_sdk_b:/app/packages/sdk/node_modules
+      - node_modules_node_app_b:/app/apps/node/node_modules
+      - ./gossip-lab/node-b.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-b.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres-b:5432/wikitraveler
+      NODE_ID: node-b
+      NODE_URL: http://localhost:3010
+      NODE_REGION: Eindhoven Lab B
+      OSM_BBOX: "51.39,5.42,51.49,5.52"
+      BOOTSTRAP_PEERS: http://node-a:3000
+      GOSSIP_DEV: "true"
+      GOSSIP_KEY_DIR: /run/gossip-keys
+      GOSSIP_LAB_SEED: "true"
+      OPEN_REGISTRATION: "true"
+      CORS_ORIGINS: "*"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NODE_ENV: development
+
+volumes:
+  gossip_pg_a:
+  gossip_pg_b:
+  node_modules:
+  node_modules_core:
+  node_modules_ui:
+  node_modules_ai_agent:
+  node_modules_sdk:
+  node_modules_node_app:
+  node_modules_b:
+  node_modules_core_b:
+  node_modules_ui_b:
+  node_modules_ai_agent_b:
+  node_modules_sdk_b:
+  node_modules_node_app_b:

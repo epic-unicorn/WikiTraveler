@@ -7,6 +7,7 @@ import {
   verifyBody,
   fetchPeerPublicKey,
 } from "@/lib/httpSignature";
+import { remapFactsPropertyIds, upsertGossipProperties } from "@/lib/gossipProperties";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 /**
@@ -45,14 +46,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Resolve sender's public key — check cache first, then fetch live
+  // Resolve sender's public key — peer table first (docker URLs), then signature keyId
   let publicKey: string | null = null;
+  let payload: GossipDelta & { fromNodeUrl?: string };
+  try {
+    payload = JSON.parse(rawBody) as GossipDelta & { fromNodeUrl?: string };
+  } catch {
+    return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
+  }
+
+  const peerByNodeId = payload.fromNodeId
+    ? await prisma.nodePeer.findFirst({ where: { nodeId: payload.fromNodeId, isActive: true } })
+    : null;
+  if (peerByNodeId?.publicKey) {
+    publicKey = peerByNodeId.publicKey;
+  }
+
   const cachedPeer = await prisma.nodePeer.findUnique({
     where: { url: parsedSig.keyId },
   });
-  if (cachedPeer?.publicKey) {
+  if (!publicKey && cachedPeer?.publicKey) {
     publicKey = cachedPeer.publicKey;
-  } else {
+  }
+
+  if (!publicKey && peerByNodeId?.url) {
+    publicKey = await fetchPeerPublicKey(peerByNodeId.url);
+    if (publicKey) {
+      await prisma.nodePeer.update({
+        where: { id: peerByNodeId.id },
+        data: { publicKey, lastSeen: new Date() },
+      });
+    }
+  }
+
+  if (!publicKey) {
     publicKey = await fetchPeerPublicKey(parsedSig.keyId);
     if (publicKey) {
       await prisma.nodePeer.upsert({
@@ -77,14 +104,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Signature verified — parse and process the payload
-  let payload: GossipDelta & { fromNodeUrl?: string };
-  try {
-    payload = JSON.parse(rawBody) as GossipDelta & { fromNodeUrl?: string };
-  } catch {
-    return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
-  }
-
+  // Signature verified — process the payload (already parsed above)
   if (!payload.fromNodeId || !Array.isArray(payload.facts) || payload.facts.length === 0) {
     return NextResponse.json(
       { message: "fromNodeId and facts[] are required" },
@@ -101,30 +121,17 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Step 1: Upsert any properties that arrived with the push (FK safety)
+  // Step 1: Upsert properties and remap fact propertyIds to local UUIDs
   let propertiesUpserted = 0;
+  let facts = payload.facts;
   if (Array.isArray(payload.properties) && payload.properties.length > 0) {
-    await Promise.all(
-      payload.properties.map((p) =>
-        prisma.property.upsert({
-          where: { canonicalId: p.canonicalId },
-          update: { name: p.name, location: p.location },
-          create: {
-            id: p.id,
-            canonicalId: p.canonicalId,
-            name: p.name,
-            location: p.location,
-            osmId: p.osmId ?? null,
-            wheelmapId: p.wheelmapId ?? null,
-          },
-        })
-      )
-    );
+    const idMap = await upsertGossipProperties(payload.properties);
+    facts = remapFactsPropertyIds(payload.facts, idMap);
     propertiesUpserted = payload.properties.length;
   }
 
   // Step 2: Merge incoming facts with existing using core merge logic
-  const propertyIds = [...new Set(payload.facts.map((f) => f.propertyId))];
+  const propertyIds = [...new Set(facts.map((f) => f.propertyId))];
   const existingRaw = await prisma.accessibilityFact.findMany({
     where: { propertyId: { in: propertyIds } },
   });
@@ -142,7 +149,7 @@ export async function POST(req: NextRequest) {
     signatureHash: f.signatureHash,
   }));
 
-  const merged = mergeGossipDelta(existingFacts, payload);
+  const merged = mergeGossipDelta(existingFacts, { ...payload, facts });
 
   await Promise.all(
     merged.map((fact) =>

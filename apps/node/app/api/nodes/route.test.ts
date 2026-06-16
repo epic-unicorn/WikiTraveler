@@ -14,7 +14,7 @@ const { prismaMock, requireRole } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
-vi.mock("@/lib/nodeInfo", () => ({ NODE_URL: "http://localhost:3000" }));
+vi.mock("@/lib/nodeInfo", () => ({ NODE_ID: "node-a", NODE_URL: "http://localhost:3000" }));
 vi.mock("@/lib/auth", () => ({ requireRole }));
 
 import { DELETE, GET, POST } from "./route";
@@ -34,13 +34,18 @@ describe("GET /api/nodes", () => {
     vi.clearAllMocks();
   });
 
-  it("returns active peers", async () => {
-    const peers = [{ url: "https://peer.example.com", isActive: true }];
+  it("returns active peers excluding self", async () => {
+    const peers = [
+      { url: "https://peer.example.com", nodeId: "node-b", isActive: true },
+      { url: "http://node-a:3000", nodeId: "node-a", isActive: true },
+    ];
     prismaMock.nodePeer.findMany.mockResolvedValue(peers);
 
     const res = await GET();
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ peers });
+    await expect(res.json()).resolves.toEqual({
+      peers: [{ url: "https://peer.example.com", nodeId: "node-b", isActive: true }],
+    });
   });
 });
 

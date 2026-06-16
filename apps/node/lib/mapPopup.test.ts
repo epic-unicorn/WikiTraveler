@@ -19,7 +19,25 @@ describe("mapPopup", () => {
     expect(html).toContain("Ramp:");
     expect(html).toContain("Yes</span>");
     expect(html).toContain("No</span>");
+    expect(html).toContain("Verified");
     expect(html).not.toContain("✅");
     expect(html).not.toContain("❌");
+  });
+
+  it("shows verified audit fields outside the legacy key-field set", () => {
+    const html = buildPopup({
+      id: "p2",
+      name: "Campanile",
+      location: "Eindhoven",
+      lat: 51.4,
+      lon: 5.5,
+      audited: true,
+      facts: {
+        door_width_cm: { value: "90", tier: "VERIFIED" },
+      },
+    });
+    expect(html).toContain("Door width (cm):");
+    expect(html).toContain("90</span>");
+    expect(html).toContain("Verified");
   });
 });

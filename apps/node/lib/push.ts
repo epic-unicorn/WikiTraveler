@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
+import { isSelfPeer } from "@/lib/linkPeer";
 import { signBody, buildSignatureHeader } from "@/lib/httpSignature";
 import type { AccessibilityFact } from "@wikitraveler/core";
 
@@ -48,7 +49,9 @@ export async function pushFactsToPeers(
 ): Promise<void> {
   if (!process.env.NODE_PRIVATE_KEY) return; // skip quietly in dev
 
-  const peers = await prisma.nodePeer.findMany({ where: { isActive: true } });
+  const peers = (await prisma.nodePeer.findMany({ where: { isActive: true } })).filter(
+    (p) => !isSelfPeer(p.url, p.nodeId)
+  );
   if (peers.length === 0) return;
 
   const payload = JSON.stringify({

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { NODE_URL } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import type { NextRequest } from "next/server";
 
 interface RemoteNodeInfo {
@@ -25,10 +25,11 @@ async function fetchNodeInfo(url: string): Promise<RemoteNodeInfo | null> {
 
 // GET /api/nodes — lists locally known active peers (used by inbox push)
 export async function GET() {
-  const peers = await prisma.nodePeer.findMany({
+  const rows = await prisma.nodePeer.findMany({
     where: { isActive: true },
     orderBy: { lastSeen: "desc" },
   });
+  const peers = rows.filter((p) => p.nodeId !== NODE_ID);
   return NextResponse.json({ peers });
 }
 
