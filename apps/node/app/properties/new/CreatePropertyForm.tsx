@@ -3,10 +3,16 @@
 import { useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useLocale } from "@wikitraveler/ui";
 
 const MapPicker = dynamic(() => import("./MapPicker").then((m) => m.MapPicker), {
   ssr: false,
-  loading: () => (
+  loading: () => <MapLoadingPlaceholder />,
+});
+
+function MapLoadingPlaceholder() {
+  const { t } = useLocale();
+  return (
     <div
       style={{
         height: 220,
@@ -20,14 +26,15 @@ const MapPicker = dynamic(() => import("./MapPicker").then((m) => m.MapPicker), 
         fontSize: 14,
       }}
     >
-      Loading map…
+      {t("ui.loadingMap")}
     </div>
-  ),
-});
+  );
+}
 
 function CreatePropertyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useLocale();
   const [name, setName] = useState(searchParams.get("name") ?? "");
   const [location, setLocation] = useState("");
   const [canonicalId, setCanonicalId] = useState("");
@@ -71,12 +78,12 @@ function CreatePropertyForm() {
       });
       const data = (await res.json()) as { property?: { id: string }; message?: string };
       if (!res.ok) {
-        setError(data.message ?? "Could not create property");
+        setError(data.message ?? t("ui.createPropertyFailed"));
         return;
       }
       router.push(`/properties/${data.property!.id}`);
     } catch {
-      setError("Could not reach server");
+      setError(t("ui.authServerUnreachable"));
     } finally {
       setLoading(false);
     }
@@ -95,6 +102,12 @@ function CreatePropertyForm() {
     color: "var(--wt-text)",
   };
 
+  const mapBtnLabel = showMap
+    ? t("ui.createPropertyHideMap")
+    : lat != null
+      ? t("ui.createPropertyAdjustPin")
+      : t("ui.createPropertyPickMap");
+
   return (
     <div
       style={{
@@ -105,13 +118,13 @@ function CreatePropertyForm() {
         boxShadow: "var(--wt-shadow)",
       }}
     >
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>New property</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t("ui.createPropertyTitle")}</h2>
       <p style={{ fontSize: 14, color: "var(--wt-text-muted)", marginBottom: 24 }}>
-        Add a property to the database, then complete an accessibility audit.
+        {t("ui.createPropertyBody")}
       </p>
 
       <form onSubmit={handleSubmit}>
-        <label style={labelStyle}>Name *</label>
+        <label style={labelStyle}>{t("ui.createPropertyNameRequired")}</label>
         <input
           type="text"
           value={name}
@@ -120,22 +133,22 @@ function CreatePropertyForm() {
           style={{ ...inputStyle, marginBottom: 16 }}
         />
 
-        <label style={labelStyle}>Location *</label>
+        <label style={labelStyle}>{t("ui.createPropertyLocationRequired")}</label>
         <input
           type="text"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="City, address, or region"
+          placeholder={t("ui.createPropertyLocationPlaceholder")}
           required
           style={{ ...inputStyle, marginBottom: 16 }}
         />
 
-        <label style={labelStyle}>Canonical ID (optional)</label>
+        <label style={labelStyle}>{t("ui.createPropertyCanonicalId")}</label>
         <input
           type="text"
           value={canonicalId}
           onChange={(e) => setCanonicalId(e.target.value)}
-          placeholder="local:… or external ID"
+          placeholder={t("ui.createPropertyCanonicalPlaceholder")}
           style={{ ...inputStyle, marginBottom: 16 }}
         />
 
@@ -152,27 +165,23 @@ function CreatePropertyForm() {
               padding: "8px 14px",
             }}
           >
-            {showMap ? "Hide map" : lat != null ? "Adjust map pin" : "Pick location on map"}
+            {mapBtnLabel}
           </button>
           {lat != null && lon != null && (
             <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 8 }}>
-              Pin: {lat.toFixed(5)}, {lon.toFixed(5)}
+              {t("ui.createPropertyPin", { lat: lat.toFixed(5), lon: lon.toFixed(5) })}
             </p>
           )}
         </div>
 
         {showMap && (
           <div style={{ marginBottom: 20 }}>
-            <MapPicker
-              lat={lat}
-              lon={lon}
-              onPick={handleMapPick}
-            />
+            <MapPicker lat={lat} lon={lon} onPick={handleMapPick} />
           </div>
         )}
 
         {error && (
-          <p style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
+          <p role="alert" style={{ color: "var(--wt-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>
         )}
 
         <button
@@ -191,7 +200,7 @@ function CreatePropertyForm() {
             opacity: loading ? 0.7 : 1,
           }}
         >
-          {loading ? "Creating…" : "Create & audit"}
+          {loading ? t("ui.createPropertyCreating") : t("ui.createAndAudit")}
         </button>
       </form>
     </div>

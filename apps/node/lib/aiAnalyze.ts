@@ -153,10 +153,11 @@ export async function runAiAnalysis(
       }
       await prisma.accessibilityFact.upsert({
         where: {
-          propertyId_fieldName_sourceNodeId: {
+          propertyId_fieldName_sourceNodeId_scopeKey: {
             propertyId,
             fieldName: fact.fieldName,
             sourceNodeId: AI_SOURCE_NODE,
+            scopeKey: "property",
           },
         },
         update: {

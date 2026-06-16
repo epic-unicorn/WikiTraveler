@@ -392,10 +392,11 @@ export async function ingestOverpassResult(
 
       await prisma.accessibilityFact.upsert({
         where: {
-          propertyId_fieldName_sourceNodeId: {
+          propertyId_fieldName_sourceNodeId_scopeKey: {
             propertyId,
             fieldName,
             sourceNodeId,
+            scopeKey: "property",
           },
         },
         update: { value, timestamp: new Date() },

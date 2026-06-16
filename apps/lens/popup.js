@@ -1,16 +1,5 @@
 // popup.js
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-const TIER_LABELS = {
-  CONFIRMED: "Confirmed",
-  VERIFIED: "Verified",
-  AI_GUESS: "AI",
-  OFFICIAL: "Official",
-};
-
 const TIER_CLASSES = {
   CONFIRMED: "tier--confirmed",
   VERIFIED: "tier--verified",
@@ -18,33 +7,38 @@ const TIER_CLASSES = {
   OFFICIAL: "tier--official",
 };
 
-const FIELD_LABELS = {
-  door_width_cm: "Door width (cm)",
-  ramp_present: "Ramp present",
-  elevator_present: "Elevator",
-  elevator_floor_count: "Elevator floors",
-  quiet_hours_start: "Quiet hours start",
-  quiet_hours_end: "Quiet hours end",
-  accessible_bathroom: "Accessible bathroom",
-  hearing_loop: "Hearing loop",
-  braille_signage: "Braille signage",
-  step_free_entrance: "Step-free entrance",
-  parking_accessible: "Accessible parking",
-  notes: "Notes",
-};
-
 const CONFIDENCE_ONLY = new Set(["high", "medium", "low"]);
+
+let currentLocale = "en";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Node status bar
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function updateNodeStatusBar(nodeUrl) {
+async function updateNodeStatusBar(nodeUrl, locale) {
   const bar = document.getElementById("node-status-bar");
-  setNodeStatusChecking(bar);
-  const result = await checkNodeHealth(nodeUrl);
+  setNodeStatusChecking(bar, locale);
+  const result = await checkNodeHealth(nodeUrl, locale);
   applyNodeStatusEl(bar, result);
   return result;
+}
+
+function applyPopupStaticLabels(locale) {
+  document.documentElement.lang = locale;
+  const signOut = document.getElementById("wt-signout");
+  if (signOut) {
+    signOut.title = wtT("ui.signOut", locale);
+    signOut.textContent = wtT("ui.signOut", locale);
+  }
+  const searchLabel = document.querySelector(".search-label");
+  if (searchLabel) searchLabel.textContent = wtT("ui.searchProperties", locale);
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) searchInput.placeholder = wtT("ui.searchPlaceholder", locale);
+  const loadingEl = document.querySelector("#content > p");
+  if (loadingEl?.textContent === "Loading…" || loadingEl?.dataset?.wtLoading) {
+    loadingEl.textContent = wtT("ui.loading", locale);
+    loadingEl.dataset.wtLoading = "1";
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,10 +101,10 @@ function extractHotelNameFromTab(tab) {
 // DOM helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function createTierBadge(tier) {
+function createTierBadge(tier, locale) {
   const badge = document.createElement("span");
   badge.className = `tier-badge ${TIER_CLASSES[tier] ?? TIER_CLASSES.OFFICIAL}`;
-  badge.textContent = TIER_LABELS[tier] ?? tier;
+  badge.textContent = wtTierLabel(tier, locale);
   return badge;
 }
 
@@ -125,11 +119,7 @@ function parseAiMeta(signatureHash) {
   }
 }
 
-function formatFieldLabel(fieldName) {
-  return FIELD_LABELS[fieldName] ?? fieldName.replace(/_/g, " ");
-}
-
-function resolveFactDisplay(fact) {
+function resolveFactDisplay(fact, locale) {
   const tier = fact.tier ?? "OFFICIAL";
   const meta = tier === "AI_GUESS" ? parseAiMeta(fact.signatureHash) : null;
   const rawValue = String(fact.value ?? "").trim();
@@ -148,16 +138,16 @@ function resolveFactDisplay(fact) {
     tier === "AI_GUESS" &&
     CONFIDENCE_ONLY.has(rawValue.toLowerCase())
   ) {
-    displayValue = "Estimate unavailable";
+    displayValue = wtT("ui.estimateUnavailable", locale);
   }
 
   return { tier, displayValue, confidence, evidence, rawValue };
 }
 
-function appendFactBadges(container, tier, confidence) {
+function appendFactBadges(container, tier, confidence, locale) {
   const badges = document.createElement("span");
   badges.className = "fact-badges";
-  badges.appendChild(createTierBadge(tier));
+  badges.appendChild(createTierBadge(tier, locale));
   if (tier === "AI_GUESS" && confidence) {
     const conf = document.createElement("span");
     conf.className = "confidence-badge";
@@ -167,13 +157,13 @@ function appendFactBadges(container, tier, confidence) {
   container.appendChild(badges);
 }
 
-function createFactsTable(facts) {
+function createFactsTable(facts, locale) {
   const table = document.createElement("table");
   table.className = "facts-table";
 
   const thead = table.createTHead();
   const headerRow = thead.insertRow();
-  ["Feature", "Value"].forEach((heading) => {
+  [wtT("ui.lensFactFeature", locale), wtT("ui.lensFactValue", locale)].forEach((heading) => {
     const th = document.createElement("th");
     th.scope = "col";
     th.textContent = heading;
@@ -181,8 +171,8 @@ function createFactsTable(facts) {
   });
 
   facts.forEach((f) => {
-    const { tier, displayValue, confidence, evidence, rawValue } = resolveFactDisplay(f);
-    const label = formatFieldLabel(f.fieldName);
+    const { tier, displayValue, confidence, evidence, rawValue } = resolveFactDisplay(f, locale);
+    const label = wtFieldLabel(f.fieldName, locale);
     const useStackedLayout =
       f.fieldName === "notes" || displayValue.length > 48;
 
@@ -195,7 +185,7 @@ function createFactsTable(facts) {
       const labelEl = document.createElement("div");
       labelEl.className = "fact-stacked-label";
       labelEl.appendChild(document.createTextNode(label));
-      appendFactBadges(labelEl, tier, confidence);
+      appendFactBadges(labelEl, tier, confidence, locale);
       cell.appendChild(labelEl);
 
       const valueEl = document.createElement("div");
@@ -230,14 +220,14 @@ function createFactsTable(facts) {
 
     const badgeWrap = document.createElement("div");
     badgeWrap.style.marginTop = "4px";
-    appendFactBadges(badgeWrap, tier, confidence);
+    appendFactBadges(badgeWrap, tier, confidence, locale);
     valueCell.appendChild(badgeWrap);
   });
 
   return table;
 }
 
-function createAuditPhotosSection(auditPhotos, hasAiGuess) {
+function createAuditPhotosSection(auditPhotos, hasAiGuess, locale) {
   if (!auditPhotos?.photos?.length) return null;
 
   const section = document.createElement("div");
@@ -246,8 +236,8 @@ function createAuditPhotosSection(auditPhotos, hasAiGuess) {
   const title = document.createElement("p");
   title.className = "audit-photos-title";
   title.textContent = hasAiGuess
-    ? "Photos used for AI analysis"
-    : "Audit photos";
+    ? wtT("ui.existingDataUsedForAi", locale)
+    : wtT("ui.lensAuditPhotos", locale);
   section.appendChild(title);
 
   const strip = document.createElement("div");
@@ -256,15 +246,16 @@ function createAuditPhotosSection(auditPhotos, hasAiGuess) {
   let expandedWrap = null;
 
   auditPhotos.photos.forEach((src, i) => {
+    const photoLabel = wtT("ui.lensAuditPhoto", locale, { n: i + 1 });
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "audit-photo-btn";
-    btn.title = `Audit photo ${i + 1}`;
+    btn.title = photoLabel;
 
     const img = document.createElement("img");
     img.className = "audit-photo";
     img.src = src;
-    img.alt = `Audit photo ${i + 1}`;
+    img.alt = photoLabel;
     img.loading = "lazy";
 
     btn.appendChild(img);
@@ -283,7 +274,7 @@ function createAuditPhotosSection(auditPhotos, hasAiGuess) {
 
       const big = document.createElement("img");
       big.src = src;
-      big.alt = `Audit photo ${i + 1}`;
+      big.alt = photoLabel;
       expandedWrap.appendChild(big);
       section.appendChild(expandedWrap);
     });
@@ -296,7 +287,9 @@ function createAuditPhotosSection(auditPhotos, hasAiGuess) {
   if (auditPhotos.capturedAt) {
     const date = document.createElement("p");
     date.className = "audit-photos-date";
-    date.textContent = `Captured ${new Date(auditPhotos.capturedAt).toLocaleString()}`;
+    date.textContent = wtT("ui.lensCapturedAt", locale, {
+      date: new Date(auditPhotos.capturedAt).toLocaleString(),
+    });
     section.appendChild(date);
   }
 
@@ -333,15 +326,15 @@ function createPropertyHeader(prop, displayName) {
 // Search section
 // ─────────────────────────────────────────────────────────────────────────────
 
-function initSearchSection(nodeUrl, authHeaders, onSelect) {
+function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
   const section = document.getElementById("search-section");
   const input = document.getElementById("search-input");
   const results = document.getElementById("search-results");
 
   section.style.display = "block";
 
-  // Clear previous listeners by replacing the input
   const freshInput = input.cloneNode(true);
+  freshInput.placeholder = wtT("ui.searchPlaceholder", locale);
   input.parentNode.replaceChild(freshInput, input);
 
   let searchTimer;
@@ -367,7 +360,7 @@ function initSearchSection(nodeUrl, authHeaders, onSelect) {
         if (properties.length === 0) {
           const empty = document.createElement("p");
           empty.className = "search-empty";
-          empty.textContent = "No results found";
+          empty.textContent = wtT("ui.searchNoResults", locale);
           results.appendChild(empty);
           return;
         }
@@ -402,7 +395,7 @@ function initSearchSection(nodeUrl, authHeaders, onSelect) {
   });
 }
 
-function showSearchToggle(nodeUrl, authHeaders, onSelect) {
+function showSearchToggle(nodeUrl, authHeaders, locale, onSelect) {
   const bar = document.getElementById("search-toggle-bar");
   const btn = document.getElementById("search-toggle-btn");
   bar.style.display = "block";
@@ -414,16 +407,16 @@ function showSearchToggle(nodeUrl, authHeaders, onSelect) {
 
   newBtn.setAttribute("aria-expanded", "false");
   newBtn.setAttribute("aria-controls", "search-section");
-  newBtn.textContent = "Search for different property";
+  newBtn.textContent = wtT("ui.lensSearchDifferent", locale);
 
   newBtn.addEventListener("click", () => {
     open = !open;
     newBtn.setAttribute("aria-expanded", open ? "true" : "false");
     if (open) {
-      newBtn.textContent = "Close property search";
-      initSearchSection(nodeUrl, authHeaders, onSelect);
+      newBtn.textContent = wtT("ui.lensCloseSearch", locale);
+      initSearchSection(nodeUrl, authHeaders, locale, onSelect);
     } else {
-      newBtn.textContent = "Search for different property";
+      newBtn.textContent = wtT("ui.lensSearchDifferent", locale);
       document.getElementById("search-section").style.display = "none";
       document.getElementById("search-results").innerHTML = "";
     }
@@ -434,25 +427,25 @@ function showSearchToggle(nodeUrl, authHeaders, onSelect) {
 // Login form
 // ─────────────────────────────────────────────────────────────────────────────
 
-function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = null) {
+function showLoginForm(content, locale, nodeUrl = "http://localhost:3000", nodeHealth = null) {
   hideSearchUI();
 
   const offlineMsg =
     nodeHealth?.state === "offline"
-      ? `<p style="color:#dc2626;font-size:12px;margin-bottom:10px">Node is unreachable. Update the URL in <a href="#" id="wt-settings-link" style="color:#1d4ed8">settings</a>.</p>`
+      ? `<p style="color:#dc2626;font-size:12px;margin-bottom:10px">${wtT("ui.lensNodeOfflineHtml", locale)}</p>`
       : "";
 
   content.innerHTML = `
     <div style="padding:2px 0">
       ${offlineMsg}
-      <p style="font-size:13px;color:#334155;margin-bottom:12px;font-weight:600">Sign in to your node</p>
-      <label class="wt-sr-only" for="wt-login-username">Username</label>
-      <input id="wt-login-username" type="text" placeholder="Username" class="login-input" autocomplete="username">
-      <label class="wt-sr-only" for="wt-login-password">Password</label>
-      <input id="wt-login-password" type="password" placeholder="Password" class="login-input" autocomplete="current-password">
-      <button id="wt-login-btn" class="login-btn">Sign in</button>
+      <p style="font-size:13px;color:#334155;margin-bottom:12px;font-weight:600">${wtT("ui.lensSignInTitle", locale)}</p>
+      <label class="wt-sr-only" for="wt-login-username">${wtT("ui.username", locale)}</label>
+      <input id="wt-login-username" type="text" placeholder="${wtT("ui.username", locale)}" class="login-input" autocomplete="username">
+      <label class="wt-sr-only" for="wt-login-password">${wtT("ui.password", locale)}</label>
+      <input id="wt-login-password" type="password" placeholder="${wtT("ui.password", locale)}" class="login-input" autocomplete="current-password">
+      <button id="wt-login-btn" class="login-btn">${wtT("ui.signIn", locale)}</button>
       <p id="wt-login-error" class="login-error" role="alert"></p>
-      <p class="login-footer">No account? <a id="wt-register-link" href="#">Register on node →</a></p>
+      <p class="login-footer">${wtT("ui.lensNoAccount", locale)} <a id="wt-register-link" href="#">${wtT("ui.lensRegisterLink", locale)}</a></p>
     </div>
   `;
 
@@ -474,14 +467,14 @@ function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = 
       errEl.style.display = "none";
 
       if (!username || !password) {
-        errEl.textContent = "Username and password are required.";
+        errEl.textContent = wtT("ui.lensCredentialsRequired", locale);
         errEl.style.display = "block";
         return;
       }
 
       const btn = document.getElementById("wt-login-btn");
       btn.disabled = true;
-      btn.textContent = "Signing in…";
+      btn.textContent = wtT("ui.authSigningIn", locale);
 
       try {
         const res = await fetch(`${items.nodeUrl}/api/auth/login`, {
@@ -492,10 +485,10 @@ function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = 
         });
         const data = await res.json();
         if (!res.ok) {
-          errEl.textContent = data.message ?? "Login failed.";
+          errEl.textContent = data.message ?? wtT("ui.authLoginFailed", locale);
           errEl.style.display = "block";
           btn.disabled = false;
-          btn.textContent = "Sign in";
+          btn.textContent = wtT("ui.signIn", locale);
           return;
         }
         await new Promise((resolve) =>
@@ -503,10 +496,10 @@ function showLoginForm(content, nodeUrl = "http://localhost:3000", nodeHealth = 
         );
         init();
       } catch {
-        errEl.textContent = "Could not reach node.";
+        errEl.textContent = wtT("ui.authServerUnreachable", locale);
         errEl.style.display = "block";
         btn.disabled = false;
-        btn.textContent = "Sign in";
+        btn.textContent = wtT("ui.signIn", locale);
       }
     });
 
@@ -522,11 +515,15 @@ function hideSearchUI() {
   document.getElementById("search-results").innerHTML = "";
 }
 
+function showLoading(content, locale, message) {
+  content.innerHTML = `<p style="color:#94a3b8;font-size:13px" data-wt-loading="1">${message ?? wtT("ui.loading", locale)}</p>`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Fetch and render property facts
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHeaders, tab) {
+async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHeaders, locale, tab) {
   const res = await fetch(
     `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
     { signal: AbortSignal.timeout(6000), headers: authHeaders }
@@ -534,27 +531,26 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
 
   if (res.status === 401 || res.status === 403) {
     await new Promise((resolve) => chrome.storage.sync.remove(["wtToken"], resolve));
-    showLoginForm(content, nodeUrl);
+    showLoginForm(content, locale, nodeUrl);
     return;
   }
 
   if (res.status === 404) {
-    // Name-search fallback using tab title
     if (tab) {
       const name = extractHotelNameFromTab(tab);
       if (name) {
         const match = await searchForProperty(name, nodeUrl, null, authHeaders);
         if (match) {
-          return fetchAndRender(match.id, match.name, content, nodeUrl, authHeaders, null);
+          return fetchAndRender(match.id, match.name, content, nodeUrl, authHeaders, locale, null);
         }
       }
     }
-    renderNotFound(content, nodeUrl, authHeaders, displayName);
+    renderNotFound(content, nodeUrl, authHeaders, locale, displayName);
     return;
   }
 
   if (!res.ok) {
-    renderNotFound(content, nodeUrl, authHeaders, displayName);
+    renderNotFound(content, nodeUrl, authHeaders, locale, displayName);
     return;
   }
 
@@ -565,27 +561,28 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
   content.innerHTML = "";
   content.appendChild(createPropertyHeader(prop, displayName));
 
-  const photosSection = createAuditPhotosSection(data.auditPhotos, data.hasAiGuess);
+  const photosSection = createAuditPhotosSection(data.auditPhotos, data.hasAiGuess, locale);
   if (photosSection) content.appendChild(photosSection);
 
   if (facts.length === 0) {
     const empty = document.createElement("div");
     empty.className = "state-empty";
     empty.style.paddingTop = "8px";
-    empty.innerHTML = `<p>No accessibility facts yet.<br>Use the Field Kit to submit an audit.</p>`;
+    const p = document.createElement("p");
+    p.textContent = wtT("ui.lensNoFactsHint", locale);
+    empty.appendChild(p);
     content.appendChild(empty);
   } else {
-    content.appendChild(createFactsTable(facts));
+    content.appendChild(createFactsTable(facts, locale));
   }
 
-  // Show search toggle below facts
-  showSearchToggle(nodeUrl, authHeaders, (id, name) => {
-    content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:8px 0">Loading…</p>`;
-    fetchAndRender(id, name, content, nodeUrl, authHeaders, null);
+  showSearchToggle(nodeUrl, authHeaders, locale, (id, name) => {
+    showLoading(content, locale);
+    fetchAndRender(id, name, content, nodeUrl, authHeaders, locale, null);
   });
 }
 
-function renderNotFound(content, nodeUrl, authHeaders, displayName) {
+function renderNotFound(content, nodeUrl, authHeaders, locale, displayName) {
   content.innerHTML = "";
 
   const empty = document.createElement("div");
@@ -598,16 +595,15 @@ function renderNotFound(content, nodeUrl, authHeaders, displayName) {
 
   const msg = document.createElement("p");
   msg.textContent = displayName
-    ? `No data found for "${displayName}".`
-    : "No data found for this property.";
+    ? wtT("ui.lensNoDataFor", locale, { name: displayName })
+    : wtT("ui.lensNoDataProperty", locale);
   empty.appendChild(msg);
 
   content.appendChild(empty);
 
-  // Show search section expanded
-  initSearchSection(nodeUrl, authHeaders, (id, name) => {
-    content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:8px 0">Loading…</p>`;
-    fetchAndRender(id, name, content, nodeUrl, authHeaders, null);
+  initSearchSection(nodeUrl, authHeaders, locale, (id, name) => {
+    showLoading(content, locale);
+    fetchAndRender(id, name, content, nodeUrl, authHeaders, locale, null);
   });
 }
 
@@ -616,10 +612,13 @@ function renderNotFound(content, nodeUrl, authHeaders, displayName) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function init() {
+  currentLocale = await wtGetLocale();
+  applyPopupStaticLabels(currentLocale);
+
   const content = document.getElementById("content");
   hideSearchUI();
 
-  content.innerHTML = `<p style="color:#94a3b8;font-size:13px">Loading…</p>`;
+  showLoading(content, currentLocale);
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? "";
@@ -632,9 +631,8 @@ async function init() {
       )
     );
 
-  const nodeHealth = await updateNodeStatusBar(storedNodeUrl);
+  const nodeHealth = await updateNodeStatusBar(storedNodeUrl, currentLocale);
 
-  // Header: username + sign-out button
   const userLine = document.getElementById("user-line");
   const signOutBtn = document.getElementById("wt-signout");
 
@@ -643,20 +641,19 @@ async function init() {
       const host = new URL(storedNodeUrl).hostname;
       if (userLine) userLine.textContent = `${storedUsername}@${host}`;
     } catch { /* invalid URL */ }
-  } else {
-    if (userLine) userLine.textContent = "";
+  } else if (userLine) {
+    userLine.textContent = "";
   }
 
   if (wtToken && signOutBtn) {
     signOutBtn.style.display = "block";
-    // Use a one-time handler to avoid stacking listeners across init() calls
     signOutBtn.onclick = async () => {
       await new Promise((resolve) =>
         chrome.storage.sync.remove(["wtToken", "wtUsername"], resolve)
       );
       signOutBtn.style.display = "none";
       if (userLine) userLine.textContent = "";
-      showLoginForm(content, storedNodeUrl, nodeHealth);
+      showLoginForm(content, currentLocale, storedNodeUrl, nodeHealth);
     };
   } else if (signOutBtn) {
     signOutBtn.style.display = "none";
@@ -664,18 +661,16 @@ async function init() {
   }
 
   if (!wtToken) {
-    showLoginForm(content, storedNodeUrl, nodeHealth);
+    showLoginForm(content, currentLocale, storedNodeUrl, nodeHealth);
     return;
   }
 
-  // Get coordinates from content script
   let coords = null;
   try {
     const coordRes = await chrome.tabs.sendMessage(tab.id, { type: "GET_COORDS" });
     if (coordRes?.lat != null && coordRes?.lon != null) coords = coordRes;
   } catch { /* content script not on this page */ }
 
-  // Resolve best regional node via peers
   const { nodeUrl, regionMissing } = await new Promise((resolve) =>
     chrome.runtime.sendMessage(
       { type: "RESOLVE_NODE", lat: coords?.lat ?? null, lon: coords?.lon ?? null },
@@ -683,15 +678,13 @@ async function init() {
     )
   );
 
-  // Regional fallback warning
   if (regionMissing && coords != null) {
     const banner = document.createElement("div");
     banner.className = "warning-banner";
-    banner.innerHTML = `<span aria-hidden="true">⚠️</span><span>No regional node for this location — data may be from another region.</span>`;
+    banner.innerHTML = `<span aria-hidden="true">⚠️</span><span>${wtT("ui.lensRegionalWarning", currentLocale)}</span>`;
     document.getElementById("node-status-bar").after(banner);
   }
 
-  // Extract property ID via content script
   let propertyId = "unknown";
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: "GET_PROPERTY_ID" });
@@ -708,27 +701,33 @@ async function init() {
     }
   }
 
-  content.innerHTML = `<p style="color:#94a3b8;font-size:13px">Fetching from <code>${nodeUrl}</code>…</p>`;
+  content.innerHTML = `<p style="color:#94a3b8;font-size:13px">${wtT("ui.lensFetchingFrom", currentLocale, { node: nodeUrl })}</p>`;
 
   const authHeaders = { Authorization: `Bearer ${wtToken}` };
 
   try {
-    await fetchAndRender(propertyId, null, content, nodeUrl, authHeaders, tab);
+    await fetchAndRender(propertyId, null, content, nodeUrl, authHeaders, currentLocale, tab);
   } catch {
     content.innerHTML = "";
     const empty = document.createElement("div");
     empty.className = "state-empty";
-    empty.innerHTML = `<div class="state-icon">⚡</div><p>Could not reach node.<br><a href="#" id="wt-settings-link2">Check settings →</a></p>`;
+    empty.innerHTML = `<div class="state-icon">⚡</div><p>${wtT("ui.lensCouldNotReachNode", currentLocale)}<br><a href="#" id="wt-settings-link2">${wtT("ui.lensCheckSettings", currentLocale)}</a></p>`;
     content.appendChild(empty);
     document.getElementById("wt-settings-link2")?.addEventListener("click", (e) => {
       e.preventDefault();
       chrome.runtime.openOptionsPage();
     });
-    initSearchSection(nodeUrl, authHeaders, (id, name) => {
-      content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:8px 0">Loading…</p>`;
-      fetchAndRender(id, name, content, nodeUrl, authHeaders, null);
+    initSearchSection(nodeUrl, authHeaders, currentLocale, (id, name) => {
+      showLoading(content, currentLocale);
+      fetchAndRender(id, name, content, nodeUrl, authHeaders, currentLocale, null);
     });
   }
 }
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && changes[WtI18n.LOCALE_STORAGE_KEY]) {
+    init();
+  }
+});
 
 init();

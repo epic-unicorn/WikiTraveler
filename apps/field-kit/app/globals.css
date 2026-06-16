@@ -451,6 +451,86 @@ textarea { min-height: 80px; resize: vertical; }
   color: #fff;
 }
 
+/* ——— Audit page property header ——— */
+
+.fk-property-header {
+  margin-top: 0;
+  padding: 16px;
+}
+
+.fk-property-name {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--wt-text);
+  margin: 0;
+  word-break: break-word;
+}
+
+.fk-property-location {
+  font-size: 14px;
+  color: var(--wt-text-muted);
+  margin: 6px 0 0;
+  line-height: 1.45;
+}
+
+.fk-property-remote {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wt-primary);
+  margin: 8px 0 0;
+}
+
+/* ——— Collapsible audit sections ——— */
+
+.fk-audit-form {
+  padding-bottom: 12px;
+}
+
+.fk-audit-section {
+  border-top: 1px solid var(--wt-border);
+  margin-top: 12px;
+}
+
+.fk-audit-section:first-of-type {
+  margin-top: 16px;
+}
+
+.fk-audit-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wt-text);
+  text-align: left;
+}
+
+.fk-audit-section-toggle:active {
+  opacity: 0.85;
+}
+
+.fk-audit-section-chevron {
+  flex-shrink: 0;
+  color: var(--wt-text-muted);
+  font-size: 14px;
+}
+
+.fk-audit-section-body {
+  padding-bottom: 8px;
+}
+
+.fk-audit-section-body .toggle-row:first-child {
+  border-top: none;
+}
+
 /* ——— Existing data panel (audit page) ——— */
 
 .existing-data-panel {

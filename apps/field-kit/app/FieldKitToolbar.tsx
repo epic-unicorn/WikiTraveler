@@ -33,6 +33,7 @@ interface Props {
   title?: string;
   showBack?: boolean;
   backHref?: string;
+  backLabel?: string;
   nodeReachable?: boolean | null;
   end?: ReactNode;
 }
@@ -41,6 +42,7 @@ export function FieldKitToolbar({
   title,
   showBack,
   backHref = "/",
+  backLabel,
   nodeReachable,
   end,
 }: Props) {
@@ -79,7 +81,7 @@ export function FieldKitToolbar({
       titleHref={title ? undefined : "/"}
       linkWrap={fkLinkWrap}
       start={
-        showBack ? <ToolbarBackLink href={backHref} linkWrap={fkLinkWrap} /> : undefined
+        showBack ? <ToolbarBackLink href={backHref} label={backLabel} linkWrap={fkLinkWrap} /> : undefined
       }
       end={toolbarEnd}
     />

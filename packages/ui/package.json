@@ -16,15 +16,16 @@
     "./ionic-web-overrides.css": "./ionic-web-overrides.css"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --external react --external react-dom",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom"
+    "build": "tsup src/index.ts --format cjs,esm --dts --external react --external react-dom --external @wikitraveler/i18n",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom --external @wikitraveler/i18n"
   },
   "peerDependencies": {
     "react": "^18",
     "react-dom": "^18"
   },
   "dependencies": {
-    "@wikitraveler/core": "workspace:*"
+    "@wikitraveler/core": "workspace:*",
+    "@wikitraveler/i18n": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18",

@@ -155,10 +155,11 @@ export async function POST(req: NextRequest) {
     merged.map((fact) =>
       prisma.accessibilityFact.upsert({
         where: {
-          propertyId_fieldName_sourceNodeId: {
+          propertyId_fieldName_sourceNodeId_scopeKey: {
             propertyId: fact.propertyId,
             fieldName: fact.fieldName,
             sourceNodeId: fact.sourceNodeId,
+            scopeKey: (fact as { scopeKey?: string }).scopeKey ?? "property",
           },
         },
         update: {

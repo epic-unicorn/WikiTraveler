@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@wikitraveler/ui";
 import { MapView, type MapPin } from "./MapView";
 import { SearchSection } from "./SearchSection";
 
@@ -10,19 +11,22 @@ interface Props {
   peerCount: number;
 }
 
-const MAP_STATS = [
-  { key: "properties", label: "Properties" },
-  { key: "facts",      label: "Facts" },
-  { key: "peers",      label: "Peers" },
-] as const;
+const MAP_STAT_KEYS = ["properties", "facts", "peers"] as const;
 
 export function SearchMapLayout({ propertyCount, factCount, peerCount }: Props) {
+  const { t } = useLocale();
   const [focusPins, setFocusPins] = useState<MapPin[] | null>(null);
 
-  const statValues: Record<string, number> = {
+  const statValues: Record<(typeof MAP_STAT_KEYS)[number], number> = {
     properties: propertyCount,
     facts: factCount,
     peers: peerCount,
+  };
+
+  const statLabels: Record<(typeof MAP_STAT_KEYS)[number], string> = {
+    properties: t("ui.mapProperties"),
+    facts: t("ui.mapFacts"),
+    peers: t("ui.mapPeers"),
   };
 
   return (
@@ -31,7 +35,7 @@ export function SearchMapLayout({ propertyCount, factCount, peerCount }: Props) 
         <>
           {/* Stats row */}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {MAP_STATS.map(({ key, label }) => (
+            {MAP_STAT_KEYS.map((key) => (
               <span
                 key={key}
                 style={{
@@ -56,7 +60,7 @@ export function SearchMapLayout({ propertyCount, factCount, peerCount }: Props) 
                 >
                   {statValues[key].toLocaleString()}
                 </strong>
-                <span style={{ color: "var(--wt-text-muted)", fontSize: 11 }}>{label}</span>
+                <span style={{ color: "var(--wt-text-muted)", fontSize: 11 }}>{statLabels[key]}</span>
               </span>
             ))}
           </div>

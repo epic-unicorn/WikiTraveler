@@ -2,14 +2,16 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLocale } from "@wikitraveler/ui";
 import { AuthCard, AuthCardLayout } from "../AuthCardLayout";
 
 function AccessDenied({ username, onBack }: { username: string; onBack: () => void }) {
+  const { t } = useLocale();
   return (
     <AuthCardLayout>
       <AuthCard>
         <div style={{ textAlign: "center" }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No dashboard access</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t("ui.authNoDashboardAccess")}</h2>
           <div
             style={{
               background: "var(--wt-tier-ai-bg)",
@@ -21,12 +23,10 @@ function AccessDenied({ username, onBack }: { username: string; onBack: () => vo
             }}
           >
             <p style={{ fontSize: 14, fontWeight: 600, color: "var(--wt-tier-ai-text)", marginBottom: 6 }}>
-              Auditor or Admin role required
+              {t("ui.authRoleRequired")}
             </p>
             <p style={{ fontSize: 13, color: "var(--wt-text-muted)", lineHeight: 1.5 }}>
-              The node dashboard is only accessible to Auditors and Admins.
-              Your account <strong>{username}</strong> has the USER role.
-              Contact an admin to request access.
+              {t("ui.authRoleDeniedBody", { username })}
             </p>
           </div>
           <button
@@ -44,7 +44,7 @@ function AccessDenied({ username, onBack }: { username: string; onBack: () => vo
               cursor: "pointer",
             }}
           >
-            Back to sign in
+            {t("ui.authBackToSignIn")}
           </button>
         </div>
       </AuthCard>
@@ -55,6 +55,7 @@ function AccessDenied({ username, onBack }: { username: string; onBack: () => vo
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useLocale();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -78,7 +79,7 @@ function LoginForm() {
         role?: string;
       };
       if (!res.ok) {
-        setError(data.message ?? "Login failed");
+        setError(data.message ?? t("ui.authLoginFailed"));
         return;
       }
       const role = (data.role ?? "USER").toUpperCase();
@@ -91,7 +92,7 @@ function LoginForm() {
       sessionStorage.setItem("wt_node_token", data.token!);
       router.replace(searchParams.get("next") ?? "/");
     } catch {
-      setError("Could not reach server");
+      setError(t("ui.authServerUnreachable"));
     } finally {
       setLoading(false);
     }
@@ -117,20 +118,20 @@ function LoginForm() {
     <AuthCardLayout>
       <AuthCard>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Sign in</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{t("ui.authSignInTitle")}</h1>
           <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginTop: 6 }}>
-            Auditors and admins only
+            {t("ui.authSignInSubtitle")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="login-username" style={labelStyle}>Username</label>
+          <label htmlFor="login-username" style={labelStyle}>{t("ui.username")}</label>
           <input
             id="login-username"
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="your username"
+            placeholder={t("ui.authUsernamePlaceholder")}
             required
             autoComplete="username"
             autoFocus
@@ -138,7 +139,7 @@ function LoginForm() {
             style={{ ...inputStyle, marginBottom: 12 }}
           />
 
-          <label htmlFor="login-password" style={labelStyle}>Password</label>
+          <label htmlFor="login-password" style={labelStyle}>{t("ui.password")}</label>
           <input
             id="login-password"
             type="password"
@@ -171,7 +172,7 @@ function LoginForm() {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? t("ui.authSigningIn") : t("ui.signIn")}
           </button>
         </form>
       </AuthCard>

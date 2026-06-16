@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLocale } from "@wikitraveler/ui";
 import { AdminPanel } from "./AdminPanel";
 import { UsersPanel } from "./UsersPanel";
 import { PeersPanel } from "./PeersPanel";
@@ -25,6 +26,7 @@ function decodeJwtRole(token: string): string | null {
  * token belongs to an ADMIN-role user.
  */
 export function AdminSection() {
+  const { t } = useLocale();
   const [token, setToken] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -54,7 +56,7 @@ export function AdminSection() {
         background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb",
         padding: "16px 24px", marginBottom: 24, fontSize: 13, color: "#6b7280",
       }}>
-        Admin access required. Your account role is <strong>{role ?? "USER"}</strong>.
+        {t("ui.adminRequired", { role: role ?? "USER" })}
       </div>
     );
   }

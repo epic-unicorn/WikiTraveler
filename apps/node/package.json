@@ -21,6 +21,7 @@
     "@upstash/redis": "^1.38.0",
     "@wikitraveler/ai-agent": "workspace:*",
     "@wikitraveler/core": "workspace:*",
+    "@wikitraveler/i18n": "workspace:*",
     "@wikitraveler/ui": "workspace:*",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",

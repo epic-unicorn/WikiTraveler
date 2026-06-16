@@ -6,8 +6,10 @@ import {
   PropertySearchBar,
   PropertyCard,
   EMPTY_FILTERS,
+  useLocale,
   type SearchFilters,
   type PropertySummary,
+  type SearchFeature,
 } from "@wikitraveler/ui";
 
 type MapPin = { id: string; name: string; location: string; lat: number; lon: number };
@@ -29,15 +31,30 @@ function buildParams(q: string, filters: SearchFilters): URLSearchParams {
   if (filters.audited === true) params.set("audited", "true");
   if (filters.audited === false) params.set("audited", "false");
   if (filters.location.trim()) params.set("location", filters.location.trim());
+  if (filters.hasAccessibleRoom) params.set("hasAccessibleRoom", "true");
   return params;
 }
 
 export function SearchSection({ onResults }: Props) {
+  const { locale, t } = useLocale();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
+  const [searchFeatures, setSearchFeatures] = useState<SearchFeature[]>([]);
   const [results, setResults] = useState<PropertySummary[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/fields?locale=${locale}`)
+      .then((r) => r.json())
+      .then((data: { fields?: Array<{ fieldName: string; label: string; searchFilter: boolean; valueType: string }> }) => {
+        const chips = (data.fields ?? [])
+          .filter((f) => f.searchFilter && f.valueType === "BOOLEAN")
+          .map((f) => ({ key: f.fieldName, label: f.label }));
+        setSearchFeatures(chips);
+      })
+      .catch(() => {});
+  }, [locale]);
 
   const search = useCallback(
     (q: string, f: SearchFilters) => {
@@ -45,6 +62,7 @@ export function SearchSection({ onResults }: Props) {
       const hasFilters =
         f.features.length > 0 ||
         f.audited !== null ||
+        f.hasAccessibleRoom ||
         f.location.trim().length > 0;
 
       if (!hasQuery && !hasFilters) {
@@ -87,6 +105,7 @@ export function SearchSection({ onResults }: Props) {
     query.trim().length > 0 ||
     filters.features.length > 0 ||
     filters.audited !== null ||
+    filters.hasAccessibleRoom ||
     filters.location.trim().length > 0;
 
   return (
@@ -96,17 +115,23 @@ export function SearchSection({ onResults }: Props) {
         onQueryChange={setQuery}
         filters={filters}
         onFiltersChange={setFilters}
-        placeholder="Search by name, city, canonical ID, OSM or Wheelmap ID…"
+        placeholder={t("ui.searchPlaceholder")}
+        searchFeatures={searchFeatures}
+        labels={{
+          audited: t("ui.filterAudited"),
+          notAudited: t("ui.filterNotAudited"),
+          locationPlaceholder: t("ui.filterLocation"),
+          hasAccessibleRoom: t("ui.filterHasAccessibleRoom"),
+        }}
       />
 
       {/* Loading */}
       {isPending && (
         <p style={{ color: "var(--wt-text-muted)", fontSize: 14, marginTop: 12 }}>
-          Searching…
+          {t("ui.searching")}
         </p>
       )}
 
-      {/* Idle default state */}
       {!isPending && results === null && !hasActiveSearch && (
         <div
           style={{
@@ -120,15 +145,14 @@ export function SearchSection({ onResults }: Props) {
         >
           <p style={{ fontSize: 28, marginBottom: 10 }}>🗺️</p>
           <p style={{ fontSize: 15, fontWeight: 600, color: "var(--wt-text)", marginBottom: 6 }}>
-            Find properties
+            {t("ui.searchFindProperties")}
           </p>
           <p style={{ fontSize: 14, lineHeight: 1.5 }}>
-            Search by name, location, or ID — or use the filter chips to browse by accessibility feature or audit status.
+            {t("ui.searchFindPropertiesBody")}
           </p>
         </div>
       )}
 
-      {/* No results */}
       {!isPending && results !== null && results.length === 0 && (
         <div
           style={{
@@ -142,12 +166,12 @@ export function SearchSection({ onResults }: Props) {
         >
           <p style={{ fontSize: 24, marginBottom: 10 }}>🔍</p>
           <p style={{ fontSize: 15, fontWeight: 600, color: "var(--wt-text)", marginBottom: 6 }}>
-            No properties found
+            {t("ui.searchNoPropertiesFound")}
           </p>
           {query.trim() ? (
             <>
               <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 16 }}>
-                No results matched &ldquo;{query.trim()}&rdquo;
+                {t("ui.searchNoMatch", { query: query.trim() })}
               </p>
               <Link
                 href={`/properties/new?name=${encodeURIComponent(query.trim())}`}
@@ -163,22 +187,23 @@ export function SearchSection({ onResults }: Props) {
                   fontWeight: 600,
                 }}
               >
-                + Create &ldquo;{query.trim()}&rdquo;
+                + {t("ui.searchCreateProperty", { name: query.trim() })}
               </Link>
             </>
           ) : (
             <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>
-              Try adjusting your filters.
+              {t("ui.searchAdjustFilters")}
             </p>
           )}
         </div>
       )}
 
-      {/* Results */}
       {!isPending && results !== null && results.length > 0 && (
         <>
           <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 12, marginBottom: 4 }}>
-            {results.length} {results.length === 1 ? "property" : "properties"}
+            {results.length === 1
+              ? t("ui.searchSingleProperty")
+              : t("ui.searchPropertyCount", { count: results.length })}
           </p>
           <div className="wt-search-results">
             {results.map((p) => (

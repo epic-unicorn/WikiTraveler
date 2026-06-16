@@ -1,7 +1,12 @@
 import { Tier, TIER_RANK, AccessibilityFact, GossipDelta } from "./types";
 
+/** Stable key for grouping facts — includes scope for room-level data. */
+export function factKey(fact: Pick<AccessibilityFact, "fieldName" | "scopeKey">): string {
+  return `${fact.scopeKey ?? "property"}::${fact.fieldName}`;
+}
+
 /**
- * Given a list of facts for the same (propertyId, fieldName), return the one
+ * Given a list of facts for the same (propertyId, scopeKey, fieldName), return the one
  * with the highest reliability tier. If two facts share the same tier, the
  * most recently submitted one wins.
  */
@@ -25,22 +30,23 @@ export function pickWinningFact(
 
 /**
  * Collapse a flat list of facts (from multiple nodes / submissions) into a
- * deduplicated map keyed by fieldName, keeping only the winning fact per field.
+ * deduplicated map keyed by scopeKey+fieldName, keeping only the winning fact per key.
  */
 export function collapseFacts(
   facts: AccessibilityFact[]
 ): Map<string, AccessibilityFact> {
   const grouped = new Map<string, AccessibilityFact[]>();
   for (const fact of facts) {
-    const existing = grouped.get(fact.fieldName) ?? [];
+    const key = factKey(fact);
+    const existing = grouped.get(key) ?? [];
     existing.push(fact);
-    grouped.set(fact.fieldName, existing);
+    grouped.set(key, existing);
   }
 
   const result = new Map<string, AccessibilityFact>();
-  for (const [fieldName, group] of grouped) {
+  for (const [key, group] of grouped) {
     const winner = pickWinningFact(group);
-    if (winner) result.set(fieldName, winner);
+    if (winner) result.set(key, winner);
   }
   return result;
 }
@@ -48,7 +54,7 @@ export function collapseFacts(
 /**
  * Evaluate whether any facts in the list should be promoted to CONFIRMED.
  * A fact is promoted when ≥3 distinct human auditors (identified by
- * submittedBy) independently report the same (fieldName, value) for the
+ * submittedBy) independently report the same (fieldName, value, scopeKey) for the
  * same propertyId.
  *
  * Gossip replication intentionally has no effect on this count — the same
@@ -61,20 +67,19 @@ export function evaluateConfirmed(
   facts: AccessibilityFact[],
   confirmThreshold = 3
 ): AccessibilityFact[] {
-  type Key = string; // `${propertyId}::${fieldName}::${value}`
+  type Key = string; // `${propertyId}::${scopeKey}::${fieldName}::${value}`
   const auditorSet = new Map<Key, Set<string>>();
 
   for (const fact of facts) {
-    // Only count human-submitted facts (not AI or external feed facts)
     if (!fact.submittedBy) continue;
-    const key: Key = `${fact.propertyId}::${fact.fieldName}::${fact.value}`;
+    const key: Key = `${fact.propertyId}::${fact.scopeKey ?? "property"}::${fact.fieldName}::${fact.value}`;
     const auditors = auditorSet.get(key) ?? new Set();
     auditors.add(fact.submittedBy);
     auditorSet.set(key, auditors);
   }
 
   return facts.map((fact) => {
-    const key: Key = `${fact.propertyId}::${fact.fieldName}::${fact.value}`;
+    const key: Key = `${fact.propertyId}::${fact.scopeKey ?? "property"}::${fact.fieldName}::${fact.value}`;
     const agreeing = auditorSet.get(key)?.size ?? 0;
     if (agreeing >= confirmThreshold && fact.tier !== Tier.CONFIRMED) {
       return { ...fact, tier: Tier.CONFIRMED };
@@ -88,8 +93,6 @@ export const evaluateMeshTruth = evaluateConfirmed;
 
 /**
  * Merge an incoming gossip delta into an existing facts array.
- * - Incoming COMMUNITY facts beat existing AI_GUESS for same (propertyId, fieldName).
- * - After merge, MESH_TRUTH evaluation is re-run.
  */
 export function mergeGossipDelta(
   existing: AccessibilityFact[],
@@ -98,19 +101,19 @@ export function mergeGossipDelta(
   const merged = [...existing];
 
   for (const incoming of delta.facts) {
+    const incomingScope = incoming.scopeKey ?? "property";
     const idx = merged.findIndex(
       (f) =>
         f.propertyId === incoming.propertyId &&
         f.fieldName === incoming.fieldName &&
-        f.sourceNodeId === incoming.sourceNodeId
+        f.sourceNodeId === incoming.sourceNodeId &&
+        (f.scopeKey ?? "property") === incomingScope
     );
 
     if (idx === -1) {
-      // New fact from this node — add it
       merged.push(incoming);
     } else {
       const existing_fact = merged[idx];
-      // Update if the incoming fact has equal or higher tier, or is newer
       if (
         TIER_RANK[incoming.tier] > TIER_RANK[existing_fact.tier] ||
         new Date(incoming.timestamp) > new Date(existing_fact.timestamp)

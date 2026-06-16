@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const featureParam = req.nextUrl.searchParams.get("feature")?.trim() ?? "";
   const features = featureParam ? featureParam.split(",").map((f) => f.trim()).filter(Boolean) : [];
   const auditedParam = req.nextUrl.searchParams.get("audited");
+  const hasAccessibleRoom = req.nextUrl.searchParams.get("hasAccessibleRoom");
   const locationFilter = req.nextUrl.searchParams.get("location")?.trim() ?? "";
   const idsParam = req.nextUrl.searchParams.get("ids")?.trim() ?? "";
   const ids = idsParam ? idsParam.split(",").map((id) => id.trim()).filter(Boolean) : [];
@@ -73,6 +74,36 @@ export async function GET(req: NextRequest) {
           tier: { in: ["VERIFIED", "CONFIRMED"] },
         },
       },
+    });
+  }
+
+  if (hasAccessibleRoom === "true") {
+    andFilters.push({
+      OR: [
+        {
+          facts: {
+            some: {
+              fieldName: "accessible_room_count",
+              NOT: { value: "0" },
+            },
+          },
+        },
+        {
+          facts: {
+            some: {
+              fieldName: "accessible_room_description",
+              NOT: { value: "" },
+            },
+          },
+        },
+        {
+          facts: {
+            some: {
+              scopeKey: { startsWith: "room-type:accessible_" },
+            },
+          },
+        },
+      ],
     });
   }
 

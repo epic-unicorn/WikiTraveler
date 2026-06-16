@@ -1,24 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
-import { AdminSection } from "../AdminSection";
 import { NodeAppShell } from "../NodeAppShell";
+import { StatsPageContent, type StatsPageData } from "./StatsPageContent";
 
 export const dynamic = "force-dynamic";
-
-const TIER_COLOR: Record<string, string> = {
-  OFFICIAL: "var(--wt-tier-official-text)",
-  AI_GUESS: "var(--wt-warning)",
-  VERIFIED: "var(--wt-success)",
-  CONFIRMED: "var(--wt-primary)",
-};
-
-const SOURCE_COLOR: Record<string, string> = {
-  WIKIDATA: "#8b5cf6",
-  WHEELMAP: "#0ea5e9",
-  OSM: "#10b981",
-  WHEEL_THE_WORLD: "#f97316",
-  AUDITOR: "#ec4899",
-};
 
 export default async function StatsPage() {
   const [
@@ -75,7 +60,6 @@ export default async function StatsPage() {
     }),
   ]);
 
-  // Fetch property names for top audited
   const topAuditedWithNames = await Promise.all(
     topAudited.map(async (a) => {
       const prop = await prisma.property.findUnique({
@@ -88,216 +72,33 @@ export default async function StatsPage() {
 
   const coveragePct = propertyCount > 0 ? Math.round((propertiesWithFacts / propertyCount) * 100) : 0;
 
+  const data: StatsPageData = {
+    propertyCount,
+    factCount,
+    auditCount,
+    peerCount,
+    tierCounts: tierCounts.map((row) => ({ tier: row.tier, count: row._count._all })),
+    sourceCounts: sourceCounts.map((row) => ({ sourceType: row.sourceType, count: row._count._all })),
+    fieldCounts: fieldCounts.map((row) => ({ fieldName: row.fieldName, count: row._count._all })),
+    propertiesWithFacts,
+    recentAudits30d,
+    recentUpdates7d,
+    recentUpdates30d,
+    oldestPropertyUpdatedAt: oldestProperty?.updatedAt.toISOString() ?? null,
+    osmLastSync: osmSync[0]?.lastSync?.toISOString() ?? null,
+    osmItemCount: osmSync[0]?.itemCount ?? null,
+    topAuditedWithNames,
+    gossipHistory: gossipHistory.map((g) => ({
+      fromNodeId: g.fromNodeId,
+      factCount: g.factCount,
+      appliedAt: g.appliedAt.toISOString(),
+    })),
+    coveragePct,
+  };
+
   return (
-    <NodeAppShell
-      lead={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`}
-      activeNav="stats"
-    >
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, color: "var(--wt-text)" }}>Statistics</h2>
-
-        <AdminSection />
-
-        {/* ── Overview ── */}
-        <Section title="Overview">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
-            <BigStat label="Properties" value={propertyCount} />
-            <BigStat label="Facts" value={factCount} />
-            <BigStat label="Audits" value={auditCount} />
-            <BigStat label="Active Peers" value={peerCount} />
-            <BigStat label="Coverage" value={`${coveragePct}%`} sub={`${propertiesWithFacts} of ${propertyCount} have facts`} />
-          </div>
-        </Section>
-
-        {/* ── Freshness ── */}
-        <Section title="Freshness">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
-            <BigStat label="Updated (7d)" value={recentUpdates7d} />
-            <BigStat label="Updated (30d)" value={recentUpdates30d} />
-            <BigStat label="Audits (30d)" value={recentAudits30d} />
-            {oldestProperty && (
-              <BigStat
-                label="Oldest record"
-                value={oldestProperty.updatedAt.toLocaleDateString()}
-                sub="last updated"
-              />
-            )}
-            {osmSync[0]?.lastSync && (
-              <BigStat
-                label="Last OSM ingest"
-                value={osmSync[0].lastSync.toLocaleDateString()}
-                sub={`${osmSync[0].itemCount ?? "?"} items`}
-              />
-            )}
-          </div>
-        </Section>
-
-        {/* ── Tier breakdown ── */}
-        <Section title="Facts by Trust Tier">
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {(["CONFIRMED", "VERIFIED", "AI_GUESS", "OFFICIAL"] as const).map((tier) => {
-              const count = tierCounts.find((t) => t.tier === tier)?._count._all ?? 0;
-              const pct = factCount > 0 ? Math.round((count / factCount) * 100) : 0;
-              return (
-                <div key={tier}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600 }}>{tier.replace("_", " ")}</span>
-                    <span style={{ color: "var(--wt-text-muted)" }}>{count.toLocaleString()} ({pct}%)</span>
-                  </div>
-                  <div style={{ background: "var(--wt-border)", borderRadius: 4, height: 8 }}>
-                    <div style={{ width: `${pct}%`, background: TIER_COLOR[tier], height: 8, borderRadius: 4, transition: "width 0.3s" }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-
-        {/* ── Source breakdown ── */}
-        <Section title="Facts by Source">
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {sourceCounts
-              .sort((a, b) => b._count._all - a._count._all)
-              .map(({ sourceType, _count }) => {
-                const pct = factCount > 0 ? Math.round((_count._all / factCount) * 100) : 0;
-                return (
-                  <div key={sourceType}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>{sourceType}</span>
-                      <span style={{ color: "var(--wt-text-muted)" }}>{_count._all.toLocaleString()} ({pct}%)</span>
-                    </div>
-                    <div style={{ background: "var(--wt-border)", borderRadius: 4, height: 8 }}>
-                      <div style={{ width: `${pct}%`, background: SOURCE_COLOR[sourceType] ?? "var(--wt-text-muted)", height: 8, borderRadius: 4 }} />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </Section>
-
-        {/* ── Top fields ── */}
-        <Section title="Most Audited Fields">
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "var(--wt-bg-secondary)" }}>
-                <Th>Field</Th>
-                <Th align="right">Facts</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {fieldCounts.map(({ fieldName, _count }) => (
-                <tr key={fieldName} style={{ borderBottom: "1px solid var(--wt-border)" }}>
-                  <Td>{fieldName.replace(/_/g, " ")}</Td>
-                  <Td align="right">{_count._all.toLocaleString()}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-
-        {/* ── Top audited properties ── */}
-        <Section title="Most Audited Properties">
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "var(--wt-bg-secondary)" }}>
-                <Th>Property</Th>
-                <Th align="right">Audit submissions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {topAuditedWithNames.map(({ name, count }) => (
-                <tr key={name} style={{ borderBottom: "1px solid var(--wt-border)" }}>
-                  <Td>{name}</Td>
-                  <Td align="right">{count}</Td>
-                </tr>
-              ))}
-              {topAuditedWithNames.length === 0 && (
-                <tr><td colSpan={2} style={{ padding: "12px 8px", color: "var(--wt-text-muted)", textAlign: "center" }}>No audits yet</td></tr>
-              )}
-            </tbody>
-          </table>
-        </Section>
-
-        {/* ── Recent gossip ── */}
-        {gossipHistory.length > 0 && (
-          <Section title="Recent Gossip Syncs">
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "var(--wt-bg-secondary)" }}>
-                  <Th>From node</Th>
-                  <Th align="right">Facts ingested</Th>
-                  <Th align="right">When</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {gossipHistory.map((g, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid var(--wt-border)" }}>
-                    <Td style={{ fontFamily: "var(--wt-font-mono)", fontSize: 12 }}>{g.fromNodeId}</Td>
-                    <Td align="right">{g.factCount}</Td>
-                    <Td align="right">{g.appliedAt.toLocaleString()}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Section>
-        )}
+    <NodeAppShell lead={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`} activeNav="stats">
+      <StatsPageContent data={data} />
     </NodeAppShell>
   );
-}
-
-// ── Small shared components ──────────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section
-      style={{
-        background: "var(--wt-bg-elevated)",
-        borderRadius: "var(--wt-radius-md)",
-        border: "1px solid var(--wt-border)",
-        padding: "20px 24px",
-        marginBottom: 24,
-      }}
-    >
-      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "var(--wt-text)" }}>{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function BigStat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
-  return (
-    <div
-      style={{
-        background: "var(--wt-bg)",
-        borderRadius: 10,
-        padding: "14px 16px",
-        border: "1px solid var(--wt-border)",
-      }}
-    >
-      <div style={{ fontSize: 24, fontWeight: 700, color: "var(--wt-primary)" }}>
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--wt-text)", marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: 2 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function Th({ children, align }: { children: React.ReactNode; align?: "right" }) {
-  return (
-    <th
-      style={{
-        textAlign: align ?? "left",
-        padding: "8px 8px",
-        fontWeight: 600,
-        fontSize: 12,
-        color: "var(--wt-text-muted)",
-      }}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({ children, align, style }: { children: React.ReactNode; align?: "right"; style?: React.CSSProperties }) {
-  return <td style={{ padding: "8px 8px", textAlign: align ?? "left", ...style }}>{children}</td>;
 }

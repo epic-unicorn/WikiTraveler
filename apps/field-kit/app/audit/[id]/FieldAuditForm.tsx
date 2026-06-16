@@ -4,35 +4,19 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { FieldKitToolbar } from "../../FieldKitToolbar";
 import ExistingDataPanel, { type AuditPhotos, type ExistingFact } from "./ExistingDataPanel";
-import { resolveFactDisplay, TIER_LABELS } from "../../lib/factDisplay";
+import { AuditCollapsibleSection } from "./AuditCollapsibleSection";
+import { RoomAuditSection } from "./RoomAuditSection";
+import { resolveFactDisplay } from "../../lib/factDisplay";
 import { canAccessFieldKit, clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
 import { ENV_NODE_URL } from "../../lib/fieldKitApi";
 import { findRecentAudit, removeRecentAudit, upsertRecentAudit } from "../../lib/recentAudits";
-
-interface AuditField {
-  name: string;
-  label: string;
-  type: "toggle" | "number" | "time" | "textarea";
-  unit?: string;
-  placeholder?: string;
-  min?: number;
-  max?: number;
-}
-
-const FIELDS: AuditField[] = [
-  { name: "door_width_cm", label: "Door Width", type: "number", unit: "cm", placeholder: "e.g. 90", min: 30, max: 500 },
-  { name: "ramp_present", label: "Ramp Present", type: "toggle" },
-  { name: "elevator_present", label: "Elevator Present", type: "toggle" },
-  { name: "elevator_floor_count", label: "Elevator Floors", type: "number", placeholder: "e.g. 5", min: 1, max: 200 },
-  { name: "step_free_entrance", label: "Step-Free Entrance", type: "toggle" },
-  { name: "accessible_bathroom", label: "Accessible Bathroom", type: "toggle" },
-  { name: "hearing_loop", label: "Hearing Loop", type: "toggle" },
-  { name: "braille_signage", label: "Braille Signage", type: "toggle" },
-  { name: "parking_accessible", label: "Accessible Parking", type: "toggle" },
-  { name: "quiet_hours_start", label: "Quiet Hours Start", type: "time" },
-  { name: "quiet_hours_end", label: "Quiet Hours End", type: "time" },
-  { name: "notes", label: "Additional Notes", type: "textarea", placeholder: "Any extra details…" },
-];
+import { useLocale } from "@wikitraveler/ui";
+import {
+  compressPhoto,
+  MAX_AUDIT_PHOTOS,
+  roomScopeKey,
+  type AuditPhotoInput,
+} from "@wikitraveler/i18n";
 
 interface Props {
   propertyId: string;
@@ -47,6 +31,7 @@ interface Props {
 
 export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, auditPhotos, hasAiGuess, targetNodeUrl }: Props) {
   const router = useRouter();
+  const { locale, t, getFieldLabel, getTierLabel } = useLocale();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
   const [mounted, setMounted] = useState(false);
 
@@ -143,7 +128,17 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
     });
   }, [propertyId]);
 
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<AuditPhotoInput[]>([]);
+  const [fieldDefs, setFieldDefs] = useState<Array<{
+    fieldName: string;
+    scope: string;
+    valueType: string;
+    label: string;
+    unit?: string | null;
+  }>>([]);
+  const [selectedRoomTypes, setSelectedRoomTypes] = useState<string[]>([]);
+  const [roomValues, setRoomValues] = useState<Record<string, string>>({});
+  const [roomDescriptions, setRoomDescriptions] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [loadedFacts, setLoadedFacts] = useState(existingFacts);
@@ -155,11 +150,37 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   const [propertyLoading, setPropertyLoading] = useState(true);
 
   useEffect(() => {
+    const url = targetNodeUrl ?? nodeUrl;
+    fetch(`${url}/api/fields?locale=${locale}`)
+      .then((r) => r.json())
+      .then((data: { fields?: typeof fieldDefs }) => {
+        setFieldDefs(data.fields ?? []);
+      })
+      .catch(() => {});
+  }, [locale, nodeUrl, targetNodeUrl]);
+
+  const propertyFields = fieldDefs.filter((f) => f.scope === "PROPERTY" && f.fieldName !== "room_types_available");
+  const roomFieldDefs = fieldDefs.filter((f) => f.scope === "ROOM");
+
+  function fieldInputType(valueType: string): "toggle" | "number" | "time" | "textarea" {
+    switch (valueType) {
+      case "BOOLEAN": return "toggle";
+      case "NUMBER": return "number";
+      case "TIME": return "time";
+      default: return "textarea";
+    }
+  }
+
+  // Use cached recent-list labels when SSR could not load the property.
+  useEffect(() => {
     setDisplayName(propertyName);
     setDisplayLocation(location);
   }, [propertyName, location]);
 
-  // Use cached recent-list labels when SSR could not load the property.
+  function onRoomValueChange(scopeKey: string, fieldName: string, value: string) {
+    setRoomValues((prev) => ({ ...prev, [`${scopeKey}::${fieldName}`]: value }));
+  }
+
   useEffect(() => {
     if (propertyName !== "Unknown Property" && location !== "Unknown Location") return;
     const cached = findRecentAudit(propertyId);
@@ -232,29 +253,47 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []).slice(0, 3 - photos.length);
-    const encoded = await Promise.all(
-      files.map(
-        (f) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(f);
-          })
-      )
+    const remaining = MAX_AUDIT_PHOTOS - photos.length;
+    const files = Array.from(e.target.files ?? []).slice(0, remaining);
+    const compressed = await Promise.all(files.map((f) => compressPhoto(f)));
+    setPhotos((prev) =>
+      [...prev, ...compressed.map((c) => ({ dataUri: c.dataUri, width: c.width, height: c.height }))].slice(0, MAX_AUDIT_PHOTOS)
     );
-    setPhotos((prev) => [...prev, ...encoded].slice(0, 3));
+  }
+
+  function updatePhotoCaption(index: number, caption: string) {
+    setPhotos((prev) => prev.map((p, i) => (i === index ? { ...p, caption } : p)));
   }
 
   async function submit() {
     if (!token) return;
-    const facts = Object.entries(values)
+    const facts: Array<{ fieldName: string; value: string; scopeKey?: string }> = Object.entries(values)
       .filter(([, v]) => v.trim() !== "")
-      .map(([fieldName, value]) => ({ fieldName, value }));
+      .map(([fieldName, value]) => ({ fieldName, value, scopeKey: "property" }));
+
+    if (selectedRoomTypes.length > 0) {
+      facts.push({
+        fieldName: "room_types_available",
+        value: selectedRoomTypes.join(","),
+        scopeKey: "property",
+      });
+    }
+
+    for (const typeId of selectedRoomTypes) {
+      const scope = roomScopeKey(typeId);
+      const desc = roomDescriptions[typeId]?.trim();
+      if (desc) {
+        facts.push({ fieldName: "accessible_room_description", value: desc, scopeKey: scope });
+      }
+      for (const [key, value] of Object.entries(roomValues)) {
+        if (!key.startsWith(`${scope}::`) || !value.trim()) continue;
+        const fieldName = key.slice(scope.length + 2);
+        facts.push({ fieldName, value, scopeKey: scope });
+      }
+    }
 
     if (facts.length === 0) {
-      setErrorMsg("Fill in at least one field before submitting.");
+      setErrorMsg(t("ui.fillOneField"));
       setStatus("error");
       return;
     }
@@ -265,13 +304,13 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
     const res = await fetch(`${submitUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ facts, photoUrls: photos }),
+      body: JSON.stringify({ facts, photos, locale }),
     });
 
     if (res.status === 401) {
       logout();
       setStatus("idle");
-      setAuthError("Session expired — please log in again.");
+      setAuthError(t("ui.authSessionExpired"));
       return;
     }
 
@@ -289,7 +328,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
       setStatus("ok");
     } else {
       const d = await res.json() as { message?: string };
-      setErrorMsg(d.message ?? "Submission failed");
+      setErrorMsg(d.message ?? t("ui.submissionFailed"));
       setStatus("error");
     }
   }
@@ -297,23 +336,30 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   const existingByField = Object.fromEntries(loadedFacts.map((f) => [f.fieldName, f]));
 
   function formatPreviousValue(fact: ExistingFact): string {
-    const { displayValue } = resolveFactDisplay(fact);
-    const tierLabel = TIER_LABELS[fact.tier] ?? fact.tier;
+    const { displayValue } = resolveFactDisplay(fact, locale);
+    const tierLabel = getTierLabel(fact.tier);
     return `${displayValue} (${tierLabel})`;
   }
+
+  const toggleFields = propertyFields.filter((f) => fieldInputType(f.valueType) === "toggle");
+  const detailFields = propertyFields.filter((f) => {
+    const type = fieldInputType(f.valueType);
+    return type === "number" || type === "time";
+  });
+  const noteFields = propertyFields.filter((f) => fieldInputType(f.valueType) === "textarea");
 
   if (status === "ok") {
     return (
       <>
-        <FieldKitToolbar title="Audit submitted!" />
+        <FieldKitToolbar title={t("ui.auditSubmitted")} backLabel={t("ui.back")} />
         <main id="main-content" className="page" role="status" aria-live="polite">
           <div className="card" style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Thank you!</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t("ui.thankYou")}</h2>
             <p className="status-muted" style={{ marginBottom: 24 }}>
-              Your audit for <strong>{displayName}</strong> has been recorded.
+              {t("ui.thankYouBody", { name: displayName })}
             </p>
             <button className="btn-secondary" onClick={() => router.push("/")}>
-              Audit another property
+              {t("ui.auditAnother")}
             </button>
           </div>
         </main>
@@ -326,174 +372,201 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
       <FieldKitToolbar
         showBack
         backHref="/"
-        title={displayName}
+        backLabel={t("ui.back")}
+        title={t("ui.fkAuditTitle")}
       />
 
       <main className="page">
-        <p className="wt-fk-page-lead">
-          {targetNodeUrl && targetNodeUrl !== nodeUrl
-            ? `Remote audit · ${new URL(targetNodeUrl).hostname}`
-            : displayLocation}
-        </p>
+        <div className="fk-property-header card">
+          <h1 className="fk-property-name">{displayName}</h1>
+          {displayLocation && displayLocation !== displayName ? (
+            <p className="fk-property-location">{displayLocation}</p>
+          ) : null}
+          {targetNodeUrl && targetNodeUrl !== nodeUrl ? (
+            <p className="fk-property-remote">
+              {t("ui.remoteAudit", { host: new URL(targetNodeUrl).hostname })}
+            </p>
+          ) : null}
+        </div>
 
         {/* Auth gate — only rendered after client hydration to avoid mismatch */}
         {!mounted ? (
-          <div className="card" style={{ textAlign: "center", padding: "32px 16px", color: "var(--wt-text-muted)" }}>Loading…</div>
+          <div className="card" style={{ textAlign: "center", padding: "32px 16px", color: "var(--wt-text-muted)" }}>{t("ui.loading")}</div>
         ) : !token ? (
               <div className="card">
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-              {authMode === "login" ? "Log in to submit" : "Create an account"}
+              {authMode === "login" ? t("ui.authLogInToAudit") : t("ui.authCreateAccount")}
             </h2>
-            <label htmlFor="audit-username">Username</label>
+            <label htmlFor="audit-username">{t("ui.username")}</label>
             <input
               id="audit-username"
               type="text"
               autoComplete="username"
-              placeholder="your username"
+              placeholder={t("ui.authRegisterUsernamePlaceholder")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (authMode === "login" ? login() : register())}
             />
-            <label htmlFor="audit-password">Password</label>
+            <label htmlFor="audit-password">{t("ui.password")}</label>
             <input
               id="audit-password"
               type="password"
               autoComplete={authMode === "login" ? "current-password" : "new-password"}
-              placeholder="password"
+              placeholder={t("ui.authPasswordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (authMode === "login" ? login() : register())}
             />
             {authError && <p className="status-err" role="alert">{authError}</p>}
             <button className="btn-primary" onClick={authMode === "login" ? login : register} disabled={authLoading}>
-              {authLoading ? "…" : authMode === "login" ? "Log in" : "Create account"}
+              {authLoading ? "…" : authMode === "login" ? t("ui.signIn") : t("ui.authCreateAccount")}
             </button>
             <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 12, textAlign: "center" }}>
               {authMode === "login" ? (
-                <>No account? <button onClick={() => { setAuthMode("register"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>Register</button></>
+                <>{t("ui.authNoAccount")}{" "}<button onClick={() => { setAuthMode("register"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>{t("ui.authCreateAccount")}</button></>
               ) : (
-                <>Already have an account? <button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>Log in</button></>
+                <>{t("ui.authHasAccount")}{" "}<button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>{t("ui.signIn")}</button></>
               )}
             </p>
           </div>
         ) : propertyMissing ? (
           <div className="card" role="alert">
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-              Property no longer on this node
+              {t("ui.propertyMissingTitle")}
             </h2>
             <p className="status-muted" style={{ marginBottom: 16 }}>
-              <strong>{displayName}</strong> is not in the node database anymore. That often
-              happens after a database reset or re-seed — the recent list still has your old
-              audit, but the property ID no longer exists. Search for the property again to
-              re-audit it.
+              {t("ui.propertyMissingBody", { name: displayName })}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button className="btn-primary" onClick={() => router.push("/")}>
-                Search properties
+                {t("ui.searchProperties")}
               </button>
               <button className="btn-secondary" onClick={dismissMissingProperty}>
-                Remove from recent
+                {t("ui.removeFromRecent")}
               </button>
             </div>
           </div>
         ) : propertyLoading ? (
           <div className="card" style={{ textAlign: "center", padding: "32px 16px", color: "var(--wt-text-muted)" }}>
-            Loading property…
+            {t("ui.loadingProperty")}
           </div>
         ) : (
           <>
-            {/* Logged-in indicator */}
-            {loggedInAs && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, fontSize: 12, color: "var(--wt-text-muted)" }}>
-                <span>Logged in as <strong style={{ color: "var(--wt-text)" }}>{loggedInAs}</strong></span>
-                <button onClick={logout} style={{ background: "none", border: "none", color: "var(--wt-text-muted)", cursor: "pointer", fontSize: 12 }}>Log out</button>
-              </div>
-            )}
-
             <ExistingDataPanel
               facts={loadedFacts}
               auditPhotos={loadedPhotos}
               hasAiGuess={loadedHasAiGuess}
             />
 
-            {/* Accessibility fields */}
-              <div className="card">
-              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Accessibility Audit</h2>
-              <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>
-                Fill in what you can observe on-site. Leave unknown fields blank.
+            <div className="card fk-audit-form">
+              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{t("ui.accessibilityAudit")}</h2>
+              <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 4 }}>
+                {t("ui.fillOnSite")}
               </p>
 
-              {/* Toggles */}
-              <div style={{ marginTop: 16 }}>
-                {FIELDS.filter((f) => f.type === "toggle").map((field) => {
-                  const existing = existingByField[field.name];
-                  return (
-                    <label className="toggle-row" key={field.name} htmlFor={`toggle-${field.name}`}>
-                      <div>
-                        <span className="toggle-label">{field.label}</span>
-                        {existing && (
-                          <div style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: 2 }}>
-                            Previously: {formatPreviousValue(existing)}
-                          </div>
-                        )}
-                      </div>
-                      <span className="toggle">
-                        <input
-                          id={`toggle-${field.name}`}
-                          type="checkbox"
-                          checked={values[field.name] === "yes"}
-                          onChange={(e) => setValue(field.name, e.target.checked ? "yes" : "no")}
-                        />
-                        <span className="toggle-slider" />
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+              {toggleFields.length > 0 && (
+                <AuditCollapsibleSection title={t("ui.fkSectionChecks")} defaultOpen>
+                  {toggleFields.map((field) => {
+                    const existing = existingByField[field.fieldName];
+                    return (
+                      <label className="toggle-row" key={field.fieldName} htmlFor={`toggle-${field.fieldName}`}>
+                        <div>
+                          <span className="toggle-label">{field.label}</span>
+                          {existing && (
+                            <div style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: 2 }}>
+                              {t("ui.previously")}: {formatPreviousValue(existing)}
+                            </div>
+                          )}
+                        </div>
+                        <span className="toggle">
+                          <input
+                            id={`toggle-${field.fieldName}`}
+                            type="checkbox"
+                            checked={values[field.fieldName] === "yes"}
+                            onChange={(e) => setValue(field.fieldName, e.target.checked ? "yes" : "no")}
+                          />
+                          <span className="toggle-slider" />
+                        </span>
+                      </label>
+                    );
+                  })}
+                </AuditCollapsibleSection>
+              )}
 
-              {/* Numeric & text inputs */}
-              {FIELDS.filter((f) => f.type !== "toggle").map((field) => {
-                const existing = existingByField[field.name];
-                return (
-                  <div key={field.name}>
-                    <label htmlFor={field.name}>
-                      {field.label}
-                      {field.unit && <span style={{ fontWeight: 400, color: "var(--wt-text-muted)" }}> ({field.unit})</span>}
-                    </label>
-                    {existing && (
-                      <p style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: -2, marginBottom: 4 }}>
-                        Previously: {formatPreviousValue(existing)}
-                      </p>
-                    )}
-                    {field.type === "textarea" ? (
-                      <textarea
-                        id={field.name}
-                        placeholder={field.placeholder ?? ""}
-                        value={values[field.name] ?? ""}
-                        onChange={(e) => setValue(field.name, e.target.value)}
-                      />
-                    ) : (
-                      <input
-                        id={field.name}
-                        type={field.type}
-                        inputMode={field.type === "number" ? "numeric" : undefined}
-                        placeholder={field.placeholder ?? ""}
-                        value={values[field.name] ?? ""}
-                        onChange={(e) => setValue(field.name, e.target.value)}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+              {detailFields.length > 0 && (
+                <AuditCollapsibleSection title={t("ui.fkSectionDetails")} defaultOpen={false}>
+                  {detailFields.map((field) => {
+                    const type = fieldInputType(field.valueType);
+                    const existing = existingByField[field.fieldName];
+                    return (
+                      <div key={field.fieldName}>
+                        <label htmlFor={field.fieldName}>
+                          {field.label}
+                          {field.unit && <span style={{ fontWeight: 400, color: "var(--wt-text-muted)" }}> ({field.unit})</span>}
+                        </label>
+                        {existing && (
+                          <p style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: -2, marginBottom: 4 }}>
+                            {t("ui.previously")}: {formatPreviousValue(existing)}
+                          </p>
+                        )}
+                        <input
+                          id={field.fieldName}
+                          type={type}
+                          inputMode={type === "number" ? "numeric" : undefined}
+                          value={values[field.fieldName] ?? ""}
+                          onChange={(e) => setValue(field.fieldName, e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                </AuditCollapsibleSection>
+              )}
+
+              {noteFields.length > 0 && (
+                <AuditCollapsibleSection title={t("ui.fkSectionNotes")} defaultOpen={false}>
+                  {noteFields.map((field) => {
+                    const existing = existingByField[field.fieldName];
+                    return (
+                      <div key={field.fieldName}>
+                        <label htmlFor={field.fieldName}>{field.label}</label>
+                        {existing && (
+                          <p style={{ fontSize: 11, color: "var(--wt-text-muted)", marginTop: -2, marginBottom: 4 }}>
+                            {t("ui.previously")}: {formatPreviousValue(existing)}
+                          </p>
+                        )}
+                        <textarea
+                          id={field.fieldName}
+                          value={values[field.fieldName] ?? ""}
+                          onChange={(e) => setValue(field.fieldName, e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                </AuditCollapsibleSection>
+              )}
             </div>
 
-            {/* Photo upload */}
+            <RoomAuditSection
+              locale={locale}
+              roomFields={roomFieldDefs}
+              selectedTypes={selectedRoomTypes}
+              onTypesChange={setSelectedRoomTypes}
+              roomValues={roomValues}
+              onRoomValueChange={onRoomValueChange}
+              roomDescriptions={roomDescriptions}
+              onRoomDescriptionChange={(typeId, value) =>
+                setRoomDescriptions((prev) => ({ ...prev, [typeId]: value }))
+              }
+            />
+
             <div className="card" style={{ marginTop: 16 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Photos (optional, max 3)</h2>
+              <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+                {t("ui.photosOptional", { max: MAX_AUDIT_PHOTOS })}
+              </h2>
               <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 12 }}>
-                Attach evidence photos. Stored securely on the node.
+                {t("ui.photosHint")}
               </p>
-              {photos.length < 3 && (
+              {photos.length < MAX_AUDIT_PHOTOS && (
                 <label
                   htmlFor="photos"
                   style={{
@@ -503,7 +576,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                     marginTop: 0,
                   }}
                 >
-                  📷 Tap to add photo
+                  📷 {t("ui.tapAddPhoto")}
                   <input
                     id="photos"
                     type="file"
@@ -516,10 +589,17 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                 </label>
               )}
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                {photos.map((src, i) => (
+                {photos.map((photo, i) => (
                   <div key={i} style={{ position: "relative" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt={`Photo ${i + 1}`} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
+                    <img src={photo.dataUri} alt={`Photo ${i + 1}`} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
+                    <input
+                      type="text"
+                      placeholder={t("ui.captionPlaceholder")}
+                      value={photo.caption ?? ""}
+                      onChange={(e) => updatePhotoCaption(i, e.target.value)}
+                      style={{ width: 80, fontSize: 10, marginTop: 4 }}
+                    />
                     <button
                       type="button"
                       aria-label={`Remove photo ${i + 1}`}
@@ -538,7 +618,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
             {status === "error" && <p className="status-err" role="alert">{errorMsg}</p>}
             {status === "loading" && (
-              <p className="wt-sr-only" role="status" aria-live="polite">Submitting audit…</p>
+              <p className="wt-sr-only" role="status" aria-live="polite">{t("ui.submitting")}</p>
             )}
 
             <button
@@ -546,7 +626,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               onClick={submit}
               disabled={status === "loading"}
             >
-              {status === "loading" ? "Submitting…" : "Submit Audit"}
+              {status === "loading" ? t("ui.submitting") : t("ui.submitAudit")}
             </button>
           </>
         )}

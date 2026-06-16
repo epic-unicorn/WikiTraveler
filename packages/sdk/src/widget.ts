@@ -1,6 +1,7 @@
 import { WikiTraveler } from "./client";
 import type { AccessibilityResponse } from "./client";
-import { TIER_LABEL, Tier } from "@wikitraveler/core";
+import { Tier } from "@wikitraveler/core";
+import { getFieldLabel, getTierLabel, DEFAULT_LOCALE, type Locale } from "@wikitraveler/i18n";
 
 export interface WidgetOptions {
   /** CSS selector OR HTMLElement to mount the widget into. */
@@ -11,6 +12,8 @@ export interface WidgetOptions {
   nodeUrl: string;
   /** JWT obtained from POST /api/auth/login. Required for authenticated nodes. */
   token?: string;
+  /** UI locale (default: en). Also read from data-wt-locale on the target element. */
+  locale?: Locale;
 }
 
 const WIDGET_STYLE_ID = "wt-widget-styles";
@@ -33,22 +36,10 @@ const WIDGET_CSS = `
 .wt-widget-attribution a{color:var(--wt-primary,#1d4ed8);text-decoration:none}
 .wt-widget-loading,.wt-widget-error{margin:0;font-size:13px}
 .wt-widget-error{color:var(--wt-danger,#dc2626)}
+.wt-widget-photos{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0;padding:0;list-style:none}
+.wt-widget-photo{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--wt-border,#e2e8f0);cursor:pointer}
+.wt-widget-photo-caption{font-size:10px;color:var(--wt-text-muted,#64748b);margin-top:2px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 `;
-
-const FIELD_LABELS: Record<string, string> = {
-  door_width_cm: "Door Width",
-  ramp_present: "Ramp Present",
-  elevator_present: "Elevator",
-  elevator_floor_count: "Elevator Floors",
-  quiet_hours_start: "Quiet Hours Start",
-  quiet_hours_end: "Quiet Hours End",
-  accessible_bathroom: "Accessible Bathroom",
-  hearing_loop: "Hearing Loop",
-  braille_signage: "Braille Signage",
-  step_free_entrance: "Step-Free Entrance",
-  parking_accessible: "Accessible Parking",
-  notes: "Notes",
-};
 
 const TIER_CLASS: Record<Tier, string> = {
   OFFICIAL: "wt-tier-official",
@@ -65,8 +56,8 @@ function ensureWidgetStyles(): void {
   document.head.appendChild(style);
 }
 
-function badge(tier: Tier): string {
-  const label = TIER_LABEL[tier] ?? tier;
+function badge(tier: Tier, locale: Locale): string {
+  const label = getTierLabel(tier, locale);
   const cls = TIER_CLASS[tier] ?? "";
   return `<span class="wt-tier-badge ${cls}" aria-label="Trust tier: ${label}">${label}</span>`;
 }
@@ -79,28 +70,39 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function renderFacts(data: AccessibilityResponse): string {
-  if (data.facts.length === 0) {
+function renderFacts(data: AccessibilityResponse, locale: Locale): string {
+  if (data.facts.length === 0 && !data.auditPhotos?.photos.length) {
     return `<div class="wt-widget" role="region" aria-label="WikiTraveler accessibility data"><p class="wt-widget-empty">No accessibility data available for this property yet.</p></div>`;
   }
 
   const items = data.facts
     .map((f) => {
-      const label = FIELD_LABELS[f.fieldName] ?? f.fieldName;
+      const label = f.label || getFieldLabel(f.fieldName, locale);
       const value = escapeHtml(String(f.value));
       return `<li class="wt-widget-fact">
         <span class="wt-widget-fact-label">${escapeHtml(label)}</span>
         <span class="wt-widget-fact-body">
           <span class="wt-widget-fact-value">${value}</span>
-          ${badge(f.tier)}
+          ${badge(f.tier, locale)}
         </span>
       </li>`;
     })
     .join("");
 
+  const photos = data.auditPhotos?.photos ?? [];
+  const photoGallery = photos.length
+    ? `<ul class="wt-widget-photos" aria-label="Audit photos">${photos
+        .map(
+          (p) =>
+            `<li><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener"><img class="wt-widget-photo" src="${escapeHtml(p.url)}" alt="${escapeHtml(p.caption ?? "Audit photo")}" loading="lazy" /></a>${p.caption ? `<div class="wt-widget-photo-caption">${escapeHtml(p.caption)}</div>` : ""}</li>`
+        )
+        .join("")}</ul>`
+    : "";
+
   return `
     <div class="wt-widget" role="region" aria-label="WikiTraveler accessibility data">
-      <ul class="wt-widget-facts">${items}</ul>
+      ${items ? `<ul class="wt-widget-facts">${items}</ul>` : ""}
+      ${photoGallery}
       <p class="wt-widget-attribution">
         Powered by <a href="https://github.com/wikitraveler">WikiTraveler</a>
       </p>
@@ -130,9 +132,10 @@ export async function mountWidget(
   ensureWidgetStyles();
 
   let el: HTMLElement | null = null;
-  let propertyId: string;
-  let nodeUrl: string;
+  let propertyId: string | undefined;
+  let nodeUrl: string | undefined;
   let token: string | undefined;
+  let locale: Locale = DEFAULT_LOCALE;
 
   if (typeof optionsOrSelector === "string") {
     el = document.querySelector<HTMLElement>(optionsOrSelector);
@@ -146,6 +149,7 @@ export async function mountWidget(
     propertyId = optionsOrSelector.propertyId;
     nodeUrl = optionsOrSelector.nodeUrl;
     token = optionsOrSelector.token;
+    locale = optionsOrSelector.locale ?? DEFAULT_LOCALE;
   }
 
   if (!el) {
@@ -157,6 +161,7 @@ export async function mountWidget(
   propertyId ??= el.dataset.propertyId ?? "";
   nodeUrl ??= el.dataset.nodeUrl ?? "";
   token ??= el.dataset.token;
+  locale = (el.dataset.wtLocale as Locale | undefined) ?? locale;
 
   if (!propertyId || !nodeUrl) {
     el.setAttribute("role", "alert");
@@ -170,12 +175,12 @@ export async function mountWidget(
   el.innerHTML = `<p class="wt-widget-loading wt-text-muted">Loading accessibility data…</p>`;
 
   try {
-    const client = new WikiTraveler({ nodeUrl, token });
+    const client = new WikiTraveler({ nodeUrl, token, locale });
     const data = await client.getAccessibility(propertyId);
     el.removeAttribute("aria-busy");
     el.removeAttribute("role");
     el.removeAttribute("aria-live");
-    el.innerHTML = renderFacts(data);
+    el.innerHTML = renderFacts(data, locale);
   } catch (err) {
     el.removeAttribute("aria-busy");
     el.setAttribute("role", "alert");

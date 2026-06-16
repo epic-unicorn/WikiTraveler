@@ -6,6 +6,16 @@
 
 let _nodeUrl = null;
 let _regionMissing = false;
+let _locale = "en";
+
+wtGetLocale().then((loc) => {
+  _locale = loc;
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && changes[WtI18n.LOCALE_STORAGE_KEY]) {
+    _locale = changes[WtI18n.LOCALE_STORAGE_KEY].newValue ?? WtI18n.DEFAULT_LOCALE;
+  }
+});
 
 /**
  * Extract lat/lon from the current page.
@@ -236,8 +246,8 @@ function ensureCardTrigger(card) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "wt-lens-card-trigger";
-  btn.setAttribute("aria-label", "Show WikiTraveler accessibility information");
-  btn.textContent = "A11y";
+  btn.setAttribute("aria-label", wtT("ui.lensShowA11yInfo", _locale));
+  btn.textContent = wtT("ui.lensA11yShort", _locale);
 
   btn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -279,7 +289,10 @@ function showTooltip(anchorEl, facts, propertyName, interactive = false) {
   _tooltip.id = "wt-lens-tooltip";
   _tooltip.setAttribute("role", interactive ? "dialog" : "tooltip");
   if (interactive) {
-    _tooltip.setAttribute("aria-label", `Accessibility data for ${propertyName ?? "property"}`);
+    _tooltip.setAttribute(
+      "aria-label",
+      wtT("ui.lensTooltipFor", _locale, { name: propertyName ?? "property" })
+    );
   }
   _tooltip.style.cssText = `
     position: fixed;
@@ -328,13 +341,13 @@ function showTooltip(anchorEl, facts, propertyName, interactive = false) {
 
   if (!facts || facts.length === 0) {
     bodyEl.style.color = "#94a3b8";
-    bodyEl.textContent = "No accessibility data yet.";
+    bodyEl.textContent = wtT("ui.noAccessibilityData", _locale);
   } else {
     const table = document.createElement("table");
     table.style.cssText = "width:100%;border-collapse:collapse";
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
-    ["Feature", "Value"].forEach((label) => {
+    [wtT("ui.lensFactFeature", _locale), wtT("ui.lensFactValue", _locale)].forEach((label) => {
       const th = document.createElement("th");
       th.scope = "col";
       th.style.cssText = "padding:5px 6px 5px 0;color:#64748b;font-size:10px;text-align:left;font-weight:700";
@@ -350,7 +363,7 @@ function showTooltip(anchorEl, facts, propertyName, interactive = false) {
 
       const labelCell = document.createElement("td");
       labelCell.style.cssText = "padding:5px 6px 5px 0;color:#0f172a;font-weight:500;vertical-align:middle";
-      labelCell.textContent = f.fieldName.replace(/_/g, " ");
+      labelCell.textContent = wtFieldLabel(f.fieldName, _locale);
 
       const valueCell = document.createElement("td");
       valueCell.style.cssText = "padding:5px 0;color:#334155;text-align:right;vertical-align:middle";

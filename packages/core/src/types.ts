@@ -18,6 +18,7 @@ export enum Tier {
 export enum SourceType {
   WIKIDATA = "WIKIDATA",               // Wikidata Q-identifier (open knowledge graph)
   WHEELMAP = "WHEELMAP",               // Wheelmap / OpenStreetMap community data
+  OSM = "OSM",                         // OpenStreetMap ingest
   WHEEL_THE_WORLD = "WHEEL_THE_WORLD", // Wheel the World vetted data
   AUDITOR = "AUDITOR",                 // WikiTraveler field audit
 }
@@ -54,6 +55,7 @@ export interface AccessibilityFact {
   id: string;
   propertyId: string;
   fieldName: string;
+  scopeKey?: string;
   value: string;
   tier: Tier;
   sourceType: SourceType;
@@ -88,10 +90,20 @@ export interface NodeInfo {
 
 export interface AuditPayload {
   propertyId: string;
-  facts: Array<{ fieldName: string; value: string }>;
-  /** Base64-encoded images (max 3). */
+  facts: Array<{ fieldName: string; value: string; scopeKey?: string }>;
+  /** Base64-encoded images (max 8). Legacy flat array still accepted. */
   photoUrls?: string[];
+  /** Structured photo metadata (preferred). */
+  photos?: Array<{
+    dataUri: string;
+    caption?: string;
+    fieldName?: string;
+    scopeKey?: string;
+    width?: number;
+    height?: number;
+  }>;
   auditorToken?: string;
+  locale?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +153,16 @@ export const ACCESSIBILITY_FIELDS = [
   "step_free_entrance",
   "parking_accessible",
   "notes",
+  "tactile_paving",
+  "roll_in_shower",
+  "grab_bars_bathroom",
+  "bed_height_cm",
+  "turning_circle_cm",
+  "pool_lift",
+  "service_animal_policy",
+  "room_types_available",
+  "accessible_room_count",
+  "accessible_room_description",
 ] as const;
 
 export type AccessibilityFieldName = (typeof ACCESSIBILITY_FIELDS)[number];

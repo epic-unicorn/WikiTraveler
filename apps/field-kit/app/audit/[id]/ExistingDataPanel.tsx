@@ -1,10 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  formatFieldLabel,
-  resolveFactDisplay,
-} from "../../lib/factDisplay";
+import { useLocale } from "@wikitraveler/ui";
+import { resolveFactDisplay } from "../../lib/factDisplay";
 
 export interface ExistingFact {
   fieldName: string;
@@ -14,10 +12,20 @@ export interface ExistingFact {
   timestamp?: string;
 }
 
+export interface AuditPhotoItem {
+  id?: string;
+  url: string;
+  caption?: string | null;
+}
+
 export interface AuditPhotos {
   submissionId: string;
   capturedAt: string;
-  photos: string[];
+  photos: Array<string | AuditPhotoItem>;
+}
+
+function photoUrl(photo: string | AuditPhotoItem): string {
+  return typeof photo === "string" ? photo : photo.url;
 }
 
 interface Props {
@@ -35,9 +43,9 @@ function truncate(text: string, max = 72): string {
   return `${text.slice(0, max - 1)}…`;
 }
 
-function FactRow({ fact }: { fact: ExistingFact }) {
+function FactRow({ fact, locale }: { fact: ExistingFact; locale: string }) {
   const [open, setOpen] = useState(false);
-  const { displayValue, confidence, evidence, rawValue } = resolveFactDisplay(fact);
+  const { label, displayValue, confidence, evidence, rawValue } = resolveFactDisplay(fact, locale);
   const showEvidence =
     fact.tier === "AI_GUESS" &&
     evidence &&
@@ -56,7 +64,7 @@ function FactRow({ fact }: { fact: ExistingFact }) {
         disabled={!longValue}
         aria-expanded={longValue ? open : undefined}
       >
-        <span className="existing-fact-row-label">{formatFieldLabel(fact.fieldName)}</span>
+        <span className="existing-fact-row-label">{label}</span>
         <span className="existing-fact-row-value">
           {open || !longValue ? displayValue : truncate(displayValue)}
         </span>
@@ -77,6 +85,7 @@ function FactRow({ fact }: { fact: ExistingFact }) {
 }
 
 export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Props) {
+  const { locale, t } = useLocale();
   const [panelOpen, setPanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("verified");
   const [expandedPhoto, setExpandedPhoto] = useState<number | null>(null);
@@ -89,25 +98,25 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
   const tabs = useMemo(() => {
     const items: Array<{ id: TabId; label: string; count: number }> = [];
     if (photoCount > 0) {
-      items.push({ id: "photos", label: "Photos", count: photoCount });
+      items.push({ id: "photos", label: t("ui.existingDataPhotos"), count: photoCount });
     }
     if (verifiedFacts.length > 0) {
-      items.push({ id: "verified", label: "Verified", count: verifiedFacts.length });
+      items.push({ id: "verified", label: t("ui.existingDataVerified"), count: verifiedFacts.length });
     }
     if (aiFacts.length > 0) {
-      items.push({ id: "ai", label: "AI", count: aiFacts.length });
+      items.push({ id: "ai", label: t("ui.existingDataAi"), count: aiFacts.length });
     }
     if (officialFacts.length > 0) {
-      items.push({ id: "official", label: "Official", count: officialFacts.length });
+      items.push({ id: "official", label: t("ui.existingDataOfficial"), count: officialFacts.length });
     }
     return items;
-  }, [photoCount, verifiedFacts.length, aiFacts.length, officialFacts.length]);
+  }, [photoCount, verifiedFacts.length, aiFacts.length, officialFacts.length, t]);
 
   const defaultTab = tabs[0]?.id ?? "verified";
 
   if (facts.length === 0 && photoCount === 0) return null;
 
-  const currentTab = tabs.some((t) => t.id === activeTab) ? activeTab : defaultTab;
+  const currentTab = tabs.some((tab) => tab.id === activeTab) ? activeTab : defaultTab;
 
   return (
     <div className={`card existing-data-panel${panelOpen ? " is-open" : ""}`}>
@@ -121,25 +130,25 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
         aria-expanded={panelOpen}
       >
         <div className="existing-data-toggle-text">
-          <span className="existing-data-title">Current data</span>
+          <span className="existing-data-title">{t("ui.existingDataTitle")}</span>
           <div className="existing-data-chips">
             {verifiedFacts.length > 0 && (
               <span className="data-chip data-chip--verified">
-                {verifiedFacts.length} verified
+                {t("ui.existingDataVerifiedChip", { count: verifiedFacts.length })}
               </span>
             )}
             {aiFacts.length > 0 && (
               <span className="data-chip data-chip--ai">
-                {aiFacts.length} AI
+                {t("ui.existingDataAiChip", { count: aiFacts.length })}
               </span>
             )}
             {photoCount > 0 && (
               <span className="data-chip data-chip--photos">
-                {photoCount} photo{photoCount > 1 ? "s" : ""}
+                {t("ui.existingDataPhotosChip", { count: photoCount })}
               </span>
             )}
             {verifiedFacts.length === 0 && aiFacts.length === 0 && photoCount === 0 && (
-              <span className="data-chip">{facts.length} fields</span>
+              <span className="data-chip">{t("ui.existingDataFieldsChip", { count: facts.length })}</span>
             )}
           </div>
         </div>
@@ -150,7 +159,7 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
 
       {panelOpen && tabs.length > 0 && (
         <div className="existing-data-body">
-          <div className="existing-data-tabs" role="tablist" aria-label="Data sections">
+          <div className="existing-data-tabs" role="tablist" aria-label={t("ui.existingDataSections")}>
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -170,19 +179,19 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
             {currentTab === "photos" && auditPhotos?.photos.length ? (
               <section className="audit-photos-block">
                 <p className="existing-data-panel-hint">
-                  {hasAiGuess ? "Used for AI analysis" : "Latest audit submission"}
+                  {hasAiGuess ? t("ui.existingDataUsedForAi") : t("ui.existingDataLatest")}
                 </p>
                 <div className="audit-photos-strip">
-                  {auditPhotos.photos.map((src, i) => (
+                  {auditPhotos.photos.map((photo, i) => (
                     <button
                       key={`${auditPhotos.submissionId}-${i}`}
                       type="button"
                       className={`audit-photo-thumb${expandedPhoto === i ? " is-active" : ""}`}
                       onClick={() => setExpandedPhoto(expandedPhoto === i ? null : i)}
-                      aria-label={`Audit photo ${i + 1}`}
+                      aria-label={`${t("ui.existingDataPhotos")} ${i + 1}`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt={`Audit photo ${i + 1}`} />
+                      <img src={photoUrl(photo)} alt={`${t("ui.existingDataPhotos")} ${i + 1}`} />
                     </button>
                   ))}
                 </div>
@@ -190,13 +199,13 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
                   <div className="audit-photo-expanded">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={auditPhotos.photos[expandedPhoto]}
-                      alt={`Audit photo ${expandedPhoto + 1}`}
+                      src={photoUrl(auditPhotos.photos[expandedPhoto])}
+                      alt={`${t("ui.existingDataPhotos")} ${expandedPhoto + 1}`}
                     />
                   </div>
                 )}
                 <p className="audit-photos-date">
-                  {new Date(auditPhotos.capturedAt).toLocaleString()}
+                  {new Date(auditPhotos.capturedAt).toLocaleString(locale)}
                 </p>
               </section>
             ) : null}
@@ -204,21 +213,16 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
             {currentTab === "verified" && (
               <div className="existing-fact-rows">
                 {verifiedFacts.map((fact) => (
-                  <FactRow key={`${fact.fieldName}-${fact.tier}`} fact={fact} />
+                  <FactRow key={`${fact.fieldName}-${fact.tier}`} fact={fact} locale={locale} />
                 ))}
               </div>
             )}
 
             {currentTab === "ai" && (
               <div className="existing-fact-rows">
-                <p className="existing-data-panel-hint">
-                  Tap a row to read the full estimate.
-                </p>
+                <p className="existing-data-panel-hint">{t("ui.existingDataTapRow")}</p>
                 {aiFacts.map((fact) => (
-                  <FactRow
-                    key={`${fact.fieldName}-${fact.tier}`}
-                    fact={fact}
-                  />
+                  <FactRow key={`${fact.fieldName}-${fact.tier}`} fact={fact} locale={locale} />
                 ))}
               </div>
             )}
@@ -226,7 +230,7 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
             {currentTab === "official" && (
               <div className="existing-fact-rows">
                 {officialFacts.map((fact) => (
-                  <FactRow key={`${fact.fieldName}-${fact.tier}`} fact={fact} />
+                  <FactRow key={`${fact.fieldName}-${fact.tier}`} fact={fact} locale={locale} />
                 ))}
               </div>
             )}

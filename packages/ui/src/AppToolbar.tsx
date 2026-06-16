@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import {
   toolbarLinkClass,
   type ToolbarLink,
@@ -64,14 +64,16 @@ export function AppToolbar({
       <div className="wt-toolbar-end">
         {links.length > 0 && (
           <nav className="wt-toolbar-nav" aria-label="Main navigation">
-            {links.map((link) =>
-              linkWrap({
-                href: link.href,
-                className: toolbarLinkClass(link.active),
-                external: link.external,
-                children: link.label,
-              })
-            )}
+            {links.map((link) => (
+              <Fragment key={link.href}>
+                {linkWrap({
+                  href: link.href,
+                  className: toolbarLinkClass(link.active),
+                  external: link.external,
+                  children: link.label,
+                })}
+              </Fragment>
+            ))}
           </nav>
         )}
         {end && <div className="wt-toolbar-actions">{end}</div>}

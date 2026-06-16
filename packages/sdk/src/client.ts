@@ -1,7 +1,10 @@
-import { Tier, TIER_LABEL, TIER_COLOR } from "@wikitraveler/core";
+import { Tier, TIER_COLOR } from "@wikitraveler/core";
+import { getFieldLabel, getTierLabel, DEFAULT_LOCALE, type Locale } from "@wikitraveler/i18n";
 
 // Re-export core types needed by consumers
-export { Tier, TIER_LABEL, TIER_COLOR } from "@wikitraveler/core";
+export { Tier, TIER_COLOR } from "@wikitraveler/core";
+export { getFieldLabel, getTierLabel, DEFAULT_LOCALE } from "@wikitraveler/i18n";
+export type { Locale } from "@wikitraveler/i18n";
 export type {
   AccessibilityFact,
   Property,
@@ -20,6 +23,18 @@ export interface WikiTravelerConfig {
   timeoutMs?: number;
   /** Optional JWT obtained from POST /api/auth/login. Required for authenticated endpoints. */
   token?: string;
+  /** UI locale for field labels (default: en). */
+  locale?: Locale;
+}
+
+export interface AuditPhotoInfo {
+  id: string;
+  url: string;
+  caption?: string | null;
+  fieldName?: string | null;
+  scopeKey?: string | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface AccessibilityResponse {
@@ -27,6 +42,7 @@ export interface AccessibilityResponse {
   nodeUrl: string;
   facts: Array<{
     fieldName: string;
+    scopeKey?: string;
     value: string;
     tier: Tier;
     label: string;
@@ -34,6 +50,12 @@ export interface AccessibilityResponse {
     submittedBy: string | null;
     timestamp: string;
   }>;
+  auditPhotos?: {
+    submissionId: string;
+    capturedAt: string;
+    photos: AuditPhotoInfo[];
+    photoOriginNode?: string | null;
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -44,11 +66,13 @@ export class WikiTraveler {
   private readonly nodeUrl: string;
   private readonly timeoutMs: number;
   private readonly token: string | undefined;
+  private readonly locale: Locale;
 
   constructor(config: WikiTravelerConfig) {
     this.nodeUrl = config.nodeUrl.replace(/\/$/, "");
     this.timeoutMs = config.timeoutMs ?? 8000;
     this.token = config.token;
+    this.locale = config.locale ?? DEFAULT_LOCALE;
   }
 
   private async fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
@@ -78,15 +102,19 @@ export class WikiTraveler {
     if (!res.ok) {
       throw new Error(`WikiTraveler: node returned ${res.status} for ${url}`);
     }
-    const data = await res.json() as { facts: Array<{ fieldName: string; value: string; tier: Tier; submittedBy: string | null; timestamp: string }> };
+    const data = await res.json() as {
+      facts: Array<{ fieldName: string; scopeKey?: string; value: string; tier: Tier; submittedBy: string | null; timestamp: string }>;
+      auditPhotos?: AccessibilityResponse["auditPhotos"];
+    };
     return {
       propertyId,
       nodeUrl: this.nodeUrl,
       facts: data.facts.map((f) => ({
         ...f,
-        label: TIER_LABEL[f.tier] ?? f.tier,
+        label: getFieldLabel(f.fieldName, this.locale),
         color: TIER_COLOR[f.tier] ?? "#9ca3af",
       })),
+      auditPhotos: data.auditPhotos ?? null,
     };
   }
 
@@ -96,7 +124,12 @@ export class WikiTraveler {
    */
   async submitAudit(
     propertyId: string,
-    payload: { facts: Array<{ fieldName: string; value: string }>; photoUrls?: string[] },
+    payload: {
+      facts: Array<{ fieldName: string; value: string; scopeKey?: string }>;
+      photoUrls?: string[];
+      photos?: Array<{ dataUri: string; caption?: string; fieldName?: string; scopeKey?: string; width?: number; height?: number }>;
+      locale?: string;
+    },
     token: string
   ): Promise<{ ok: boolean; message: string }> {
     const url = `${this.nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`;

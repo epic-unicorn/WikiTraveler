@@ -22,7 +22,8 @@
     "typescript": "^5.4.0"
   },
   "dependencies": {
-    "@wikitraveler/core": "workspace:*"
+    "@wikitraveler/core": "workspace:*",
+    "@wikitraveler/i18n": "workspace:*"
   },
   "peerDependencies": {}
 }

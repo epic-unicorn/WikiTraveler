@@ -2,6 +2,7 @@
 
 import { useCallback, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
+import { useLocale } from "@wikitraveler/ui";
 import { FieldKitToolbar } from "./FieldKitToolbar";
 import { useNodeContext } from "./hooks/useNodeContext";
 import { SearchTab } from "./tabs/SearchTab";
@@ -11,48 +12,32 @@ import { SettingsTab } from "./tabs/SettingsTab";
 
 type TabId = "search" | "nearby" | "recent" | "settings";
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  {
-    id: "search",
-    label: "Search",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="11" cy="11" r="8"/>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-    ),
-  },
-  {
-    id: "nearby",
-    label: "Near me",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-        <circle cx="12" cy="10" r="3"/>
-      </svg>
-    ),
-  },
-  {
-    id: "recent",
-    label: "Recent",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="10"/>
-        <polyline points="12 6 12 12 16 14"/>
-      </svg>
-    ),
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-    ),
-  },
-];
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  search: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  ),
+  nearby: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  ),
+  recent: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+  ),
+  settings: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  ),
+};
 
 function PlusIcon() {
   return (
@@ -64,6 +49,7 @@ function PlusIcon() {
 }
 
 export function FieldKitTabs() {
+  const { t } = useLocale();
   const [activeTab, setActiveTab] = useState<TabId>("search");
   const {
     nodeUrl,
@@ -75,6 +61,13 @@ export function FieldKitTabs() {
     resetNodeUrl,
   } = useNodeContext();
 
+  const TABS: { id: TabId; label: string }[] = [
+    { id: "search", label: t("ui.tabSearch") },
+    { id: "nearby", label: t("ui.tabNearby") },
+    { id: "recent", label: t("ui.tabRecent") },
+    { id: "settings", label: t("ui.tabSettings") },
+  ];
+
   const focusTab = useCallback((id: TabId) => {
     setActiveTab(id);
     document.getElementById(`tab-${id}`)?.focus();
@@ -82,7 +75,7 @@ export function FieldKitTabs() {
 
   const handleTabKeyDown = useCallback(
     (e: KeyboardEvent<HTMLButtonElement>, tabId: TabId) => {
-      const idx = TABS.findIndex((t) => t.id === tabId);
+      const idx = TABS.findIndex((tab) => tab.id === tabId);
       if (idx < 0) return;
 
       if (e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -99,13 +92,13 @@ export function FieldKitTabs() {
         focusTab(TABS[TABS.length - 1].id);
       }
     },
-    [focusTab]
+    [focusTab, TABS]
   );
 
   return (
     <div className="fk-shell">
       <a href="#main-content" className="wt-skip-link">
-        Skip to main content
+        {t("ui.skipToContent")}
       </a>
       <FieldKitToolbar
         nodeReachable={nodeReachable}
@@ -113,8 +106,8 @@ export function FieldKitTabs() {
           <Link
             href="/properties/new"
             className="wt-toolbar-btn"
-            title="Add new property"
-            aria-label="Add new property"
+            title={t("ui.addProperty")}
+            aria-label={t("ui.addProperty")}
           >
             <PlusIcon />
           </Link>
@@ -153,7 +146,7 @@ export function FieldKitTabs() {
         )}
       </main>
 
-      <nav className="fk-tab-bar" role="tablist" aria-label="Field Kit sections">
+      <nav className="fk-tab-bar" role="tablist" aria-label={t("ui.tabSections")}>
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -166,7 +159,7 @@ export function FieldKitTabs() {
             onClick={() => setActiveTab(tab.id)}
             onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
           >
-            {tab.icon}
+            {TAB_ICONS[tab.id]}
             <span className="fk-tab-label">{tab.label}</span>
           </button>
         ))}

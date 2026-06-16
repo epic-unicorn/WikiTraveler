@@ -24,7 +24,7 @@
         "*://localhost/*",
         "*://127.0.0.1/*"
       ],
-      "js": ["content.js"],
+      "js": ["i18n.js", "locale.js", "content.js"],
       "run_at": "document_end"
     }
   ],

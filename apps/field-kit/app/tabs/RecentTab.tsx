@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useLocale } from "@wikitraveler/ui";
 import { auditHref } from "../lib/auditHref";
 import { getAuthHeaders, getStoredNodeUrl } from "../lib/fieldKitApi";
 import {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function RecentTab({ homeNodeUrl }: Props) {
+  const { t, locale } = useLocale();
   const [items, setItems] = useState<RecentAuditItem[]>([]);
   const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
   const [checking, setChecking] = useState(false);
@@ -80,10 +82,8 @@ export function RecentTab({ homeNodeUrl }: Props) {
     return (
       <div className="fk-empty" style={{ paddingTop: 48 }}>
         <span className="fk-empty-icon">📋</span>
-        <p className="fk-empty-title">No recent audits</p>
-        <p className="fk-empty-body">
-          Properties you audit will appear here for quick access.
-        </p>
+        <p className="fk-empty-title">{t("ui.recentEmpty")}</p>
+        <p className="fk-empty-body">{t("ui.recentEmptyBody")}</p>
       </div>
     );
   }
@@ -94,23 +94,23 @@ export function RecentTab({ homeNodeUrl }: Props) {
   return (
     <div className="tab-content" style={{ paddingTop: 16 }}>
       <p className="fk-section-header" style={{ paddingTop: 4 }}>
-        Recently audited — {items.length} {items.length === 1 ? "property" : "properties"}
+        {t("ui.recentTitle")} — {items.length}{" "}
+        {items.length === 1 ? t("ui.searchSingleProperty") : t("ui.searchPropertyCount", { count: items.length })}
         {checking && (
-          <span style={{ fontWeight: 400, color: "var(--wt-text-muted)" }}> · checking…</span>
+          <span style={{ fontWeight: 400, color: "var(--wt-text-muted)" }}> · {t("ui.checking")}</span>
         )}
       </p>
 
       {staleCount > 0 && !checking && (
         <p className="status-muted" style={{ fontSize: 13, marginBottom: 12 }}>
-          {staleCount} {staleCount === 1 ? "entry is" : "entries are"} from before a database
-          reset and no longer match the node. Remove them or search again.
+          {t("ui.recentStale")}
         </p>
       )}
 
       <div style={{ display: "grid", gap: 8 }}>
         {items.map((p) => {
           const date = new Date(p.auditedAt);
-          const label = date.toLocaleDateString(undefined, {
+          const label = date.toLocaleDateString(locale, {
             month: "short",
             day: "numeric",
           });
@@ -165,11 +165,11 @@ export function RecentTab({ homeNodeUrl }: Props) {
                         padding: 0,
                       }}
                     >
-                      Remove
+                      {t("ui.recentRemove")}
                     </button>
                   ) : (
                     <p style={{ fontSize: 11, color: "var(--wt-primary)", marginTop: 3, fontWeight: 600 }}>
-                      Re-audit →
+                      {t("ui.recentReaudit")}
                     </p>
                   )}
                 </div>
@@ -192,7 +192,7 @@ export function RecentTab({ homeNodeUrl }: Props) {
           padding: 0,
         }}
       >
-        Clear recent list
+        {t("ui.recentClear")}
       </button>
     </div>
   );

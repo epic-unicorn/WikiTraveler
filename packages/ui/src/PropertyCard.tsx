@@ -1,7 +1,7 @@
 "use client";
 
 import { TierBadge } from "./TierBadge";
-import { fieldLabel } from "./constants";
+import { useLocale } from "./LocaleProvider";
 
 const TIER_RANK: Record<string, number> = {
   OFFICIAL: 0,
@@ -38,10 +38,13 @@ interface Props {
 export function PropertyCard({
   property,
   href,
-  actionLabel = "Audit →",
+  actionLabel,
   onActionClick,
   expandable = true,
 }: Props) {
+  const { getFieldLabel, t } = useLocale();
+  const resolvedActionLabel = actionLabel ?? t("ui.auditAction");
+
   const facts = property.facts ?? [];
   const best = new Map<string, PropertyFact>();
   for (const f of facts) {
@@ -100,7 +103,7 @@ export function PropertyCard({
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
           {displayFacts.slice(0, 3).map((fact) => (
-            <TierBadge key={fact.fieldName} tier={fact.tier} label={fieldLabel(fact.fieldName)} />
+            <TierBadge key={fact.fieldName} tier={fact.tier} label={getFieldLabel(fact.fieldName)} />
           ))}
         </div>
 
@@ -115,7 +118,7 @@ export function PropertyCard({
               flexShrink: 0,
             }}
           >
-            {actionLabel}
+            {resolvedActionLabel}
           </a>
         ) : onActionClick ? (
           <button
@@ -131,7 +134,7 @@ export function PropertyCard({
               flexShrink: 0,
             }}
           >
-            {actionLabel}
+            {resolvedActionLabel}
           </button>
         ) : null}
       </div>
@@ -151,7 +154,7 @@ export function PropertyCard({
               key={fact.fieldName}
               style={{ fontSize: 11, color: "var(--wt-text-muted)" }}
             >
-              {fieldLabel(fact.fieldName)}: {fact.value}
+              {getFieldLabel(fact.fieldName)}: {fact.value}
             </span>
           ))}
         </div>

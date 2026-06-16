@@ -8,6 +8,8 @@ import {
   PageLead,
   WikiTravelerLogo,
   ThemeToggle,
+  LocalePicker,
+  useLocale,
   type ToolbarLink,
 } from "@wikitraveler/ui";
 import { SignOutButton } from "./SignOutButton";
@@ -19,11 +21,14 @@ interface Props {
   maxWidth?: number;
 }
 
-const NAV_LINKS = (activeNav: "map" | "stats"): ToolbarLink[] => [
-  { href: "/", label: "Map", active: activeNav === "map" },
-  { href: "/stats", label: "Stats", active: activeNav === "stats" },
-  { href: "/properties/new", label: "+ Property" },
-];
+function useNavLinks(activeNav: "map" | "stats"): ToolbarLink[] {
+  const { t } = useLocale();
+  return [
+    { href: "/", label: t("ui.navMap"), active: activeNav === "map" },
+    { href: "/stats", label: t("ui.navStats"), active: activeNav === "stats" },
+    { href: "/properties/new", label: t("ui.navNewProperty") },
+  ];
+}
 
 function nodeLinkWrap({
   href,
@@ -56,6 +61,9 @@ export function NodeAppShell({
   children,
   maxWidth,
 }: Props) {
+  const navLinks = useNavLinks(activeNav);
+  const { t } = useLocale();
+
   return (
     <AppShell
       maxWidth={maxWidth}
@@ -63,10 +71,11 @@ export function NodeAppShell({
         <AppToolbar
           title={<WikiTravelerLogo product="node" size={32} />}
           titleHref="/"
-          links={NAV_LINKS(activeNav)}
+          links={navLinks}
           linkWrap={nodeLinkWrap}
           end={
             <>
+              <LocalePicker compact />
               <ThemeToggle compact variant="toolbar" />
               <SignOutButton />
             </>
@@ -86,7 +95,7 @@ export function NodeAppShell({
         }}
       >
         <Link href="/accessibility" style={{ color: "var(--wt-primary)", textDecoration: "none" }}>
-          Accessibility statement
+          {t("ui.navAccessibilityStatement")}
         </Link>
       </footer>
     </AppShell>

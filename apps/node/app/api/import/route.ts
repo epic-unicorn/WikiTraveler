@@ -145,10 +145,11 @@ export async function POST(req: NextRequest) {
 
     await prisma.accessibilityFact.upsert({
       where: {
-        propertyId_fieldName_sourceNodeId: {
+        propertyId_fieldName_sourceNodeId_scopeKey: {
           propertyId: localPropertyId,
           fieldName: f.fieldName,
           sourceNodeId: f.sourceNodeId,
+          scopeKey: (f as { scopeKey?: string }).scopeKey ?? "property",
         },
       },
       update: { value: f.value, tier: f.tier as Tier, timestamp: new Date(f.timestamp) },

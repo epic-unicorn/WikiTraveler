@@ -31,6 +31,19 @@ enum SourceType {
   AUDITOR
 }
 
+enum FieldScope {
+  PROPERTY
+  ROOM
+}
+
+enum ValueType {
+  BOOLEAN
+  NUMBER
+  TEXT
+  TIME
+  ENUM
+}
+
 // ---------------------------------------------------------------------------
 // Travel property (keyed by Wikidata Q-identifier)
 // ---------------------------------------------------------------------------
@@ -59,6 +72,7 @@ model AccessibilityFact {
   propertyId    String
   property      Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   fieldName     String
+  scopeKey      String     @default("property")
   value         String
   tier          Tier       @default(OFFICIAL)
   sourceType    SourceType @default(AUDITOR)
@@ -67,9 +81,28 @@ model AccessibilityFact {
   signatureHash String?
   timestamp     DateTime   @default(now())
 
-  @@unique([propertyId, fieldName, sourceNodeId])
+  @@unique([propertyId, fieldName, sourceNodeId, scopeKey])
   @@index([propertyId])
   @@index([tier])
+  @@index([scopeKey])
+}
+
+// ---------------------------------------------------------------------------
+// Field registry — global standard fields + node-specific custom fields
+// ---------------------------------------------------------------------------
+model FieldDefinition {
+  id           String     @id @default(cuid())
+  fieldName    String     @unique
+  scope        FieldScope @default(PROPERTY)
+  valueType    ValueType  @default(BOOLEAN)
+  enumValues   String[]   @default([])
+  labels       Json
+  unit         String?
+  nodeId       String?
+  searchFilter Boolean    @default(false)
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 // ---------------------------------------------------------------------------
@@ -80,13 +113,32 @@ model AuditSubmission {
   propertyId   String
   property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   auditorToken String?
-  // JSON array of { fieldName, value } objects
+  locale       String?
+  // JSON array of { fieldName, value, scopeKey? } objects
   facts        Json
-  // JSON array of base64-encoded images (MVP: stored in DB)
+  // Legacy JSON array — kept for backward compatibility during migration
   photoUrls    Json     @default("[]")
   createdAt    DateTime @default(now())
 
+  photos AuditPhoto[]
+
   @@index([propertyId])
+}
+
+model AuditPhoto {
+  id           String          @id @default(cuid())
+  submissionId String
+  submission   AuditSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  url          String
+  caption      String?
+  fieldName    String?
+  scopeKey     String?
+  width        Int?
+  height       Int?
+  sortOrder    Int             @default(0)
+  capturedAt   DateTime        @default(now())
+
+  @@index([submissionId])
 }
 
 // ---------------------------------------------------------------------------

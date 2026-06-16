@@ -1,17 +1,10 @@
-export const FIELD_LABELS: Record<string, string> = {
-  door_width_cm: "Door width (cm)",
-  ramp_present: "Ramp present",
-  elevator_present: "Elevator",
-  elevator_floor_count: "Elevator floors",
-  quiet_hours_start: "Quiet hours start",
-  quiet_hours_end: "Quiet hours end",
-  accessible_bathroom: "Accessible bathroom",
-  hearing_loop: "Hearing loop",
-  braille_signage: "Braille signage",
-  step_free_entrance: "Step-free entrance",
-  parking_accessible: "Accessible parking",
-  notes: "Notes",
-};
+import { getFieldLabel, getTierLabel, t } from "@wikitraveler/i18n";
+
+export { getFieldLabel, getTierLabel };
+
+/** @deprecated Use getFieldLabel */
+export const formatFieldLabel = (fieldName: string, locale = "en") =>
+  getFieldLabel(fieldName, locale);
 
 export const TIER_LABELS: Record<string, string> = {
   CONFIRMED: "Confirmed",
@@ -27,8 +20,22 @@ export interface AiMeta {
   evidence?: string;
 }
 
-export function formatFieldLabel(fieldName: string): string {
-  return FIELD_LABELS[fieldName] ?? fieldName.replace(/_/g, " ");
+export function formatFactValue(fieldName: string, value: string, locale = "en"): string {
+  if (fieldName === "notes" || fieldName === "accessible_room_description" || fieldName === "service_animal_policy") {
+    return value;
+  }
+  if (value === "yes") return t("ui.yes", locale);
+  if (value === "no") return t("ui.no", locale);
+  return value;
+}
+
+export interface ExistingFact {
+  fieldName: string;
+  scopeKey?: string;
+  value: string;
+  tier: string;
+  sourceType?: string;
+  signatureHash?: string | null;
 }
 
 export function parseAiMeta(signatureHash?: string | null): AiMeta | null {
@@ -42,11 +49,15 @@ export function parseAiMeta(signatureHash?: string | null): AiMeta | null {
   }
 }
 
-export function resolveFactDisplay(fact: {
-  value: string;
-  tier: string;
-  signatureHash?: string | null;
-}) {
+export function resolveFactDisplay(
+  fact: {
+    fieldName?: string;
+    value: string;
+    tier: string;
+    signatureHash?: string | null;
+  },
+  locale = "en"
+) {
   const meta = fact.tier === "AI_GUESS" ? parseAiMeta(fact.signatureHash) : null;
   const rawValue = String(fact.value ?? "").trim();
   const confidence =
@@ -64,8 +75,12 @@ export function resolveFactDisplay(fact: {
     fact.tier === "AI_GUESS" &&
     CONFIDENCE_ONLY.has(rawValue.toLowerCase())
   ) {
-    displayValue = "Estimate unavailable";
+    displayValue = t("ui.estimateUnavailable", locale);
+  } else if (fact.fieldName) {
+    displayValue = formatFactValue(fact.fieldName, rawValue, locale);
   }
 
-  return { displayValue, confidence, evidence, rawValue };
+  const label = fact.fieldName ? getFieldLabel(fact.fieldName, locale) : "";
+
+  return { label, displayValue, confidence, evidence, rawValue };
 }

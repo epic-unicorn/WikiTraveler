@@ -1,6 +1,7 @@
 // options.js
 
 const input = document.getElementById("nodeUrl");
+const localeSelect = document.getElementById("locale");
 const status = document.getElementById("status");
 const loginFields = document.getElementById("login-fields");
 const loggedInBox = document.getElementById("logged-in-box");
@@ -10,6 +11,7 @@ const logoutBtn = document.getElementById("logout");
 const saveBtn = document.getElementById("save");
 const nodeStatusEl = document.getElementById("node-status");
 
+let currentLocale = "en";
 let healthCheckTimer = null;
 let healthCheckSeq = 0;
 
@@ -28,22 +30,22 @@ function clearStatusSoon(delay = 2500) {
 
 function validateNodeUrl(url) {
   if (!url) {
-    setStatus("Node URL cannot be empty.", "#dc2626");
+    setStatus(wtT("ui.lensUrlEmpty", currentLocale), "#dc2626");
     return false;
   }
   try {
     new URL(url);
     return true;
   } catch {
-    setStatus("Invalid node URL — must start with http:// or https://", "#dc2626");
+    setStatus(wtT("ui.lensUrlInvalid", currentLocale), "#dc2626");
     return false;
   }
 }
 
 async function refreshNodeStatus(url = getNodeUrl()) {
   const seq = ++healthCheckSeq;
-  setNodeStatusChecking(nodeStatusEl);
-  const result = await checkNodeHealth(url);
+  setNodeStatusChecking(nodeStatusEl, currentLocale);
+  const result = await checkNodeHealth(url, currentLocale);
   if (seq !== healthCheckSeq) return result;
   applyNodeStatusEl(nodeStatusEl, result);
   return result;
@@ -66,10 +68,46 @@ function renderAuthState(username) {
   }
 }
 
-chrome.storage.sync.get({ nodeUrl: "http://localhost:3000", wtUsername: "" }, (items) => {
-  input.value = items.nodeUrl;
-  renderAuthState(items.wtUsername);
-  refreshNodeStatus(items.nodeUrl);
+function applyOptionsStaticLabels(locale) {
+  document.documentElement.lang = locale;
+  document.querySelector(".header-sub").textContent = wtT("ui.tabSettings", locale);
+  document.querySelector(".subtitle").textContent = wtT("ui.lensSettingsSubtitle", locale);
+  document.querySelectorAll(".section-label")[0].textContent = wtT("ui.settingsNodeConnection", locale);
+  document.querySelector("label[for='nodeUrl']").textContent = wtT("ui.settingsHomeNodeUrl", locale);
+  document.querySelector(".hint").textContent = wtT("ui.lensNodeUrlHint", locale);
+  document.querySelectorAll(".section-label")[1].textContent = wtT("ui.settingsLanguage", locale);
+  document.querySelector("label[for='locale']").textContent = wtT("ui.language", locale);
+  document.querySelectorAll(".section-label")[2].textContent = wtT("ui.settingsAccount", locale);
+  document.querySelector("#logged-in-box .hint").textContent = wtT("ui.lensTokenSyncHint", locale);
+  document.querySelector("label[for='username']").textContent = wtT("ui.username", locale);
+  document.querySelector("label[for='password']").textContent = wtT("ui.password", locale);
+  saveBtn.textContent = wtT("ui.lensSaveUrl", locale);
+  loginBtn.textContent = wtT("ui.signIn", locale);
+  registerBtn.textContent = wtT("ui.authCreateAccount", locale);
+  logoutBtn.textContent = wtT("ui.signOut", locale);
+}
+
+async function bootstrap() {
+  currentLocale = await wtGetLocale();
+  wtApplyLocaleSelect(localeSelect, currentLocale);
+  applyOptionsStaticLabels(currentLocale);
+
+  const localeKey = WtI18n.LOCALE_STORAGE_KEY;
+  chrome.storage.sync.get(
+    { nodeUrl: "http://localhost:3000", wtUsername: "", [localeKey]: WtI18n.DEFAULT_LOCALE },
+    (items) => {
+      input.value = items.nodeUrl;
+      renderAuthState(items.wtUsername);
+      refreshNodeStatus(items.nodeUrl);
+    }
+  );
+}
+
+localeSelect.addEventListener("change", async () => {
+  currentLocale = localeSelect.value;
+  await wtSetLocale(currentLocale);
+  applyOptionsStaticLabels(currentLocale);
+  await refreshNodeStatus();
 });
 
 saveBtn.addEventListener("click", async () => {
@@ -82,9 +120,9 @@ saveBtn.addEventListener("click", async () => {
   chrome.storage.sync.set({ nodeUrl: url }, async () => {
     const result = await refreshNodeStatus(url);
     if (result.state === "online") {
-      setStatus("✅ Node URL saved and reachable.", "#059669");
+      setStatus(wtT("ui.lensUrlSavedOk", currentLocale), "#059669");
     } else {
-      setStatus("✅ Node URL saved — but the node is not reachable right now.", "#854d0e");
+      setStatus(wtT("ui.lensUrlSavedOffline", currentLocale), "#854d0e");
     }
     clearStatusSoon(3500);
   });
@@ -99,14 +137,14 @@ async function doAuth(mode) {
 
   const health = await refreshNodeStatus(nodeUrl);
   if (health.state !== "online") {
-    setStatus("Cannot sign in — node is not reachable.", "#dc2626");
+    setStatus(wtT("ui.lensCannotSignInOffline", currentLocale), "#dc2626");
     return;
   }
 
   const username = document.getElementById("username").value.trim().toLowerCase();
   const password = document.getElementById("password").value;
   if (!username || !password) {
-    setStatus("Enter username and password.", "#dc2626");
+    setStatus(wtT("ui.lensEnterCredentials", currentLocale), "#dc2626");
     return;
   }
 
@@ -122,7 +160,7 @@ async function doAuth(mode) {
       });
       const regData = await regRes.json();
       if (!regRes.ok) {
-        setStatus(regData.message ?? "Registration failed.", "#dc2626");
+        setStatus(regData.message ?? wtT("ui.authLoginFailed", currentLocale), "#dc2626");
         return;
       }
     }
@@ -134,7 +172,7 @@ async function doAuth(mode) {
     });
     const data = await res.json();
     if (!res.ok) {
-      setStatus(data.message ?? "Login failed.", "#dc2626");
+      setStatus(data.message ?? wtT("ui.authLoginFailed", currentLocale), "#dc2626");
       return;
     }
 
@@ -144,13 +182,15 @@ async function doAuth(mode) {
         renderAuthState(data.username ?? username);
         document.getElementById("password").value = "";
         setStatus(
-          mode === "register" ? "✅ Account created and signed in." : "✅ Signed in.",
+          mode === "register"
+            ? wtT("ui.lensAccountCreatedSignedIn", currentLocale)
+            : wtT("ui.lensSignedInOk", currentLocale),
           "#059669"
         );
       }
     );
   } catch {
-    setStatus("Could not reach the node. Check the URL and try again.", "#dc2626");
+    setStatus(wtT("ui.lensReachNodeFailed", currentLocale), "#dc2626");
   } finally {
     loginBtn.disabled = false;
     registerBtn.disabled = false;
@@ -163,7 +203,7 @@ registerBtn.addEventListener("click", () => doAuth("register"));
 logoutBtn.addEventListener("click", () => {
   chrome.storage.sync.remove(["wtToken", "wtUsername"], () => {
     renderAuthState("");
-    setStatus("Signed out.", "#059669");
+    setStatus(wtT("ui.signOut", currentLocale), "#059669");
     clearStatusSoon(2000);
   });
 });
@@ -176,3 +216,5 @@ input.addEventListener("input", scheduleNodeStatusCheck);
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") saveBtn.click();
 });
+
+bootstrap();

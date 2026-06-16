@@ -1,18 +1,26 @@
 "use client";
 
 import { SEARCH_FEATURES } from "./constants";
+import { useLocale } from "./LocaleProvider";
 
 export interface SearchFilters {
   features: string[];
   audited: boolean | null;
   location: string;
+  hasAccessibleRoom?: boolean | null;
 }
 
 export const EMPTY_FILTERS: SearchFilters = {
   features: [],
   audited: null,
   location: "",
+  hasAccessibleRoom: null,
 };
+
+export interface SearchFeature {
+  key: string;
+  label: string;
+}
 
 interface Props {
   query: string;
@@ -21,6 +29,13 @@ interface Props {
   onFiltersChange: (f: SearchFilters) => void;
   placeholder?: string;
   showFilters?: boolean;
+  searchFeatures?: SearchFeature[];
+  labels?: {
+    audited?: string;
+    notAudited?: string;
+    locationPlaceholder?: string;
+    hasAccessibleRoom?: string;
+  };
 }
 
 export function PropertySearchBar({
@@ -28,9 +43,22 @@ export function PropertySearchBar({
   onQueryChange,
   filters,
   onFiltersChange,
-  placeholder = "Search by name, city, ID…",
+  placeholder,
   showFilters = true,
+  searchFeatures,
+  labels = {},
 }: Props) {
+  const { t } = useLocale();
+
+  const resolvedPlaceholder = placeholder ?? t("ui.searchPlaceholder");
+  const features = searchFeatures ?? (SEARCH_FEATURES as unknown as SearchFeature[]);
+  const resolvedLabels = {
+    audited: labels.audited ?? t("ui.filterAudited"),
+    notAudited: labels.notAudited ?? t("ui.filterNotAudited"),
+    locationPlaceholder: labels.locationPlaceholder ?? t("ui.filterLocation"),
+    hasAccessibleRoom: labels.hasAccessibleRoom ?? t("ui.filterHasAccessibleRoom"),
+  };
+
   function toggleFeature(key: string) {
     const next = filters.features.includes(key)
       ? filters.features.filter((f) => f !== key)
@@ -42,6 +70,13 @@ export function PropertySearchBar({
     onFiltersChange({
       ...filters,
       audited: filters.audited === value ? null : value,
+    });
+  }
+
+  function toggleAccessibleRoom() {
+    onFiltersChange({
+      ...filters,
+      hasAccessibleRoom: filters.hasAccessibleRoom ? null : true,
     });
   }
 
@@ -79,27 +114,27 @@ export function PropertySearchBar({
   return (
     <div style={{ marginBottom: 16 }}>
       <label htmlFor="wt-property-search" className="wt-sr-only">
-        Search properties
+        {resolvedPlaceholder}
       </label>
       <input
         id="wt-property-search"
         type="search"
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         style={inputStyle}
       />
 
       {showFilters && (
         <>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }} role="group" aria-label="Audit status filter">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }} role="group" aria-label={resolvedLabels.audited}>
             <button
               type="button"
               style={filters.audited === true ? chipActive : chipBase}
               aria-pressed={filters.audited === true}
               onClick={() => toggleAudited(true)}
             >
-              Audited
+              {resolvedLabels.audited}
             </button>
             <button
               type="button"
@@ -107,12 +142,22 @@ export function PropertySearchBar({
               aria-pressed={filters.audited === false}
               onClick={() => toggleAudited(false)}
             >
-              Not audited
+              {resolvedLabels.notAudited}
             </button>
+            {resolvedLabels.hasAccessibleRoom && (
+              <button
+                type="button"
+                style={filters.hasAccessibleRoom ? chipActive : chipBase}
+                aria-pressed={!!filters.hasAccessibleRoom}
+                onClick={toggleAccessibleRoom}
+              >
+                {resolvedLabels.hasAccessibleRoom}
+              </button>
+            )}
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }} role="group" aria-label="Feature filter">
-            {SEARCH_FEATURES.map((f) => (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }} role="group" aria-label={resolvedPlaceholder}>
+            {features.map((f) => (
               <button
                 key={f.key}
                 type="button"
@@ -126,14 +171,14 @@ export function PropertySearchBar({
           </div>
 
           <label htmlFor="wt-location-filter" className="wt-sr-only">
-            Filter by location
+            {resolvedLabels.locationPlaceholder}
           </label>
           <input
             id="wt-location-filter"
             type="text"
             value={filters.location}
             onChange={(e) => onFiltersChange({ ...filters, location: e.target.value })}
-            placeholder="Filter by location (city, region…)"
+            placeholder={resolvedLabels.locationPlaceholder}
             style={{
               width: "100%",
               padding: "8px 12px",

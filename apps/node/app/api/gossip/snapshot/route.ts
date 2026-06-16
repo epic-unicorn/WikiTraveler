@@ -35,6 +35,35 @@ export async function GET(req: NextRequest) {
   });
   const peers = peerRows.map((p) => ({ nodeId: p.nodeId ?? NODE_ID, url: p.url, region: p.region ?? NODE_REGION ?? null, bbox: p.bbox ?? NODE_BBOX ?? null }));
 
+  // Photo URL references for federated display (v2 gossip — no binary sync)
+  const latestAudits = propertyIds.length > 0
+    ? await prisma.auditSubmission.findMany({
+        where: {
+          propertyId: { in: propertyIds },
+          OR: [
+            { NOT: { photoUrls: { equals: [] } } },
+            { photos: { some: {} } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        distinct: ["propertyId"],
+        select: {
+          propertyId: true,
+          photoUrls: true,
+          photos: { select: { url: true }, orderBy: { sortOrder: "asc" }, take: 3 },
+        },
+      })
+    : [];
+
+  const photoRefs = Object.fromEntries(
+    latestAudits.map((a) => {
+      const urls = a.photos.length > 0
+        ? a.photos.map((p) => p.url)
+        : (a.photoUrls as string[]);
+      return [a.propertyId, { originNode: NODE_ID, urls: urls.slice(0, 3) }];
+    })
+  );
+
   return NextResponse.json({
     fromNodeId: NODE_ID,
     since: sinceDate.toISOString(),
@@ -44,6 +73,7 @@ export async function GET(req: NextRequest) {
       id: f.id,
       propertyId: f.propertyId,
       fieldName: f.fieldName,
+      scopeKey: f.scopeKey,
       value: f.value,
       tier: f.tier,
       sourceType: f.sourceType,
@@ -53,5 +83,6 @@ export async function GET(req: NextRequest) {
       signatureHash: f.signatureHash,
     })),
     peers,
+    photoRefs,
   });
 }

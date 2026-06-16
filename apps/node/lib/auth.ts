@@ -110,6 +110,36 @@ export async function requireAuth(req: NextRequest): Promise<NextResponse | null
   return requireRole(req, "USER");
 }
 
+export interface AuthUser {
+  username: string;
+  role: Role;
+  homeNodeUrl?: string;
+}
+
+/** Extract verified user from Bearer token, or null if missing/invalid. */
+export async function getAuthUser(req: NextRequest): Promise<AuthUser | null> {
+  try {
+    const auth = req.headers.get("authorization") ?? "";
+    if (!auth.startsWith("Bearer ")) return null;
+    const payload = await verifyToken(auth.slice(7));
+    const username = (payload.sub as string | undefined)?.trim().toLowerCase();
+    if (!username) return null;
+    return {
+      username,
+      role: ((payload.role as string | undefined)?.toUpperCase() ?? "USER") as Role,
+      homeNodeUrl: payload.homeNodeUrl as string | undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Stable auditor identifier for CONFIRMED tier counting. */
+export function auditorId(user: AuthUser): string {
+  if (user.homeNodeUrl) return `${user.username}@${user.homeNodeUrl}`;
+  return user.username;
+}
+
 // ---------------------------------------------------------------------------
 // Node-to-node auth — for gossip and /api/nodes routes
 // Uses X-Node-Signature: base64url(RSA-SHA256("<nodeId>.<timestampMs>"))

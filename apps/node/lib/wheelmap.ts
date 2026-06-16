@@ -149,10 +149,11 @@ export async function syncPropertyFromWheeelmap(
 
     await prisma.accessibilityFact.upsert({
       where: {
-        propertyId_fieldName_sourceNodeId: {
+        propertyId_fieldName_sourceNodeId_scopeKey: {
           propertyId,
           fieldName,
           sourceNodeId: SOURCE_NODE,
+          scopeKey: "property",
         },
       },
       update: {

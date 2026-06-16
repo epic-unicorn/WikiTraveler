@@ -1,7 +1,11 @@
 "use client";
 
-import { ThemeProvider } from "@wikitraveler/ui";
+import { ThemeProvider, LocaleProvider } from "@wikitraveler/ui";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <ThemeProvider>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider>
+      <LocaleProvider>{children}</LocaleProvider>
+    </ThemeProvider>
+  );
 }

@@ -1,0 +1,24 @@
+{
+  "name": "@wikitraveler/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build:browser": "tsup src/browser.ts --format iife --global-name WtI18n --out-dir ../../apps/lens --no-dts --platform browser && node -e \"const fs=require('fs');const src='../../apps/lens/browser.global.js';const dest='../../apps/lens/i18n.js';fs.writeFileSync(dest,fs.readFileSync(src));fs.unlinkSync(src);\"",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}

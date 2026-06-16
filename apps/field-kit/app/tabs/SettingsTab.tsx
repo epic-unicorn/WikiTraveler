@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ThemeToggle } from "@wikitraveler/ui";
+import { ThemeToggle, LocalePicker, useLocale } from "@wikitraveler/ui";
 import { ENV_NODE_URL } from "../lib/fieldKitApi";
 import { clearAuth } from "../lib/authStorage";
 
@@ -36,6 +36,7 @@ export function SettingsTab({
   onSaveNodeUrl,
   onResetNodeUrl,
 }: Props) {
+  const { t } = useLocale();
   const [settingsUrl, setSettingsUrl] = useState(nodeUrl);
   const [settingsError, setSettingsError] = useState("");
 
@@ -48,7 +49,7 @@ export function SettingsTab({
     try {
       new URL(trimmed);
     } catch {
-      setSettingsError("Invalid URL.");
+      setSettingsError(t("ui.settingsInvalidUrl"));
       return;
     }
     onSaveNodeUrl(trimmed);
@@ -63,26 +64,24 @@ export function SettingsTab({
 
   return (
     <div className="tab-content" style={{ paddingTop: 4 }}>
-
-      {/* ——— Node connection ——— */}
-      <p className="fk-section-header">Node connection</p>
+      <p className="fk-section-header">{t("ui.settingsNodeConnection")}</p>
       <div className="card" style={{ marginTop: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           {nodeInfo && nodeReachable ? (
             <>
-              <span className="fk-chip fk-chip--ok"><CheckIcon /> Connected</span>
+              <span className="fk-chip fk-chip--ok"><CheckIcon /> {t("ui.connected")}</span>
               <span style={{ fontSize: 12, color: "var(--wt-text-muted)" }}>
                 {nodeInfo.region ?? "Global"} · v{nodeInfo.version}
               </span>
             </>
           ) : nodeReachable === false ? (
-            <span className="fk-chip fk-chip--err"><XIcon /> Unreachable</span>
+            <span className="fk-chip fk-chip--err"><XIcon /> {t("ui.unreachable")}</span>
           ) : (
-            <span className="fk-chip fk-chip--neutral">Checking…</span>
+            <span className="fk-chip fk-chip--neutral">{t("ui.checking")}</span>
           )}
         </div>
 
-        <label htmlFor="node-url" style={{ marginTop: 0 }}>Home node URL</label>
+        <label htmlFor="node-url" style={{ marginTop: 0 }}>{t("ui.settingsHomeNodeUrl")}</label>
         <input
           id="node-url"
           type="url"
@@ -95,39 +94,32 @@ export function SettingsTab({
         {settingsError && <p className="status-err">{settingsError}</p>}
 
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <button
-            type="button"
-            className="btn-primary"
-            style={{ flex: 2, minHeight: 46, marginTop: 0, fontSize: 15 }}
-            onClick={save}
-          >
-            Save
+          <button type="button" className="btn-primary" style={{ flex: 2, minHeight: 46, marginTop: 0, fontSize: 15 }} onClick={save}>
+            {t("ui.save")}
           </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            style={{ flex: 1, minHeight: 46, marginTop: 0, fontSize: 14 }}
-            onClick={reset}
-          >
-            Reset
+          <button type="button" className="btn-secondary" style={{ flex: 1, minHeight: 46, marginTop: 0, fontSize: 14 }} onClick={reset}>
+            {t("ui.reset")}
           </button>
         </div>
       </div>
 
-      {/* ——— Appearance ——— */}
-      <p className="fk-section-header">Appearance</p>
+      <p className="fk-section-header">{t("ui.settingsLanguage")}</p>
+      <div className="card" style={{ marginTop: 0 }}>
+        <LocalePicker />
+      </div>
+
+      <p className="fk-section-header">{t("ui.settingsAppearance")}</p>
       <div className="card" style={{ marginTop: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>Theme</p>
-            <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>Light, dark, or system default</p>
+            <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{t("ui.theme")}</p>
+            <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>{t("ui.settingsThemeHint")}</p>
           </div>
           <ThemeToggle compact variant="page" />
         </div>
       </div>
 
-      {/* ——— Account ——— */}
-      <p className="fk-section-header">Account</p>
+      <p className="fk-section-header">{t("ui.settingsAccount")}</p>
       <div className="card" style={{ marginTop: 0 }}>
         <button
           type="button"
@@ -142,7 +134,7 @@ export function SettingsTab({
             window.location.href = "/login";
           }}
         >
-          Sign out
+          {t("ui.signOut")}
         </button>
       </div>
 
