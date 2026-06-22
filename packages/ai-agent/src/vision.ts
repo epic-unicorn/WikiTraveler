@@ -1,5 +1,6 @@
 import { VISION_SYSTEM_PROMPT } from "./prompts";
 import { createAiClient, extractJson } from "./client";
+import { filterVisionFacts } from "./filterFacts";
 import type { AiConfig } from "./client";
 import type { AgentFact } from "./types";
 
@@ -69,8 +70,7 @@ export async function analyzePhotos(
 
   if (!Array.isArray(parsed.facts)) return [];
 
-  // Validate & coerce each returned item so callers get a clean array.
-  return parsed.facts.flatMap((item: unknown): AgentFact[] => {
+  const rawFacts = parsed.facts.flatMap((item: unknown): AgentFact[] => {
     if (
       typeof item !== "object" ||
       item === null ||
@@ -89,4 +89,6 @@ export async function analyzePhotos(
       },
     ];
   });
+
+  return filterVisionFacts(rawFacts);
 }

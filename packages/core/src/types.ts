@@ -166,3 +166,11 @@ export const ACCESSIBILITY_FIELDS = [
 ] as const;
 
 export type AccessibilityFieldName = (typeof ACCESSIBILITY_FIELDS)[number];
+
+/**
+ * Fields the text-only gap-filler may populate (no photos).
+ * Specific attributes (booleans, numbers, times) require photo evidence or a human audit.
+ */
+export const AI_GAP_FILL_FIELDS = ["notes"] as const;
+
+export type AiGapFillFieldName = (typeof AI_GAP_FILL_FIELDS)[number];

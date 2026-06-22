@@ -21,7 +21,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed.ts && tsx scripts/seed-fields.ts",
-    "db:setup": "prisma migrate reset --force && tsx scripts/seed.ts",
+    "db:setup": "prisma migrate reset --force && tsx scripts/seed.ts && tsx scripts/seed-fields.ts",
     "db:migrate-photos": "pnpm --filter @wikitraveler/node db:migrate-photos",
     "osm:ingest": "tsx scripts/osm-ingest.ts",
     "postinstall": "prisma generate"

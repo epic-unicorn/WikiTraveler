@@ -1,5 +1,6 @@
 import { GAPFILL_SYSTEM_PROMPT } from "./prompts";
 import { createAiClient, extractJson } from "./client";
+import { filterGapFillFacts } from "./filterFacts";
 import type { AiConfig } from "./client";
 import type { AgentFact } from "./types";
 
@@ -53,7 +54,7 @@ export async function gapFill(
 
   if (!Array.isArray(parsed.facts)) return [];
 
-  return parsed.facts.flatMap((item: unknown): AgentFact[] => {
+  const rawFacts = parsed.facts.flatMap((item: unknown): AgentFact[] => {
     if (
       typeof item !== "object" ||
       item === null ||
@@ -73,4 +74,6 @@ export async function gapFill(
       },
     ];
   });
+
+  return filterGapFillFacts(rawFacts);
 }

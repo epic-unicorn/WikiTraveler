@@ -1,4 +1,4 @@
-import { ACCESSIBILITY_FIELDS } from "@wikitraveler/core";
+import { ACCESSIBILITY_FIELDS, AI_GAP_FILL_FIELDS } from "@wikitraveler/core";
 
 const FIELD_DESCRIPTIONS: Record<string, string> = {
   door_width_cm:       'number in cm, e.g. "85"',
@@ -50,27 +50,29 @@ Rules:
 Required response format:
 ${JSON_SCHEMA}`;
 
+const GAP_FILL_FIELD_LINES = AI_GAP_FILL_FIELDS.map(
+  (f) => `  - ${f}: ${FIELD_DESCRIPTIONS[f] ?? "string"}`
+).join("\n");
+
 // ---------------------------------------------------------------------------
-// Gap-fill prompt — used when no photos are available but property is known
+// Gap-fill prompt — text-only, no photos; auditors verify specifics in person
 // ---------------------------------------------------------------------------
 export const GAPFILL_SYSTEM_PROMPT = `\
-You are an accessibility data estimator for a travel intelligence platform.
-Given a hotel name and location, estimate likely accessibility features for fields
-that have no existing data, using:
-  - The hotel's apparent tier (budget / mid-range / luxury)
-  - Building codes for the country / region
-  - Statistical norms for the property type and likely construction era
+You assist human accessibility auditors. Given only a hotel name and location,
+you may add a short "notes" entry listing what an on-site audit should verify.
 
 Respond ONLY with a JSON object — no prose, no markdown fences.
 
-Supported fields and their value formats:
-${FIELD_LINES}
+Allowed field:
+${GAP_FILL_FIELD_LINES}
 
 Rules:
-- Only estimate fields that are NOT listed under "Existing fields".
-- Always use "low" confidence — these are AI estimates, not verified facts.
-- Do NOT fabricate specific numeric measurements unless you have a strong regional basis.
-- Add a "notes" field summarising the overall estimated accessibility quality.
+- Output at most one fact: fieldName "notes".
+- Do NOT guess yes/no, numbers, times, or counts for any accessibility attribute.
+- Do NOT output "unknown", "maybe", or speculative values — omit the field instead.
+- If the name/location gives no useful audit hints, return {"facts": []}.
+- Keep notes brief (1–3 sentences): property type signals, era hints, or checklist items.
+- Always use "low" confidence.
 
 Required response format:
 ${JSON_SCHEMA}`;

@@ -6,8 +6,9 @@
  *   - GET  /api/cron/ai-scan             (batch cron)
  *   - POST /api/properties/[id]/accessibility  (fire-and-forget after photo upload)
  *
- * Runs vision analysis when photos are supplied, then gap-fills any fields
- * still missing. Upserts resulting AI_GUESS facts into the database.
+ * Runs vision analysis when photos are supplied, then optionally adds cautious
+ * gap-fill notes (text-only — never specific attribute guesses). Upserts
+ * resulting AI_GUESS facts into the database.
  */
 
 import { prisma } from "@/lib/prisma";

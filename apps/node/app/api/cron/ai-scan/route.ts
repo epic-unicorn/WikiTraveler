@@ -7,8 +7,9 @@ import type { NextRequest } from "next/server";
 /**
  * GET /api/cron/ai-scan
  *
- * Batch job that finds all properties with zero AI_GUESS facts and runs
- * gap-fill analysis on each. Does NOT run vision (no photos needed).
+ * Batch job that finds all properties with zero AI_GUESS facts and adds
+ * cautious audit notes (text-only gap-fill). Does NOT run vision or guess
+ * specific accessibility attributes without photos.
  *
  * Protected by CRON_SECRET. Schedule in vercel.json or run from a cron
  * container alongside the node.
