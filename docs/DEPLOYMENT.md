@@ -114,7 +114,7 @@ Set these in the Vercel project **Settings ? Environment Variables**:
 | `AI_VISION_MODEL` | No | Vision model name |
 | `AI_TEXT_MODEL` | No | Text model name |
 | `WHEELMAP_API_KEY` | No | Wheelmap sync |
-| `DEEPL_API_KEY` | No | Prose fact auto-translation (Option B); see [PROPOSAL-fact-value-i18n.md](./PROPOSAL-fact-value-i18n.md) |
+| `DEEPL_API_KEY` | No | Prose fact auto-translation via DeepL |
 | `DEEPL_API_URL` | No | Default `https://api.deepl.com`; use `https://api-free.deepl.com` for free tier |
 | `TRANSLATION_ENABLED` | No | Default `true` when `DEEPL_API_KEY` is set; set `false` to disable MT |
 

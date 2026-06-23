@@ -107,7 +107,7 @@ pnpm db:setup               # reset DB + migrations + field definitions
 
 This resets the local database and applies migrations. **OSM accommodation data is no longer auto-loaded** — after `pnpm dev`, complete `/setup`, then open **Admin** (`/stats`) → **Region & OSM ingest** to draw or pick a preset and confirm ingest.
 
-On first start the node starts with an **empty map** until a region is configured. Large regions (countries, Benelux) take 1–2 hours to ingest on local dev — see [OSM ingest — pick the right platform](#osm-ingest--pick-the-right-platform) before using Vercel.
+On first start the node starts with an **empty map** until a region is configured. Large regions (countries, Benelux) take 1–2 hours to ingest on local dev — see [OSM ingest — where to run it](#osm-ingest--where-to-run-it) before using Vercel.
 
 On first start the node no longer auto-seeds an admin from `.env`.
 After running migrations and seeding, start the node (`pnpm dev`) and open the dashboard at `http://localhost:3000`.
@@ -154,8 +154,6 @@ See [apps/README.md](apps/README.md) for step-by-step flow walkthroughs.
 
 WikiTraveler targets **WCAG 2.1 Level AA**. The public statement lives at `/accessibility` on each node. Developer checklist: [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md). Formal report: [docs/CONFORMANCE.md](docs/CONFORMANCE.md). Run `pnpm test:a11y` and `pnpm lighthouse:ci` before merging UI changes.
 
-**Product roadmap:** [docs/PROPOSAL-i18n-attributes-photos-rooms.md](docs/PROPOSAL-i18n-attributes-photos-rooms.md) — languages, extended attributes, photo evidence, and room audits.
-
 ---
 
 ## Deployment
@@ -175,25 +173,25 @@ See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full checklist:
 
 Docker self-hosting is also documented there.
 
-### OSM ingest — pick the right platform
+### OSM ingest — where to run it
 
-Region ingest (Admin → **Region & OSM ingest**) downloads accommodation data from OpenStreetMap. **How well it works depends heavily on where the node runs.**
+**Region & OSM ingest** (Admin → `/stats`) downloads accommodation data from OpenStreetMap. Large regions behave very differently on a long-running server vs Vercel.
+
+**Rule of thumb:** do the **first big ingest** (country or Benelux-scale) on **local dev or Docker**, then deploy to Vercel. Weekly refresh cron is fine for maintenance.
 
 | | **Local dev / Docker / VPS** | **Vercel (serverless)** |
 | --- | --- | --- |
-| **Mode** | Continuous — one long-running process | Chunked — **1 tile per serverless invocation** (default) |
-| **128-tile region (e.g. Benelux)** | ~1.5–2 hours if the process stays up | ~1–2 hours **only if Admin (`/stats`) stays open**; **~11 hours** if only the 5‑min cron advances tiles |
-| **Navigate / log out during ingest** | Yes — ingest continues on the server | Yes — cron continues ingest (requires `CRON_SECRET`) |
-| **Stops ingest** | Stop or restart `pnpm dev` / container | Function timeout per tile; no long-lived background worker |
-| **Vercel Hobby (10s timeout)** | — | **Not suitable** for real Overpass tile downloads |
-| **Vercel Pro** | — | Works; each tile needs ~30–60s (configure `maxDuration` up to 300s if needed) |
-| **Geofabrik PBF** (France, Germany, …) | Yes — needs `osmium-tool` (Docker image includes it) | **Blocked** — requires a long-running host |
-| **Tile cap** | 150 tiles max per Overpass job | Same |
-| **Resume after failure** | DB tile status + local file cache | DB tile status only (serverless disk is ephemeral) |
+| **How ingest runs** | One background job processes all tiles | One tile per function call, then the function exits |
+| **Benelux (~128 tiles)** | ~2 hours — keep `pnpm dev` or the container running | ~2 hours with Admin open; ~11 hours on cron alone (1 tile / 5 min) |
+| **Leave Admin / log out** | Ingest continues | Cron continues — set `CRON_SECRET` |
+| **What stops ingest** | Stop or restart dev server / container | Per-tile timeout; no persistent worker |
+| **Vercel Hobby (10s)** | — | Not usable for Overpass tile downloads |
+| **Vercel Pro** | — | Works — allow ~30–60s per tile (`maxDuration` up to 300s) |
+| **Geofabrik PBF** (France, Germany, …) | Yes — `osmium-tool` (included in Docker image) | Not supported — needs a long-running host |
+| **Tile limit** | 150 tiles per job | Same |
+| **Resume after failure** | DB + on-disk tile cache | DB only (serverless disk is ephemeral) |
 
-**Practical recommendation:** run the **first large ingest** (country or multi-country) on **local dev or Docker**, then deploy to Vercel for production. Weekly OSM refresh cron handles small incremental re-ingests fine.
-
-Full detail: **[docs/OSM-INGEST.md](docs/OSM-INGEST.md)** (ingest paths, osmium walkthrough, env vars) and **[docs/DEPLOYMENT.md § Region & OSM ingest](docs/DEPLOYMENT.md#2c-bis-region--osm-ingest-admin)** (Vercel/Docker limits, cron).
+Details: [docs/OSM-INGEST.md](docs/OSM-INGEST.md) (ingest paths, osmium, env vars) · [docs/DEPLOYMENT.md § Region & OSM ingest](docs/DEPLOYMENT.md#2c-bis-region--osm-ingest-admin) (cron, Docker vs Vercel).
 
 ---
 

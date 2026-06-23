@@ -4,7 +4,7 @@ import { getOrTranslateFactText } from "@/lib/translation";
 export interface RawFactForDisplay {
   id: string;
   fieldName: string;
-  scopeKey: string;
+  scopeKey?: string;
   value: string;
   valueLocale?: string | null;
   tier: string;

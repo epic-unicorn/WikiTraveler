@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { advanceActiveIngestJobs } from "@/lib/ingestJob";
 import type { NextRequest } from "next/server";
 
+export { dynamic } from "@/lib/apiRoute";
+
 /**
  * GET /api/cron/osm-ingest-tiles
  *

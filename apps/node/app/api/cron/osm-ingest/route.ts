@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { parseBbox, getMaxTilesPerInvocation } from "@/lib/bbox";
 import { getLastIngestAt, getNodeBbox } from "@/lib/nodeSettings";
+
+export { dynamic } from "@/lib/apiRoute";
 import {
   advanceActiveIngestJobs,
   createIngestJob,

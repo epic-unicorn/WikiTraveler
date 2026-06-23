@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export { dynamic } from "@/lib/apiRoute";
+
 /**
  * GET /api/peers
  *

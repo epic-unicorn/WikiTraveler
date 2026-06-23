@@ -36,6 +36,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function toJobStats(stats: Record<string, unknown>): Prisma.InputJsonValue {
+  return stats as Prisma.InputJsonValue;
+}
+
 async function updateJob(
   id: string,
   data: {
@@ -204,7 +208,7 @@ export async function processIngestJob(
       }
 
       jobStats = await runPurgeIfNeeded(jobId, bbox, changeType, jobStats);
-      await updateJob(jobId, { stats: jobStats });
+      await updateJob(jobId, { stats: toJobStats(jobStats) });
 
       const { elements, stats } = await importGeofabrikRegion({
         geofabrikId,
@@ -229,7 +233,7 @@ export async function processIngestJob(
         phase: "DONE",
         progress: 100,
         message: `Geofabrik import complete (${elements} elements).`,
-        stats: { ...jobStats, ...stats, elements, geofabrikId },
+        stats: toJobStats({ ...jobStats, ...stats, elements, geofabrikId }),
         finishedAt: new Date(),
       });
       return;
@@ -242,7 +246,7 @@ export async function processIngestJob(
       }
 
       jobStats = await runPurgeIfNeeded(jobId, bbox, changeType, jobStats);
-      await updateJob(jobId, { stats: jobStats, phase: "INGESTING", message: "Importing GeoJSON file…", progress: 10 });
+      await updateJob(jobId, { stats: toJobStats(jobStats), phase: "INGESTING", message: "Importing GeoJSON file…", progress: 10 });
 
       const { elements, stats } = await importGeoJsonFile(geojsonPath, bbox, `${NODE_ID}:osm`, prisma);
 
@@ -255,14 +259,14 @@ export async function processIngestJob(
         phase: "DONE",
         progress: 100,
         message: `GeoJSON import complete (${elements} elements).`,
-        stats: { ...jobStats, ...stats, elements, geojsonPath },
+        stats: toJobStats({ ...jobStats, ...stats, elements, geojsonPath }),
         finishedAt: new Date(),
       });
       return;
     }
 
     jobStats = await runPurgeIfNeeded(jobId, bbox, changeType, jobStats);
-    await updateJob(jobId, { stats: jobStats });
+    await updateJob(jobId, { stats: toJobStats(jobStats) });
 
     const pendingTiles = job.tiles.filter((t) => t.status === "PENDING" || t.status === "FAILED");
     const batch =
@@ -322,7 +326,7 @@ export async function processIngestJob(
         await updateJob(jobId, {
           tilesDone,
           progress: Math.round((tilesDone / tileTotal) * 90),
-          stats: { ...jobStats, ...aggStats, elements: totalElements, purged: true },
+          stats: toJobStats({ ...jobStats, ...aggStats, elements: totalElements, purged: true }),
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -349,7 +353,7 @@ export async function processIngestJob(
       phase: "DONE",
       progress: 100,
       message: `Ingest complete (${tilesDone} tiles, ${totalElements} elements).`,
-      stats: { ...jobStats, ...aggStats, elements: totalElements, purged: true },
+      stats: toJobStats({ ...jobStats, ...aggStats, elements: totalElements, purged: true }),
       finishedAt: new Date(),
     });
     clearJobTileCache(jobId);

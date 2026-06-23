@@ -115,8 +115,8 @@ export function RegionMapEditor({ bbox, onChange, presetBbox }: Props) {
         if (e.originalEvent.button !== 0) return;
         if (!e.originalEvent.shiftKey) return;
 
-        L.DomEvent.stopPropagation(e);
-        L.DomEvent.preventDefault(e);
+        L.DomEvent.stopPropagation(e.originalEvent);
+        L.DomEvent.preventDefault(e.originalEvent);
 
         drawingRef.current = true;
         corner1Ref.current = { lat: e.latlng.lat, lon: e.latlng.lng };
@@ -148,7 +148,7 @@ export function RegionMapEditor({ bbox, onChange, presetBbox }: Props) {
 
       map.on("mouseup", (e: import("leaflet").LeafletMouseEvent) => {
         if (!drawingRef.current) return;
-        L.DomEvent.stopPropagation(e);
+        L.DomEvent.stopPropagation(e.originalEvent);
         finishDraw(e.latlng.lat, e.latlng.lng);
       });
 

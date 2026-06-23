@@ -42,6 +42,7 @@ interface Preview {
     isEstimate: boolean;
     isGeofabrik?: boolean;
     sampledTiles?: number;
+    error?: string;
   } | null;
 }
 

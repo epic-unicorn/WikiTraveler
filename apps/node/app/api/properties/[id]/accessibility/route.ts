@@ -251,7 +251,7 @@ export async function POST(
   }));
 
   const evaluated = evaluateMeshTruth(allFacts);
-  const meshByKey = new Map<string, (typeof allFacts)[0]>();
+  const meshByKey = new Map<string, (typeof evaluated)[0]>();
   for (const fact of evaluated) {
     const key = factKey(fact);
     const existing = meshByKey.get(key);
@@ -376,7 +376,9 @@ export async function POST(
       }
 
       const valueLocale = fact.confirm
-        ? (localExisting?.valueLocale ?? meshFact?.valueLocale ?? undefined)
+        ? (localExisting?.valueLocale ??
+          allFactsRaw.find((f) => f.id === meshFact?.id)?.valueLocale ??
+          undefined)
         : isText && submissionLocale
           ? submissionLocale
           : undefined;

@@ -2,7 +2,7 @@
 
 How WikiTraveler loads accommodation data from OpenStreetMap into the node database. Configure the region in **Admin** (`/stats`) → **Region & OSM ingest**.
 
-For platform limits (Vercel vs Docker, tile caps, cron timing), see [DEPLOYMENT.md § Region & OSM ingest](./DEPLOYMENT.md#2c-bis-region--osm-ingest-admin) and the summary table in the [root README](../README.md#osm-ingest--pick-the-right-platform).
+For platform limits (Vercel vs Docker, tile caps, cron timing), see [DEPLOYMENT.md § Region & OSM ingest](./DEPLOYMENT.md#2c-bis-region--osm-ingest-admin) and the summary table in the [root README](../README.md#osm-ingest--where-to-run-it).
 
 ---
 

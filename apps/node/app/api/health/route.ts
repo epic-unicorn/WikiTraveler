@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_VERSION, NODE_URL } from "@/lib/nodeInfo";
 
+export { dynamic } from "@/lib/apiRoute";
+
 export async function GET() {
   const [factCount, peerCount] = await Promise.all([
     prisma.accessibilityFact.count(),

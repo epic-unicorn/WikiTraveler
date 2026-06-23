@@ -4,6 +4,8 @@ import { gzip } from "zlib";
 import { promisify } from "util";
 import type { NextRequest } from "next/server";
 
+export { dynamic } from "@/lib/apiRoute";
+
 const gzipAsync = promisify(gzip);
 
 /**

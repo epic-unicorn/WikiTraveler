@@ -254,7 +254,6 @@ function pinMarkerStyle(pin: MapPin, dim: boolean, themeMode: string): import("l
       fillColor: "#cbd5e1",
       fillOpacity: 0.5,
       weight: 1,
-      zIndexOffset: 0,
     };
   }
 
@@ -266,7 +265,6 @@ function pinMarkerStyle(pin: MapPin, dim: boolean, themeMode: string): import("l
       fillColor: dark ? "#6ee7b7" : "#34d399",
       fillOpacity: 0.92,
       weight: 2,
-      zIndexOffset: 200,
     };
   }
 
@@ -276,7 +274,6 @@ function pinMarkerStyle(pin: MapPin, dim: boolean, themeMode: string): import("l
     fillColor: dark ? "#60a5fa" : "#60a5fa",
     fillOpacity: 0.9,
     weight: 2,
-    zIndexOffset: 100,
   };
 }
 

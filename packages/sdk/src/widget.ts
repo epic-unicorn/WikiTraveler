@@ -1,7 +1,7 @@
 import { WikiTraveler } from "./client";
 import type { AccessibilityResponse } from "./client";
 import { Tier } from "@wikitraveler/core";
-import { formatFactValue, getFieldLabel, getTierLabel, type Locale } from "@wikitraveler/i18n";
+import { formatFactValue, getFieldLabel, getTierLabel, DEFAULT_LOCALE, type Locale } from "@wikitraveler/i18n";
 
 export interface WidgetOptions {
   /** CSS selector OR HTMLElement to mount the widget into. */

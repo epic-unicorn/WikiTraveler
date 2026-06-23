@@ -3,6 +3,8 @@ import { NODE_ID, NODE_URL, NODE_VERSION } from "@/lib/nodeInfo";
 import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
 import { prisma } from "@/lib/prisma";
 
+export { dynamic } from "@/lib/apiRoute";
+
 /**
  * GET /api/nodeinfo
  *
