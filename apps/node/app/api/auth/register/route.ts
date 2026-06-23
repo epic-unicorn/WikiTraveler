@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { getOpenRegistration } from "@/lib/nodeSettings";
+
+/** GET /api/auth/register — public registration status */
+export async function GET() {
+  const openRegistration = await getOpenRegistration();
+  return NextResponse.json({ openRegistration });
+}
 
 /**
  * POST /api/auth/register
  * Create a new user account on this node.
- * Gated by OPEN_REGISTRATION env flag (default: true).
+ * Gated by openRegistration in NodeSettings (admin-configured).
  */
 export async function POST(req: Request) {
-  const openRegistration = process.env.OPEN_REGISTRATION !== "false";
+  const openRegistration = await getOpenRegistration();
   if (!openRegistration) {
     return NextResponse.json(
       { message: "Registration is closed on this node." },

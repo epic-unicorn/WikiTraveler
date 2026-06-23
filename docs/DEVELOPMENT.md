@@ -127,7 +127,6 @@ Build order: `core` â†’ `ai-agent` â†’ `sdk` â†’ `node` / `field-
 | `NODE_URL` | node | No | Public-facing URL of this node |
 | `NODE_PRIVATE_KEY` | node | No | RSA private key PEM — enables RS256 JWT signing and cross-node auth |
 | `NODE_PUBLIC_KEY` | node | No | Corresponding RSA public key PEM |
-| `OPEN_REGISTRATION` | node | No | `"true"` (default) or `"false"` to close public registration |
 | `CORS_ORIGINS` | node | No | Allowed CORS origins (`*` or comma list) |
 | `BOOTSTRAP_PEERS` | node | No | Seed node URLs, comma-separated, fetched on startup |
 | `GOSSIP_INTERVAL_HOURS` | node | No | Hours between gossip cron runs |

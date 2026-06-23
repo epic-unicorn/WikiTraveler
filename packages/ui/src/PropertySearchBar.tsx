@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { SEARCH_FEATURES } from "./constants";
 import { useLocale } from "./LocaleProvider";
 
@@ -35,7 +36,17 @@ interface Props {
     notAudited?: string;
     locationPlaceholder?: string;
     hasAccessibleRoom?: string;
+    advancedFilters?: string;
   };
+}
+
+function countAdvancedFilters(filters: SearchFilters): number {
+  let n = 0;
+  if (filters.audited !== null) n++;
+  if (filters.hasAccessibleRoom) n++;
+  n += filters.features.length;
+  if (filters.location.trim()) n++;
+  return n;
 }
 
 export function PropertySearchBar({
@@ -57,7 +68,15 @@ export function PropertySearchBar({
     notAudited: labels.notAudited ?? t("ui.filterNotAudited"),
     locationPlaceholder: labels.locationPlaceholder ?? t("ui.filterLocation"),
     hasAccessibleRoom: labels.hasAccessibleRoom ?? t("ui.filterHasAccessibleRoom"),
+    advancedFilters: labels.advancedFilters ?? t("ui.filterAdvanced"),
   };
+
+  const activeAdvancedCount = countAdvancedFilters(filters);
+  const [advancedOpen, setAdvancedOpen] = useState(activeAdvancedCount > 0);
+
+  useEffect(() => {
+    if (activeAdvancedCount > 0) setAdvancedOpen(true);
+  }, [activeAdvancedCount]);
 
   function toggleFeature(key: string) {
     const next = filters.features.includes(key)
@@ -108,7 +127,19 @@ export function PropertySearchBar({
     boxSizing: "border-box",
     background: "var(--wt-bg-elevated)",
     color: "var(--wt-text)",
-    marginBottom: showFilters ? 12 : 0,
+    marginBottom: showFilters ? 8 : 0,
+  };
+
+  const summaryStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 13,
+    fontWeight: 600,
+    color: "var(--wt-text)",
+    cursor: "pointer",
+    listStyle: "none",
+    marginBottom: advancedOpen ? 10 : 0,
   };
 
   return (
@@ -126,7 +157,30 @@ export function PropertySearchBar({
       />
 
       {showFilters && (
-        <>
+        <details
+          className="wt-search-advanced"
+          open={advancedOpen}
+          onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+          style={{ marginTop: 4 }}
+        >
+          <summary style={summaryStyle}>
+            <span>{resolvedLabels.advancedFilters}</span>
+            {activeAdvancedCount > 0 && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "var(--wt-primary)",
+                  color: "var(--wt-primary-contrast)",
+                }}
+              >
+                {activeAdvancedCount}
+              </span>
+            )}
+          </summary>
+
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }} role="group" aria-label={resolvedLabels.audited}>
             <button
               type="button"
@@ -190,7 +244,7 @@ export function PropertySearchBar({
               boxSizing: "border-box",
             }}
           />
-        </>
+        </details>
       )}
     </div>
   );

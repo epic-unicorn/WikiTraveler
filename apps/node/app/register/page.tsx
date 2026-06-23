@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useLocale } from "@wikitraveler/ui";
 import { AuthCard, AuthCardLayout } from "../AuthCardLayout";
@@ -34,6 +34,14 @@ function RegisterForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/register")
+      .then((r) => r.json())
+      .then((d: { openRegistration?: boolean }) => setRegistrationOpen(d.openRegistration !== false))
+      .catch(() => setRegistrationOpen(true));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,6 +120,24 @@ function RegisterForm() {
             >
               {t("ui.authRegisterCloseTab")}
             </button>
+          </div>
+        </AuthCard>
+      </AuthCardLayout>
+    );
+  }
+
+  if (registrationOpen === false) {
+    return (
+      <AuthCardLayout>
+        <AuthCard>
+          <div style={{ textAlign: "center" }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{t("ui.authRegisterTitle")}</h1>
+            <p style={{ fontSize: 14, color: "var(--wt-text-muted)", marginTop: 16 }}>
+              {t("ui.authRegistrationClosed")}
+            </p>
+            <p style={{ fontSize: 13, marginTop: 20 }}>
+              <Link href="/login" style={{ color: "var(--wt-primary)", fontWeight: 600 }}>{t("ui.signIn")}</Link>
+            </p>
           </div>
         </AuthCard>
       </AuthCardLayout>

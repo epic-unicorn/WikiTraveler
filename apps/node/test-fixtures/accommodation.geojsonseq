@@ -1,0 +1,2 @@
+{"type":"Feature","geometry":{"type":"Point","coordinates":[5.4821862,51.4386355]},"properties":{"@id":"node/61101641","name":"Pullman Eindhoven Cocagne","tourism":"hotel","wheelchair":"yes"}}
+{"type":"Feature","geometry":{"type":"Point","coordinates":[5.4205301,51.4336297]},"properties":{"@id":"node/403803512","name":"Hotel Campanile Eindhoven","tourism":"hotel"}}

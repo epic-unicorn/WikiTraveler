@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLocale } from "@wikitraveler/ui";
 import { AdminPanel } from "./AdminPanel";
+import { RegionPanel } from "./RegionPanel";
 import { UsersPanel } from "./UsersPanel";
 import { PeersPanel } from "./PeersPanel";
 
@@ -62,10 +63,15 @@ export function AdminSection() {
   }
 
   return (
-    <div>
+    <div className="wt-dashboard-admin">
+      <div className="wt-dashboard-admin__full">
+        <RegionPanel token={token} />
+      </div>
       <AdminPanel token={token} />
       <PeersPanel token={token} />
-      <UsersPanel token={token} />
+      <div className="wt-dashboard-admin__full">
+        <UsersPanel token={token} />
+      </div>
     </div>
   );
 }

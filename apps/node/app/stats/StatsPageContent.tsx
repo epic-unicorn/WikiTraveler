@@ -64,15 +64,16 @@ export function StatsPageContent({ data }: { data: StatsPageData }) {
   } = data;
 
   return (
-    <>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, color: "var(--wt-text)" }}>
+    <div className="wt-dashboard-page">
+      <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "var(--wt-text)" }}>
         {t("ui.adminPageTitle")}
       </h2>
 
       <AdminSection />
 
+      <div className="wt-dashboard-stats">
       <Section title={t("ui.statsOverview")}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 16 }}>
           <BigStat label={t("ui.statsProperties")} value={propertyCount} />
           <BigStat label={t("ui.mapFacts")} value={factCount} />
           <BigStat label={t("ui.statsAudits")} value={auditCount} />
@@ -89,7 +90,7 @@ export function StatsPageContent({ data }: { data: StatsPageData }) {
       </Section>
 
       <Section title={t("ui.statsFreshness")}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 16 }}>
           <BigStat label={t("ui.statsUpdated7d")} value={recentUpdates7d} />
           <BigStat label={t("ui.statsUpdated30d")} value={recentUpdates30d} />
           <BigStat label={t("ui.statsAudits30d")} value={recentAudits30d} />
@@ -219,7 +220,7 @@ export function StatsPageContent({ data }: { data: StatsPageData }) {
       </Section>
 
       {gossipHistory.length > 0 && (
-        <Section title={t("ui.statsRecentGossip")}>
+        <Section title={t("ui.statsRecentGossip")} className="wt-dashboard-stats__full">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--wt-bg-secondary)" }}>
@@ -240,19 +241,29 @@ export function StatsPageContent({ data }: { data: StatsPageData }) {
           </table>
         </Section>
       )}
-    </>
+      </div>
+    </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <section
+      className={className}
       style={{
         background: "var(--wt-bg-elevated)",
         borderRadius: "var(--wt-radius-md)",
         border: "1px solid var(--wt-border)",
         padding: "20px 24px",
-        marginBottom: 24,
+        marginBottom: 0,
       }}
     >
       <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "var(--wt-text)" }}>{title}</h3>

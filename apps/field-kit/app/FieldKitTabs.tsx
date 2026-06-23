@@ -125,6 +125,7 @@ export function FieldKitTabs() {
             searchNodeUrl={searchNodeUrl}
             homeNodeUrl={nodeUrl}
             gpsResolved={gpsResolved}
+            regionLabel={nodeInfo?.region}
           />
         )}
         {activeTab === "nearby" && (

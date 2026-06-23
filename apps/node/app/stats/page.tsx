@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { NODE_ID, NODE_VERSION, NODE_REGION } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_VERSION } from "@/lib/nodeInfo";
+import { getNodeRegionLabel, getNodeSettings } from "@/lib/nodeSettings";
 import { NodeAppShell } from "../NodeAppShell";
 import { StatsPageContent, type StatsPageData } from "./StatsPageContent";
 
@@ -20,8 +21,9 @@ export default async function StatsPage() {
     recentUpdates30d,
     oldestProperty,
     topAudited,
-    osmSync,
+    nodeSettings,
     gossipHistory,
+    region,
   ] = await Promise.all([
     prisma.property.count(),
     prisma.accessibilityFact.count(),
@@ -52,12 +54,13 @@ export default async function StatsPage() {
       orderBy: { _count: { propertyId: "desc" } },
       take: 10,
     }),
-    prisma.osmSyncState.findMany({ orderBy: { lastSync: "desc" } }),
+    getNodeSettings(),
     prisma.gossipSnapshot.findMany({
       orderBy: { appliedAt: "desc" },
       take: 5,
       select: { fromNodeId: true, appliedAt: true, factCount: true },
     }),
+    getNodeRegionLabel(),
   ]);
 
   const topAuditedWithNames = await Promise.all(
@@ -85,8 +88,8 @@ export default async function StatsPage() {
     recentUpdates7d,
     recentUpdates30d,
     oldestPropertyUpdatedAt: oldestProperty?.updatedAt.toISOString() ?? null,
-    osmLastSync: osmSync[0]?.lastSync?.toISOString() ?? null,
-    osmItemCount: osmSync[0]?.itemCount ?? null,
+    osmLastSync: nodeSettings.lastIngestAt,
+    osmItemCount: nodeSettings.lastIngestCount,
     topAuditedWithNames,
     gossipHistory: gossipHistory.map((g) => ({
       fromNodeId: g.fromNodeId,
@@ -97,7 +100,7 @@ export default async function StatsPage() {
   };
 
   return (
-    <NodeAppShell lead={`${NODE_REGION} · ${NODE_ID} · v${NODE_VERSION}`} activeNav="stats">
+    <NodeAppShell lead={`${region} · ${NODE_ID} · v${NODE_VERSION}`} activeNav="stats">
       <StatsPageContent data={data} />
     </NodeAppShell>
   );

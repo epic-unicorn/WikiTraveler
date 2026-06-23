@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@wikitraveler/ui", "@ionic/react"],
+  transpilePackages: ["@wikitraveler/ui", "@wikitraveler/core", "@ionic/react"],
 };
 
 module.exports = nextConfig;

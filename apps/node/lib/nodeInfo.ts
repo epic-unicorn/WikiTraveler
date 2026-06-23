@@ -16,5 +16,5 @@ export const INTERNAL_NODE_URL: string =
 export const NODE_REGION: string =
   process.env.NODE_REGION ?? "Global";
 
-/** Bounding box this node serves: "minLat,minLon,maxLat,maxLon" or null. */
-export const NODE_BBOX: string | null = process.env.OSM_BBOX ?? null;
+/** @deprecated Use getNodeBbox() from @/lib/nodeSettings — bbox is configured in admin. */
+export const NODE_BBOX: string | null = null;

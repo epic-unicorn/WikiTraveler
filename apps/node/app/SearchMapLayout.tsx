@@ -4,16 +4,18 @@ import { useState } from "react";
 import { useLocale } from "@wikitraveler/ui";
 import { MapView, type MapPin } from "./MapView";
 import { SearchSection } from "./SearchSection";
+import Link from "next/link";
 
 interface Props {
   propertyCount: number;
   factCount: number;
   peerCount: number;
+  regionConfigured: boolean;
 }
 
 const MAP_STAT_KEYS = ["properties", "facts", "peers"] as const;
 
-export function SearchMapLayout({ propertyCount, factCount, peerCount }: Props) {
+export function SearchMapLayout({ propertyCount, factCount, peerCount, regionConfigured }: Props) {
   const { t } = useLocale();
   const [focusPins, setFocusPins] = useState<MapPin[] | null>(null);
 
@@ -31,47 +33,87 @@ export function SearchMapLayout({ propertyCount, factCount, peerCount }: Props) 
 
   return (
     <>
-      {propertyCount > 0 && (
-        <>
-          {/* Stats row */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {MAP_STAT_KEYS.map((key) => (
-              <span
-                key={key}
-                style={{
-                  background: "var(--wt-bg-elevated)",
-                  border: "1px solid var(--wt-border)",
-                  borderRadius: 999,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  color: "var(--wt-text)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <strong
-                  style={{
-                    color: "var(--wt-primary)",
-                    fontWeight: 700,
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {statValues[key].toLocaleString()}
-                </strong>
-                <span style={{ color: "var(--wt-text-muted)", fontSize: 11 }}>{statLabels[key]}</span>
-              </span>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 28 }}>
-            <MapView focusPins={focusPins} />
-          </div>
-        </>
+      {!regionConfigured && (
+        <div
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #fcd34d",
+            borderRadius: 10,
+            padding: "12px 16px",
+            marginBottom: 16,
+            fontSize: 14,
+            color: "#92400e",
+          }}
+        >
+          {t("ui.regionNotConfigured")}{" "}
+          <Link href="/stats" style={{ color: "#b45309", fontWeight: 600 }}>
+            {t("ui.regionConfigureLink")}
+          </Link>
+        </div>
       )}
 
-      <SearchSection onResults={setFocusPins} />
+      {propertyCount > 0 && (
+        <div className="wt-stat-pills">
+          {MAP_STAT_KEYS.map((key) => (
+            <span
+              key={key}
+              style={{
+                background: "var(--wt-bg-elevated)",
+                border: "1px solid var(--wt-border)",
+                borderRadius: 999,
+                padding: "5px 12px",
+                fontSize: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                color: "var(--wt-text)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <strong
+                style={{
+                  color: "var(--wt-primary)",
+                  fontWeight: 700,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {statValues[key].toLocaleString()}
+              </strong>
+              <span style={{ color: "var(--wt-text-muted)", fontSize: 11 }}>{statLabels[key]}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {regionConfigured && propertyCount === 0 && (
+        <div
+          style={{
+            background: "var(--wt-bg-elevated)",
+            border: "1px solid var(--wt-border)",
+            borderRadius: 10,
+            padding: "24px",
+            marginBottom: 24,
+            textAlign: "center",
+            color: "var(--wt-text-muted)",
+            fontSize: 14,
+          }}
+        >
+          {t("ui.regionEmptyMap")}
+        </div>
+      )}
+
+      {propertyCount > 0 ? (
+        <div className="wt-dashboard-map">
+          <div className="wt-dashboard-map__map">
+            <MapView focusPins={focusPins} />
+          </div>
+          <div className="wt-dashboard-map__search">
+            <SearchSection onResults={setFocusPins} />
+          </div>
+        </div>
+      ) : (
+        <SearchSection onResults={setFocusPins} />
+      )}
     </>
   );
 }

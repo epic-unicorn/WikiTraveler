@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 
 interface BackupFile {
   version: number;
+  createdAt?: string;
   migration: string;
   nodeId: string;
   region: string;
@@ -32,7 +33,32 @@ interface BackupFile {
       id: string; bbox: string; lastSync: string | null;
       itemCount: number | null; updatedAt: string;
     }>;
+    nodeSettings?: {
+      id: string; bbox: string | null; region: string | null;
+      presetId: string | null; configuredAt: string | null;
+      lastIngestAt: string | null;       lastIngestCount: number | null;
+      openRegistration?: boolean;
+      auditedReimportPending?: boolean;
+      updatedAt: string;
+    } | null;
   };
+}
+
+function formatMigrationRestoreWarning(
+  backupMigration: string,
+  currentMigration: string,
+  createdAt?: string
+): string {
+  const migrationLabel = `migration "${backupMigration}"`;
+  let backupWhen = `created on ${migrationLabel}`;
+  if (createdAt) {
+    const at = new Date(createdAt);
+    if (!Number.isNaN(at.getTime())) {
+      const formatted = at.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+      backupWhen = `from ${formatted} (${migrationLabel})`;
+    }
+  }
+  return `Backup ${backupWhen}, current is "${currentMigration}". Proceeding anyway — verify data integrity after restore.`;
 }
 
 /**
@@ -74,7 +100,7 @@ export async function POST(req: NextRequest) {
 
   const migrationWarning =
     backup.migration !== currentMigration && backup.migration !== "unknown"
-      ? `Backup was created on migration "${backup.migration}", current is "${currentMigration}". Proceeding anyway — verify data integrity after restore.`
+      ? formatMigrationRestoreWarning(backup.migration, currentMigration, backup.createdAt)
       : null;
 
   const warnings: string[] = migrationWarning ? [migrationWarning] : [];
@@ -91,7 +117,7 @@ export async function POST(req: NextRequest) {
     prisma.osmSyncState.deleteMany(),
   ]);
 
-  const { properties, facts, audits, peers, osmSyncState } = backup.data;
+  const { properties, facts, audits, peers, osmSyncState, nodeSettings } = backup.data;
 
   // Restore in FK-safe order
   // 1. Properties
@@ -174,6 +200,37 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch { /* non-critical, skip */ }
+  }
+
+  if (nodeSettings) {
+    try {
+      await prisma.nodeSettings.upsert({
+        where: { id: "default" },
+        update: {
+          bbox: nodeSettings.bbox,
+          region: nodeSettings.region,
+          presetId: nodeSettings.presetId,
+          configuredAt: nodeSettings.configuredAt ? new Date(nodeSettings.configuredAt) : null,
+          lastIngestAt: nodeSettings.lastIngestAt ? new Date(nodeSettings.lastIngestAt) : null,
+          lastIngestCount: nodeSettings.lastIngestCount,
+          openRegistration: nodeSettings.openRegistration ?? true,
+          auditedReimportPending: nodeSettings.auditedReimportPending ?? false,
+          updatedAt: new Date(nodeSettings.updatedAt),
+        },
+        create: {
+          id: "default",
+          bbox: nodeSettings.bbox,
+          region: nodeSettings.region,
+          presetId: nodeSettings.presetId,
+          configuredAt: nodeSettings.configuredAt ? new Date(nodeSettings.configuredAt) : null,
+          lastIngestAt: nodeSettings.lastIngestAt ? new Date(nodeSettings.lastIngestAt) : null,
+          lastIngestCount: nodeSettings.lastIngestCount,
+          openRegistration: nodeSettings.openRegistration ?? true,
+          auditedReimportPending: nodeSettings.auditedReimportPending ?? false,
+          updatedAt: new Date(nodeSettings.updatedAt),
+        },
+      });
+    } catch { /* non-critical */ }
   }
 
   console.log(

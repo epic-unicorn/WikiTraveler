@@ -71,12 +71,23 @@
     /* ——— Node status bar ——— */
     #node-status-bar {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 7px;
       padding: 7px 14px;
       font-size: 11px;
       border-bottom: 1px solid #e2e8f0;
       background: #fff;
+    }
+    .node-status-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      line-height: 1.35;
+    }
+    .node-status-regions {
+      font-size: 10px;
+      opacity: 0.9;
     }
     .node-status-dot {
       width: 7px;

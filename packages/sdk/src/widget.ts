@@ -1,7 +1,7 @@
 import { WikiTraveler } from "./client";
 import type { AccessibilityResponse } from "./client";
 import { Tier } from "@wikitraveler/core";
-import { getFieldLabel, getTierLabel, DEFAULT_LOCALE, type Locale } from "@wikitraveler/i18n";
+import { formatFactValue, getFieldLabel, getTierLabel, type Locale } from "@wikitraveler/i18n";
 
 export interface WidgetOptions {
   /** CSS selector OR HTMLElement to mount the widget into. */
@@ -78,7 +78,8 @@ function renderFacts(data: AccessibilityResponse, locale: Locale): string {
   const items = data.facts
     .map((f) => {
       const label = f.label || getFieldLabel(f.fieldName, locale);
-      const value = escapeHtml(String(f.value));
+      const display = formatFactValue(f.fieldName, String(f.value), { locale });
+      const value = escapeHtml(display.displayValue);
       return `<li class="wt-widget-fact">
         <span class="wt-widget-fact-label">${escapeHtml(label)}</span>
         <span class="wt-widget-fact-body">

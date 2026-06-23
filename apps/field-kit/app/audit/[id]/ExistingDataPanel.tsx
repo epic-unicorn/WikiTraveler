@@ -1,12 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useLocale } from "@wikitraveler/ui";
+import { useLocale, ProseFactValue } from "@wikitraveler/ui";
 import { resolveFactDisplay } from "../../lib/factDisplay";
 
 export interface ExistingFact {
   fieldName: string;
+  scopeKey?: string;
   value: string;
+  displayValue?: string;
+  valueLocale?: string | null;
+  machineTranslated?: boolean;
   tier: string;
   signatureHash?: string | null;
   timestamp?: string;
@@ -45,7 +49,19 @@ function truncate(text: string, max = 72): string {
 
 function FactRow({ fact, locale }: { fact: ExistingFact; locale: string }) {
   const [open, setOpen] = useState(false);
-  const { label, displayValue, confidence, evidence, rawValue } = resolveFactDisplay(fact, locale);
+  const { label, displayValue, confidence, evidence, rawValue, formatted } = resolveFactDisplay(
+    {
+      fieldName: fact.fieldName,
+      value: fact.value,
+      tier: fact.tier,
+      signatureHash: fact.signatureHash,
+      valueLocale: fact.valueLocale,
+      translatedValue:
+        fact.machineTranslated && fact.displayValue ? fact.displayValue : undefined,
+      machineTranslated: fact.machineTranslated,
+    },
+    locale
+  );
   const showEvidence =
     fact.tier === "AI_GUESS" &&
     evidence &&
@@ -66,7 +82,18 @@ function FactRow({ fact, locale }: { fact: ExistingFact; locale: string }) {
       >
         <span className="existing-fact-row-label">{label}</span>
         <span className="existing-fact-row-value">
-          {open || !longValue ? displayValue : truncate(displayValue)}
+          {formatted.isProse || fact.machineTranslated ? (
+            <ProseFactValue
+              displayValue={displayValue}
+              rawValue={rawValue}
+              machineTranslated={fact.machineTranslated}
+              valueLocale={fact.valueLocale}
+            />
+          ) : open || !longValue ? (
+            displayValue
+          ) : (
+            truncate(displayValue)
+          )}
         </span>
         {fact.tier === "AI_GUESS" && confidence ? (
           <span className="confidence-chip">{confidence}</span>

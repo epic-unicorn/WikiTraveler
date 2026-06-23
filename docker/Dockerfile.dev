@@ -3,7 +3,7 @@ FROM node:20-bookworm-slim
 
 # Prisma query engine requires OpenSSL at runtime (migrate, generate, dev)
 RUN apt-get update -y \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates osmium-tool \
   && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate

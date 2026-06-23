@@ -227,6 +227,12 @@ function createFactsTable(facts, locale) {
   return table;
 }
 
+function auditPhotoUrl(photo) {
+  if (typeof photo === "string") return photo;
+  if (photo && typeof photo.url === "string") return photo.url;
+  return "";
+}
+
 function createAuditPhotosSection(auditPhotos, hasAiGuess, locale) {
   if (!auditPhotos?.photos?.length) return null;
 
@@ -245,7 +251,10 @@ function createAuditPhotosSection(auditPhotos, hasAiGuess, locale) {
 
   let expandedWrap = null;
 
-  auditPhotos.photos.forEach((src, i) => {
+  auditPhotos.photos.forEach((photo, i) => {
+    const src = auditPhotoUrl(photo);
+    if (!src) return;
+
     const photoLabel = wtT("ui.lensAuditPhoto", locale, { n: i + 1 });
     const btn = document.createElement("button");
     btn.type = "button";

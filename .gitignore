@@ -6,3 +6,18 @@ dist
 *.tsbuildinfo
 .lighthouse-secrets.json
 .lighthouseci
+lighthouse-ci-artifacts
+
+# OSM / Geofabrik runtime caches (Overpass tiles, PBF downloads, geojson uploads)
+.cache/
+
+# Tooling / deploy
+.vercel
+coverage
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

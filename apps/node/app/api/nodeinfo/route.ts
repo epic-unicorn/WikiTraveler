@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { NODE_ID, NODE_URL, NODE_VERSION, NODE_REGION, NODE_BBOX } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_URL, NODE_VERSION } from "@/lib/nodeInfo";
+import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -9,10 +10,15 @@ import { prisma } from "@/lib/prisma";
  * Clients/peers cache the public key here for RS256 JWT verification.
  */
 export async function GET() {
-  const peerRows = await prisma.nodePeer.findMany({
-    where: { isActive: true },
-    select: { url: true, nodeId: true, region: true, bbox: true },
-  });
+  const [bbox, region, peerRows] = await Promise.all([
+    getNodeBbox(),
+    getNodeRegionLabel(),
+    prisma.nodePeer.findMany({
+      where: { isActive: true },
+      select: { url: true, nodeId: true, region: true, bbox: true },
+    }),
+  ]);
+
   const peers = peerRows
     .filter((p) => p.nodeId !== NODE_ID)
     .map((p) => ({ nodeId: p.nodeId ?? null, url: p.url, region: p.region ?? null, bbox: p.bbox ?? null }));
@@ -21,8 +27,8 @@ export async function GET() {
     nodeId: NODE_ID,
     nodeUrl: NODE_URL,
     version: NODE_VERSION,
-    region: NODE_REGION,
-    bbox: NODE_BBOX,
+    region,
+    bbox,
     publicKeyPem: process.env.NODE_PUBLIC_KEY ?? null,
     peers,
   });

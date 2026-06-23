@@ -20,11 +20,6 @@ pnpm exec prisma migrate deploy --schema=/app/prisma/schema.prisma
 echo "⚙️  Generating Prisma client..."
 pnpm exec prisma generate --schema=/app/prisma/schema.prisma
 
-if [ "$GOSSIP_LAB_SEED" = "true" ]; then
-  echo "🌱 Seeding database from OSM fixture…"
-  REQUIRE_OSM_FIXTURE=true OSM_BBOX="${OSM_BBOX:-51.39,5.42,51.49,5.52}" pnpm exec tsx /app/scripts/seed.ts
-fi
-
 echo "🔧 Building shared packages..."
 pnpm --filter @wikitraveler/core build
 pnpm --filter @wikitraveler/ui build

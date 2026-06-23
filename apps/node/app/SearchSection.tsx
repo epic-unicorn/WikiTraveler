@@ -120,7 +120,6 @@ export function SearchSection({ onResults }: Props) {
         labels={{
           audited: t("ui.filterAudited"),
           notAudited: t("ui.filterNotAudited"),
-          locationPlaceholder: t("ui.filterLocation"),
           hasAccessibleRoom: t("ui.filterHasAccessibleRoom"),
         }}
       />

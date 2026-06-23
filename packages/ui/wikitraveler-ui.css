@@ -325,3 +325,54 @@
   font-size: 13px;
 }
 .wt-widget-error { color: var(--wt-danger, #dc2626); }
+
+/* PropertySearchBar — advanced filters disclosure */
+.wt-search-advanced > summary {
+  list-style: none;
+}
+
+.wt-search-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.wt-search-advanced > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+}
+
+.wt-search-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* Prose fact values — machine translation + original toggle */
+.wt-prose-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.wt-prose-fact-primary {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.wt-prose-fact-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--wt-text-muted);
+  background: var(--wt-bg-secondary);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.wt-prose-fact-toggle {
+  background: none;
+  border: none;
+  color: var(--wt-primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}

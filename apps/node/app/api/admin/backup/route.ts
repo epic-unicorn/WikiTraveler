@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NODE_ID, NODE_REGION } from "@/lib/nodeInfo";
+import { NODE_ID } from "@/lib/nodeInfo";
+import { getNodeRegionLabel } from "@/lib/nodeSettings";
 import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
@@ -29,12 +30,14 @@ export async function GET(req: NextRequest) {
     migration = result[0]?.migration_name ?? "unknown";
   } catch { /* table may not exist in some setups */ }
 
-  const [properties, facts, audits, peers, osmSyncState] = await Promise.all([
+  const [properties, facts, audits, peers, osmSyncState, nodeSettings, region] = await Promise.all([
     prisma.property.findMany(),
     prisma.accessibilityFact.findMany(),
     prisma.auditSubmission.findMany(),
     prisma.nodePeer.findMany(),
     prisma.osmSyncState.findMany(),
+    prisma.nodeSettings.findUnique({ where: { id: "default" } }),
+    getNodeRegionLabel(),
   ]);
 
   const backup = {
@@ -42,8 +45,8 @@ export async function GET(req: NextRequest) {
     createdAt: new Date().toISOString(),
     migration,
     nodeId: NODE_ID,
-    region: NODE_REGION,
-    data: { properties, facts, audits, peers, osmSyncState },
+    region,
+    data: { properties, facts, audits, peers, osmSyncState, nodeSettings },
   };
 
   return new NextResponse(JSON.stringify(backup, null, 2), {

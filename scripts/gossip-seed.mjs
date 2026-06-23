@@ -2,7 +2,8 @@
  * Seed OSM baseline into both gossip-lab databases (host → published Postgres ports).
  *
  * Usage: pnpm gossip:seed
- * Requires: gossip lab postgres containers running (ports 5433 and 5434).
+ * Requires: region configured in Admin on each node (preset: Eindhoven lab).
+ *           Postgres containers running (ports 5433 and 5434).
  */
 
 import { spawnSync } from "child_process";
@@ -10,7 +11,6 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const BBOX = process.env.OSM_BBOX ?? "51.39,5.42,51.49,5.52";
 
 const NODES = [
   {
@@ -39,9 +39,7 @@ function seedNode({ label, databaseUrl, nodeId }) {
       env: {
         ...process.env,
         DATABASE_URL: databaseUrl,
-        OSM_BBOX: BBOX,
         NODE_ID: nodeId,
-        REQUIRE_OSM_FIXTURE: "true",
       },
     }
   );
@@ -52,6 +50,7 @@ function seedNode({ label, databaseUrl, nodeId }) {
 
 async function main() {
   console.log("Seeding gossip lab databases from committed OSM fixture…");
+  console.log("Ensure each node has region configured in Admin (preset: Eindhoven lab).\n");
   for (const node of NODES) {
     seedNode(node);
   }

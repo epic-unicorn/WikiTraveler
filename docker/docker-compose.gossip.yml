@@ -68,13 +68,9 @@ services:
       DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres-a:5432/wikitraveler
       NODE_ID: node-a
       NODE_URL: http://localhost:3000
-      NODE_REGION: Eindhoven Lab A
-      OSM_BBOX: "51.39,5.42,51.49,5.52"
       BOOTSTRAP_PEERS: http://node-b:3000
       GOSSIP_DEV: "true"
       GOSSIP_KEY_DIR: /run/gossip-keys
-      GOSSIP_LAB_SEED: "true"
-      OPEN_REGISTRATION: "true"
       CORS_ORIGINS: "*"
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
@@ -106,13 +102,9 @@ services:
       DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres-b:5432/wikitraveler
       NODE_ID: node-b
       NODE_URL: http://localhost:3010
-      NODE_REGION: Eindhoven Lab B
-      OSM_BBOX: "51.39,5.42,51.49,5.52"
       BOOTSTRAP_PEERS: http://node-a:3000
       GOSSIP_DEV: "true"
       GOSSIP_KEY_DIR: /run/gossip-keys
-      GOSSIP_LAB_SEED: "true"
-      OPEN_REGISTRATION: "true"
       CORS_ORIGINS: "*"
       PORT: "3000"
       HOSTNAME: "0.0.0.0"

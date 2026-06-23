@@ -47,7 +47,6 @@ services:
       NODE_URL: http://localhost:3000
       NODE_PRIVATE_KEY: ""
       NODE_PUBLIC_KEY: ""
-      OPEN_REGISTRATION: "true"
       # BOOTSTRAP_PEERS: "http://other-node:3000"
       CORS_ORIGINS: "*"
       GOSSIP_INTERVAL_HOURS: "24"

@@ -24,4 +24,6 @@ export {
 export type { ThemeMode } from "./constants";
 export { LocaleProvider, useLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from "./LocaleProvider";
 export { LocalePicker } from "./LocalePicker";
+export { ProseFactValue } from "./ProseFactValue";
+export type { ProseFactValueProps } from "./ProseFactValue";
 export type { SearchFeature } from "./PropertySearchBar";

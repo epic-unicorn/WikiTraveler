@@ -7,7 +7,7 @@
  * (OSM-derived data). VERIFIED and CONFIRMED facts are never downgraded.
  *
  * Bounding box format: "lat_min,lon_min,lat_max,lon_max"
- * Default (Eindhoven, NL): OSM_BBOX=51.39,5.42,51.49,5.52
+ * Configured via Admin (/stats) — stored in NodeSettings, not env.
  *
  * Fixture support: if a cached JSON file path is provided, the Overpass API
  * is not called. The fixture is saved automatically on first fetch.
@@ -17,6 +17,7 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import type { PrismaClient } from "@prisma/client";
+import { formatBbox, getTileWarnLimit, parseBbox, splitBboxIntoTiles } from "./bbox";
 
 // ---------------------------------------------------------------------------
 // OSM data shapes
@@ -151,6 +152,141 @@ function buildQuery(bbox: string): string {
   way["amenity"="hotel"](${bbox});
 );
 out body center;`;
+}
+
+function buildCountQuery(bbox: string): string {
+  const types = [
+    "hotel", "hostel", "motel", "apartment", "guest_house",
+    "chalet", "resort", "alpine_hut", "vacation_rental", "bed_and_breakfast",
+  ].join("|");
+  return `[out:json][timeout:60];
+(
+  node["tourism"~"^(${types})$"](${bbox});
+  way["tourism"~"^(${types})$"](${bbox});
+  node["amenity"="hotel"](${bbox});
+  way["amenity"="hotel"](${bbox});
+);
+out count;`;
+}
+
+export interface IngestPreviewEstimate {
+  elementCount: number;
+  propertyEstimate: number;
+  downloadSizeKb: number;
+  durationSeconds: number;
+  isEstimate: true;
+}
+
+/** Lightweight Overpass count + heuristics for admin preview. */
+export async function fetchOverpassCount(bbox: string, options?: { timeoutMs?: number }): Promise<number> {
+  const timeoutMs = options?.timeoutMs ?? 60_000;
+  const query = buildCountQuery(bbox);
+  let lastError: Error | null = null;
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "WikiTraveler/0.2 (region-preview)",
+        },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok) {
+        lastError = new Error(`${endpoint} returned ${res.status}`);
+        continue;
+      }
+      const data = (await res.json()) as { elements?: { tags?: { total?: string } }[] };
+      const total = data.elements?.[0]?.tags?.total;
+      if (total != null) return parseInt(total, 10) || 0;
+      return 0;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+  throw lastError ?? new Error("All Overpass endpoints failed");
+}
+
+export async function estimateIngestPreview(bbox: string): Promise<IngestPreviewEstimate> {
+  const elementCount = await fetchOverpassCount(bbox);
+  // ~70% pass name filter; ~2 KB per element raw JSON on average
+  const propertyEstimate = Math.max(1, Math.round(elementCount * 0.7));
+  const downloadSizeKb = Math.max(50, Math.round(elementCount * 2));
+  const durationSeconds = Math.max(15, Math.round(elementCount * 0.8 + 20));
+  return { elementCount, propertyEstimate, downloadSizeKb, durationSeconds, isEstimate: true };
+}
+
+/** Heuristic preview for multi-tile regions (avoids a single huge Overpass count query). */
+export function estimateTiledIngestPreview(
+  tileCount: number,
+  estimatedDurationSec: number
+): IngestPreviewEstimate {
+  const elementCount = Math.max(tileCount, Math.round(tileCount * 120));
+  const propertyEstimate = Math.max(1, Math.round(elementCount * 0.7));
+  const downloadSizeKb = Math.max(50, Math.round(elementCount * 2));
+  const durationSeconds = Math.max(30, estimatedDurationSec);
+  return { elementCount, propertyEstimate, downloadSizeKb, durationSeconds, isEstimate: true };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Sample up to 3 tiles and extrapolate element counts for a tighter preview. */
+export async function estimateTiledIngestPreviewSampled(
+  bbox: string,
+  tileCount: number,
+  estimatedDurationSec: number
+): Promise<IngestPreviewEstimate & { sampledTiles: number }> {
+  if (tileCount <= 1) {
+    const single = await estimateIngestPreview(bbox);
+    return { ...single, sampledTiles: 1 };
+  }
+
+  // Large regions: skip live Overpass (3×60s calls) — heuristic is instant and good enough.
+  if (tileCount > getTileWarnLimit()) {
+    return { ...estimateTiledIngestPreview(tileCount, estimatedDurationSec), sampledTiles: 0 };
+  }
+
+  const parsed = parseBbox(bbox);
+  if (!parsed) return { ...estimateTiledIngestPreview(tileCount, estimatedDurationSec), sampledTiles: 0 };
+
+  const tiles = splitBboxIntoTiles(parsed);
+  const sampleIndices = [
+    0,
+    Math.floor(tiles.length / 2),
+    tiles.length - 1,
+  ]
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .slice(0, Math.min(3, tiles.length));
+
+  let sampleTotal = 0;
+  try {
+    for (let i = 0; i < sampleIndices.length; i++) {
+      if (i > 0) await sleep(1100);
+      const idx = sampleIndices[i]!;
+      sampleTotal += await fetchOverpassCount(formatBbox(tiles[idx]!), { timeoutMs: 15_000 });
+    }
+  } catch {
+    return { ...estimateTiledIngestPreview(tileCount, estimatedDurationSec), sampledTiles: 0 };
+  }
+
+  const avg = sampleTotal / sampleIndices.length;
+  const elementCount = Math.max(tileCount, Math.round(avg * tiles.length));
+  const propertyEstimate = Math.max(1, Math.round(elementCount * 0.7));
+  const downloadSizeKb = Math.max(50, Math.round(elementCount * 2));
+  const durationSeconds = Math.max(30, estimatedDurationSec);
+
+  return {
+    elementCount,
+    propertyEstimate,
+    downloadSizeKb,
+    durationSeconds,
+    isEstimate: true,
+    sampledTiles: sampleIndices.length,
+  };
 }
 
 // ---------------------------------------------------------------------------

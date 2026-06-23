@@ -79,12 +79,30 @@ model AccessibilityFact {
   sourceNodeId  String
   submittedBy   String?
   signatureHash String?
+  valueLocale   String?
   timestamp     DateTime   @default(now())
+
+  translations FactTranslation[]
 
   @@unique([propertyId, fieldName, sourceNodeId, scopeKey])
   @@index([propertyId])
   @@index([tier])
   @@index([scopeKey])
+}
+
+model FactTranslation {
+  id             String   @id @default(cuid())
+  factId         String
+  fact           AccessibilityFact @relation(fields: [factId], references: [id], onDelete: Cascade)
+  sourceLocale   String
+  targetLocale   String
+  sourceHash     String
+  translatedText String
+  provider       String   @default("deepl")
+  createdAt      DateTime @default(now())
+
+  @@unique([factId, targetLocale])
+  @@index([factId])
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +160,7 @@ model AuditPhoto {
 }
 
 // ---------------------------------------------------------------------------
-// OSM ingestion sync state — tracks last Overpass fetch per bounding box
+// OSM ingestion sync state — legacy per-bbox sync rows (kept for backup compat)
 // ---------------------------------------------------------------------------
 model OsmSyncState {
   id        String    @id @default(cuid())
@@ -150,6 +168,79 @@ model OsmSyncState {
   lastSync  DateTime?
   itemCount Int?
   updatedAt DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Node region — bbox and display region configured via admin (not env)
+// ---------------------------------------------------------------------------
+model NodeSettings {
+  id               String    @id @default("default")
+  bbox             String?   // "minLat,minLon,maxLat,maxLon"
+  region           String?   // auto-derived label
+  presetId         String?
+  configuredAt     DateTime?
+  lastIngestAt     DateTime?
+  lastIngestCount  Int?
+  openRegistration Boolean   @default(true)
+  auditedReimportPending Boolean @default(false) // true after region move until audited re-import
+  updatedAt        DateTime  @updatedAt
+}
+
+enum IngestJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum IngestJobPhase {
+  PURGING
+  FETCHING
+  INGESTING
+  DONE
+}
+
+// ---------------------------------------------------------------------------
+// Async OSM ingest jobs — admin-triggered region setup / changes
+// ---------------------------------------------------------------------------
+model IngestJob {
+  id         String           @id @default(cuid())
+  status     IngestJobStatus  @default(PENDING)
+  phase      IngestJobPhase?
+  bbox       String
+  changeType String?          // initial | shrink | expand | move | refresh
+  tileCount  Int?
+  tilesDone  Int              @default(0)
+  progress   Int              @default(0)
+  message    String?
+  stats      Json?
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime         @default(now())
+  tiles      IngestJobTile[]
+}
+
+enum IngestJobTileStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model IngestJobTile {
+  id           String              @id @default(cuid())
+  jobId        String
+  index        Int
+  bbox         String
+  status       IngestJobTileStatus @default(PENDING)
+  elementCount Int?
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  job          IngestJob           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, index])
 }
 
 // ---------------------------------------------------------------------------

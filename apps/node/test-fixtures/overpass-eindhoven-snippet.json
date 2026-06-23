@@ -1,0 +1,25 @@
+{
+  "elements": [
+    {
+      "type": "node",
+      "id": 61101641,
+      "lat": 51.4386355,
+      "lon": 5.4821862,
+      "tags": {
+        "name": "Pullman Eindhoven Cocagne",
+        "tourism": "hotel",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 403803512,
+      "lat": 51.4336297,
+      "lon": 5.4205301,
+      "tags": {
+        "name": "Hotel Campanile Eindhoven",
+        "tourism": "hotel"
+      }
+    }
+  ]
+}

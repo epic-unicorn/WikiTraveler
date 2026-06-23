@@ -6,12 +6,15 @@ import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import { pushFactsToPeers } from "@/lib/push";
 import { getPhotoStorage, photoToDisplayUrl } from "@/lib/photoStorage";
-import { validateAuditFacts } from "@/lib/fieldRegistry";
+import { validateAuditFacts, getFieldRegistryMap } from "@/lib/fieldRegistry";
+import { enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
+import { invalidateFactTranslations } from "@/lib/translation";
+import { resolveLocale, isSupportedLocale } from "@wikitraveler/i18n";
 import { MAX_AUDIT_PHOTOS, AI_VISION_PHOTO_BUDGET } from "@wikitraveler/i18n";
 import type { NextRequest } from "next/server";
 import type { Tier, SourceType } from "@wikitraveler/core";
 
-type FactInput = { fieldName: string; value: string; scopeKey?: string };
+type FactInput = { fieldName: string; value: string; scopeKey?: string; confirm?: boolean };
 
 type PhotoInput = {
   dataUri?: string;
@@ -68,6 +71,7 @@ export async function GET(
     fieldName: f.fieldName,
     scopeKey: f.scopeKey,
     value: f.value,
+    valueLocale: f.valueLocale,
     tier: f.tier as Tier,
     sourceType: f.sourceType as SourceType,
     sourceNodeId: f.sourceNodeId,
@@ -93,6 +97,13 @@ export async function GET(
 
   const collapsedFacts = Array.from(collapsed.values());
   const hasAiGuess = collapsedFacts.some((f) => f.tier === "AI_GUESS");
+
+  const localeParam = req.nextUrl.searchParams.get("locale");
+  const viewerLocale = localeParam && isSupportedLocale(localeParam)
+    ? localeParam
+    : resolveLocale({ acceptLanguage: req.headers.get("accept-language") });
+
+  const enrichedFacts = await enrichFactsForDisplay(collapsedFacts, viewerLocale);
 
   const latestAudit = await prisma.auditSubmission.findFirst({
     where: {
@@ -158,7 +169,7 @@ export async function GET(
   return NextResponse.json({
     propertyId: params.id,
     property,
-    facts: collapsedFacts,
+    facts: enrichedFacts,
     auditPhotos,
     hasAiGuess,
   });
@@ -200,8 +211,6 @@ export async function POST(
     return NextResponse.json({ message: "Property not found" }, { status: 404 });
   }
 
-  const propertyId = property.id;
-
   for (const fact of body.facts) {
     if (
       typeof fact.fieldName !== "string" ||
@@ -216,16 +225,84 @@ export async function POST(
     }
   }
 
-  const validation = await validateAuditFacts(
-    body.facts.map((f) => ({
-      fieldName: f.fieldName,
-      value: f.value,
-      scopeKey: f.scopeKey ?? "property",
-    })),
-    body.locale as import("@wikitraveler/i18n").Locale | undefined
+  const propertyId = property.id;
+  const submissionLocale =
+    body.locale && isSupportedLocale(body.locale) ? body.locale : null;
+  const fieldRegistry = await getFieldRegistryMap(submissionLocale ?? undefined);
+
+  const allFactsRaw = await prisma.accessibilityFact.findMany({
+    where: { propertyId },
+    orderBy: { timestamp: "desc" },
+  });
+
+  const allFacts = allFactsRaw.map((f) => ({
+    id: f.id,
+    propertyId: f.propertyId,
+    fieldName: f.fieldName,
+    scopeKey: f.scopeKey,
+    value: f.value,
+    valueLocale: f.valueLocale,
+    tier: f.tier as Tier,
+    sourceType: f.sourceType as SourceType,
+    sourceNodeId: f.sourceNodeId,
+    submittedBy: f.submittedBy,
+    timestamp: f.timestamp.toISOString(),
+    signatureHash: f.signatureHash,
+  }));
+
+  const evaluated = evaluateMeshTruth(allFacts);
+  const meshByKey = new Map<string, (typeof allFacts)[0]>();
+  for (const fact of evaluated) {
+    const key = factKey(fact);
+    const existing = meshByKey.get(key);
+    if (
+      !existing ||
+      fact.tier > existing.tier ||
+      (fact.tier === existing.tier && fact.timestamp > existing.timestamp)
+    ) {
+      meshByKey.set(key, fact);
+    }
+  }
+
+  const localByKey = new Map(
+    allFactsRaw
+      .filter((f) => f.sourceNodeId === NODE_ID)
+      .map((f) => [factKey(f), f])
   );
-  if (!validation.ok) {
-    return NextResponse.json({ message: validation.message }, { status: 422 });
+
+  for (const fact of body.facts) {
+    if (fact.confirm) {
+      const scopeKey = fact.scopeKey ?? "property";
+      const key = factKey({ fieldName: fact.fieldName, scopeKey });
+      const meshFact = meshByKey.get(key);
+      if (!meshFact) {
+        return NextResponse.json(
+          { message: `Cannot confirm ${fact.fieldName}: no existing value` },
+          { status: 422 }
+        );
+      }
+      if (meshFact.value.trim() !== fact.value.trim()) {
+        return NextResponse.json(
+          { message: `Confirm value for ${fact.fieldName} must match existing value` },
+          { status: 422 }
+        );
+      }
+    }
+  }
+
+  const factsToValidate = body.facts.filter((f) => !f.confirm);
+  if (factsToValidate.length > 0) {
+    const validation = await validateAuditFacts(
+      factsToValidate.map((f) => ({
+        fieldName: f.fieldName,
+        value: f.value,
+        scopeKey: f.scopeKey ?? "property",
+      })),
+      submissionLocale ?? undefined
+    );
+    if (!validation.ok) {
+      return NextResponse.json({ message: validation.message }, { status: 422 });
+    }
   }
 
   const storage = await getPhotoStorage();
@@ -285,8 +362,25 @@ export async function POST(
   });
 
   await Promise.all(
-    body.facts.map((fact) => {
+    body.facts.map(async (fact) => {
       const scopeKey = fact.scopeKey ?? "property";
+      const key = factKey({ fieldName: fact.fieldName, scopeKey });
+      const def = fieldRegistry.get(fact.fieldName);
+      const isText = def?.valueType === "TEXT";
+      const tier = fact.confirm ? ("CONFIRMED" as const) : ("VERIFIED" as const);
+      const localExisting = localByKey.get(key);
+      const meshFact = meshByKey.get(key);
+
+      if (!fact.confirm && localExisting && localExisting.value.trim() !== fact.value.trim()) {
+        await invalidateFactTranslations(localExisting.id);
+      }
+
+      const valueLocale = fact.confirm
+        ? (localExisting?.valueLocale ?? meshFact?.valueLocale ?? undefined)
+        : isText && submissionLocale
+          ? submissionLocale
+          : undefined;
+
       return prisma.accessibilityFact.upsert({
         where: {
           propertyId_fieldName_sourceNodeId_scopeKey: {
@@ -298,19 +392,21 @@ export async function POST(
         },
         update: {
           value: fact.value,
-          tier: "VERIFIED",
+          tier,
           submittedBy: submitter,
           timestamp: new Date(),
+          ...(valueLocale ? { valueLocale } : {}),
         },
         create: {
           propertyId,
           fieldName: fact.fieldName,
           scopeKey,
           value: fact.value,
-          tier: "VERIFIED",
+          tier,
           sourceType: "AUDITOR",
           sourceNodeId: NODE_ID,
           submittedBy: submitter,
+          valueLocale: valueLocale ?? null,
         },
       });
     })
@@ -350,7 +446,7 @@ export async function POST(
         fieldName: fact.fieldName,
         scopeKey: fact.scopeKey ?? "property",
         value: fact.value,
-        tier: "VERIFIED" as Tier,
+        tier: (fact.confirm ? "CONFIRMED" : "VERIFIED") as Tier,
         sourceType: "AUDITOR" as SourceType,
         sourceNodeId: NODE_ID,
         submittedBy: submitter,

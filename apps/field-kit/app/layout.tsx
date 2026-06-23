@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import "@wikitraveler/ui/tokens.css";
 import "@wikitraveler/ui/wikitraveler-ui.css";
 import "@ionic/react/css/core.css";

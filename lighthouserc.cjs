@@ -8,7 +8,7 @@ try {
   );
   propertyId = secrets.propertyId ?? propertyId;
 } catch {
-  // prepare-lighthouse.mjs writes this file before collect
+  // prepare-lighthouse.ts writes this file before collect
 }
 
 /** @type {import('@lhci/cli').LHCI.ServerCommand.Options} */

@@ -59,7 +59,7 @@ export function NodeAppShell({
   lead,
   activeNav = "map",
   children,
-  maxWidth,
+  maxWidth = 1280,
 }: Props) {
   const navLinks = useNavLinks(activeNav);
   const { t } = useLocale();

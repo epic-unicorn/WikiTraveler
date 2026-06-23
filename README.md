@@ -23,7 +23,7 @@ Corporate travel platforms often show accessibility information that is vague, o
 
 ## How it works
 
-1. **Baseline** — Ingest open directory data (Wikidata, OpenStreetMap) as a starting `OFFICIAL` layer.
+1. **Baseline** — Configure your region in Admin, then ingest open directory data (OpenStreetMap) as a starting `OFFICIAL` layer.
 2. **Audit** — Field Kit and Lens let auditors record what is actually on the ground, upgrading facts to `VERIFIED`.
 3. **Confirm** — When independent auditors agree, facts rise to `CONFIRMED` — the highest tier wins.
 4. **Deploy** — Run a node on Vercel or Docker; each operator keeps sovereignty over their region.
@@ -102,10 +102,12 @@ docker compose -f docker/docker-compose.dev.yml up postgres -d
 ### 3. Database
 
 ```bash
-pnpm db:setup               # migrations + OSM baseline from scripts/fixtures/
+pnpm db:setup               # reset DB + migrations + field definitions
 ```
 
-This resets the local database, applies migrations, and ingests the committed OSM fixture (`OFFICIAL`-tier properties). For an existing database after pulling schema changes, use `pnpm db:migrate` instead.
+This resets the local database and applies migrations. **OSM accommodation data is no longer auto-loaded** — after `pnpm dev`, complete `/setup`, then open **Admin** (`/stats`) → **Region & OSM ingest** to draw or pick a preset and confirm ingest.
+
+On first start the node starts with an **empty map** until a region is configured. Large regions (countries, Benelux) take 1–2 hours to ingest on local dev — see [OSM ingest — pick the right platform](#osm-ingest--pick-the-right-platform) before using Vercel.
 
 On first start the node no longer auto-seeds an admin from `.env`.
 After running migrations and seeding, start the node (`pnpm dev`) and open the dashboard at `http://localhost:3000`.
@@ -169,8 +171,29 @@ See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full checklist:
 - **Rate limiting** — Upstash Redis sliding-window limits on auth and audit routes
 - **AI cost control** — `MAX_AI_SCAN_PER_RUN` to cap the daily AI scan
 - **Photo storage** — Cloudflare R2 or Supabase Storage (base64-in-Postgres is the zero-config default)
+- **OSM region ingest** — Overpass, Geofabrik, manual osmium/GeoJSON — see [docs/OSM-INGEST.md](docs/OSM-INGEST.md)
 
 Docker self-hosting is also documented there.
+
+### OSM ingest — pick the right platform
+
+Region ingest (Admin → **Region & OSM ingest**) downloads accommodation data from OpenStreetMap. **How well it works depends heavily on where the node runs.**
+
+| | **Local dev / Docker / VPS** | **Vercel (serverless)** |
+| --- | --- | --- |
+| **Mode** | Continuous — one long-running process | Chunked — **1 tile per serverless invocation** (default) |
+| **128-tile region (e.g. Benelux)** | ~1.5–2 hours if the process stays up | ~1–2 hours **only if Admin (`/stats`) stays open**; **~11 hours** if only the 5‑min cron advances tiles |
+| **Navigate / log out during ingest** | Yes — ingest continues on the server | Yes — cron continues ingest (requires `CRON_SECRET`) |
+| **Stops ingest** | Stop or restart `pnpm dev` / container | Function timeout per tile; no long-lived background worker |
+| **Vercel Hobby (10s timeout)** | — | **Not suitable** for real Overpass tile downloads |
+| **Vercel Pro** | — | Works; each tile needs ~30–60s (configure `maxDuration` up to 300s if needed) |
+| **Geofabrik PBF** (France, Germany, …) | Yes — needs `osmium-tool` (Docker image includes it) | **Blocked** — requires a long-running host |
+| **Tile cap** | 150 tiles max per Overpass job | Same |
+| **Resume after failure** | DB tile status + local file cache | DB tile status only (serverless disk is ephemeral) |
+
+**Practical recommendation:** run the **first large ingest** (country or multi-country) on **local dev or Docker**, then deploy to Vercel for production. Weekly OSM refresh cron handles small incremental re-ingests fine.
+
+Full detail: **[docs/OSM-INGEST.md](docs/OSM-INGEST.md)** (ingest paths, osmium walkthrough, env vars) and **[docs/DEPLOYMENT.md § Region & OSM ingest](docs/DEPLOYMENT.md#2c-bis-region--osm-ingest-admin)** (Vercel/Docker limits, cron).
 
 ---
 
@@ -210,10 +233,9 @@ wikitraveler/
 
 | Script | Description |
 | ------ | ----------- |
-| `pnpm db:setup` | **Local fresh start:** reset DB, run migrations, ingest OSM fixture |
+| `pnpm db:setup` | **Local fresh start:** reset DB, run migrations, seed field definitions |
 | `pnpm db:migrate` | Apply pending schema migrations (keep existing data) |
-
-Re-ingest the fixture without wiping the DB: `pnpm db:seed`. Production migrations: `pnpm db:deploy` (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
+| `pnpm db:seed` | Re-ingest OSM fixture for the admin-configured bbox (offline; requires region in Admin) |
 
 ### Quality
 
@@ -227,7 +249,8 @@ Re-ingest the fixture without wiping the DB: `pnpm db:seed`. Production migratio
 
 | Script | When you need it |
 | ------ | ---------------- |
-| `pnpm osm:ingest` | Refresh `scripts/fixtures/` from Overpass (new region or updated baseline) |
+| `pnpm osm:ingest` | Fetch Overpass data for the **admin-configured bbox** (reads DB; refresh fixtures) |
+| `pnpm osm:import-pbf` | Geofabrik PBF import on Docker/VPS (`--region france` or `--geojson file.geojsonseq`) — see [docs/OSM-INGEST.md](docs/OSM-INGEST.md) |
 | `pnpm db:migrate-photos` | One-time upload of base64 photos to R2/Supabase after changing `PHOTO_STORAGE_PROVIDER` — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | `pnpm dev:gossip-lab` | Docker: two nodes for peer gossip testing — see [docs/GOSSIP-DEV.md](docs/GOSSIP-DEV.md) |
 | `pnpm gossip:check` | Smoke-check gossip lab peer registration |

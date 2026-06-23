@@ -186,3 +186,16 @@ export interface AuditPhotoDisplay {
   width?: number | null;
   height?: number | null;
 }
+
+export {
+  formatFactValue,
+  resolveFactDisplay,
+  parseAiMeta,
+  isProseField,
+  PROSE_FIELD_NAMES,
+  type FormattedFactValue,
+  type FormatFactValueOptions,
+  type FactDisplayMode,
+  type AiMeta,
+  type ResolveFactDisplayInput,
+} from "./factDisplay";

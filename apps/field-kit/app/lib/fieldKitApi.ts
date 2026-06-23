@@ -94,3 +94,26 @@ export function getStoredRadiusKm(): number {
 export function setStoredRadiusKm(km: number) {
   localStorage.setItem(RADIUS_STORAGE_KEY, String(Math.min(5, Math.max(0.5, km))));
 }
+
+export interface MapPin {
+  id: string;
+  name: string;
+  location: string;
+  lat: number;
+  lon: number;
+  audited?: boolean;
+  facts?: Record<string, { value: string; tier: string }>;
+}
+
+export async function fetchMapPins(
+  nodeUrl: string,
+  signal?: AbortSignal
+): Promise<MapPin[]> {
+  const res = await fetch(`${nodeUrl}/api/properties/map`, {
+    signal,
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("map failed");
+  const data = (await res.json()) as { pins?: MapPin[] };
+  return (data.pins ?? []).filter((p) => p.lat != null && p.lon != null && p.lat !== 0 && p.lon !== 0);
+}

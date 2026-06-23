@@ -13,14 +13,18 @@ import {
 } from "@wikitraveler/ui";
 import { searchProperties } from "../lib/fieldKitApi";
 import { auditHref } from "../lib/auditHref";
+import { RecentPropertiesSection } from "../components/RecentPropertiesSection";
+import { RegionMap } from "../components/RegionMap";
+import { readRecentAudits } from "../lib/recentAudits";
 
 interface Props {
   searchNodeUrl: string;
   homeNodeUrl: string;
   gpsResolved: { region: string | null } | null;
+  regionLabel?: string | null;
 }
 
-export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {
+export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved, regionLabel }: Props) {
   const { locale, t } = useLocale();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
@@ -28,6 +32,7 @@ export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {
   const [results, setResults] = useState<PropertySummary[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [recentCount, setRecentCount] = useState(() => readRecentAudits().length);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -87,7 +92,7 @@ export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {
   }, [query, filters, searchNodeUrl, hasActiveSearch, t]);
 
   return (
-    <div className="tab-content">
+    <div className="tab-content fk-search-tab">
       <div style={{ paddingTop: 16, marginBottom: 4 }}>
         <PropertySearchBar
           query={query}
@@ -106,43 +111,65 @@ export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved }: Props) {
         </div>
       )}
 
-      {loading && (
-        <p className="status-muted" style={{ textAlign: "center", padding: "20px 0" }}>
-          {t("ui.searching")}
-        </p>
-      )}
+      {hasActiveSearch ? (
+        <>
+          {loading && (
+            <p className="status-muted" style={{ textAlign: "center", padding: "20px 0" }}>
+              {t("ui.searching")}
+            </p>
+          )}
 
-      {searchError && <p className="status-err">{searchError}</p>}
+          {searchError && <p className="status-err">{searchError}</p>}
 
-      {results !== null && results.length === 0 && !loading && (
-        <div className="fk-empty">
-          <span className="fk-empty-icon">🔍</span>
-          <p className="fk-empty-title">{t("ui.searchNoResults")}</p>
-          <p className="fk-empty-body">
-            {query.trim()
-              ? t("ui.searchNoMatch", { query: query.trim() })
-              : t("ui.searchTryDifferent")}{" "}
-            {t("ui.searchTapPlus")}
-          </p>
-        </div>
-      )}
+          {results !== null && results.length === 0 && !loading && (
+            <div className="fk-empty">
+              <span className="fk-empty-icon">🔍</span>
+              <p className="fk-empty-title">{t("ui.searchNoResults")}</p>
+              <p className="fk-empty-body">
+                {query.trim()
+                  ? t("ui.searchNoMatch", { query: query.trim() })
+                  : t("ui.searchTryDifferent")}{" "}
+                {t("ui.searchTapPlus")}
+              </p>
+            </div>
+          )}
 
-      {results !== null && results.length > 0 && (
-        <div style={{ display: "grid", gap: 8 }}>
-          {results.map((p) => (
-            <Link key={p.id} href={auditHref(p.id, searchNodeUrl, homeNodeUrl)}>
-              <PropertyCard property={p} expandable={false} />
-            </Link>
-          ))}
-        </div>
-      )}
+          {results !== null && results.length > 0 && (
+            <div style={{ display: "grid", gap: 8 }}>
+              {results.map((p) => (
+                <Link key={p.id} href={auditHref(p.id, searchNodeUrl, homeNodeUrl)}>
+                  <PropertyCard property={p} expandable={false} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="fk-search-map-wrap">
+            <RegionMap
+              nodeUrl={homeNodeUrl}
+              homeNodeUrl={homeNodeUrl}
+              active
+              regionLabel={regionLabel}
+              showPropertyList={false}
+            />
+          </div>
 
-      {results === null && !hasActiveSearch && !loading && (
-        <div className="fk-empty">
-          <span className="fk-empty-icon">🏨</span>
-          <p className="fk-empty-title">{t("ui.searchFindTitle")}</p>
-          <p className="fk-empty-body">{t("ui.searchFindBody")}</p>
-        </div>
+          <RecentPropertiesSection
+            homeNodeUrl={homeNodeUrl}
+            compact
+            maxItems={5}
+            showClear={false}
+            onItemsChange={setRecentCount}
+          />
+
+          {recentCount > 0 && (
+            <p className="status-muted" style={{ textAlign: "center", marginTop: 16, fontSize: 13 }}>
+              {t("ui.searchRecentHint")}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

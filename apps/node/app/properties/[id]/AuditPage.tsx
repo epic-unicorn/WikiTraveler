@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useLocale } from "@wikitraveler/ui";
-import { getSourceLabel } from "@wikitraveler/i18n";
+import { useLocale, ProseFactValue } from "@wikitraveler/ui";
+import { formatFactValue, getSourceLabel, isProseField } from "@wikitraveler/i18n";
 
 const TIER_BADGE_CLASS: Record<string, string> = {
   OFFICIAL: "wt-fact-badge--official",
@@ -21,6 +21,9 @@ interface FieldDef {
 interface Fact {
   fieldName: string;
   value: string;
+  displayValue?: string;
+  valueLocale?: string | null;
+  machineTranslated?: boolean;
   tier: string;
   sourceType: string;
   submittedBy: string | null;
@@ -68,13 +71,18 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
     return getFieldLabel(fieldName);
   }
 
-  function formatFactValue(fieldName: string, value: string): string {
-    if (fieldName === "notes" || fieldName === "accessible_room_description" || fieldName === "service_animal_policy") {
-      return value;
-    }
-    if (value === "yes") return t("ui.yes");
-    if (value === "no") return t("ui.no");
-    return value;
+  function formatFactDisplay(fact: Fact): string {
+    const formatted = formatFactValue(fact.fieldName, fact.value, {
+      locale,
+      valueLocale: fact.valueLocale,
+      translatedValue: fact.displayValue,
+      machineTranslated: fact.machineTranslated,
+    });
+    return formatted.displayValue;
+  }
+
+  function isProseFact(fact: Fact): boolean {
+    return isProseField(fact.fieldName);
   }
 
   async function getToken() {
@@ -120,7 +128,7 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
       return;
     }
 
-    const refreshed = await fetch(`/api/properties/${propertyId}/accessibility`, {
+    const refreshed = await fetch(`/api/properties/${propertyId}/accessibility?locale=${locale}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const refreshedData = await refreshed.json() as { facts: Fact[] };
@@ -151,7 +159,18 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
               <li key={f.fieldName} className="wt-fact-row">
                 <div className="wt-fact-row-main">
                   <span className="wt-fact-label">{fieldLabel(f.fieldName)}</span>
-                  <span className="wt-fact-value">{formatFactValue(f.fieldName, f.value)}</span>
+                  <span className="wt-fact-value">
+                    {isProseFact(f) ? (
+                      <ProseFactValue
+                        displayValue={f.displayValue ?? formatFactDisplay(f)}
+                        rawValue={f.value}
+                        machineTranslated={f.machineTranslated}
+                        valueLocale={f.valueLocale}
+                      />
+                    ) : (
+                      formatFactDisplay(f)
+                    )}
+                  </span>
                 </div>
                 <div className="wt-fact-row-meta">
                   <span className={`wt-fact-badge ${TIER_BADGE_CLASS[f.tier] ?? "wt-fact-badge--official"}`}>

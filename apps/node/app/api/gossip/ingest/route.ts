@@ -5,23 +5,9 @@ import { createHash } from "crypto";
 import { requireNodeAuth } from "@/lib/auth";
 import { remapFactsPropertyIds, upsertGossipProperties } from "@/lib/gossipProperties";
 import { isSelfPeer } from "@/lib/linkPeer";
+import { getNodeBbox } from "@/lib/nodeSettings";
+import { makeBboxFilterFromString } from "@/lib/regionPurge";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
-
-// ---------------------------------------------------------------------------
-// BBox guard — parse OSM_BBOX and return a filter function.
-// bbox format: "minLat,minLon,maxLat,maxLon"
-// ---------------------------------------------------------------------------
-function makeBboxFilter(): ((lat: number | null | undefined, lon: number | null | undefined) => boolean) | null {
-  const raw = process.env.OSM_BBOX;
-  if (!raw) return null;
-  const parts = raw.split(",").map(Number);
-  if (parts.length !== 4 || parts.some(isNaN)) return null;
-  const [minLat, minLon, maxLat, maxLon] = parts;
-  return (lat, lon) => {
-    if (lat == null || lon == null) return true; // no coords → allow (can't verify)
-    return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
-  };
-}
 
 // POST /api/gossip/ingest
 export async function POST(req: Request) {
@@ -46,18 +32,27 @@ export async function POST(req: Request) {
   //    Filter out properties outside this node's bbox to prevent a
   //    world-node (or misconfigured peer) from bloating our database.
   // ------------------------------------------------------------------
-  const bboxFilter = makeBboxFilter();
+  const nodeBbox = await getNodeBbox();
+  if (!nodeBbox) {
+    return NextResponse.json({
+      ok: true,
+      propertiesUpserted: 0,
+      ingested: 0,
+      message: "No region configured — gossip ingest skipped.",
+    });
+  }
+  const bboxFilter = makeBboxFilterFromString(nodeBbox)!;
 
   const allowedProperties = Array.isArray(delta.properties)
-    ? delta.properties.filter((p) => !bboxFilter || bboxFilter(p.lat, p.lon))
+    ? delta.properties.filter((p) => bboxFilter(p.lat, p.lon))
     : [];
 
   const allowedPropertyIds = new Set(allowedProperties.map((p) => p.id));
 
   // Also filter facts to only those belonging to allowed properties
-  let allowedFacts = delta.facts.filter((f) => !bboxFilter || allowedPropertyIds.has(f.propertyId));
+  let allowedFacts = delta.facts.filter((f) => allowedPropertyIds.has(f.propertyId));
 
-  if (bboxFilter && allowedProperties.length < (delta.properties?.length ?? 0)) {
+  if (allowedProperties.length < (delta.properties?.length ?? 0)) {
     const skipped = (delta.properties?.length ?? 0) - allowedProperties.length;
     console.info(`[ingest] Skipped ${skipped} out-of-bbox properties from ${delta.fromNodeId}`);
   }

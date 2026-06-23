@@ -92,4 +92,27 @@ describe("accessibility static HTML", () => {
     const critical = violations.filter((v) => v.impact === "critical" || v.impact === "serious");
     expect(critical).toEqual([]);
   });
+
+  it("registration closed message sample is accessible", async () => {
+    const violations = await runAxe(`
+      <main>
+        <h1>Create account</h1>
+        <p>Registration is closed on this node. Contact an admin for an account.</p>
+        <p><a href="/login">Sign in</a></p>
+      </main>
+    `);
+    const critical = violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+    expect(critical).toEqual([]);
+  });
+
+  it("region not configured banner sample is accessible", async () => {
+    const violations = await runAxe(`
+      <div role="status">
+        No region configured yet.
+        <a href="/stats">Admin: configure region</a>
+      </div>
+    `);
+    const critical = violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+    expect(critical).toEqual([]);
+  });
 });

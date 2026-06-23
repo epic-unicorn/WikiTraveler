@@ -9,6 +9,8 @@ pnpm db:setup
 
 `.env` must have `DATABASE_URL` and (optionally) `NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY` set (copy `.env.example` to get started).
 
+**Region ingest:** configure bbox and OSM data in Admin (`/stats` → **Region & OSM ingest**). Large regions (e.g. Benelux, ~128 tiles) need 1–2 hours on local dev — keep `pnpm dev` running. Vercel has different limits; see [OSM ingest — pick the right platform](../README.md#osm-ingest--pick-the-right-platform).
+
 ---
 
 ## Flow 1 — Agency SDK Widget
@@ -128,7 +130,7 @@ curl http://localhost:3000/api/cron/ai-scan
 
 **What it tests:** Two nodes exchanging facts via inbox push and gossip pull.
 
-Use the **gossip lab** (Docker) — two nodes, two databases, dev keys, matching `OSM_BBOX`.
+Use the **gossip lab** (Docker) — two nodes, two databases, dev keys, same region configured in Admin on both.
 
 ### 1. Start the lab
 

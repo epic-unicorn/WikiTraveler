@@ -36,8 +36,6 @@ services:
       #   openssl rsa -in node_private.pem -pubout -out node_public.pem
       NODE_PRIVATE_KEY: ""
       NODE_PUBLIC_KEY: ""
-      # Open registration: set to "false" to require an invite or admin action
-      OPEN_REGISTRATION: "true"
       # Seed peers — comma-separated node URLs to contact on first boot
       # BOOTSTRAP_PEERS: https://other-node.example.com
       CORS_ORIGINS: "*"

@@ -76,10 +76,15 @@ export function AdminPanel({ token }: Props) {
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: "20px 24px", marginBottom: 24 }}>
       <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#111827" }}>Backup &amp; Restore</h3>
-      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
-        Backup exports all properties, facts, audits and peers to a JSON file.
-        Restore replaces all data — make a backup first.
+      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+        Full-node snapshot: all properties, facts (OSM and auditor), audit submissions, peers, region settings, and OSM sync state.
+        <strong style={{ color: "#374151" }}> Restore wipes and replaces</strong> that data — always download a backup first.
       </p>
+      <ul style={{ fontSize: 12, color: "#6b7280", margin: "0 0 16px", paddingLeft: 18, lineHeight: 1.5 }}>
+        <li><strong style={{ color: "#374151" }}>Use for:</strong> disaster recovery, cloning this node, or migrating to another server</li>
+        <li><strong style={{ color: "#374151" }}>Not for:</strong> moving region while keeping audits — use <em>Export audited data</em> in Region above (merge import, not full replace)</li>
+        <li><strong style={{ color: "#374151" }}>Does not include:</strong> user accounts — export those separately in Users below</li>
+      </ul>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         {/* Backup */}

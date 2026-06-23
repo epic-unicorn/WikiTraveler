@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NODE_ID, NODE_BBOX, NODE_REGION } from "@/lib/nodeInfo";
+import { NODE_ID } from "@/lib/nodeInfo";
+import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
 import { requireNodeAuth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
@@ -29,11 +30,20 @@ export async function GET(req: NextRequest) {
     : [];
 
   // Include active peers so recipients can discover the network organically
-  const peerRows = await prisma.nodePeer.findMany({
-    where: { isActive: true },
-    select: { url: true, nodeId: true, region: true, bbox: true },
-  });
-  const peers = peerRows.map((p) => ({ nodeId: p.nodeId ?? NODE_ID, url: p.url, region: p.region ?? NODE_REGION ?? null, bbox: p.bbox ?? NODE_BBOX ?? null }));
+  const [selfBbox, selfRegion, peerRows] = await Promise.all([
+    getNodeBbox(),
+    getNodeRegionLabel(),
+    prisma.nodePeer.findMany({
+      where: { isActive: true },
+      select: { url: true, nodeId: true, region: true, bbox: true },
+    }),
+  ]);
+  const peers = peerRows.map((p) => ({
+    nodeId: p.nodeId ?? NODE_ID,
+    url: p.url,
+    region: p.region ?? selfRegion ?? null,
+    bbox: p.bbox ?? selfBbox ?? null,
+  }));
 
   // Photo URL references for federated display (v2 gossip — no binary sync)
   const latestAudits = propertyIds.length > 0

@@ -115,12 +115,23 @@
     /* ——— Node status ——— */
     .node-status {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       margin-top: 10px;
       padding: 9px 12px;
       border-radius: 8px;
       font-size: 13px;
+    }
+    .node-status-body {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+      line-height: 1.4;
+    }
+    .node-status-regions {
+      font-size: 12px;
+      opacity: 0.9;
     }
     .node-status-dot {
       width: 7px;

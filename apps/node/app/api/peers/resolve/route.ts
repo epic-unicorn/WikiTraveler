@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NODE_ID, NODE_URL, NODE_REGION, NODE_BBOX } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
+import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
+import { containsPoint, parseBbox } from "@/lib/bbox";
 import { requireAuth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
@@ -10,23 +12,7 @@ import type { NextRequest } from "next/server";
  * Returns the best peer for a given coordinate.
  * First checks active NodePeers with a bbox that contains the point.
  * Falls back to this node if no peer matches.
- *
- * Clients use this to redirect queries to the right regional node.
  */
-function parseBbox(raw: string | null): [number, number, number, number] | null {
-  if (!raw) return null;
-  const parts = raw.split(",").map(Number);
-  if (parts.length !== 4 || parts.some(isNaN)) return null;
-  return parts as [number, number, number, number];
-}
-
-function containsPoint(bbox: string, lat: number, lon: number): boolean {
-  const parsed = parseBbox(bbox);
-  if (!parsed) return false;
-  const [minLat, minLon, maxLat, maxLon] = parsed;
-  return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
-}
-
 export async function GET(req: NextRequest) {
   const authError = await requireAuth(req);
   if (authError) return authError;
@@ -38,19 +24,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "lat and lon query parameters are required" }, { status: 400 });
   }
 
-  // Check if this node's own bbox covers the point
-  if (NODE_BBOX && containsPoint(NODE_BBOX, lat, lon)) {
-    return NextResponse.json({ nodeId: NODE_ID, url: NODE_URL, region: NODE_REGION, bbox: NODE_BBOX, matched: "self" });
+  const [selfBbox, region] = await Promise.all([getNodeBbox(), getNodeRegionLabel()]);
+  const parsedSelf = parseBbox(selfBbox);
+
+  if (parsedSelf && containsPoint(parsedSelf, lat, lon)) {
+    return NextResponse.json({
+      nodeId: NODE_ID,
+      url: NODE_URL,
+      region,
+      bbox: selfBbox,
+      matched: "self",
+    });
   }
 
-  // Search active peers with a bbox
   const peers = await prisma.nodePeer.findMany({
     where: { isActive: true, bbox: { not: null } },
     select: { url: true, nodeId: true, region: true, bbox: true },
   });
 
   for (const peer of peers) {
-    if (peer.bbox && containsPoint(peer.bbox, lat, lon)) {
+    const pb = parseBbox(peer.bbox);
+    if (pb && containsPoint(pb, lat, lon)) {
       return NextResponse.json({
         nodeId: peer.nodeId ?? null,
         url: peer.url,
@@ -61,6 +55,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // No region match — return self as best-effort fallback
-  return NextResponse.json({ nodeId: NODE_ID, url: NODE_URL, region: NODE_REGION, bbox: NODE_BBOX, matched: "fallback" });
+  return NextResponse.json({
+    nodeId: NODE_ID,
+    url: NODE_URL,
+    region,
+    bbox: selfBbox,
+    matched: "fallback",
+  });
 }
