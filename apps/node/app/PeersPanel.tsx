@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useLocale } from "@wikitraveler/ui";
 
 type Peer = {
   id: string;
@@ -29,6 +30,7 @@ const th: React.CSSProperties = {
 };
 
 export function PeersPanel({ token }: { token: string }) {
+  const { t } = useLocale();
   const [peers, setPeers] = useState<Peer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,10 +50,10 @@ export function PeersPanel({ token }: { token: string }) {
         setLoading(false);
       })
       .catch(() => {
-        setError("Failed to load peers");
+        setError(t("ui.adminLoadPeersFailed"));
         setLoading(false);
       });
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -72,7 +74,7 @@ export function PeersPanel({ token }: { token: string }) {
       });
       const data = await res.json() as { peer?: Peer; message?: string };
       if (!res.ok) {
-        setAddError(data.message ?? "Failed to add peer");
+        setAddError(data.message ?? t("ui.adminAddPeerFailed"));
         return;
       }
       setAddUrl("");
@@ -83,7 +85,7 @@ export function PeersPanel({ token }: { token: string }) {
   }
 
   async function handleRemove(url: string) {
-    if (!confirm(`Remove peer "${url}"?\n\nThe node will stop syncing with it. You can re-add it at any time.`)) return;
+    if (!confirm(t("ui.adminRemovePeerConfirm", { url }))) return;
     setRemoving(url);
     try {
       await fetch(`/api/nodes?url=${encodeURIComponent(url)}`, {
@@ -105,10 +107,12 @@ export function PeersPanel({ token }: { token: string }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json() as { updated?: number; failed?: number; total?: number };
+      const updated = data.updated ?? 0;
+      const total = data.total ?? 0;
+      const failed = data.failed ?? 0;
       setRefreshMsg(
-        `Refreshed ${data.updated ?? 0} / ${data.total ?? 0} peers${
-          (data.failed ?? 0) > 0 ? ` · ${data.failed} unreachable` : ""
-        }.`
+        t("ui.adminPeersRefreshed", { updated, total })
+        + (failed > 0 ? t("ui.adminPeersUnreachable", { failed }) : "")
       );
       load();
     } finally {
@@ -126,7 +130,6 @@ export function PeersPanel({ token }: { token: string }) {
         marginBottom: 24,
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -138,9 +141,9 @@ export function PeersPanel({ token }: { token: string }) {
         }}
       >
         <div>
-          <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Peer Nodes</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{t("ui.adminPeersTitle")}</h3>
           <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginTop: 4, marginBottom: 0 }}>
-            Nodes this instance syncs accessibility facts with via gossip.
+            {t("ui.adminPeersLead")}
           </p>
         </div>
         <button
@@ -159,7 +162,7 @@ export function PeersPanel({ token }: { token: string }) {
             whiteSpace: "nowrap",
           }}
         >
-          {refreshing ? "Refreshing…" : "Refresh all"}
+          {refreshing ? t("ui.adminRefreshing") : t("ui.adminRefreshAll")}
         </button>
       </div>
 
@@ -169,10 +172,9 @@ export function PeersPanel({ token }: { token: string }) {
         </p>
       )}
 
-      {/* Table */}
       {loading && (
         <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginTop: 16 }}>
-          Loading peers…
+          {t("ui.adminLoadingPeers")}
         </p>
       )}
       {error && (
@@ -184,9 +186,9 @@ export function PeersPanel({ token }: { token: string }) {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
             <thead>
               <tr>
-                <th style={{ ...th, textAlign: "left" }}>URL</th>
-                <th style={{ ...th, textAlign: "left" }}>Region</th>
-                <th style={{ ...th, textAlign: "right" }}>Last seen</th>
+                <th style={{ ...th, textAlign: "left" }}>{t("ui.adminUrl")}</th>
+                <th style={{ ...th, textAlign: "left" }}>{t("ui.adminRegionCol")}</th>
+                <th style={{ ...th, textAlign: "right" }}>{t("ui.adminLastSeen")}</th>
                 <th style={th}></th>
               </tr>
             </thead>
@@ -197,13 +199,13 @@ export function PeersPanel({ token }: { token: string }) {
                     colSpan={4}
                     style={{ ...cell, color: "var(--wt-text-muted)", textAlign: "center", padding: "20px 12px" }}
                   >
-                    No peer nodes yet. Add one below.
+                    {t("ui.adminNoPeers")}
                   </td>
                 </tr>
               )}
               {peers.map((p) => {
                 const isBusy = removing === p.url;
-                const ago = formatAgo(p.lastSeen);
+                const ago = formatAgo(p.lastSeen, t);
                 return (
                   <tr key={p.url}>
                     <td style={cell}>
@@ -259,7 +261,7 @@ export function PeersPanel({ token }: { token: string }) {
                           cursor: isBusy ? "not-allowed" : "pointer",
                         }}
                       >
-                        {isBusy ? "…" : "Remove"}
+                        {isBusy ? "…" : t("ui.adminRemove")}
                       </button>
                     </td>
                   </tr>
@@ -270,7 +272,6 @@ export function PeersPanel({ token }: { token: string }) {
         </div>
       )}
 
-      {/* Add peer form */}
       <form
         onSubmit={handleAdd}
         style={{
@@ -288,7 +289,7 @@ export function PeersPanel({ token }: { token: string }) {
             type="url"
             value={addUrl}
             onChange={(e) => { setAddUrl(e.target.value); setAddError(""); }}
-            placeholder="https://other-node.example.com"
+            placeholder={t("ui.adminPeerUrlPlaceholder")}
             required
             disabled={adding}
             style={{
@@ -326,20 +327,23 @@ export function PeersPanel({ token }: { token: string }) {
             whiteSpace: "nowrap",
           }}
         >
-          {adding ? "Connecting…" : "Add peer"}
+          {adding ? t("ui.adminConnecting") : t("ui.adminAddPeer")}
         </button>
       </form>
     </div>
   );
 }
 
-function formatAgo(isoString: string): string {
+function formatAgo(
+  isoString: string,
+  t: (key: string, params?: Record<string, string | number>) => string
+): string {
   const diff = Date.now() - new Date(isoString).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 2) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 2) return t("ui.adminJustNow");
+  if (mins < 60) return t("ui.adminMinutesAgo", { mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t("ui.adminHoursAgo", { hrs });
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return t("ui.adminDaysAgo", { days });
 }

@@ -41,16 +41,41 @@ services:
       - node_modules_sdk:/app/packages/sdk/node_modules
       - node_modules_node_app:/app/apps/node/node_modules
       - node_modules_field_kit:/app/apps/field-kit/node_modules
+    env_file:
+      - ../.env
     environment:
       DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler
-      NODE_ID: docker-node-1
-      NODE_URL: http://localhost:3000
-      NODE_PRIVATE_KEY: ""
-      NODE_PUBLIC_KEY: ""
-      # BOOTSTRAP_PEERS: "http://other-node:3000"
-      CORS_ORIGINS: "*"
-      GOSSIP_INTERVAL_HOURS: "24"
       NODE_ENV: development
+
+  # Optional — enable with: docker compose --profile field-kit up
+  field-kit:
+    profiles: ["field-kit"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      node:
+        condition: service_started
+    ports:
+      - "${FIELD_KIT_PORT:-3001}:3001"
+    volumes:
+      - ..:/app
+      - node_modules:/app/node_modules
+      - node_modules_core:/app/packages/core/node_modules
+      - node_modules_ai_agent:/app/packages/ai-agent/node_modules
+      - node_modules_sdk:/app/packages/sdk/node_modules
+      - node_modules_node_app:/app/apps/node/node_modules
+      - node_modules_field_kit:/app/apps/field-kit/node_modules
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      NEXT_PUBLIC_NODE_API_URL: ${NEXT_PUBLIC_NODE_API_URL:-http://localhost:3000}
+    entrypoint: ["/entrypoint.field-kit.dev.sh"]
 
 volumes:
   postgres_data:

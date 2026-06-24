@@ -26,6 +26,10 @@
     "db:migrate-photos": "pnpm --filter @wikitraveler/node db:migrate-photos",
     "osm:ingest": "tsx --tsconfig apps/node/tsconfig.json scripts/osm-ingest.ts",
     "osm:import-pbf": "tsx --tsconfig apps/node/tsconfig.json scripts/osm-import-pbf.ts",
+    "osm:import-pbf:docker": "docker compose -f docker/docker-compose.dev.yml exec node pnpm osm:import-pbf",
+    "osm:import-pbf:docker:prod": "docker compose -f docker/docker-compose.yml exec node osm-import-pbf",
+    "docker:field-kit": "docker compose -f docker/docker-compose.yml --profile field-kit up -d",
+    "docker:field-kit:dev": "docker compose -f docker/docker-compose.dev.yml --profile field-kit up -d",
     "postinstall": "prisma generate"
   },
   "workspaces": [

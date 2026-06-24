@@ -36,6 +36,34 @@ describe("geoJsonFeatureToElement", () => {
     expect(el?.id).toBe(999);
     expect(el?.center).toEqual({ lat: 48.86, lon: 2.35 });
   });
+
+  it("parses a polygon way using centroid and type_id", () => {
+    const el = geoJsonFeatureToElement({
+      type: "Feature",
+      id: "w12345",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [5.47, 51.44],
+            [5.48, 51.44],
+            [5.48, 51.45],
+            [5.47, 51.45],
+            [5.47, 51.44],
+          ],
+        ],
+      },
+      properties: {
+        "@type": "way",
+        name: "Polygon Hotel",
+        tourism: "hotel",
+      },
+    });
+    expect(el?.type).toBe("way");
+    expect(el?.id).toBe(12345);
+    expect(el?.center?.lat).toBeCloseTo(51.444);
+    expect(el?.tags.name).toBe("Polygon Hotel");
+  });
 });
 
 describe("parseGeoJsonExport", () => {

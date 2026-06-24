@@ -17,6 +17,14 @@ const BASE = "https://download.geofabrik.de";
 
 export const GEOFABRIK_REGIONS: GeofabrikRegion[] = [
   {
+    id: "netherlands",
+    label: "Netherlands",
+    bbox: [50.75, 3.36, 53.55, 7.23],
+    downloadSizeMb: 1300,
+    estimatedMinutes: 25,
+    url: `${BASE}/europe/netherlands-latest.osm.pbf`,
+  },
+  {
     id: "france",
     label: "France",
     bbox: [41.33, -5.14, 51.09, 9.56],

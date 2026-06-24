@@ -1,0 +1,57 @@
+# ── Stage 1: Install dependencies ────────────────────────────────────────────
+FROM node:20-bookworm-slim AS deps
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+WORKDIR /app
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/i18n/package.json ./packages/i18n/
+COPY apps/field-kit/package.json ./apps/field-kit/
+
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# ── Stage 2: Build ────────────────────────────────────────────────────────────
+FROM node:20-bookworm-slim AS builder
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
+COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
+COPY --from=deps /app/packages/i18n/node_modules ./packages/i18n/node_modules
+COPY --from=deps /app/apps/field-kit/node_modules ./apps/field-kit/node_modules
+
+COPY . .
+
+ARG NEXT_PUBLIC_NODE_API_URL=http://localhost:3000
+ENV NEXT_PUBLIC_NODE_API_URL=$NEXT_PUBLIC_NODE_API_URL
+
+RUN pnpm --filter @wikitraveler/core build
+RUN pnpm --filter @wikitraveler/i18n build
+RUN pnpm --filter @wikitraveler/ui build
+RUN pnpm --filter @wikitraveler/field-kit build
+
+# ── Stage 3: Production image ─────────────────────────────────────────────────
+FROM node:20-bookworm-slim AS runner
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
+
+COPY --from=builder /app/apps/field-kit/.next/standalone ./
+COPY --from=builder /app/apps/field-kit/.next/static ./apps/field-kit/.next/static
+
+EXPOSE 3001
+
+CMD ["node", "apps/field-kit/server.js"]

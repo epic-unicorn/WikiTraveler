@@ -1,7 +1,8 @@
 /**
  * Import accommodation from a Geofabrik .osm.pbf extract.
  *
- * Requires osmium-tool: apt install osmium-tool (included in docker/Dockerfile.dev)
+ * Requires osmium-tool (Linux/macOS) or Docker on Windows:
+ *   pnpm osm:import-pbf:docker -- --region france
  *
  * Usage:
  *   pnpm osm:import-pbf --region france
@@ -12,9 +13,10 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import { parseBbox } from "../apps/node/lib/bbox";
+import { formatBbox, parseBbox } from "../apps/node/lib/bbox";
 import { getGeofabrikRegion } from "../apps/node/lib/geofabrik";
 import { importGeoJsonFile, importGeofabrikRegion } from "../apps/node/lib/pbfImport";
+import { bboxesEqual } from "../apps/node/lib/regionPresets";
 
 const prisma = new PrismaClient();
 const NODE_ID = process.env.NODE_ID ?? "pbf-import-script";
@@ -43,8 +45,17 @@ async function main() {
     console.log(`Importing from GeoJSON: ${geojson}`);
     result = await importGeoJsonFile(geojson, bbox, `${NODE_ID}:osm`, prisma);
   } else if (regionId) {
-    if (!getGeofabrikRegion(regionId)) {
+    const region = getGeofabrikRegion(regionId);
+    if (!region) {
       throw new Error(`Unknown --region ${regionId}. See apps/node/lib/geofabrik.ts`);
+    }
+    if (!bboxesEqual(bbox, region.bbox)) {
+      throw new Error(
+        `Admin bbox does not match Geofabrik region "${regionId}".\n` +
+          `  Current : ${formatBbox(bbox)}\n` +
+          `  Expected: ${formatBbox(region.bbox)} (${region.label})\n` +
+          `Open Admin (/stats) → Region & OSM ingest → select "${region.label}" → Preview → Save region only, then retry.`
+      );
     }
     console.log(`Geofabrik import: ${regionId} → bbox ${settings.bbox}`);
     result = await importGeofabrikRegion({

@@ -27,20 +27,32 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
+    env_file:
+      - ../.env
     environment:
+      # Override host .env — inside the compose network the DB host is "postgres"
       DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler
-      NODE_ID: docker-node-1
-      NODE_URL: http://localhost:3000
-      # RS256 keypair — required for cross-node auth. Generate with:
-      #   openssl genrsa -out node_private.pem 2048
-      #   openssl rsa -in node_private.pem -pubout -out node_public.pem
-      NODE_PRIVATE_KEY: ""
-      NODE_PUBLIC_KEY: ""
-      # Seed peers — comma-separated node URLs to contact on first boot
-      # BOOTSTRAP_PEERS: https://other-node.example.com
-      CORS_ORIGINS: "*"
-      GOSSIP_INTERVAL_HOURS: "24"
       NODE_ENV: production
+
+  # Optional — enable with: docker compose --profile field-kit up
+  field-kit:
+    profiles: ["field-kit"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.field-kit
+      args:
+        NEXT_PUBLIC_NODE_API_URL: ${NEXT_PUBLIC_NODE_API_URL:-http://localhost:3000}
+    restart: unless-stopped
+    depends_on:
+      - node
+    ports:
+      - "${FIELD_KIT_PORT:-3001}:3001"
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOSTNAME: "0.0.0.0"
 
 volumes:
   postgres_data:

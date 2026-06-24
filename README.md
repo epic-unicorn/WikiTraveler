@@ -78,6 +78,8 @@ Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED`
 
 ## Quick Start
 
+Full development guide: **[docs/LOCAL.md](docs/LOCAL.md)** (setup, OSM ingest, clients).
+
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) v20+
@@ -107,7 +109,7 @@ pnpm db:setup               # reset DB + migrations + field definitions
 
 This resets the local database and applies migrations. **OSM accommodation data is no longer auto-loaded** — after `pnpm dev`, complete `/setup`, then open **Admin** (`/stats`) → **Region & OSM ingest** to draw or pick a preset and confirm ingest.
 
-On first start the node starts with an **empty map** until a region is configured. Large regions (countries, Benelux) take 1–2 hours to ingest on local dev — see [OSM ingest — where to run it](#osm-ingest--where-to-run-it) before using Vercel.
+On first start the node starts with an **empty map** until a region is configured. Large regions (countries, Benelux) take 1–2 hours to ingest — see [docs/LOCAL.md](docs/LOCAL.md#osm-ingest-local).
 
 On first start the node no longer auto-seeds an admin from `.env`.
 After running migrations and seeding, start the node (`pnpm dev`) and open the dashboard at `http://localhost:3000`.
@@ -156,42 +158,17 @@ WikiTraveler targets **WCAG 2.1 Level AA**. The public statement lives at `/acce
 
 ---
 
-## Deployment
+## Run WikiTraveler
 
-Production deployments use **two Vercel projects** — one for the node (`apps/node`) and one for Field Kit (`apps/field-kit`). Both require a hosted PostgreSQL database for the node; Field Kit only needs `NEXT_PUBLIC_NODE_API_URL` pointing at your node.
+Pick the guide that matches your goal. Each includes a step-by-step plan and OSM region ingest instructions.
 
-See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full checklist:
+| Scenario | When | Guide |
+| -------- | ---- | ----- |
+| **Local development** | Coding, first ingest, testing | [docs/LOCAL.md](docs/LOCAL.md) |
+| **Docker production** | Self-hosted node (VPS, on-prem) | [docs/DOCKER.md](docs/DOCKER.md) |
+| **Vercel production** | Serverless node + Field Kit | [docs/VERCEL.md](docs/VERCEL.md) |
 
-- Database provisioning and migrations
-- Node env vars, cron jobs, RS256 keys, and first-run `/setup`
-- Field Kit env vars and CORS configuration
-- Connecting Lens, Field Kit, and agency SDK clients
-- **Rate limiting** — Upstash Redis sliding-window limits on auth and audit routes
-- **AI cost control** — `MAX_AI_SCAN_PER_RUN` to cap the daily AI scan
-- **Photo storage** — Cloudflare R2 or Supabase Storage (base64-in-Postgres is the zero-config default)
-- **OSM region ingest** — Overpass, Geofabrik, manual osmium/GeoJSON — see [docs/OSM-INGEST.md](docs/OSM-INGEST.md)
-
-Docker self-hosting is also documented there.
-
-### OSM ingest — where to run it
-
-**Region & OSM ingest** (Admin → `/stats`) downloads accommodation data from OpenStreetMap. Large regions behave very differently on a long-running server vs Vercel.
-
-**Rule of thumb:** do the **first big ingest** (country or Benelux-scale) on **local dev or Docker**, then deploy to Vercel. Weekly refresh cron is fine for maintenance.
-
-| | **Local dev / Docker / VPS** | **Vercel (serverless)** |
-| --- | --- | --- |
-| **How ingest runs** | One background job processes all tiles | One tile per function call, then the function exits |
-| **Benelux (~128 tiles)** | ~2 hours — keep `pnpm dev` or the container running | ~2 hours with Admin open; ~11 hours on cron alone (1 tile / 5 min) |
-| **Leave Admin / log out** | Ingest continues | Cron continues — set `CRON_SECRET` |
-| **What stops ingest** | Stop or restart dev server / container | Per-tile timeout; no persistent worker |
-| **Vercel Hobby (10s)** | — | Not usable for Overpass tile downloads |
-| **Vercel Pro** | — | Works — allow ~30–60s per tile (`maxDuration` up to 300s) |
-| **Geofabrik PBF** (France, Germany, …) | Yes — `osmium-tool` (included in Docker image) | Not supported — needs a long-running host |
-| **Tile limit** | 150 tiles per job | Same |
-| **Resume after failure** | DB + on-disk tile cache | DB only (serverless disk is ephemeral) |
-
-Details: [docs/OSM-INGEST.md](docs/OSM-INGEST.md) (ingest paths, osmium, env vars) · [docs/DEPLOYMENT.md § Region & OSM ingest](docs/DEPLOYMENT.md#2c-bis-region--osm-ingest-admin) (cron, Docker vs Vercel).
+**OSM rule of thumb:** run the first large ingest (country or Benelux-scale) on **local dev or Docker**, then deploy to Vercel for maintenance cron refreshes.
 
 ---
 
@@ -248,8 +225,9 @@ wikitraveler/
 | Script | When you need it |
 | ------ | ---------------- |
 | `pnpm osm:ingest` | Fetch Overpass data for the **admin-configured bbox** (reads DB; refresh fixtures) |
-| `pnpm osm:import-pbf` | Geofabrik PBF import on Docker/VPS (`--region france` or `--geojson file.geojsonseq`) — see [docs/OSM-INGEST.md](docs/OSM-INGEST.md) |
-| `pnpm db:migrate-photos` | One-time upload of base64 photos to R2/Supabase after changing `PHOTO_STORAGE_PROVIDER` — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| `pnpm osm:import-pbf` | Geofabrik PBF import (`--region france` or `--geojson file.geojsonseq`) — see [docs/LOCAL.md](docs/LOCAL.md) or [docs/DOCKER.md](docs/DOCKER.md) |
+| `pnpm osm:import-pbf:docker` | Same as above, inside Docker dev container (Windows / no local osmium) |
+| `pnpm db:migrate-photos` | One-time upload of base64 photos to R2/Supabase — see [docs/VERCEL.md](docs/VERCEL.md) or [docs/DOCKER.md](docs/DOCKER.md) |
 | `pnpm dev:gossip-lab` | Docker: two nodes for peer gossip testing — see [docs/GOSSIP-DEV.md](docs/GOSSIP-DEV.md) |
 | `pnpm gossip:check` | Smoke-check gossip lab peer registration |
 

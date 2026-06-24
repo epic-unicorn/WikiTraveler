@@ -9,7 +9,7 @@ pnpm db:setup
 
 `.env` must have `DATABASE_URL` and (optionally) `NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY` set (copy `.env.example` to get started).
 
-**Region ingest:** configure bbox and OSM data in Admin (`/stats` → **Region & OSM ingest**). Large regions (e.g. Benelux, ~128 tiles) need 1–2 hours on local dev — keep `pnpm dev` running. Vercel has different limits; see [OSM ingest — where to run it](../README.md#osm-ingest--where-to-run-it).
+**Region ingest:** configure bbox and OSM data in Admin (`/stats` → **Region & OSM ingest**). Large regions (e.g. Benelux, ~128 tiles) need 1–2 hours — keep `pnpm dev` running. See [docs/LOCAL.md](../docs/LOCAL.md#osm-ingest-local).
 
 ---
 

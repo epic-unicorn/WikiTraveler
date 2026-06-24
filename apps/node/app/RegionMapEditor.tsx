@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useLocale } from "@wikitraveler/ui";
 import type { Bbox } from "@/lib/bbox";
 import { bboxAreaKm2, formatBbox, parseBbox, planTileIngest, validateBbox } from "@/lib/bbox";
 
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function RegionMapEditor({ bbox, onChange, presetBbox }: Props) {
+  const { t } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const rectRef = useRef<import("leaflet").Rectangle | null>(null);
@@ -195,7 +197,7 @@ export function RegionMapEditor({ bbox, onChange, presetBbox }: Props) {
   return (
     <div>
       <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
-        Hold <kbd style={{ fontSize: 12, padding: "1px 5px", borderRadius: 4, border: "1px solid #d1d5db", background: "#f9fafb" }}>Shift</kbd> and drag on the map to draw your region. Without Shift, drag pans the map.
+        {t("ui.adminMapDrawHint")}
       </p>
       <div
         ref={containerRef}
@@ -206,13 +208,13 @@ export function RegionMapEditor({ bbox, onChange, presetBbox }: Props) {
           {bbox}
           {area != null && <span style={{ fontFamily: "inherit", marginLeft: 8 }}>({area} km²)</span>}
           {tilePlan && tilePlan.tileCount > 1 && (
-            <span style={{ fontFamily: "inherit", marginLeft: 8 }}>· {tilePlan.tileCount} tiles</span>
+            <span style={{ fontFamily: "inherit", marginLeft: 8 }}>{t("ui.adminMapTiles", { count: tilePlan.tileCount })}</span>
           )}
         </p>
       )}
       {invalid && (
         <p style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>
-          Region exceeds tile limit — draw a smaller area.
+          {t("ui.adminMapBboxInvalid")}
         </p>
       )}
     </div>

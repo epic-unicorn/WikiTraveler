@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Fragment } from "react";
+import { useLocale } from "@wikitraveler/ui";
 
 type User = { id: string; username: string; role: string; createdAt: string };
 
@@ -13,6 +14,7 @@ const ROLE_COLOR: Record<string, { bg: string; text: string }> = {
 };
 
 export function UsersPanel({ token }: { token: string }) {
+  const { t } = useLocale();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,10 +45,10 @@ export function UsersPanel({ token }: { token: string }) {
         setLoading(false);
       })
       .catch(() => {
-        setError("Failed to load users");
+        setError(t("ui.adminLoadUsersFailed"));
         setLoading(false);
       });
-  }, [token]);
+  }, [token, t]);
 
   async function handleSaveRole(username: string) {
     const newRole = pendingRoles[username];
@@ -81,11 +83,11 @@ export function UsersPanel({ token }: { token: string }) {
 
   async function handleSetPassword(username: string) {
     if (newPassword.length < 8) {
-      setPasswordMessage("Password must be at least 8 characters.");
+      setPasswordMessage(t("ui.adminPasswordMinLength"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMessage("Passwords do not match.");
+      setPasswordMessage(t("ui.adminPasswordMismatch"));
       return;
     }
 
@@ -101,10 +103,10 @@ export function UsersPanel({ token }: { token: string }) {
       if (res.ok) {
         closePasswordEdit();
       } else {
-        setPasswordMessage(data.message ?? "Failed to set password");
+        setPasswordMessage(data.message ?? t("ui.adminSetPasswordFailed"));
       }
     } catch {
-      setPasswordMessage("Failed to set password");
+      setPasswordMessage(t("ui.adminSetPasswordFailed"));
     } finally {
       setSaving(null);
     }
@@ -162,16 +164,16 @@ export function UsersPanel({ token }: { token: string }) {
         const listData = (await listRes.json()) as { users?: User[] };
         setUsers(listData.users ?? []);
       } else {
-        setError(data.message ?? "Import failed");
+        setError(data.message ?? t("ui.adminImportFailed"));
       }
     } catch {
-      setError("Import failed");
+      setError(t("ui.adminImportFailed"));
     }
     e.target.value = "";
   }
 
   async function handleDelete(username: string) {
-    if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+    if (!confirm(t("ui.adminDeleteUserConfirm", { username }))) return;
     setSaving(username);
     try {
       const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
@@ -199,19 +201,18 @@ export function UsersPanel({ token }: { token: string }) {
 
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: "20px 24px", marginBottom: 24 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#111827" }}>Users</h3>
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#111827" }}>{t("ui.adminUsersTitle")}</h3>
       <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
-        Manage user accounts and roles. User export is separate from region data and from the full node backup above.
+        {t("ui.adminUsersLead")}
       </p>
       <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 16px", lineHeight: 1.5 }}>
-        Export includes usernames and roles only (no passwords). After import on a new node, use <strong>Set password</strong> here
-        or add a <code style={{ fontSize: 11 }}>password</code> field per user in the import JSON.
+        {t("ui.adminUsersExportNote")}
       </p>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, padding: "12px 14px", background: "#f9fafb", borderRadius: 8, border: "1px solid #e5e7eb" }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Open registration</div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>Allow new users to create accounts via /register</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t("ui.adminOpenRegistration")}</div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>{t("ui.adminOpenRegistrationDesc")}</div>
         </div>
         <button
           type="button"
@@ -228,7 +229,7 @@ export function UsersPanel({ token }: { token: string }) {
             color: openRegistration ? "#166534" : "#6b7280",
           }}
         >
-          {savingRegistration ? "…" : openRegistration ? "Open" : "Closed"}
+          {savingRegistration ? "…" : openRegistration ? t("ui.adminRegistrationOpen") : t("ui.adminRegistrationClosed")}
         </button>
       </div>
 
@@ -238,15 +239,15 @@ export function UsersPanel({ token }: { token: string }) {
           onClick={() => void handleExportUsers()}
           style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#f9fafb", fontSize: 13, cursor: "pointer" }}
         >
-          Export users
+          {t("ui.adminExportUsers")}
         </button>
         <label style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#f9fafb", fontSize: 13, cursor: "pointer" }}>
-          Import users
+          {t("ui.adminImportUsers")}
           <input type="file" accept="application/json" onChange={(e) => void handleImportUsers(e)} style={{ display: "none" }} />
         </label>
       </div>
 
-      {loading && <p style={{ fontSize: 13, color: "#9ca3af" }}>Loading users…</p>}
+      {loading && <p style={{ fontSize: 13, color: "#9ca3af" }}>{t("ui.adminLoadingUsers")}</p>}
       {error  && <p style={{ fontSize: 13, color: "#dc2626" }}>{error}</p>}
 
       {!loading && !error && (
@@ -254,9 +255,9 @@ export function UsersPanel({ token }: { token: string }) {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 480 }}>
             <thead>
               <tr>
-                <th style={{ ...th, textAlign: "left" }}>Username</th>
-                <th style={{ ...th, textAlign: "left" }}>Role</th>
-                <th style={{ ...th, textAlign: "left" }}>Since</th>
+                <th style={{ ...th, textAlign: "left" }}>{t("ui.adminUsername")}</th>
+                <th style={{ ...th, textAlign: "left" }}>{t("ui.adminRole")}</th>
+                <th style={{ ...th, textAlign: "left" }}>{t("ui.adminSince")}</th>
                 <th style={th}></th>
               </tr>
             </thead>
@@ -264,7 +265,7 @@ export function UsersPanel({ token }: { token: string }) {
               {users.length === 0 && (
                 <tr>
                   <td colSpan={4} style={{ ...cell, color: "#9ca3af", textAlign: "center" }}>
-                    No users found.
+                    {t("ui.adminNoUsers")}
                   </td>
                 </tr>
               )}
@@ -313,7 +314,7 @@ export function UsersPanel({ token }: { token: string }) {
                               cursor: isSaving ? "not-allowed" : "pointer", fontWeight: 600,
                             }}
                           >
-                            {isSaving ? "Saving…" : "Save"}
+                            {isSaving ? t("ui.adminSaving") : t("ui.adminSave")}
                           </button>
                         )}
                       </div>
@@ -334,7 +335,7 @@ export function UsersPanel({ token }: { token: string }) {
                             cursor: isSaving ? "not-allowed" : "pointer",
                           }}
                         >
-                          {editingPassword ? "Cancel" : "Set password"}
+                          {editingPassword ? t("ui.adminCancel") : t("ui.adminSetPassword")}
                         </button>
                         <button
                           onClick={() => handleDelete(u.username)}
@@ -346,7 +347,7 @@ export function UsersPanel({ token }: { token: string }) {
                             cursor: isSaving ? "not-allowed" : "pointer",
                           }}
                         >
-                          {isSaving ? "…" : "Delete"}
+                          {isSaving ? "…" : t("ui.adminDelete")}
                         </button>
                       </div>
                     </td>
@@ -356,7 +357,7 @@ export function UsersPanel({ token }: { token: string }) {
                       <td colSpan={4} style={{ ...cell, background: "#f9fafb" }}>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
                           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
-                            New password
+                            {t("ui.adminNewPassword")}
                             <input
                               type="password"
                               value={newPassword}
@@ -366,7 +367,7 @@ export function UsersPanel({ token }: { token: string }) {
                             />
                           </label>
                           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
-                            Confirm
+                            {t("ui.adminConfirmPassword")}
                             <input
                               type="password"
                               value={confirmPassword}
@@ -385,7 +386,7 @@ export function UsersPanel({ token }: { token: string }) {
                               cursor: isSaving ? "not-allowed" : "pointer",
                             }}
                           >
-                            {isSaving ? "Saving…" : "Save password"}
+                            {isSaving ? t("ui.adminSaving") : t("ui.adminSavePassword")}
                           </button>
                           {passwordMessage && (
                             <span style={{ fontSize: 12, color: "#dc2626", alignSelf: "center" }}>{passwordMessage}</span>

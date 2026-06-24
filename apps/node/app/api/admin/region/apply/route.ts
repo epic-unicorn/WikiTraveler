@@ -12,11 +12,13 @@ import { deriveRegionLabel } from "@/lib/geocode";
 import { validateRegionBbox, findPresetByBbox } from "@/lib/regionPresets";
 import { commitNodeBbox, setAuditedReimportPending } from "@/lib/nodeSettings";
 import { formatBbox } from "@/lib/bbox";
+import { prisma } from "@/lib/prisma";
+import { purgeGossipOutsideBbox, purgeOutsideBbox } from "@/lib/regionPurge";
 import type { NextRequest } from "next/server";
 
 /**
  * POST /api/admin/region/apply
- * Body: { bbox: string, presetId?: string, exportConfirmed?: boolean }
+ * Body: { bbox, presetId?, exportConfirmed?, reingest?, saveOnly? }
  */
 export async function POST(req: NextRequest) {
   const authError = await requireRole(req, "ADMIN");
@@ -31,7 +33,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { bbox?: string; presetId?: string; exportConfirmed?: boolean; reingest?: boolean };
+  let body: {
+    bbox?: string;
+    presetId?: string;
+    exportConfirmed?: boolean;
+    reingest?: boolean;
+    saveOnly?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -48,7 +56,7 @@ export async function POST(req: NextRequest) {
   const effectivePresetId =
     body.presetId ?? findPresetByBbox(formatBbox(validated.bbox))?.id ?? undefined;
 
-  if (plan.ingestMode === "geofabrik" && isChunkedIngestMode()) {
+  if (plan.ingestMode === "geofabrik" && isChunkedIngestMode() && !body.saveOnly) {
     return NextResponse.json(
       {
         message:
@@ -67,6 +75,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       message: "Bbox unchanged. Use Re-ingest to download OSM data again.",
       changeType: "unchanged",
+    });
+  }
+
+  if (body.saveOnly) {
+    if (plan.requiresExport && !body.exportConfirmed) {
+      return NextResponse.json(
+        {
+          message: "Export audited data and confirm before moving to a new region.",
+          requiresExport: true,
+          changeType: plan.changeType,
+        },
+        { status: 400 }
+      );
+    }
+
+    const regionLabel = await deriveRegionLabel(validated.bbox, effectivePresetId);
+    await commitNodeBbox(validated.bbox, regionLabel, effectivePresetId);
+
+    if (plan.changeType === "shrink") {
+      await purgeOutsideBbox(prisma, validated.bbox);
+      await purgeGossipOutsideBbox(prisma, validated.bbox);
+      await setAuditedReimportPending(false);
+    } else if (plan.changeType === "move") {
+      await setAuditedReimportPending(true);
+    } else {
+      await setAuditedReimportPending(false);
+    }
+
+    return NextResponse.json({
+      changeType: plan.changeType,
+      savedOnly: true,
+      ingestMode: plan.ingestMode,
     });
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocale } from "@wikitraveler/ui";
 import { RegionMapEditor } from "./RegionMapEditor";
 
 interface Preset {
@@ -58,24 +59,50 @@ interface JobStatus {
   tilesDone?: number;
 }
 
-const PRESET_TIER_LABELS: Record<Preset["tier"], string> = {
-  city: "Major cities",
-  country: "Countries",
-  region: "Multi-country regions",
-  geofabrik: "Large countries (Geofabrik import)",
-};
-
 const PRESET_TIER_ORDER: Preset["tier"][] = ["city", "country", "region", "geofabrik"];
 
-const CHANGE_LABELS: Record<string, string> = {
-  initial: "First-time setup",
-  shrink: "Shrinking region",
-  expand: "Expanding region",
-  move: "Moving region",
-  unchanged: "No change",
-};
+function presetTierLabel(
+  tier: Preset["tier"],
+  t: (key: string, params?: Record<string, string | number>) => string
+): string {
+  const keys: Record<Preset["tier"], string> = {
+    city: "ui.adminPresetTierCity",
+    country: "ui.adminPresetTierCountry",
+    region: "ui.adminPresetTierRegion",
+    geofabrik: "ui.adminPresetTierGeofabrik",
+  };
+  return t(keys[tier]);
+}
+
+function changeLabel(
+  changeType: string,
+  t: (key: string, params?: Record<string, string | number>) => string
+): string {
+  const keys: Record<string, string> = {
+    initial: "ui.adminChangeInitial",
+    shrink: "ui.adminChangeShrink",
+    expand: "ui.adminChangeExpand",
+    move: "ui.adminChangeMove",
+    unchanged: "ui.adminChangeUnchanged",
+  };
+  return keys[changeType] ? t(keys[changeType]) : changeType;
+}
+
+function jobStatusLabel(
+  status: string,
+  t: (key: string, params?: Record<string, string | number>) => string
+): string {
+  const keys: Record<string, string> = {
+    RUNNING: "ui.adminJobStatusRunning",
+    COMPLETED: "ui.adminJobStatusCompleted",
+    FAILED: "ui.adminJobStatusFailed",
+    PENDING: "ui.adminJobStatusPending",
+  };
+  return keys[status] ? t(keys[status]) : status;
+}
 
 export function RegionPanel({ token }: { token: string }) {
+  const { t, locale } = useLocale();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [draftBbox, setDraftBbox] = useState<string | null>(null);
@@ -193,12 +220,12 @@ export function RegionPanel({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message ?? "Preview failed");
+        setError(data.message ?? t("ui.adminPreviewFailed"));
         return;
       }
       setPreview(data as Preview);
     } catch {
-      setError("Could not reach server");
+      setError(t("ui.adminCouldNotReachServer"));
     } finally {
       setPreviewLoading(false);
     }
@@ -209,7 +236,7 @@ export function RegionPanel({ token }: { token: string }) {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
-      setError("Export failed");
+      setError(t("ui.adminExportFailed"));
       return;
     }
     const blob = await res.blob();
@@ -244,7 +271,7 @@ export function RegionPanel({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message ?? "Re-ingest failed");
+        setError(data.message ?? t("ui.adminReingestFailed"));
         return;
       }
       if (data.jobId) {
@@ -252,7 +279,42 @@ export function RegionPanel({ token }: { token: string }) {
         setPreview(null);
       }
     } catch {
-      setError("Could not reach server");
+      setError(t("ui.adminCouldNotReachServer"));
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  async function handleSaveOnly() {
+    if (!draftBbox || !preview) return;
+    if (preview.requiresExport && !exportConfirmed) {
+      setError(t("ui.adminConfirmExportFirst"));
+      return;
+    }
+    setApplying(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/region/apply", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          bbox: draftBbox,
+          presetId: presetId || undefined,
+          exportConfirmed: preview.requiresExport ? exportConfirmed : undefined,
+          saveOnly: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message ?? t("ui.adminSaveFailed"));
+        return;
+      }
+      setPreview(null);
+      setExportConfirmed(false);
+      setExportedAudited(false);
+      void load();
+    } catch {
+      setError(t("ui.adminCouldNotReachServer"));
     } finally {
       setApplying(false);
     }
@@ -261,7 +323,7 @@ export function RegionPanel({ token }: { token: string }) {
   async function handleApply() {
     if (!draftBbox || !preview) return;
     if (preview.requiresExport && !exportConfirmed) {
-      setError("Confirm you exported audited data before continuing.");
+      setError(t("ui.adminConfirmExportFirst"));
       return;
     }
     setApplying(true);
@@ -278,11 +340,11 @@ export function RegionPanel({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message ?? "Apply failed");
+        setError(data.message ?? t("ui.adminApplyFailed"));
         return;
       }
       if (data.changeType === "unchanged" && !data.jobId) {
-        setError(data.message ?? "Region unchanged. Use Re-ingest to download OSM data again.");
+        setError(data.message ?? t("ui.adminRegionUnchanged"));
         return;
       }
       if (data.jobId) {
@@ -293,7 +355,7 @@ export function RegionPanel({ token }: { token: string }) {
       setExportedAudited(false);
       void load();
     } catch {
-      setError("Could not reach server");
+      setError(t("ui.adminCouldNotReachServer"));
     } finally {
       setApplying(false);
     }
@@ -317,15 +379,15 @@ export function RegionPanel({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setGeojsonStatus(data.message ?? "GeoJSON import failed");
+        setGeojsonStatus(data.message ?? t("ui.adminGeojsonImportFailed"));
         return;
       }
       if (data.jobId) {
         setJob({ id: data.jobId, status: "RUNNING", phase: null, progress: 0, message: null, error: null, stats: null });
-        setGeojsonStatus("Import started — see progress below.");
+        setGeojsonStatus(t("ui.adminImportStarted"));
       }
     } catch {
-      setGeojsonStatus("GeoJSON import failed");
+      setGeojsonStatus(t("ui.adminGeojsonImportFailed"));
     } finally {
       setGeojsonImporting(false);
       e.target.value = "";
@@ -344,10 +406,10 @@ export function RegionPanel({ token }: { token: string }) {
         body: text,
       });
       const data = await res.json();
-      setImportStatus(data.message ?? (res.ok ? "Imported" : "Import failed"));
+      setImportStatus(data.message ?? (res.ok ? t("ui.adminImported") : t("ui.adminImportFailed")));
       if (res.ok) void load();
     } catch {
-      setImportStatus("Import failed");
+      setImportStatus(t("ui.adminImportFailed"));
     }
     e.target.value = "";
   }
@@ -362,12 +424,12 @@ export function RegionPanel({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message ?? "Retry failed");
+        setError(data.message ?? t("ui.adminRetryFailed"));
         return;
       }
       setJob({ ...job, status: "RUNNING", error: null });
     } catch {
-      setError("Could not reach server");
+      setError(t("ui.adminCouldNotReachServer"));
     }
   }
 
@@ -381,9 +443,9 @@ export function RegionPanel({ token }: { token: string }) {
 
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: "20px 24px", marginBottom: 24 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#111827" }}>Region &amp; OSM ingest</h3>
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#111827" }}>{t("ui.adminRegionTitle")}</h3>
       <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
-        Configure the geographic area this node serves — from a city up to a full country. Large regions are downloaded in tiles from OpenStreetMap.
+        {t("ui.adminRegionLead")}
       </p>
 
       {settings.isConfigured && (
@@ -391,11 +453,11 @@ export function RegionPanel({ token }: { token: string }) {
           <strong>{settings.region}</strong>
           {settings.lastIngestAt ? (
             <span style={{ color: "#6b7280", marginLeft: 8 }}>
-              Last ingest: {new Date(settings.lastIngestAt).toLocaleString()}
-              {settings.lastIngestCount != null && ` (${settings.lastIngestCount} elements)`}
+              {t("ui.adminLastIngest", { date: new Date(settings.lastIngestAt).toLocaleString(locale) })}
+              {settings.lastIngestCount != null && ` ${t("ui.adminLastIngestElements", { count: settings.lastIngestCount })}`}
             </span>
           ) : (
-            <span style={{ color: "#b45309", marginLeft: 8 }}>OSM ingest not completed yet</span>
+            <span style={{ color: "#b45309", marginLeft: 8 }}>{t("ui.adminOsmIngestIncomplete")}</span>
           )}
           {!settings.lastIngestAt && (
             <div style={{ marginTop: 8 }}>
@@ -405,18 +467,17 @@ export function RegionPanel({ token }: { token: string }) {
                 disabled={applying || (!!job && job.status === "RUNNING")}
                 style={btnStyle("#2563eb", "#fff")}
               >
-                {applying ? "Starting…" : "Start OSM ingest"}
+                {applying ? t("ui.adminStarting") : t("ui.adminStartOsmIngest")}
               </button>
             </div>
           )}
           {settings.lastIngestAt && (
             <details style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
               <summary style={{ cursor: "pointer", color: "#374151", fontWeight: 600 }}>
-                Refresh OSM data
+                {t("ui.adminRefreshOsmData")}
               </summary>
               <p style={{ margin: "8px 0" }}>
-                Re-download OpenStreetMap for this region. Use when OSM has changed or you need a clean baseline.
-                Large regions can take hours (e.g. Benelux ~128 tiles).
+                {t("ui.adminRefreshOsmDesc")}
               </p>
               <button
                 type="button"
@@ -424,25 +485,25 @@ export function RegionPanel({ token }: { token: string }) {
                 disabled={applying || (!!job && job.status === "RUNNING")}
                 style={btnStyle("#f3f4f6", "#111827")}
               >
-                {applying ? "Starting…" : "Re-ingest OSM data"}
+                {applying ? t("ui.adminStarting") : t("ui.adminReingestOsmData")}
               </button>
             </details>
           )}
         </div>
       )}
 
-      <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>Preset (optional)</label>
+      <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>{t("ui.adminPresetOptional")}</label>
       <select
         value={presetId}
         onChange={(e) => handlePresetChange(e.target.value)}
         style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", marginBottom: 16, fontSize: 14 }}
       >
-        <option value="">— Custom / draw on map —</option>
+        <option value="">{t("ui.adminPresetCustom")}</option>
         {PRESET_TIER_ORDER.map((tier) => {
           const tierPresets = presets.filter((p) => p.tier === tier);
           if (tierPresets.length === 0) return null;
           return (
-            <optgroup key={tier} label={PRESET_TIER_LABELS[tier]}>
+            <optgroup key={tier} label={presetTierLabel(tier, t)}>
               {tierPresets.map((p) => (
                 <option key={p.id} value={p.id}>{p.label}</option>
               ))}
@@ -464,55 +525,54 @@ export function RegionPanel({ token }: { token: string }) {
           disabled={!draftBbox || previewLoading}
           style={btnStyle("#f3f4f6", "#111827")}
         >
-          {previewLoading ? "Estimating…" : "Preview changes"}
+          {previewLoading ? t("ui.adminEstimating") : t("ui.adminPreviewChanges")}
         </button>
       </div>
 
       {preview && (
         <div style={{ marginTop: 16, padding: 14, background: "#f9fafb", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>{CHANGE_LABELS[preview.changeType] ?? preview.changeType}</div>
-          <div>Region label: <strong>{preview.regionLabel}</strong></div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>{changeLabel(preview.changeType, t)}</div>
+          <div>{t("ui.adminRegionLabel")} <strong>{preview.regionLabel}</strong></div>
           <div>
-            Area: {Math.round(preview.areaKm2).toLocaleString()} km²
-            {preview.tileCount > 1 && ` · ${preview.tileCount} tiles`}
+            {t("ui.adminAreaKm2", { area: Math.round(preview.areaKm2).toLocaleString(locale) })}
+            {preview.tileCount > 1 && ` ${t("ui.adminTileCount", { count: preview.tileCount })}`}
           </div>
           {preview.warnLarge && preview.ingestMode === "overpass" && (
             <div style={{ color: "#b45309", marginTop: 6 }}>
-              Large region — ingest may take ~{Math.round(preview.estimatedDurationSec / 60)} minutes.
+              {t("ui.adminLargeRegionWarning", { minutes: Math.round(preview.estimatedDurationSec / 60) })}
             </div>
           )}
           {preview.ingestMode === "geofabrik" && (
             <div style={{ color: "#1d4ed8", marginTop: 6 }}>
-              Geofabrik import — downloads ~{preview.geofabrikDownloadMb ?? "?"} MB extract.
-              Requires osmium-tool on the server (Docker dev image includes it).
+              {t("ui.adminGeofabrikWarning", { mb: preview.geofabrikDownloadMb ?? "?" })}
             </div>
           )}
           {preview.propertiesToRemove > 0 && (
-            <div style={{ color: "#b45309" }}>{preview.propertiesToRemove} properties will be removed (outside new area)</div>
+            <div style={{ color: "#b45309" }}>{t("ui.adminPropertiesRemoved", { count: preview.propertiesToRemove })}</div>
           )}
           {preview.propertiesInside > 0 && (
-            <div>{preview.propertiesInside} properties kept inside the new area</div>
+            <div>{t("ui.adminPropertiesKept", { count: preview.propertiesInside })}</div>
           )}
           {preview.ingestEstimate && !preview.ingestEstimate.error && (
             <div style={{ marginTop: 8, color: "#374151" }}>
               {preview.ingestEstimate.isGeofabrik ? (
                 <>
-                  <div>Est. properties: ~{preview.ingestEstimate.propertyEstimate ?? "?"}</div>
-                  <div>Est. download: ~{preview.ingestEstimate.downloadSizeMb ?? "?"} MB (Geofabrik .pbf)</div>
-                  <div>Est. duration: ~{Math.round((preview.ingestEstimate.durationSeconds ?? 0) / 60)} min</div>
+                  <div>{t("ui.adminEstProperties", { count: preview.ingestEstimate.propertyEstimate ?? "?" })}</div>
+                  <div>{t("ui.adminEstDownloadMb", { mb: preview.ingestEstimate.downloadSizeMb ?? "?" })}</div>
+                  <div>{t("ui.adminEstDurationMin", { min: Math.round((preview.ingestEstimate.durationSeconds ?? 0) / 60) })}</div>
                 </>
               ) : (
                 <>
-                  <div>Est. OSM elements: ~{preview.ingestEstimate.elementCount ?? "?"}</div>
-                  <div>Est. properties: ~{preview.ingestEstimate.propertyEstimate ?? "?"}</div>
-                  <div>Est. download: ~{preview.ingestEstimate.downloadSizeKb ?? "?"} KB</div>
-                  <div>Est. duration: ~{preview.ingestEstimate.durationSeconds ?? "?"}s</div>
+                  <div>{t("ui.adminEstOsmElements", { count: preview.ingestEstimate.elementCount ?? "?" })}</div>
+                  <div>{t("ui.adminEstProperties", { count: preview.ingestEstimate.propertyEstimate ?? "?" })}</div>
+                  <div>{t("ui.adminEstDownloadKb", { kb: preview.ingestEstimate.downloadSizeKb ?? "?" })}</div>
+                  <div>{t("ui.adminEstDurationSec", { sec: preview.ingestEstimate.durationSeconds ?? "?" })}</div>
                 </>
               )}
               <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
-                Estimates only — actual values may differ
+                {t("ui.adminEstimatesDisclaimer")}
                 {preview.ingestEstimate.sampledTiles != null && preview.ingestEstimate.sampledTiles > 1 && (
-                  <span> (sampled {preview.ingestEstimate.sampledTiles} tiles)</span>
+                  <span> {t("ui.adminEstimatesSampled", { count: preview.ingestEstimate.sampledTiles })}</span>
                 )}
               </div>
             </div>
@@ -520,14 +580,13 @@ export function RegionPanel({ token }: { token: string }) {
           {preview.requiresExport && (
             <div style={{ marginTop: 12, padding: 12, background: "#fef3c7", borderRadius: 8 }}>
               <p style={{ margin: "0 0 8px" }}>
-                Moving to a new area requires exporting <strong>audited field work</strong> first (auditor facts and submissions only).
-                This is smaller and safer than a full backup — re-import merges into the new region by OSM ID.
+                {t("ui.adminExportAuditedLead")}
               </p>
               <p style={{ margin: "0 0 8px", fontSize: 12, color: "#92400e" }}>
-                Full backup (below in Admin) includes auditor data too, but restore replaces the entire database — do not use it for a region move.
+                {t("ui.adminExportAuditedNote")}
               </p>
               <button type="button" onClick={() => void handleExportAudited()} style={btnStyle("#f59e0b", "#fff")}>
-                {exportedAudited ? "Downloaded ✓" : "Export audited data"}
+                {exportedAudited ? t("ui.adminExportAuditedDownloaded") : t("ui.adminExportAudited")}
               </button>
               <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
                 <input
@@ -536,24 +595,41 @@ export function RegionPanel({ token }: { token: string }) {
                   onChange={(e) => setExportConfirmed(e.target.checked)}
                   disabled={!exportedAudited}
                 />
-                I exported audited data and understand properties outside the new region will be removed
+                {t("ui.adminExportConfirmCheckbox")}
               </label>
             </div>
           )}
           {preview.changeType !== "unchanged" && (
-            <button
-              type="button"
-              onClick={() => void handleApply()}
-              disabled={applying || (preview.requiresExport && !exportConfirmed)}
-              style={{ ...btnStyle("#2563eb", "#fff"), marginTop: 12 }}
-            >
-              {applying ? "Starting…" : preview.requiresIngest ? "Apply & ingest" : "Apply changes"}
-            </button>
+            <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => void handleApply()}
+                disabled={applying || (preview.requiresExport && !exportConfirmed)}
+                style={btnStyle("#2563eb", "#fff")}
+              >
+                {applying ? t("ui.adminStarting") : preview.requiresIngest ? t("ui.adminApplyAndIngest") : t("ui.adminApplyChanges")}
+              </button>
+              {preview.requiresIngest && (
+                <button
+                  type="button"
+                  onClick={() => void handleSaveOnly()}
+                  disabled={applying || (preview.requiresExport && !exportConfirmed)}
+                  style={btnStyle("#f3f4f6", "#111827")}
+                >
+                  {applying ? t("ui.adminSaving") : t("ui.adminSaveRegionOnly")}
+                </button>
+              )}
+            </div>
+          )}
+          {preview.changeType !== "unchanged" && preview.requiresIngest && (
+            <p style={{ margin: "8px 0 0", fontSize: 12, color: "#6b7280" }}>
+              {t("ui.adminSaveRegionOnlyHint")}
+            </p>
           )}
           {preview.changeType === "unchanged" && settings.isConfigured && (
             <div style={{ marginTop: 12 }}>
               <p style={{ margin: "0 0 8px", color: "#6b7280" }}>
-                Region bbox is already saved. Use Re-ingest to download OSM data for this area.
+                {t("ui.adminRegionUnchangedHint")}
               </p>
               <button
                 type="button"
@@ -561,7 +637,7 @@ export function RegionPanel({ token }: { token: string }) {
                 disabled={applying || (!!job && job.status === "RUNNING")}
                 style={btnStyle("#2563eb", "#fff")}
               >
-                {applying ? "Starting…" : "Re-ingest OSM data"}
+                {applying ? t("ui.adminStarting") : t("ui.adminReingestOsmData")}
               </button>
             </div>
           )}
@@ -571,10 +647,10 @@ export function RegionPanel({ token }: { token: string }) {
       {job && (
         <div style={{ marginTop: 16, padding: 14, background: "#eff6ff", borderRadius: 8, fontSize: 13 }}>
           <div style={{ fontWeight: 600 }}>
-            Ingest job: {job.status}
+            {t("ui.adminIngestJob", { status: jobStatusLabel(job.status, t) })}
             {job.tileCount != null && job.tileCount > 0 && (
               <span style={{ fontWeight: 400, color: "#6b7280" }}>
-                {" "}· tile {job.tilesDone ?? 0}/{job.tileCount}
+                {" "}{t("ui.adminIngestTileProgress", { done: job.tilesDone ?? 0, total: job.tileCount })}
               </span>
             )}
           </div>
@@ -592,7 +668,7 @@ export function RegionPanel({ token }: { token: string }) {
                 onClick={() => void handleRetryJob()}
                 style={{ ...btnStyle("#f3f4f6", "#111827"), marginTop: 8 }}
               >
-                Retry failed ingest
+                {t("ui.adminRetryIngest")}
               </button>
             </div>
           )}
@@ -601,10 +677,9 @@ export function RegionPanel({ token }: { token: string }) {
 
       {settings.isConfigured && (
         <div style={{ marginTop: 20, borderTop: "1px solid #e5e7eb", paddingTop: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Import OSM GeoJSON</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{t("ui.adminImportGeoJsonTitle")}</div>
           <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
-            Load accommodations from a pre-exported GeoJSON or geojsonseq file (e.g. from osmium), clipped to the current region bbox.
-            This is an <strong>OSM data source</strong>, not a backup or restore of node data.
+            {t("ui.adminImportGeoJsonDesc")}
           </p>
           <input
             type="file"
@@ -618,14 +693,13 @@ export function RegionPanel({ token }: { token: string }) {
 
       {settings.isConfigured && settings.auditedReimportPending && (
         <div style={{ marginTop: 20, borderTop: "1px solid #e5e7eb", paddingTop: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Re-import audited data</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{t("ui.adminReimportAuditedTitle")}</div>
           <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
-            You moved to a new region. After OSM ingest finishes, upload the <em>Export audited data</em> JSON
-            to re-attach field audits (matched by OSM ID). Merges into existing properties — unlike full backup restore.
+            {t("ui.adminReimportAuditedDesc")}
           </p>
           {(!!job && job.status === "RUNNING") || !settings.lastIngestAt ? (
             <p style={{ fontSize: 12, color: "#b45309", marginBottom: 8 }}>
-              Wait until the OSM ingest job completes before importing.
+              {t("ui.adminWaitForIngest")}
             </p>
           ) : null}
           <input

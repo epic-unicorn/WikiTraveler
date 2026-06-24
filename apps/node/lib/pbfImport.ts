@@ -10,7 +10,7 @@ import {
   buildOsmiumAccommodationFilterArgs,
   getGeofabrikRegion,
 } from "@/lib/geofabrik";
-import { geoJsonFeatureToElement, parseGeoJsonExport } from "@/lib/geojsonToOverpass";
+import { geoJsonFeatureToElement, parseGeoJsonExport, stripGeoJsonSeqLine } from "@/lib/geojsonToOverpass";
 import type { IngestStats, OverpassElement, OverpassResult } from "@/lib/overpass";
 import { ingestOverpassResult } from "@/lib/overpass";
 import type { PrismaClient } from "@prisma/client";
@@ -34,6 +34,25 @@ export async function isOsmiumAvailable(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export function osmiumInstallHint(): string {
+  if (process.platform === "win32") {
+    return (
+      "osmium-tool is not installed or not on PATH.\n" +
+      "On Windows, Geofabrik PBF import requires osmium. Options:\n" +
+      "  1. Docker (recommended): pnpm osm:import-pbf:docker -- --region <id>\n" +
+      "     (requires: docker compose -f docker/docker-compose.dev.yml up -d)\n" +
+      "  2. WSL: sudo apt install osmium-tool, then run this command in WSL\n" +
+      "  3. Admin UI: tiled Overpass ingest for smaller regions (no osmium)\n" +
+      "See: https://osmcode.org/osmium-tool/"
+    );
+  }
+  return (
+    "osmium-tool is not installed. Install it (apt install osmium-tool / brew install osmium-tool) " +
+    "or run via Docker: pnpm osm:import-pbf:docker -- --region <id>. " +
+    "See: https://osmcode.org/osmium-tool/"
+  );
 }
 
 function runCommand(cmd: string, args: string[]): Promise<string> {
@@ -81,7 +100,7 @@ async function filterAccommodationPbf(sourcePbf: string, filteredPbf: string): P
 }
 
 async function exportGeoJsonSeq(filteredPbf: string, geojsonPath: string): Promise<void> {
-  if (existsSync(geojsonPath)) return;
+  // Always re-export: osmium flags may change; export is fast vs download/filter.
   await runCommand("osmium", [
     "export",
     filteredPbf,
@@ -90,6 +109,10 @@ async function exportGeoJsonSeq(filteredPbf: string, geojsonPath: string): Promi
     "-f",
     "geojsonseq",
     "--overwrite",
+    "-a",
+    "id,type",
+    "-u",
+    "type_id",
   ]);
 }
 
@@ -123,7 +146,7 @@ export async function ingestGeoJsonSeqFile(
   const rl = createInterface({ input: createReadStream(geojsonPath), crlfDelay: Infinity });
 
   for await (const line of rl) {
-    const trimmed = line.trim();
+    const trimmed = stripGeoJsonSeqLine(line);
     if (!trimmed) continue;
     lines += 1;
 
@@ -175,10 +198,7 @@ export async function importGeofabrikRegion(options: ImportGeofabrikOptions): Pr
   if (!region) throw new Error(`Unknown Geofabrik region: ${geofabrikId}`);
 
   if (!options.geojsonPath && !(await isOsmiumAvailable())) {
-    throw new Error(
-      "osmium-tool is not installed. Install it (apt install osmium-tool) or use Docker dev image. " +
-        "See: https://osmcode.org/osmium-tool/"
-    );
+    throw new Error(osmiumInstallHint());
   }
 
   const dir = cacheDir();

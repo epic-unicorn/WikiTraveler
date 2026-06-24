@@ -2,56 +2,113 @@ import type { OverpassElement } from "@/lib/overpass";
 
 interface GeoJsonFeature {
   type?: string;
+  id?: string | number;
   geometry?: {
     type?: string;
-    coordinates?: number[];
+    coordinates?: unknown;
   };
   properties?: Record<string, unknown>;
+}
+
+/** Strip GeoJSON Text Sequence record separator (0x1e) before JSON.parse. */
+export function stripGeoJsonSeqLine(line: string): string {
+  return line.trim().replace(/^\u001e/, "");
+}
+
+function coordsFromGeometry(geometry: GeoJsonFeature["geometry"]): { lat: number; lon: number } | null {
+  if (!geometry?.coordinates) return null;
+
+  if (geometry.type === "Point" && Array.isArray(geometry.coordinates)) {
+    const coords = geometry.coordinates as number[];
+    if (coords.length < 2) return null;
+    const [lon, lat] = coords;
+    return { lat, lon };
+  }
+
+  if (geometry.type === "Polygon" && Array.isArray(geometry.coordinates)) {
+    const ring = (geometry.coordinates as number[][][])[0];
+    if (!ring?.length) return null;
+    let latSum = 0;
+    let lonSum = 0;
+    for (const coord of ring) {
+      if (!Array.isArray(coord) || coord.length < 2) continue;
+      lonSum += coord[0]!;
+      latSum += coord[1]!;
+    }
+    return { lat: latSum / ring.length, lon: lonSum / ring.length };
+  }
+
+  if (geometry.type === "MultiPolygon" && Array.isArray(geometry.coordinates)) {
+    const firstPoly = (geometry.coordinates as number[][][][])[0];
+    return coordsFromGeometry({ type: "Polygon", coordinates: firstPoly });
+  }
+
+  return null;
+}
+
+function parseOsmId(
+  props: Record<string, unknown>,
+  featureId: GeoJsonFeature["id"]
+): { osmType: "node" | "way" | "relation"; id: number } | null {
+  const rawId = props["@id"] ?? props.id ?? props.osm_id ?? featureId;
+  if (typeof rawId === "string" && rawId.includes("/")) {
+    const [t, num] = rawId.split("/");
+    const id = parseInt(num ?? "", 10);
+    if (Number.isNaN(id)) return null;
+    const osmType = t === "way" ? "way" : t === "relation" ? "relation" : "node";
+    return { osmType, id };
+  }
+
+  if (typeof rawId === "string") {
+    const typeId = rawId.match(/^([nwr])(\d+)$/);
+    if (typeId) {
+      const osmType =
+        typeId[1] === "w" ? "way" : typeId[1] === "r" ? "relation" : "node";
+      return { osmType, id: parseInt(typeId[2]!, 10) };
+    }
+    const id = parseInt(rawId, 10);
+    if (!Number.isNaN(id)) {
+      const t = props.type ?? props.osm_type ?? props["@type"];
+      const osmType = t === "way" ? "way" : t === "relation" ? "relation" : "node";
+      return { osmType, id };
+    }
+  }
+
+  if (typeof rawId === "number" && !Number.isNaN(rawId)) {
+    const t = props.type ?? props.osm_type ?? props["@type"];
+    const osmType = t === "way" ? "way" : t === "relation" ? "relation" : "node";
+    return { osmType, id: rawId };
+  }
+
+  return null;
 }
 
 /** Convert osmium geojson(seq) features to Overpass-shaped elements. */
 export function geoJsonFeatureToElement(feature: GeoJsonFeature): OverpassElement | null {
   if (feature.type !== "Feature" || !feature.properties) return null;
-  const geom = feature.geometry;
-  if (geom?.type !== "Point" || !geom.coordinates || geom.coordinates.length < 2) return null;
 
-  const [lon, lat] = geom.coordinates;
-  const props = feature.properties;
+  const coords = coordsFromGeometry(feature.geometry);
+  if (!coords) return null;
 
-  let osmType: "node" | "way" = "node";
-  let id: number | null = null;
-
-  const rawId = props["@id"] ?? props.id ?? props.osm_id;
-  if (typeof rawId === "string" && rawId.includes("/")) {
-    const [t, num] = rawId.split("/");
-    osmType = t === "way" ? "way" : "node";
-    id = parseInt(num ?? "", 10);
-  } else if (typeof rawId === "number") {
-    id = rawId;
-    const t = props.type ?? props.osm_type;
-    if (t === "way") osmType = "way";
-  } else if (typeof rawId === "string") {
-    id = parseInt(rawId, 10);
-  }
-
-  if (id == null || Number.isNaN(id)) return null;
+  const parsed = parseOsmId(feature.properties, feature.id);
+  if (!parsed) return null;
 
   const tags: Record<string, string> = {};
-  for (const [key, value] of Object.entries(props)) {
+  for (const [key, value] of Object.entries(feature.properties)) {
     if (key.startsWith("@")) continue;
     if (value == null) continue;
     if (typeof value === "object") continue;
     tags[key] = String(value);
   }
 
-  if (osmType === "way") {
-    return { type: "way", id, center: { lat, lon }, tags };
+  if (parsed.osmType === "way" || parsed.osmType === "relation") {
+    return { type: parsed.osmType, id: parsed.id, center: coords, tags };
   }
-  return { type: "node", id, lat, lon, tags };
+  return { type: "node", id: parsed.id, lat: coords.lat, lon: coords.lon, tags };
 }
 
 export function parseGeoJsonSeqLine(line: string): OverpassElement | null {
-  const trimmed = line.trim();
+  const trimmed = stripGeoJsonSeqLine(line);
   if (!trimmed) return null;
   try {
     const feature = JSON.parse(trimmed) as GeoJsonFeature;

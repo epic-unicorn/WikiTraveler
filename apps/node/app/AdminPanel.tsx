@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@wikitraveler/ui";
 
 interface Props {
   token: string;
 }
 
 export function AdminPanel({ token }: Props) {
+  const { t } = useLocale();
   const [restoreStatus, setRestoreStatus] = useState<null | { ok: boolean; message: string; warnings?: string[] }>(null);
   const [restoring, setRestoring] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -19,7 +21,7 @@ export function AdminPanel({ token }: Props) {
       });
       if (!res.ok) {
         const data = await res.json() as { message?: string };
-        alert(data.message ?? "Backup failed");
+        alert(data.message ?? t("ui.adminBackupFailed"));
         return;
       }
       const blob = await res.blob();
@@ -59,11 +61,11 @@ export function AdminPanel({ token }: Props) {
         const { properties, facts, audits, peers } = data.restored!;
         setRestoreStatus({
           ok: true,
-          message: `Restored ${properties} properties, ${facts} facts, ${audits} audits, ${peers} peers.`,
+          message: t("ui.adminRestoreSuccess", { properties, facts, audits, peers }),
           warnings: data.warnings,
         });
       } else {
-        setRestoreStatus({ ok: false, message: data.message ?? "Restore failed" });
+        setRestoreStatus({ ok: false, message: data.message ?? t("ui.adminRestoreFailed") });
       }
     } catch (err) {
       setRestoreStatus({ ok: false, message: String(err) });
@@ -75,19 +77,19 @@ export function AdminPanel({ token }: Props) {
 
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: "20px 24px", marginBottom: 24 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#111827" }}>Backup &amp; Restore</h3>
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#111827" }}>{t("ui.adminBackupTitle")}</h3>
       <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
-        Full-node snapshot: all properties, facts (OSM and auditor), audit submissions, peers, region settings, and OSM sync state.
-        <strong style={{ color: "#374151" }}> Restore wipes and replaces</strong> that data — always download a backup first.
+        {t("ui.adminBackupLead")}{" "}
+        <strong style={{ color: "#374151" }}>{t("ui.adminBackupRestoreWipes")}</strong>{" "}
+        {t("ui.adminBackupRestoreSuffix")}
       </p>
       <ul style={{ fontSize: 12, color: "#6b7280", margin: "0 0 16px", paddingLeft: 18, lineHeight: 1.5 }}>
-        <li><strong style={{ color: "#374151" }}>Use for:</strong> disaster recovery, cloning this node, or migrating to another server</li>
-        <li><strong style={{ color: "#374151" }}>Not for:</strong> moving region while keeping audits — use <em>Export audited data</em> in Region above (merge import, not full replace)</li>
-        <li><strong style={{ color: "#374151" }}>Does not include:</strong> user accounts — export those separately in Users below</li>
+        <li><strong style={{ color: "#374151" }}>{t("ui.adminBackupUseFor")}</strong> {t("ui.adminBackupUseForDesc")}</li>
+        <li><strong style={{ color: "#374151" }}>{t("ui.adminBackupNotFor")}</strong> {t("ui.adminBackupNotForDesc")}</li>
+        <li><strong style={{ color: "#374151" }}>{t("ui.adminBackupExcludes")}</strong> {t("ui.adminBackupExcludesDesc")}</li>
       </ul>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        {/* Backup */}
         <button
           onClick={handleBackup}
           disabled={downloading}
@@ -98,17 +100,16 @@ export function AdminPanel({ token }: Props) {
             opacity: downloading ? 0.7 : 1,
           }}
         >
-          {downloading ? "Preparing…" : "⬇ Download Backup"}
+          {downloading ? t("ui.adminBackupPreparing") : t("ui.adminDownloadBackup")}
         </button>
 
-        {/* Restore */}
         <label style={{
           background: "#f3f4f6", color: "#374151", borderRadius: 8,
           padding: "9px 20px", fontSize: 13, fontWeight: 600,
           cursor: restoring ? "not-allowed" : "pointer", border: "1px solid #d1d5db",
           opacity: restoring ? 0.6 : 1,
         }}>
-          {restoring ? "Restoring…" : "⬆ Restore from file"}
+          {restoring ? t("ui.adminRestoring") : t("ui.adminRestoreFromFile")}
           <input
             type="file"
             accept=".json,application/json"
