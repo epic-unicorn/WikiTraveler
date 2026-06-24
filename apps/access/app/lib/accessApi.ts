@@ -117,3 +117,118 @@ export async function fetchMapPins(
   const data = (await res.json()) as { pins?: MapPin[] };
   return (data.pins ?? []).filter((p) => p.lat != null && p.lon != null && p.lat !== 0 && p.lon !== 0);
 }
+
+export type PropertyAccessibilityResponse = {
+  property: { id: string; name: string; location: string };
+  facts: Array<{
+    fieldName: string;
+    scopeKey?: string;
+    value: string;
+    displayValue?: string;
+    tier: string;
+    timestamp?: string;
+    valueLocale?: string | null;
+    machineTranslated?: boolean;
+    signatureHash?: string | null;
+  }>;
+  auditPhotos: unknown;
+  hasAiGuess: boolean;
+};
+
+export async function fetchPropertyAccessibility(
+  nodeUrl: string,
+  propertyId: string,
+  locale: string,
+  signal?: AbortSignal
+): Promise<PropertyAccessibilityResponse> {
+  const res = await fetch(
+    `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility?locale=${locale}`,
+    { signal, headers: getAuthHeaders(), cache: "no-store" }
+  );
+  if (!res.ok) throw new Error(`property fetch failed (${res.status})`);
+  return res.json() as Promise<PropertyAccessibilityResponse>;
+}
+
+export type SignalType = "MISSING" | "INCORRECT" | "OUTDATED" | "LOCATION" | "DEMAND";
+
+export async function submitCommunitySignal(
+  nodeUrl: string,
+  propertyId: string,
+  body: {
+    type: SignalType;
+    fieldName?: string;
+    scopeKey?: string;
+    currentValue?: string;
+    currentTier?: string;
+    suggestedValue?: string;
+    note?: string;
+    visitDate?: string;
+    photos?: string[];
+  }
+) {
+  const res = await fetch(
+    `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/signals`,
+    {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  const data = await res.json() as { message?: string };
+  if (!res.ok) throw new Error(data.message ?? "Report failed");
+  return data;
+}
+
+export async function fetchPropertySignals(
+  nodeUrl: string,
+  propertyId: string,
+  signal?: AbortSignal,
+  mine = false
+) {
+  const res = await fetch(
+    `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/signals${mine ? "?mine=true" : ""}`,
+    { headers: getAuthHeaders(), signal }
+  );
+  if (!res.ok) throw new Error("signals fetch failed");
+  return res.json() as Promise<{
+    signals: Array<{
+      id: string;
+      type: string;
+      status: string;
+      fieldName: string | null;
+      note: string | null;
+      createdAt: string;
+    }>;
+    openCount: number;
+  }>;
+}
+
+export async function fetchMySignals(nodeUrl: string) {
+  const res = await fetch(`${nodeUrl}/api/auth/my-signals`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("my signals fetch failed");
+  return res.json() as Promise<{
+    signals: Array<{
+      id: string;
+      type: string;
+      status: string;
+      fieldName: string | null;
+      note: string | null;
+      createdAt: string;
+      property: { id: string; name: string; location: string };
+    }>;
+  }>;
+}
+
+export async function fetchContributorStats(nodeUrl: string) {
+  const res = await fetch(`${nodeUrl}/api/auth/contributor-stats`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<{
+    role: string;
+    signals: { submitted: number; resolved: number; open: number };
+    auditsSubmitted: number;
+  }>;
+}

@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, useLocale } from "@wikitraveler/ui";
-import { fetchMapPins, type MapPin } from "../lib/fieldKitApi";
-import { buildFieldKitMapPopup } from "../lib/mapPopup";
-import { auditHref } from "../lib/auditHref";
+import { fetchMapPins, type MapPin } from "../lib/accessApi";
+import { buildAccessMapPopup } from "../lib/mapPopup";
+import { propertyOrAuditHref } from "../lib/propertyHref";
+import { readAuthToken } from "../lib/authStorage";
+import { canContribute, roleFromToken } from "../lib/userRole";
 
 interface Props {
   nodeUrl: string;
@@ -64,9 +66,11 @@ function renderPins(
   homeNodeUrl: string,
   propertyNodeUrl: string,
   themeMode: string,
-  auditLabel: string,
-  auditedOpenLabel: string
-) {
+  ctaLabel: string,
+  auditedOpenLabel: string,
+  asContributor: boolean
+): import("leaflet").CircleMarker[] {
+  const auditedMarkers: import("leaflet").CircleMarker[] = [];
   const sorted = [...pins].sort((a, b) => {
     const order = pinStackOrder(a) - pinStackOrder(b);
     return order !== 0 ? order : a.id.localeCompare(b.id);
@@ -74,11 +78,52 @@ function renderPins(
 
   for (const pin of sorted) {
     const marker = L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(pin, themeMode)).bindPopup(
-      buildFieldKitMapPopup(pin, homeNodeUrl, propertyNodeUrl, auditLabel, auditedOpenLabel),
+      buildAccessMapPopup(pin, homeNodeUrl, propertyNodeUrl, ctaLabel, auditedOpenLabel, asContributor),
       { maxWidth: 260 }
     );
     marker.addTo(group);
-    if (pin.audited) marker.bringToFront();
+    if (pin.audited) auditedMarkers.push(marker);
+  }
+
+  return auditedMarkers;
+}
+
+function safeFitToPins(
+  map: import("leaflet").Map,
+  group: import("leaflet").FeatureGroup,
+  pins: MapPin[]
+) {
+  if (pins.length === 0) return;
+  try {
+    if (pins.length === 1) {
+      map.setView([pins[0].lat, pins[0].lon], 13);
+      return;
+    }
+    const bounds = group.getBounds();
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [32, 32] });
+    }
+  } catch {
+    // Map container may be hidden or mid-teardown.
+  }
+}
+
+function destroyMap(
+  mapRef: React.MutableRefObject<import("leaflet").Map | null>,
+  layerGroupRef: React.MutableRefObject<import("leaflet").FeatureGroup | null>,
+  tileLayerRef: React.MutableRefObject<import("leaflet").TileLayer | null>,
+  leafletRef: React.MutableRefObject<typeof import("leaflet") | null>,
+  containerRef: React.RefObject<HTMLDivElement | null>
+) {
+  if (mapRef.current) {
+    mapRef.current.remove();
+    mapRef.current = null;
+  }
+  layerGroupRef.current = null;
+  tileLayerRef.current = null;
+  leafletRef.current = null;
+  if (containerRef.current) {
+    delete (containerRef.current as HTMLDivElement & { _leaflet_id?: number })._leaflet_id;
   }
 }
 
@@ -95,6 +140,12 @@ export function RegionMap({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [listOpen, setListOpen] = useState(false);
+  const [contributor, setContributor] = useState(false);
+
+  useEffect(() => {
+    const token = readAuthToken();
+    setContributor(canContribute(roleFromToken(token)));
+  }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
@@ -102,14 +153,20 @@ export function RegionMap({
   const tileLayerRef = useRef<import("leaflet").TileLayer | null>(null);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
   const pinsRef = useRef<MapPin[]>([]);
+  const nodeUrlRef = useRef(nodeUrl);
+  const homeNodeUrlRef = useRef(homeNodeUrl);
+
+  nodeUrlRef.current = nodeUrl;
+  homeNodeUrlRef.current = homeNodeUrl;
 
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
     setError("");
 
-    fetchMapPins(nodeUrl)
+    fetchMapPins(nodeUrl, controller.signal)
       .then((data) => {
         if (cancelled) return;
         pinsRef.current = data;
@@ -128,24 +185,16 @@ export function RegionMap({
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [active, nodeUrl, t]);
 
   useEffect(() => {
-    if (active) return;
-    if (!mapRef.current) return;
-    mapRef.current.remove();
-    mapRef.current = null;
-    layerGroupRef.current = null;
-    tileLayerRef.current = null;
-    leafletRef.current = null;
-    if (containerRef.current) {
-      delete (containerRef.current as HTMLDivElement & { _leaflet_id?: number })._leaflet_id;
+    if (!active) {
+      destroyMap(mapRef, layerGroupRef, tileLayerRef, leafletRef, containerRef);
+      return;
     }
-  }, [active]);
-
-  useEffect(() => {
-    if (!active || !containerRef.current || mapRef.current || pins.length === 0) return;
+    if (!containerRef.current || mapRef.current || pins.length === 0) return;
 
     let cancelled = false;
 
@@ -161,46 +210,45 @@ export function RegionMap({
 
       const group = L.featureGroup();
       layerGroupRef.current = group;
-      renderPins(
+      const auditedMarkers = renderPins(
         L,
         group,
         pinsRef.current,
-        homeNodeUrl,
-        nodeUrl,
+        homeNodeUrlRef.current,
+        nodeUrlRef.current,
         mode,
-        t("ui.mapViewOrAudit"),
-        t("ui.mapAuditedOpen")
+        contributor ? t("ui.mapViewOrAudit") : t("ui.mapViewProperty"),
+        t("ui.mapAuditedOpen"),
+        contributor
       );
       group.addTo(map);
+      for (const marker of auditedMarkers) marker.bringToFront();
 
-      if (pinsRef.current.length > 1) {
-        map.fitBounds(group.getBounds(), { padding: [32, 32] });
-      } else if (pinsRef.current.length === 1) {
-        map.setView([pinsRef.current[0].lat, pinsRef.current[0].lon], 13);
-      }
+      requestAnimationFrame(() => {
+        if (!mapRef.current) return;
+        map.invalidateSize();
+        safeFitToPins(map, group, pinsRef.current);
+      });
     });
 
     return () => {
       cancelled = true;
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-        layerGroupRef.current = null;
-        tileLayerRef.current = null;
-        leafletRef.current = null;
-        if (containerRef.current) {
-          delete (containerRef.current as HTMLDivElement & { _leaflet_id?: number })._leaflet_id;
-        }
-      }
+      destroyMap(mapRef, layerGroupRef, tileLayerRef, leafletRef, containerRef);
     };
-  }, [active, pins.length, homeNodeUrl, nodeUrl, mode, t]);
+  }, [active, pins.length]);
 
   useEffect(() => {
     const L = leafletRef.current;
     const map = mapRef.current;
-    if (!L || !map || !tileLayerRef.current) return;
+    const tile = tileLayerRef.current;
+    if (!L || !map || !tile) return;
 
-    map.removeLayer(tileLayerRef.current);
+    try {
+      map.removeLayer(tile);
+    } catch {
+      return;
+    }
+
     const { url, attribution } = getTileConfig();
     tileLayerRef.current = L.tileLayer(url, { attribution, maxZoom: 19 }).addTo(map);
   }, [mode]);
@@ -212,20 +260,21 @@ export function RegionMap({
     if (!L || !map || !group || pinsRef.current.length === 0) return;
 
     group.clearLayers();
-    renderPins(
+    const auditedMarkers = renderPins(
       L,
       group,
       pinsRef.current,
-      homeNodeUrl,
-      nodeUrl,
+      homeNodeUrlRef.current,
+      nodeUrlRef.current,
       mode,
-      t("ui.mapViewOrAudit"),
-      t("ui.mapAuditedOpen")
+      contributor ? t("ui.mapViewOrAudit") : t("ui.mapViewProperty"),
+      t("ui.mapAuditedOpen"),
+      contributor
     );
-    if (pinsRef.current.length > 1) {
-      map.fitBounds(group.getBounds(), { padding: [32, 32] });
-    }
-  }, [pins, homeNodeUrl, nodeUrl, mode, t]);
+    for (const marker of auditedMarkers) marker.bringToFront();
+
+    safeFitToPins(map, group, pinsRef.current);
+  }, [pins, mode, t, contributor]);
 
   const auditedCount = pins.filter((p) => p.audited).length;
 
@@ -261,7 +310,7 @@ export function RegionMap({
             <div
               ref={containerRef}
               role="application"
-              aria-label={t("ui.mapViewOrAudit")}
+              aria-label={contributor ? t("ui.mapViewOrAudit") : t("ui.mapViewProperty")}
               className="wt-map-container fk-map-container"
             />
             <div className="wt-map-legend" aria-hidden="true">
@@ -291,7 +340,10 @@ export function RegionMap({
                 <ul id="fk-map-property-list" className="fk-map-property-list">
                   {pins.map((pin) => (
                     <li key={pin.id}>
-                      <Link href={auditHref(pin.id, nodeUrl, homeNodeUrl)} className="fk-map-property-link">
+                      <Link
+                        href={propertyOrAuditHref(pin.id, nodeUrl, homeNodeUrl, contributor)}
+                        className="fk-map-property-link"
+                      >
                         <span className="fk-map-property-name">{pin.name}</span>
                         <span className="fk-map-property-meta">
                           {pin.location} · {pin.audited ? t("ui.mapAudited") : t("ui.mapNotAudited")}

@@ -6,10 +6,10 @@ if [ ! -x node_modules/.bin/next ]; then
   pnpm install --frozen-lockfile
 fi
 
-echo "🔧 Building shared packages for Field Kit..."
+echo "🔧 Building shared packages for WikiTraveler Access..."
 pnpm --filter @wikitraveler/core build
 pnpm --filter @wikitraveler/i18n build
 pnpm --filter @wikitraveler/ui build
 
-echo "🚀 Starting Field Kit in development mode (port ${PORT:-3001})..."
-exec pnpm --filter @wikitraveler/field-kit exec next dev -p "${PORT:-3001}" -H 0.0.0.0
+echo "🚀 Starting WikiTraveler Access in development mode (port ${PORT:-3001})..."
+exec pnpm --filter @wikitraveler/access exec next dev -p "${PORT:-3001}" -H 0.0.0.0

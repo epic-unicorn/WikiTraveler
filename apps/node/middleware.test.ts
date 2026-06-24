@@ -54,3 +54,47 @@ describe("middleware rate limiting", () => {
     expect(limitMock).not.toHaveBeenCalled();
   });
 });
+
+describe("middleware dashboard role gate", () => {
+  const setupFetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/api/setup")) {
+      return new Response(JSON.stringify({ needed: false }), { status: 200 });
+    }
+    return new Response(null, { status: 404 });
+  });
+
+  beforeEach(async () => {
+    vi.resetModules();
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    vi.stubGlobal("fetch", setupFetch);
+  });
+
+  function dashboardRequest(path: string, token?: string) {
+    const headers = token ? { cookie: `wt_token=${encodeURIComponent(token)}` } : undefined;
+    return new NextRequest(`http://localhost${path}`, { headers });
+  }
+
+  it("redirects unauthenticated users to login", async () => {
+    const { middleware } = await import("./middleware");
+    const res = await middleware(dashboardRequest("/properties/p1"));
+    expect(res?.headers.get("location")).toContain("/login");
+  });
+
+  it("clears USER tokens and redirects to login", async () => {
+    const { fakeJwt } = await import("./test/jwtTestUtils");
+    const { middleware } = await import("./middleware");
+    const token = fakeJwt({ sub: "traveler", role: "USER" });
+    const res = await middleware(dashboardRequest("/properties/p1", token));
+    expect(res?.headers.get("location")).toContain("/login");
+    expect(res?.cookies.get("wt_token")?.value).toBe("");
+  });
+
+  it("allows auditors on dashboard routes", async () => {
+    const { fakeJwt } = await import("./test/jwtTestUtils");
+    const { middleware } = await import("./middleware");
+    const token = fakeJwt({ sub: "auditor", role: "AUDITOR" });
+    const res = await middleware(dashboardRequest("/properties/p1", token));
+    expect(res?.status).toBe(200);
+  });
+});

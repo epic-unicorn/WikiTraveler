@@ -37,13 +37,13 @@ export function LogoMark({ size = 32, className, style }: LogoMarkProps) {
 }
 
 interface LogoProps extends LogoMarkProps {
-  product: "node" | "field-kit" | "lens";
+  product: "node" | "access" | "lens";
   showWordmark?: boolean;
 }
 
 const WORDMARK: Record<LogoProps["product"], string> = {
   node: "Node",
-  "field-kit": "Field Kit",
+  access: "Access",
   lens: "Lens",
 };
 

@@ -5,14 +5,14 @@ WikiTraveler targets **WCAG 2.1 Level AA** via EN 301 549 for all user-facing su
 | App | Audience |
 | --- | --- |
 | Lens | Travelers on booking sites |
-| Field Kit | On-site auditors |
+| WikiTraveler Access | Travelers + on-site auditors |
 | Node dashboard | Operators |
 | Agency demo + SDK widget | Partner integrations |
 
 ## Implemented patterns
 
 - `lang="en"` on all HTML shells
-- Skip links on Node (`AppShell`) and Field Kit
+- Skip links on Node (`AppShell`) and WikiTraveler Access
 - `:focus-visible` rings via `@wikitraveler/ui/accessibility.css`
 - Form labels (`htmlFor` / visually hidden labels)
 - `role="alert"` on auth and submission errors; `role="status"` on success and loading
@@ -20,23 +20,23 @@ WikiTraveler targets **WCAG 2.1 Level AA** via EN 301 549 for all user-facing su
 - `aria-expanded` / keyboard `<button>` on expandable rows and map property list
 - Lens listing cards: keyboard-focusable **A11y** trigger (in addition to hover tooltips)
 - Lens popup: `<main>`, facts table `<th scope="col">`, search toggle with `aria-controls`
-- Field Kit: WAI-ARIA tabs with arrow-key navigation
+- WikiTraveler Access: WAI-ARIA tabs with arrow-key navigation
 - Map: `aria-label` on map region; text yes/no labels in popups (not emoji)
 - SDK widget: `role="region"`, table headers with `scope`, `aria-live` loading/errors
 - `prefers-reduced-motion` CSS in shared UI, Lens, and agency demo
 - Tier badges: text labels + improved contrast (Official tier)
-- Dynamic page titles on node property pages and Field Kit audit routes
+- Dynamic page titles on node property pages and WikiTraveler Access audit routes
 - Public accessibility statement at `/accessibility`
 
 ## Automated tests
 
 ```bash
 pnpm test:a11y          # axe-core pattern tests
-pnpm lighthouse:ci      # Lighthouse accessibility ≥ 90 (requires running node + field-kit)
+pnpm lighthouse:ci      # Lighthouse accessibility ≥ 90 (requires running node + access)
 ```
 
 - **axe-core** — login forms, map list, SDK table, agency tabs, Lens table (`apps/node/lib/a11yStatic.test.ts`)
-- **Lighthouse** — `/accessibility`, `/login`, node home, Field Kit login + audit page (`.github/workflows/a11y.yml`)
+- **Lighthouse** — `/accessibility`, `/login`, node home, WikiTraveler Access login + property detail (`.github/workflows/a11y.yml`)
 - Run `node scripts/prepare-lighthouse.mjs` before `lighthouse:ci` to provision CI auth cookies
 
 Formal conformance report: [docs/CONFORMANCE.md](./CONFORMANCE.md) (EN 301 549 / WCAG 2.1 AA).
@@ -44,9 +44,9 @@ Formal conformance report: [docs/CONFORMANCE.md](./CONFORMANCE.md) (EN 301 549 /
 ## Manual test checklist (each release)
 
 1. Keyboard-only walkthrough of login, search, audit submit, Lens popup
-2. NVDA or VoiceOver on Field Kit audit flow
-3. 200% browser zoom — no clipped content on Field Kit / Lens popup
-4. Lighthouse accessibility ≥ 90 on node home and field-kit audit page
+2. NVDA or VoiceOver on WikiTraveler Access audit flow
+3. 200% browser zoom — no clipped content on WikiTraveler Access / Lens popup
+4. Lighthouse accessibility ≥ 90 on node home and Access property detail
 
 ## Embedding the SDK accessibly
 
@@ -73,7 +73,7 @@ Example:
 
 Report accessibility barriers via your node operator or the [GitHub issue tracker](https://github.com/wikitraveler/wikitraveler/issues/new). Include:
 
-- App (Lens / Field Kit / Node / SDK)
+- App (Lens / WikiTraveler Access / Node / SDK)
 - Browser + assistive technology
 - Steps to reproduce
 

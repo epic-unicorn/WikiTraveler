@@ -1,13 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FieldKitToolbar } from "../../FieldKitToolbar";
+import { AccessToolbar } from "../../AccessToolbar";
 import { CreatePropertyPanel } from "../../tabs/CreatePropertyPanel";
 import { useNodeContext } from "../../hooks/useNodeContext";
+import { readAuthToken } from "../../lib/authStorage";
+import { canContribute, roleFromToken } from "../../lib/userRole";
 
 export default function NewPropertyPage() {
   const router = useRouter();
   const { nodeUrl, searchNodeUrl } = useNodeContext();
+
+  useEffect(() => {
+    const token = readAuthToken();
+    if (!canContribute(roleFromToken(token))) {
+      router.replace("/");
+    }
+  }, [router]);
 
   function handleCreated(id: string) {
     const nodeParam =
@@ -17,7 +27,7 @@ export default function NewPropertyPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--wt-bg)" }}>
-      <FieldKitToolbar title="New property" showBack backHref="/" />
+      <AccessToolbar title="New property" showBack backHref="/" />
       <div className="page" style={{ paddingTop: 20 }}>
         <p className="wt-fk-page-lead">Add a place to the network</p>
         <CreatePropertyPanel

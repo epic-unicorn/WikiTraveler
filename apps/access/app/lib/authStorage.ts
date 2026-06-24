@@ -19,17 +19,21 @@ export function readNodeUrlCookie(raw?: string | null): string | null {
   }
 }
 
-export type FieldKitRole = "USER" | "AUDITOR" | "ADMIN";
+export type AppRole = "USER" | "AUDITOR" | "ADMIN";
 
-export function normalizeRole(role?: string | null): FieldKitRole {
+/** @deprecated use AppRole */
+export type AccessLegacyRole = AppRole;
+
+export function normalizeRole(role?: string | null): AppRole {
   const upper = (role ?? "USER").toUpperCase();
   if (upper === "AUDITOR" || upper === "ADMIN") return upper;
   return "USER";
 }
 
-export function canAccessFieldKit(role?: string | null): boolean {
+/** All authenticated roles may use WikiTraveler Access. */
+export function canAccessApp(role?: string | null): boolean {
   const normalized = normalizeRole(role);
-  return normalized === "AUDITOR" || normalized === "ADMIN";
+  return normalized === "USER" || normalized === "AUDITOR" || normalized === "ADMIN";
 }
 
 /** JWT may contain `=`; always URL-encode when writing document.cookie. */
@@ -59,6 +63,11 @@ export function readAuthToken(): string | null {
   } catch {
     return m[1];
   }
+}
+
+export function readUsername(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(USERNAME_KEY);
 }
 
 export { decodeAuthCookie, looksLikeJwt } from "../../lib/authCookie";

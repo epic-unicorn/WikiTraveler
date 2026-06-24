@@ -11,8 +11,8 @@ import {
   type PropertySummary,
   type SearchFeature,
 } from "@wikitraveler/ui";
-import { searchProperties } from "../lib/fieldKitApi";
-import { auditHref } from "../lib/auditHref";
+import { searchProperties } from "../lib/accessApi";
+import { propertyHref } from "../lib/propertyHref";
 import { RecentPropertiesSection } from "../components/RecentPropertiesSection";
 import { RegionMap } from "../components/RegionMap";
 import { readRecentAudits } from "../lib/recentAudits";
@@ -137,7 +137,7 @@ export function SearchTab({ searchNodeUrl, homeNodeUrl, gpsResolved, regionLabel
           {results !== null && results.length > 0 && (
             <div style={{ display: "grid", gap: 8 }}>
               {results.map((p) => (
-                <Link key={p.id} href={auditHref(p.id, searchNodeUrl, homeNodeUrl)}>
+                <Link key={p.id} href={propertyHref(p.id, searchNodeUrl, homeNodeUrl)}>
                   <PropertyCard property={p} expandable={false} />
                 </Link>
               ))}

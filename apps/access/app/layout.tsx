@@ -17,8 +17,8 @@ import "@wikitraveler/ui/ionic-web-overrides.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "WikiTraveler Field Kit",
-  description: "On-site Accessibility Auditor",
+  title: "WikiTraveler Access",
+  description: "Verified accessibility for travel",
 };
 
 export const viewport: Viewport = {

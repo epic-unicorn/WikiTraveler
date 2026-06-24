@@ -9,6 +9,10 @@ services:
       POSTGRES_USER: wikitraveler
       POSTGRES_PASSWORD: wikitraveler
       POSTGRES_DB: wikitraveler
+    # Expose on localhost only so host tools (pnpm db:setup, Prisma Studio) can connect.
+    # Inside the compose network the node still uses host "postgres".
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -34,19 +38,19 @@ services:
       DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler
       NODE_ENV: production
 
-  # Optional — enable with: docker compose --profile field-kit up
-  field-kit:
-    profiles: ["field-kit"]
+  # Optional — enable with: docker compose --profile access up
+  access:
+    profiles: ["access"]
     build:
       context: ..
-      dockerfile: docker/Dockerfile.field-kit
+      dockerfile: docker/Dockerfile.access
       args:
         NEXT_PUBLIC_NODE_API_URL: ${NEXT_PUBLIC_NODE_API_URL:-http://localhost:3000}
     restart: unless-stopped
     depends_on:
       - node
     ports:
-      - "${FIELD_KIT_PORT:-3001}:3001"
+      - "${ACCESS_PORT:-3001}:3001"
     env_file:
       - ../.env
     environment:

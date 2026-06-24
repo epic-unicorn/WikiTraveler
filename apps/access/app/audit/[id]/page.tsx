@@ -33,7 +33,7 @@ export async function generateMetadata({
   } catch {
     // node unreachable — fall back to generic title
   }
-  return { title: `${name} — WikiTraveler Field Kit` };
+  return { title: `${name} — WikiTraveler Access` };
 }
 
 // Fetch property metadata server-side so the form receives it as props

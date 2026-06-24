@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AppToolbar, ToolbarBackLink, WikiTravelerLogo } from "@wikitraveler/ui";
+import { AppToolbar, ToolbarBackLink, WikiTravelerLogo, useLocale } from "@wikitraveler/ui";
+import { AccessAccountBadge } from "./AccessAccountBadge";
+import { useHistoryBack } from "./lib/historyBack";
 
 function fkLinkWrap({
   href,
@@ -32,20 +34,53 @@ function fkLinkWrap({
 interface Props {
   title?: string;
   showBack?: boolean;
+  /** Fixed href; omit to use browser history (with fallback). */
   backHref?: string;
   backLabel?: string;
+  backFallbackHref?: string;
   nodeReachable?: boolean | null;
   end?: ReactNode;
 }
 
-export function FieldKitToolbar({
+function AccessHistoryBack({
+  label,
+  fallbackHref,
+}: {
+  label: string;
+  fallbackHref: string;
+}) {
+  const goBack = useHistoryBack(fallbackHref);
+
+  return (
+    <button type="button" className="wt-toolbar-back" onClick={goBack}>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      {label}
+    </button>
+  );
+}
+
+export function AccessToolbar({
   title,
   showBack,
-  backHref = "/",
+  backHref,
   backLabel,
+  backFallbackHref = "/",
   nodeReachable,
   end,
 }: Props) {
+  const { t } = useLocale();
   const statusDot =
     nodeReachable === true
       ? { bg: "#34d399", label: "Node connected" }
@@ -55,6 +90,7 @@ export function FieldKitToolbar({
 
   const toolbarEnd = (
     <>
+      <AccessAccountBadge />
       {statusDot && (
         <div
           title={statusDot.label}
@@ -76,12 +112,21 @@ export function FieldKitToolbar({
 
   return (
     <AppToolbar
-      className="wt-toolbar--field-kit"
-      title={title ?? <WikiTravelerLogo product="field-kit" size={32} />}
+      className="wt-toolbar--access"
+      title={title ?? <WikiTravelerLogo product="access" size={32} />}
       titleHref={title ? undefined : "/"}
       linkWrap={fkLinkWrap}
       start={
-        showBack ? <ToolbarBackLink href={backHref} label={backLabel} linkWrap={fkLinkWrap} /> : undefined
+        showBack ? (
+          backHref ? (
+            <ToolbarBackLink href={backHref} label={backLabel ?? t("ui.back")} linkWrap={fkLinkWrap} />
+          ) : (
+            <AccessHistoryBack
+              label={backLabel ?? t("ui.back")}
+              fallbackHref={backFallbackHref}
+            />
+          )
+        ) : undefined
       }
       end={toolbarEnd}
     />

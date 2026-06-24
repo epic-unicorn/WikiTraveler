@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "@wikitraveler/ui";
-import { auditHref } from "../lib/auditHref";
-import { getAuthHeaders, getStoredNodeUrl } from "../lib/fieldKitApi";
+import { propertyOrAuditHref } from "../lib/propertyHref";
+import { readAuthToken } from "../lib/authStorage";
+import { canContribute, roleFromToken } from "../lib/userRole";
+import { getAuthHeaders, getStoredNodeUrl } from "../lib/accessApi";
 import {
   RECENT_AUDITS_KEY,
   clearRecentAudits,
@@ -33,6 +35,12 @@ export function RecentPropertiesSection({
   const [items, setItems] = useState<RecentAuditItem[]>([]);
   const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
   const [checking, setChecking] = useState(false);
+  const [contributor, setContributor] = useState(false);
+
+  useEffect(() => {
+    const token = readAuthToken();
+    setContributor(canContribute(roleFromToken(token)));
+  }, []);
 
   const reload = useCallback(() => {
     const next = readRecentAudits().slice(0, maxItems);
@@ -132,7 +140,7 @@ export function RecentPropertiesSection({
           return (
             <Link
               key={p.id}
-              href={auditHref(p.id, propertyNodeUrl, homeNodeUrl)}
+              href={propertyOrAuditHref(p.id, propertyNodeUrl, homeNodeUrl, contributor)}
               style={{ textDecoration: "none", opacity: isMissing ? 0.75 : 1 }}
             >
               <div className="recent-row">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getAuthHeaders, getAuthToken } from "../lib/fieldKitApi";
+import { getAuthHeaders, getAuthToken } from "../lib/accessApi";
 import { clearAuth } from "../lib/authStorage";
 
 interface Props {

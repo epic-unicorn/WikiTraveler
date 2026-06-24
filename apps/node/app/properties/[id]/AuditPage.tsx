@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLocale, ProseFactValue } from "@wikitraveler/ui";
 import { formatFactValue, getSourceLabel, isProseField } from "@wikitraveler/i18n";
+import { canContribute, roleFromToken } from "@/lib/userRole";
 
 const TIER_BADGE_CLASS: Record<string, string> = {
   OFFICIAL: "wt-fact-badge--official",
@@ -43,6 +44,7 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
+  const [contributor, setContributor] = useState(false);
   const [auditRows, setAuditRows] = useState<Array<{ fieldName: string; value: string }>>([
     { fieldName: "door_width_cm", value: "" },
   ]);
@@ -50,7 +52,10 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
 
   useEffect(() => {
     const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
-    if (m) setToken(decodeURIComponent(m[1]));
+    if (!m) return;
+    const stored = decodeURIComponent(m[1]);
+    setToken(stored);
+    setContributor(canContribute(roleFromToken(stored)));
   }, []);
 
   useEffect(() => {
@@ -92,12 +97,18 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    const data = await res.json() as { token?: string; message?: string };
+    const data = await res.json() as { token?: string; message?: string; role?: string };
     if (!res.ok) {
       setStatus({ type: "error", msg: data.message ?? "Auth failed" });
       return;
     }
+    const role = (data.role ?? "USER").toUpperCase();
+    if (!canContribute(role as "USER" | "AUDITOR" | "ADMIN")) {
+      setStatus({ type: "error", msg: t("ui.authRoleRequired") });
+      return;
+    }
     setToken(data.token ?? null);
+    setContributor(true);
     setStatus({ type: "idle" });
   }
 
@@ -124,7 +135,10 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
     });
     const data = await res.json() as { message?: string };
     if (!res.ok) {
-      setStatus({ type: "error", msg: data.message ?? "Submit failed" });
+      setStatus({
+        type: "error",
+        msg: res.status === 403 ? t("ui.authRoleRequired") : (data.message ?? "Submit failed"),
+      });
       return;
     }
 
@@ -244,7 +258,22 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
         </section>
       )}
 
-      {token && (
+      {token && !contributor && (
+        <section
+          style={{
+            background: "var(--wt-bg-elevated)", border: "1px solid var(--wt-border)",
+            borderRadius: 12, padding: 24, marginBottom: 24,
+          }}
+          role="alert"
+        >
+          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{t("ui.authRoleRequired")}</h2>
+          <p style={{ fontSize: 13, color: "var(--wt-text-muted)", margin: 0 }}>
+            {t("ui.authSignInSubtitle")}
+          </p>
+        </section>
+      )}
+
+      {token && contributor && (
         <section
           style={{
             background: "var(--wt-bg-elevated)", border: "1px solid var(--wt-border)",

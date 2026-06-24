@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FieldKitToolbar } from "../../FieldKitToolbar";
+import Link from "next/link";
+import { AccessToolbar } from "../../AccessToolbar";
 import { type AuditPhotos, type ExistingFact } from "./ExistingDataPanel";
 import { AuditWizard } from "./AuditWizard";
-import { canAccessFieldKit, clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
-import { ENV_NODE_URL } from "../../lib/fieldKitApi";
+import { clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
+import { canContribute, roleFromToken } from "../../lib/userRole";
+import { propertyHref } from "../../lib/propertyHref";
+import { ENV_NODE_URL } from "../../lib/accessApi";
 import { findRecentAudit, removeRecentAudit, upsertRecentAudit } from "../../lib/recentAudits";
 import { useLocale } from "@wikitraveler/ui";
 
@@ -60,7 +63,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
       const data = await res.json() as { token?: string; username?: string; message?: string; role?: string };
       if (!res.ok) { setAuthError(data.message ?? "Invalid credentials"); return; }
       if (!data.token) { setAuthError("No token returned from node."); return; }
-      if (!canAccessFieldKit(data.role)) {
+      if (!canContribute((data.role ?? "USER").toUpperCase() as "USER" | "AUDITOR" | "ADMIN")) {
         setAuthError("Your account needs the AUDITOR or ADMIN role. Ask a node admin to upgrade you.");
         return;
       }
@@ -206,7 +209,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   if (status === "ok") {
     return (
       <>
-        <FieldKitToolbar title={t("ui.auditSubmitted")} backLabel={t("ui.back")} />
+        <AccessToolbar title={t("ui.auditSubmitted")} backLabel={t("ui.back")} />
         <main id="main-content" className="page" role="status" aria-live="polite">
           <div className="card" style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t("ui.thankYou")}</h2>
@@ -224,7 +227,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
   return (
     <>
-      <FieldKitToolbar
+      <AccessToolbar
         showBack
         backHref="/"
         backLabel={t("ui.back")}
@@ -283,6 +286,27 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
                 <>{t("ui.authHasAccount")}{" "}<button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>{t("ui.signIn")}</button></>
               )}
             </p>
+          </div>
+        ) : !canContribute(roleFromToken(token)) ? (
+          <div className="card" role="alert">
+            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+              {t("ui.authRoleRequired")}
+            </h2>
+            <p className="status-muted" style={{ marginBottom: 16 }}>
+              {t("ui.accessAuditDeniedBody")}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Link
+                href={propertyHref(propertyId, targetNodeUrl ?? nodeUrl, nodeUrl)}
+                className="btn-primary"
+                style={{ textAlign: "center", textDecoration: "none" }}
+              >
+                {t("ui.mapViewProperty")}
+              </Link>
+              <button type="button" className="btn-secondary" onClick={logout}>
+                {t("ui.signOut")}
+              </button>
+            </div>
           </div>
         ) : propertyMissing ? (
           <div className="card" role="alert">

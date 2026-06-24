@@ -197,12 +197,12 @@ describe("POST /api/admin/restore", () => {
 
   it("warns when backup migration differs from current schema", async () => {
     prismaMock.$queryRaw.mockResolvedValue([
-      { migration_name: "20260623150000_audited_reimport_pending" },
+      { migration_name: "20260423123302_init" },
     ]);
     const backup = {
       ...sampleBackupData(),
       createdAt: "2026-06-23T14:30:00.000Z",
-      migration: "20260623120000_fact_i18n_translation",
+      migration: "20260624120000_community_signals",
     };
     const req = new NextRequest("http://localhost/api/admin/restore", {
       method: "POST",
@@ -214,8 +214,8 @@ describe("POST /api/admin/restore", () => {
 
     const body = await res.json();
     expect(body.warnings).toHaveLength(1);
-    expect(body.warnings[0]).toContain("20260623120000_fact_i18n_translation");
-    expect(body.warnings[0]).toContain("20260623150000_audited_reimport_pending");
+    expect(body.warnings[0]).toContain("20260624120000_community_signals");
+    expect(body.warnings[0]).toContain("20260423123302_init");
     expect(body.warnings[0]).toContain("23 Jun 2026");
   });
 

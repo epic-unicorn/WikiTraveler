@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { WikiTravelerLogo } from "@wikitraveler/ui";
+import { WikiTravelerLogo, useLocale } from "@wikitraveler/ui";
 
 const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 
@@ -31,6 +31,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 function RegisterForm() {
+  const { t } = useLocale();
   const searchParams = useSearchParams();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
   const [username, setUsername] = useState("");
@@ -88,7 +89,7 @@ function RegisterForm() {
       }}>
         <div style={{ width: "100%", maxWidth: 400 }}>
           <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <WikiTravelerLogo product="field-kit" size={36} />
+            <WikiTravelerLogo product="access" size={36} />
           </div>
           <div style={{
             background: "var(--wt-bg-elevated)",
@@ -98,26 +99,13 @@ function RegisterForm() {
             boxShadow: "var(--wt-shadow)",
             textAlign: "center",
           }}>
-            <div style={{ fontSize: 44, marginBottom: 16 }}>✅</div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Account created!</h2>
-            <div style={{
-              background: "var(--wt-tier-ai-bg)",
-              border: "1px solid var(--wt-border)",
-              borderRadius: "var(--wt-radius-md)",
-              padding: "14px 16px",
-              marginBottom: 20,
-              textAlign: "left",
-            }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--wt-tier-ai-text)", marginBottom: 6 }}>
-                ⏳ Waiting for AUDITOR access
-              </p>
-              <p style={{ fontSize: 13, color: "var(--wt-text-muted)", lineHeight: 1.5 }}>
-                Your account has been created with the <strong>USER</strong> role.
-                An admin needs to promote you to <strong>AUDITOR</strong> before you can submit field audits.
-              </p>
-            </div>
-            <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 20 }}>
-              Once your role is upgraded, sign in to start auditing.
+            <div style={{ fontSize: 44, marginBottom: 16 }} aria-hidden="true">✅</div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>{t("ui.authRegisterSuccess")}</h2>
+            <p style={{ fontSize: 14, color: "var(--wt-text)", lineHeight: 1.6, marginBottom: 16 }}>
+              {t("ui.accessRegisterSuccessBody")}
+            </p>
+            <p style={{ fontSize: 13, color: "var(--wt-text-muted)", lineHeight: 1.5, marginBottom: 20 }}>
+              {t("ui.accessRegisterAuditorNote")}
             </p>
             <Link
               href={loginHref}
@@ -132,7 +120,7 @@ function RegisterForm() {
                 textDecoration: "none",
               }}
             >
-              Go to sign in
+              {t("ui.accessRegisterSignIn")}
             </Link>
           </div>
         </div>
@@ -151,7 +139,7 @@ function RegisterForm() {
     }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <WikiTravelerLogo product="field-kit" size={36} />
+          <WikiTravelerLogo product="access" size={36} />
         </div>
         <div style={{
           background: "var(--wt-bg-elevated)",
@@ -161,9 +149,9 @@ function RegisterForm() {
           boxShadow: "var(--wt-shadow)",
         }}>
           <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Create account</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{t("ui.authRegisterTitle")}</h1>
             <p style={{ fontSize: 14, color: "var(--wt-text-muted)", marginTop: 6 }}>
-              Register to become a field auditor
+              {t("ui.accessRegisterSubtitle")}
             </p>
           </div>
 

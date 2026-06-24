@@ -63,6 +63,7 @@ model Property {
 
   facts      AccessibilityFact[]
   audits     AuditSubmission[]
+  signals    CommunitySignal[]
 }
 
 // ---------------------------------------------------------------------------
@@ -245,11 +246,56 @@ model IngestJobTile {
 }
 
 // ---------------------------------------------------------------------------
+// Community signals — traveler reports for auditor triage (not facts)
+// ---------------------------------------------------------------------------
+enum SignalType {
+  MISSING
+  INCORRECT
+  OUTDATED
+  LOCATION
+  DEMAND
+}
+
+enum SignalStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+model CommunitySignal {
+  id             String       @id @default(cuid())
+  propertyId     String
+  property       Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  type           SignalType
+  status         SignalStatus @default(OPEN)
+  fieldName      String?
+  scopeKey       String?      @default("property")
+  currentValue   String?
+  currentTier    Tier?
+  suggestedValue String?
+  note           String?
+  visitDate      DateTime?
+  photos         Json         @default("[]")
+  reporterId     String
+  resolvedBy     String?
+  resolution     String?
+  resolvedAt     DateTime?
+  priorityScore  Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([propertyId, status])
+  @@index([status, priorityScore])
+  @@index([reporterId])
+}
+
+// ---------------------------------------------------------------------------
 // User roles
 // ---------------------------------------------------------------------------
 enum Role {
   USER    // can read the API and use the Lens extension
-  AUDITOR // can submit field audits via Field Kit or node dashboard
+  AUDITOR // can submit field audits via WikiTraveler Access or node dashboard
   ADMIN   // full access: user management, backup/restore, stats
 }
 

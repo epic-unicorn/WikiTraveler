@@ -36,31 +36,28 @@ pnpm dev:agency-demo
 
 ---
 
-## Flow 2 — Field Auditor
+## Flow 2 — WikiTraveler Access (travelers + auditors)
 
-**What it tests:** A field auditor submitting accessibility facts from the mobile app, including automatic routing to the correct regional node.
+**What it tests:** Browsing verified accessibility on mobile, reporting missing/incorrect info, and (as `AUDITOR`) submitting on-site audits. Includes automatic routing to the correct regional peer node.
 
 ```bash
 # Terminal 1 — node
 pnpm dev
 
-# Terminal 2 — field kit
-pnpm dev:field-kit
+# Terminal 2 — WikiTraveler Access
+pnpm dev:access
 # → http://localhost:3001
 ```
 
 1. Open `http://localhost:3001` (or use Chrome DevTools device emulation).
-2. You are redirected to `/login`. Enter your node credentials.
-   - **No account yet?** Go to `/register` — enter a username/password to create a `USER` account, then ask the node admin to promote you to `AUDITOR` (Stats → Users panel on the node dashboard), then log in.
-   - `USER` role is blocked at login with a pending-approval screen. Only `AUDITOR` or `ADMIN` can access the Field Kit.
-3. After login, allow location access — the app silently calls `/api/peers/resolve` to find the node that covers your GPS position.
-4. If a regional peer is found, a blue banner shows "Results from \<region\>" and searches are routed to that peer.
-5. Search for a property (e.g. "Vienna"), tap a result.
-6. If the property lives on a different node a "📤 Remote audit · \<hostname\>" indicator appears in the header.
-7. Fill in accessibility fields and submit.
-8. Open `http://localhost:3000` — the fact appears with tier `VERIFIED`.
+2. Register or sign in at `/login` — **`USER`**, `AUDITOR`, and `ADMIN` can all access the app.
+3. Allow location access — the app calls `/api/peers/resolve` to find the node that covers your GPS position.
+4. Search or use **Near me**, tap a property → **property detail** with tier badges.
+5. As a traveler: **Save**, **Share**, or **Report issue** (community signal for auditors).
+6. As an **AUDITOR**: tap **Verify on site** to open the audit wizard and submit facts (`VERIFIED` tier).
+7. On the node dashboard (`/stats`), auditors see the **Community signals** queue.
 
-**Verify:** Login issues a JWT signed by the home node's RS256 key. When auditing a remote node, the remote node fetches the home node's public key from `/.well-known/pubkey` and verifies the JWT — no shared secret needed. Wrong credentials return `401`. Submitted facts appear on the target node dashboard immediately.
+**Verify:** User reports do not change displayed facts until an auditor submits a verified audit. Audit JWTs are signed by the home node; remote nodes verify via `/.well-known/pubkey`.
 
 ---
 
@@ -85,30 +82,7 @@ pnpm dev
 
 ---
 
-## Flow 4 — Lens Extension on the Lens Demo
-
-**What it tests:** Lens detecting a property via a `<meta name="wt-property-id">` tag — no SDK required.
-
-```bash
-# Terminal 1 — node
-pnpm dev
-
-# Terminal 2 — lens demo
-npx serve apps/lens-demo -p 4001
-# → http://localhost:4001
-```
-
-1. Load the Lens extension (Flow 3, steps 1–2).
-2. Open `http://localhost:4001` and click through to a hotel page.
-3. Click the Lens icon — the popup reads the property ID from the `<meta name="wt-property-id">` tag.
-
-**Verify:** Popup shows field values and tier badges without any `<script>` tag on the page.
-
----
-
----
-
-## Flow 5 — AI Scan
+## Flow 4 — AI Scan
 
 **What it tests:** Cron-triggered GPT-4o gap-filling for missing accessibility fields.
 
@@ -126,7 +100,7 @@ curl http://localhost:3000/api/cron/ai-scan
 
 ---
 
-## Flow 6 — Peer Gossip
+## Flow 5 — Peer Gossip
 
 **What it tests:** Two nodes exchanging facts via inbox push and gossip pull.
 
@@ -155,13 +129,13 @@ Bootstrap may link peers automatically after both nodes finish starting; if `gos
 
 1. Open `http://localhost:3000/setup` and create an admin on **Node A**.
 2. Open `http://localhost:3010/setup` and create an admin on **Node B**.
-3. Promote yourself to **AUDITOR** on Node A (Stats → Users) if using Field Kit.
+3. Promote yourself to **AUDITOR** on Node A (Stats → Users) if using WikiTraveler Access for audits.
 
 ### 4. Propagate a fact
 
 **Inbox push (fast path):**
 
-1. Submit an audit on Node A (Field Kit with `NEXT_PUBLIC_NODE_API_URL=http://localhost:3000`, or the node UI).
+1. Submit an audit on Node A (WikiTraveler Access with `NEXT_PUBLIC_NODE_API_URL=http://localhost:3000`, or the node UI).
 2. Pick a property inside the shared bbox (Eindhoven region if you have the OSM fixture).
 3. Open Node B’s map — the fact should appear within seconds.
 
@@ -188,8 +162,7 @@ Manual two-terminal setup: [docs/GOSSIP-DEV.md](../docs/GOSSIP-DEV.md).
 | Flow | Ports |
 |------|-------|
 | 1 — Agency Widget | :3000 (node), :4000 (demo) |
-| 2 — Field Auditor | :3000 (node), :3001 (field-kit) |
+| 2 — WikiTraveler Access | :3000 (node), :3001 (access) |
 | 3 — Lens on Booking.com | :3000 (node) |
-| 4 — Lens on Lens Demo | :3000 (node), :4001 (lens-demo) |
-| 5 — AI Scan | :3000 (node) |
-| 6 — Peer Gossip | :3000 (node A), :3010 (node B) |
+| 4 — AI Scan | :3000 (node) |
+| 5 — Peer Gossip | :3000 (node A), :3010 (node B) |

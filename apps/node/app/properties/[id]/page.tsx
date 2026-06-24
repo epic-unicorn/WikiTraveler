@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import AuditPage from "./AuditPage";
+import { PropertyBackLink } from "./PropertyBackLink";
 import { NodeAppShell } from "../../NodeAppShell";
 
 export const dynamic = "force-dynamic";
@@ -79,7 +80,10 @@ export default async function PropertyPage({
   return (
     <NodeAppShell activeNav="map" maxWidth={760}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--wt-text)" }}>{property.name}</h1>
+        <PropertyBackLink />
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--wt-text)", marginTop: 4 }}>
+          {property.name}
+        </h1>
         <p style={{ fontSize: 14, color: "var(--wt-text-muted)", marginTop: 4 }}>{property.location}</p>
       </div>
       <AuditPage

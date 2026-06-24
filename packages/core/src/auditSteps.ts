@@ -4,7 +4,7 @@ export type AuditStepId =
   | "rooms"
   | "review";
 
-/** Fixed Field Kit wizard — full audit only. */
+/** Fixed WikiTraveler Access wizard — full audit only. */
 export const AUDIT_WIZARD_STEPS: AuditStepId[] = [
   "building_access",
   "shared_facilities",

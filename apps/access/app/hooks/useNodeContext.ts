@@ -5,7 +5,7 @@ import {
   ENV_NODE_URL,
   getStoredNodeUrl,
   resolvePeerNode,
-} from "../lib/fieldKitApi";
+} from "../lib/accessApi";
 import { persistNodeUrlCookie } from "../lib/authStorage";
 
 interface NodeInfo {
@@ -30,13 +30,17 @@ export function useNodeContext() {
   useEffect(() => {
     setNodeInfo(null);
     setNodeReachable(null);
-    fetch(`${nodeUrl}/api/nodeinfo`, { signal: AbortSignal.timeout(4000) })
+    const controller = new AbortController();
+    fetch(`${nodeUrl}/api/nodeinfo`, { signal: controller.signal })
       .then((r) => r.json())
       .then((d: NodeInfo) => {
         setNodeInfo(d);
         setNodeReachable(true);
       })
-      .catch(() => setNodeReachable(false));
+      .catch(() => {
+        if (!controller.signal.aborted) setNodeReachable(false);
+      });
+    return () => controller.abort();
   }, [nodeUrl]);
 
   useEffect(() => {
@@ -44,17 +48,23 @@ export function useNodeContext() {
     setGpsResolved(null);
     if (!navigator.geolocation) return;
 
+    let cancelled = false;
     navigator.geolocation.getCurrentPosition(async (pos) => {
+      if (cancelled) return;
       const data = await resolvePeerNode(
         nodeUrl,
         pos.coords.latitude,
         pos.coords.longitude
       );
+      if (cancelled) return;
       if (data && data.url !== nodeUrl) {
         setSearchNodeUrl(data.url);
         setGpsResolved({ region: data.region ?? null });
       }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [nodeUrl]);
 
   const setNodeUrl = useCallback((url: string) => {

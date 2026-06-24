@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { ThemeToggle, LocalePicker, useLocale } from "@wikitraveler/ui";
-import { ENV_NODE_URL } from "../lib/fieldKitApi";
+import { ENV_NODE_URL } from "../lib/accessApi";
 import { clearAuth } from "../lib/authStorage";
+import { AccessAccountBadge } from "../AccessAccountBadge";
 
 interface Props {
   nodeUrl: string;
@@ -121,11 +122,12 @@ export function SettingsTab({
 
       <p className="fk-section-header">{t("ui.settingsAccount")}</p>
       <div className="card" style={{ marginTop: 0 }}>
+        <AccessAccountBadge compact={false} />
         <button
           type="button"
           className="btn-secondary"
           style={{
-            marginTop: 0,
+            marginTop: 14,
             color: "var(--wt-danger)",
             borderColor: "color-mix(in srgb, var(--wt-danger) 35%, var(--wt-border))",
           }}

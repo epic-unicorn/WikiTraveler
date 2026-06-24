@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useLocale } from "@wikitraveler/ui";
-import { FieldKitToolbar } from "./FieldKitToolbar";
+import { AccessToolbar } from "./AccessToolbar";
 import { useNodeContext } from "./hooks/useNodeContext";
 import { SearchTab } from "./tabs/SearchTab";
 import { NearbyTab } from "./tabs/NearbyTab";
-import { RecentTab } from "./tabs/RecentTab";
+import { SavedTab } from "./tabs/SavedTab";
+import { ContributeTab } from "./tabs/ContributeTab";
 import { SettingsTab } from "./tabs/SettingsTab";
+import { readAuthToken } from "./lib/authStorage";
+import { roleFromToken, canContribute } from "./lib/userRole";
 
-type TabId = "search" | "nearby" | "recent" | "settings";
+type TabId = "search" | "nearby" | "saved" | "contribute" | "settings";
 
 const TAB_ICONS: Record<TabId, React.ReactNode> = {
   search: (
@@ -25,10 +28,15 @@ const TAB_ICONS: Record<TabId, React.ReactNode> = {
       <circle cx="12" cy="10" r="3"/>
     </svg>
   ),
-  recent: (
+  saved: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10"/>
-      <polyline points="12 6 12 12 16 14"/>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+    </svg>
+  ),
+  contribute: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
     </svg>
   ),
   settings: (
@@ -48,9 +56,10 @@ function PlusIcon() {
   );
 }
 
-export function FieldKitTabs() {
+export function AccessTabs() {
   const { t } = useLocale();
   const [activeTab, setActiveTab] = useState<TabId>("search");
+  const [role, setRole] = useState(() => roleFromToken(readAuthToken()));
   const {
     nodeUrl,
     searchNodeUrl,
@@ -61,10 +70,17 @@ export function FieldKitTabs() {
     resetNodeUrl,
   } = useNodeContext();
 
+  useEffect(() => {
+    setRole(roleFromToken(readAuthToken()));
+  }, []);
+
+  const contributor = canContribute(role);
+
   const TABS: { id: TabId; label: string }[] = [
     { id: "search", label: t("ui.tabSearch") },
     { id: "nearby", label: t("ui.tabNearby") },
-    { id: "recent", label: t("ui.tabRecent") },
+    { id: "saved", label: t("ui.tabSaved") },
+    ...(contributor ? [{ id: "contribute" as const, label: t("ui.tabContribute") }] : []),
     { id: "settings", label: t("ui.tabSettings") },
   ];
 
@@ -100,17 +116,19 @@ export function FieldKitTabs() {
       <a href="#main-content" className="wt-skip-link">
         {t("ui.skipToContent")}
       </a>
-      <FieldKitToolbar
+      <AccessToolbar
         nodeReachable={nodeReachable}
         end={
-          <Link
-            href="/properties/new"
-            className="wt-toolbar-btn"
-            title={t("ui.addProperty")}
-            aria-label={t("ui.addProperty")}
-          >
-            <PlusIcon />
-          </Link>
+          contributor ? (
+            <Link
+              href="/properties/new"
+              className="wt-toolbar-btn"
+              title={t("ui.addProperty")}
+              aria-label={t("ui.addProperty")}
+            >
+              <PlusIcon />
+            </Link>
+          ) : undefined
         }
       />
       <main
@@ -135,7 +153,10 @@ export function FieldKitTabs() {
             active={activeTab === "nearby"}
           />
         )}
-        {activeTab === "recent" && <RecentTab homeNodeUrl={nodeUrl} />}
+        {activeTab === "saved" && <SavedTab homeNodeUrl={nodeUrl} />}
+        {activeTab === "contribute" && contributor && (
+          <ContributeTab homeNodeUrl={nodeUrl} />
+        )}
         {activeTab === "settings" && (
           <SettingsTab
             nodeUrl={nodeUrl}

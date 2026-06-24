@@ -8,8 +8,8 @@ import {
   getStoredRadiusKm,
   setStoredRadiusKm,
   resolvePeerNode,
-} from "../lib/fieldKitApi";
-import { auditHref } from "../lib/auditHref";
+} from "../lib/accessApi";
+import { propertyHref } from "../lib/propertyHref";
 
 interface Props {
   searchNodeUrl: string;
@@ -36,24 +36,27 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
     setNodeForSearch(searchNodeUrl);
   }, [searchNodeUrl]);
 
-  const loadNearby = useCallback(async () => {
+  const loadNearby = useCallback(async (signal?: AbortSignal) => {
     if (!coords) return;
     setLoading(true);
     setError("");
     try {
       let node = homeNodeUrl;
       const peer = await resolvePeerNode(homeNodeUrl, coords.lat, coords.lon);
+      if (signal?.aborted) return;
       if (peer?.url) node = peer.url;
       setNodeForSearch(node);
-      const properties = await fetchNearbyProperties(node, coords.lat, coords.lon, radiusKm);
+      const properties = await fetchNearbyProperties(node, coords.lat, coords.lon, radiusKm, signal);
+      if (signal?.aborted) return;
       setResults(properties);
     } catch {
+      if (signal?.aborted) return;
       setError(t("ui.searchNodeUnreachable"));
       setResults(null);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }, [coords, radiusKm, homeNodeUrl]);
+  }, [coords, radiusKm, homeNodeUrl, t]);
 
   const requestGps = useCallback(() => {
     if (!navigator.geolocation) {
@@ -83,7 +86,9 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
 
   useEffect(() => {
     if (!active || !coords) return;
-    loadNearby();
+    const controller = new AbortController();
+    loadNearby(controller.signal);
+    return () => controller.abort();
   }, [active, coords, radiusKm, loadNearby]);
 
   function handleRadiusChange(km: number) {
@@ -117,7 +122,7 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
           <button
             type="button"
             className="btn-icon"
-            onClick={loadNearby}
+            onClick={() => loadNearby()}
             disabled={loading}
             title="Refresh nearby"
           >
@@ -192,7 +197,7 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
       {results !== null && results.length > 0 && (
         <div style={{ display: "grid", gap: 8 }}>
           {results.map((p) => (
-            <Link key={p.id} href={auditHref(p.id, nodeForSearch, homeNodeUrl)}>
+            <Link key={p.id} href={propertyHref(p.id, nodeForSearch, homeNodeUrl)}>
               <PropertyCard property={p} expandable={false} />
             </Link>
           ))}

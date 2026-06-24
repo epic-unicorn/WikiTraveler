@@ -352,6 +352,7 @@ export async function POST(
   const submission = await prisma.auditSubmission.create({
     data: {
       propertyId,
+      auditorToken: submitter,
       facts: body.facts,
       photoUrls: storedPhotos.map((p) => p.url),
       locale: body.locale ?? null,

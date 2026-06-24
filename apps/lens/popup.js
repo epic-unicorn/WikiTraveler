@@ -585,6 +585,24 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
     content.appendChild(createFactsTable(facts, locale));
   }
 
+  const reportBar = document.createElement("div");
+  reportBar.style.marginTop = "14px";
+  reportBar.style.paddingTop = "12px";
+  reportBar.style.borderTop = "1px solid #e2e8f0";
+  const reportBtn = document.createElement("button");
+  reportBtn.type = "button";
+  reportBtn.textContent = wtT("ui.lensReportIssue", locale);
+  reportBtn.style.cssText = "display:block;width:100%;font-size:13px;font-weight:600;color:#2563eb;background:none;border:none;padding:0;cursor:pointer;text-align:left";
+  reportBtn.addEventListener("click", () => {
+    alert(wtT("ui.lensReportHint", locale));
+  });
+  reportBar.appendChild(reportBtn);
+  const reportHint = document.createElement("p");
+  reportHint.textContent = wtT("ui.lensReportHint", locale);
+  reportHint.style.cssText = "font-size:11px;color:#94a3b8;margin:6px 0 0";
+  reportBar.appendChild(reportHint);
+  content.appendChild(reportBar);
+
   showSearchToggle(nodeUrl, authHeaders, locale, (id, name) => {
     showLoading(content, locale);
     fetchAndRender(id, name, content, nodeUrl, authHeaders, locale, null);

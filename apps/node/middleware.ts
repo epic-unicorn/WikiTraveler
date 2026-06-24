@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { getClientIp, getRateLimitProfile } from "@/lib/rateLimitRoutes";
+import { decodeAuthCookie, looksLikeJwt } from "@/lib/authCookie";
+import { canAccessDashboard, roleFromToken } from "@/lib/userRole";
 
 // Paths that don't require a login cookie
 const SKIP_PREFIXES = ["/_next/", "/api/", "/.well-known/"];
@@ -12,13 +14,18 @@ const SKIP_EXACT = new Set(["/login", "/register", "/setup", "/accessibility", "
 // Graceful degradation: if env vars are absent, rate limiting is simply skipped.
 let authLimiter: Ratelimit | null = null;
 let auditLimiter: Ratelimit | null = null;
+let signalLimiter: Ratelimit | null = null;
 
-function getLimiters(): { auth: Ratelimit | null; audit: Ratelimit | null } {
+function getLimiters(): {
+  auth: Ratelimit | null;
+  audit: Ratelimit | null;
+  signal: Ratelimit | null;
+} {
   if (
     !process.env.UPSTASH_REDIS_REST_URL ||
     !process.env.UPSTASH_REDIS_REST_TOKEN
   ) {
-    return { auth: null, audit: null };
+    return { auth: null, audit: null, signal: null };
   }
   if (!authLimiter) {
     const redis = Redis.fromEnv();
@@ -32,8 +39,13 @@ function getLimiters(): { auth: Ratelimit | null; audit: Ratelimit | null } {
       limiter: Ratelimit.slidingWindow(20, "60 s"),
       prefix: "wt:rl:audit",
     });
+    signalLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "60 s"),
+      prefix: "wt:rl:signal",
+    });
   }
-  return { auth: authLimiter, audit: auditLimiter! };
+  return { auth: authLimiter, audit: auditLimiter!, signal: signalLimiter! };
 }
 
 export async function middleware(req: NextRequest) {
@@ -42,11 +54,17 @@ export async function middleware(req: NextRequest) {
 
   // ── Rate limiting ─────────────────────────────────────────────────────────
   // Only applies when UPSTASH_REDIS_REST_URL / _TOKEN are set.
-  const { auth: al, audit: audl } = getLimiters();
-  if (al && audl) {
+  const { auth: al, audit: audl, signal: sigl } = getLimiters();
+  if (al && audl && sigl) {
     const profile = getRateLimitProfile(pathname, method);
     const limiter =
-      profile === "auth" ? al : profile === "audit" ? audl : null;
+      profile === "auth"
+        ? al
+        : profile === "audit"
+          ? audl
+          : profile === "signal"
+            ? sigl
+            : null;
     if (limiter) {
       const ip = getClientIp(req.headers);
       const { success, reset } = await limiter.limit(ip);
@@ -90,12 +108,21 @@ export async function middleware(req: NextRequest) {
   }
 
   // ── Auth gate ─────────────────────────────────────────────────────────────
-  const token = req.cookies.get("wt_token")?.value;
-  if (!token) {
+  const raw = req.cookies.get("wt_token")?.value;
+  const token = decodeAuthCookie(raw);
+  if (!token || !looksLikeJwt(token)) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     if (pathname !== "/") url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
+  }
+
+  if (!canAccessDashboard(roleFromToken(token))) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    const res = NextResponse.redirect(url);
+    res.cookies.set("wt_token", "", { path: "/", maxAge: 0 });
+    return res;
   }
 
   return NextResponse.next();

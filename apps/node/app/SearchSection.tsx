@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
+import { createRequestCounter } from "@wikitraveler/core";
 import {
   PropertySearchBar,
   PropertyCard,
@@ -43,17 +44,23 @@ export function SearchSection({ onResults }: Props) {
   const [results, setResults] = useState<PropertySummary[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequest = useRef(createRequestCounter());
 
   useEffect(() => {
+    let cancelled = false;
     fetch(`/api/fields?locale=${locale}`)
       .then((r) => r.json())
       .then((data: { fields?: Array<{ fieldName: string; label: string; searchFilter: boolean; valueType: string }> }) => {
+        if (cancelled) return;
         const chips = (data.fields ?? [])
           .filter((f) => f.searchFilter && f.valueType === "BOOLEAN")
           .map((f) => ({ key: f.fieldName, label: f.label }));
         setSearchFeatures(chips);
       })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [locale]);
 
   const search = useCallback(
@@ -72,10 +79,13 @@ export function SearchSection({ onResults }: Props) {
       }
 
       startTransition(async () => {
+        const requestId = searchRequest.current.next();
         const params = buildParams(q, f);
         const res = await fetch(`/api/properties?${params}`, { headers: authHeaders() });
+        if (!searchRequest.current.isLatest(requestId)) return;
         const data = (await res.json()) as { properties?: PropertySummary[] };
         const properties = data.properties ?? [];
+        if (!searchRequest.current.isLatest(requestId)) return;
         setResults(properties);
         onResults?.(
           properties

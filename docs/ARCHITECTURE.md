@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 WikiTraveler is a federated truth layer for accessibility data — a mesh of independently operated nodes that share and corroborate facts contributed by field auditors.
 
@@ -7,33 +7,33 @@ WikiTraveler is a federated truth layer for accessibility data — a mesh of ind
 ## System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                       Browser / Mobile                       │
-│                                                              │
-│  ┌──────────────┐  ┌────────────────┐  ┌──────────────────┐  │
-│  │  Lens        │  │  Field Kit     │  │  Agency Website  │  │
-│  │  (Chrome MV3)│  │  (Mobile PWA)  │  │  + SDK           │  │
-│  └──────┬───────┘  └───────┬────────┘  └────────┬─────────┘  │
-└─────────┼──────────────────┼───────────────────-┼────────────┘
-          │ REST             │ REST               │ REST
-          └──────────────────┴────────────────────┘
-                                     │
-                                     ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    WikiTraveler Node                         │
-│                (Next.js 14 App Router)                       │
-│                                                              │
-│  /api/properties   /api/gossip/*   /api/cron/*               │
-│  /api/auth         /api/inbox      /api/nodes                │
-│                                                              │
-│  Prisma ORM → PostgreSQL                                     │
-│  @wikitraveler/ai-agent → OpenAI GPT-4o (optional)           │
-└─────────────────────────────┬────────────────────────────────┘
-                              │ Gossip (pull + push)
-                              ▼
-              ┌───────────────────────────┐
-              │  Other WikiTraveler Nodes │
-              └───────────────────────────┘
++--------------------------------------------------------------+
+¦                       Browser / Mobile                       ¦
+¦                                                              ¦
+¦  +--------------+  +----------------+  +------------------+  ¦
+¦  ¦  Lens        ¦  ¦  WikiTraveler Access     ¦  ¦  Agency Website  ¦  ¦
+¦  ¦  (Chrome MV3)¦  ¦  (Mobile PWA)  ¦  ¦  + SDK           ¦  ¦
+¦  +--------------+  +----------------+  +------------------+  ¦
++---------+------------------+--------------------+------------+
+          ¦ REST             ¦ REST               ¦ REST
+          +---------------------------------------+
+                                     ¦
+                                     ?
++--------------------------------------------------------------+
+¦                    WikiTraveler Node                         ¦
+¦                (Next.js 14 App Router)                       ¦
+¦                                                              ¦
+¦  /api/properties   /api/gossip/*   /api/cron/*               ¦
+¦  /api/auth         /api/inbox      /api/nodes                ¦
+¦                                                              ¦
+¦  Prisma ORM ? PostgreSQL                                     ¦
+¦  @wikitraveler/ai-agent ? OpenAI GPT-4o (optional)           ¦
++--------------------------------------------------------------+
+                              ¦ Gossip (pull + push)
+                              ?
+              +---------------------------+
+              ¦  Other WikiTraveler Nodes ¦
+              +---------------------------+
 ```
 
 ---
@@ -46,17 +46,17 @@ The canonical deployment unit. A Next.js 14 App Router app serving:
 - **REST API** under `/api/` — used by all clients and the SDK
 - **Dashboard** at `/` — property map (with "Audited only" filter) + search; requires login (AUDITOR/ADMIN only)
 - **Property page** at `/properties/[id]` — audit form + fact history; token pre-filled from cookie on load
-- **Admin panel** at `/stats` → Users tab — role management (ADMIN only)
+- **Admin panel** at `/stats` ? Users tab — role management (ADMIN only)
 - **Gossip cron** at `/api/cron/gossip` — polls peers, ingests deltas, self-announces
 - **Auth pages**: `/login` (blocks USER role), `/register` (creates account, shows close-tab success for Lens flow)
 
-### `apps/field-kit`
+### `apps/access`
 
-Mobile-optimised Next.js app. Opens on the auditor's phone in the hotel lobby. Connects to any node via `NEXT_PUBLIC_NODE_API_URL`.
+Mobile-optimised Next.js app for travelers and auditors. Connects to any node via `NEXT_PUBLIC_NODE_API_URL`.
 
-**Auth gate:** The app requires AUDITOR or ADMIN role. A `/login` page issues the cookie; `/register` creates a USER account and shows a pending-approval screen. Middleware redirects unauthenticated requests to `/login` (except `/login`, `/register`).
+**Auth:** All authenticated roles (`USER`, `AUDITOR`, `ADMIN`) may use the app. Middleware redirects unauthenticated requests to `/login`. `USER` accounts can browse, save places, and submit community signals; only `AUDITOR`/`ADMIN` may open the audit wizard (enforced in middleware and API).
 
-Flow: login → search → GPS resolution (auto-detects the nearest regional node via `/api/peers/resolve`) → tap property (or create if missing) → fill 12 accessibility fields → submit with JWT. If the property lives on a different node than the user's home node, the JWT is verified remotely via `/.well-known/pubkey` cross-node — no re-login required.
+Flow: login → search / nearby / map → property detail (read-first) → optional report issue (community signal) or field audit (auditors). GPS resolves the nearest regional node via `/api/peers/resolve`. Cross-node JWT verification uses `/.well-known/pubkey` — no re-login when auditing on a peer node.
 
 ### `apps/lens`
 
@@ -83,7 +83,7 @@ Framework-agnostic logic shared by every other package. No browser or Node runti
 | `TIER_RANK / TIER_LABEL / TIER_COLOR` | Rank, label, and CSS colour maps |
 | `ACCESSIBILITY_FIELDS` | Array of 12 field names |
 | `collapseFacts()` | Keeps the highest-tier fact per field |
-| `evaluateConfirmed()` | Promotes to `CONFIRMED` when ≥ 3 distinct auditors agree |
+| `evaluateConfirmed()` | Promotes to `CONFIRMED` when = 3 distinct auditors agree |
 | `mergeGossipDelta()` | Applies an incoming delta to a local fact set |
 
 ### `packages/sdk`
@@ -115,26 +115,26 @@ AI facts are tagged `AI_GUESS` and are always overwritten by human audits. The e
 
 ```
 Property
-  canonicalId  string UNIQUE   ← Wikidata Q-identifier or local:* for created properties
+  canonicalId  string UNIQUE   ? Wikidata Q-identifier or local:* for created properties
   name         string
   location     string
-  osmId        string?          ← linked OpenStreetMap node
-  wheelmapId   string?          ← linked Wheelmap node
+  osmId        string?          ? linked OpenStreetMap node
+  wheelmapId   string?          ? linked Wheelmap node
 
 AccessibilityFact
-  propertyId   FK → Property
+  propertyId   FK ? Property
   fieldName    string
   value        string
   tier         OFFICIAL | AI_GUESS | VERIFIED | CONFIRMED
   sourceType   WIKIDATA | WHEELMAP | WHEEL_THE_WORLD | AUDITOR
-  sourceNodeId string           ← originating node
-  submittedBy  string?          ← auditor identifier (used for CONFIRMED promotion)
+  sourceNodeId string           ? originating node
+  submittedBy  string?          ? auditor identifier (used for CONFIRMED promotion)
   UNIQUE (propertyId, fieldName, sourceNodeId)
 
-AuditSubmission   ← raw submitted facts + photos (base64)
-NodePeer          ← peers with cached publicKey, bbox, region
-GossipSnapshot    ← dedup log with SHA-256 hash of each applied delta
-User              ← local user accounts (username + bcrypt hash + role: USER|AUDITOR|ADMIN)
+AuditSubmission   ? raw submitted facts + photos (base64)
+NodePeer          ? peers with cached publicKey, bbox, region
+GossipSnapshot    ? dedup log with SHA-256 hash of each applied delta
+User              ? local user accounts (username + bcrypt hash + role: USER|AUDITOR|ADMIN)
 ```
 
 ---
@@ -147,7 +147,7 @@ Every fact carries a tier. Merge logic always keeps the highest-ranking fact per
 CONFIRMED (3) > VERIFIED (2) > AI_GUESS (1) > OFFICIAL (0)
 ```
 
-**CONFIRMED promotion:** `evaluateConfirmed()` promotes a fact when ≥ 3 **distinct** human auditors (`submittedBy`) independently submit the same `(property, field, value)`. Counting auditors — not nodes — prevents gossip replication from auto-promoting a single person's fact.
+**CONFIRMED promotion:** `evaluateConfirmed()` promotes a fact when = 3 **distinct** human auditors (`submittedBy`) independently submit the same `(property, field, value)`. Counting auditors — not nodes — prevents gossip replication from auto-promoting a single person's fact.
 
 ---
 
@@ -171,9 +171,9 @@ After every successful field audit, the receiving node pushes the new facts to a
 
 ```
 POST /api/properties/[id]/accessibility
-  → saves VERIFIED facts
-  → pushFactsToPeers() (fire-and-forget, parallel)
-       → POST peer/api/inbox  { fromNodeId, properties[], facts[] }
+  ? saves VERIFIED facts
+  ? pushFactsToPeers() (fire-and-forget, parallel)
+       ? POST peer/api/inbox  { fromNodeId, properties[], facts[] }
             X-WikiTraveler-Signature: keyId="...", signature="..."
 ```
 
@@ -185,10 +185,10 @@ Catches any facts missed during unreachable push windows:
 
 ```
 GET /api/cron/gossip
-  → reads active peers from local NodePeer table
-  → for each peer: GET peer/api/gossip/snapshot?since=<lastSeen>
-       → POST /api/gossip/ingest (applies delta + upserts incoming peers)
-  → upserts peer into local NodePeer table
+  ? reads active peers from local NodePeer table
+  ? for each peer: GET peer/api/gossip/snapshot?since=<lastSeen>
+       ? POST /api/gossip/ingest (applies delta + upserts incoming peers)
+  ? upserts peer into local NodePeer table
 ```
 
 ### Peer discovery
@@ -201,10 +201,10 @@ Nodes discover each other organically — no central registry needed:
 
 Identity endpoints exposed by every node:
 ```
-GET /api/nodeinfo           → { nodeId, url, version, region, bbox, publicKeyPem, peers[] }
-GET /.well-known/pubkey     → { publicKeyPem }
-GET /api/peers              → { peers[] }
-GET /api/peers/resolve      → { nodeId, url, region, bbox, matched }
+GET /api/nodeinfo           ? { nodeId, url, version, region, bbox, publicKeyPem, peers[] }
+GET /.well-known/pubkey     ? { publicKeyPem }
+GET /api/peers              ? { peers[] }
+GET /api/peers/resolve      ? { nodeId, url, region, bbox, matched }
 ```
 
 ---
@@ -235,7 +235,7 @@ This means a user registered on Node A can submit audits to Node B (e.g. while t
 | `AUDITOR` | All USER permissions + submit field audits, import properties, trigger AI analysis |
 | `ADMIN` | All AUDITOR permissions + manage users, backup/restore, view admin panel |
 
-New registrations default to `USER`. An admin promotes users via the Stats page → Users panel or `PATCH /api/admin/users/:username`.
+New registrations default to `USER`. An admin promotes users via the Stats page ? Users panel or `PATCH /api/admin/users/:username`.
 
 The **first admin** is created via the web UI at `/setup` on first run (or `POST /api/setup`). Legacy `ADMIN_USERNAME` / `ADMIN_PASSWORD` env vars are no longer used.
 

@@ -1,5 +1,5 @@
-import { auditHref } from "./auditHref";
-import type { MapPin } from "./fieldKitApi";
+import { propertyOrAuditHref } from "./propertyHref";
+import type { MapPin } from "./accessApi";
 
 const TIER_RANK: Record<string, number> = {
   OFFICIAL: 0,
@@ -41,12 +41,13 @@ function tierLabel(tier: string): string | null {
   return null;
 }
 
-export function buildFieldKitMapPopup(
+export function buildAccessMapPopup(
   pin: MapPin,
   homeNodeUrl: string,
   propertyNodeUrl: string,
-  auditLabel: string,
-  auditedOpenLabel: string
+  ctaLabel: string,
+  auditedOpenLabel: string,
+  asContributor: boolean
 ): string {
   const facts = pin.facts ?? {};
   const sorted = Object.entries(facts).sort(([aKey, aFact], [bKey, bFact]) => {
@@ -66,14 +67,14 @@ export function buildFieldKitMapPopup(
     })
     .join("");
 
-  const href = auditHref(pin.id, propertyNodeUrl, homeNodeUrl);
+  const href = propertyOrAuditHref(pin.id, propertyNodeUrl, homeNodeUrl, asContributor);
 
   return `
     <div class="wt-popup">
       <p class="wt-popup-title">${pin.name}</p>
       <p class="wt-popup-loc">${pin.location}</p>
       ${factRows ? `<div class="wt-popup-facts">${factRows}</div>` : pin.audited ? `<p class="wt-popup-audited">${auditedOpenLabel}</p>` : ""}
-      <a href="${href}" class="wt-popup-cta">${auditLabel}</a>
+      <a href="${href}" class="wt-popup-cta">${ctaLabel}</a>
     </div>
   `;
 }

@@ -6,7 +6,7 @@ Run WikiTraveler on your machine for day-to-day coding. This is **not** a deploy
 
 ## When to use this
 
-- Building or debugging node, Field Kit, Lens, or SDK features
+- Building or debugging node, WikiTraveler Access, Lens, or SDK features
 - First-time setup and admin onboarding
 - **First OSM ingest** for large regions (countries, Benelux) — fastest and most reliable option before going to production
 
@@ -44,8 +44,14 @@ NODE_PUBLIC_KEY=
 
 ### 2. Start Postgres
 
+Either compose file publishes Postgres on **127.0.0.1:5432** (override with `POSTGRES_HOST_PORT` in `.env`):
+
 ```bash
+# Lightweight — Postgres only (typical for pnpm dev on the host)
 docker compose -f docker/docker-compose.dev.yml up postgres -d
+
+# Full production stack (node + Postgres) — host tools can still use pnpm db:setup
+docker compose -f docker/docker-compose.yml up postgres -d
 ```
 
 ### 3. Prepare the database
@@ -63,7 +69,7 @@ After pulling schema changes on an existing database, use `pnpm db:migrate` inst
 | Terminal | Command | URL |
 |----------|---------|-----|
 | 1 | `pnpm dev` | http://localhost:3000 — node dashboard + API |
-| 2 | `pnpm dev:field-kit` | http://localhost:3001 — mobile audit app |
+| 2 | `pnpm dev:access` | http://localhost:3001 — WikiTraveler Access (travelers + auditors) |
 | 3 | `pnpm dev:agency-demo` | http://localhost:4000/apps/agency-demo/ — SDK demo |
 
 See [apps/README.md](../apps/README.md) for step-by-step flow walkthroughs.
@@ -198,7 +204,7 @@ OSM_FIXTURE_PATH=/abs/path/to/scripts/fixtures/netherlands-osm.json
 3. Extension options → set Node URL to `http://localhost:3000`, sign in
 4. Register at http://localhost:3000/register if needed; promote to `AUDITOR` in Admin
 
-### Field Kit
+### WikiTraveler Access
 
 Runs on http://localhost:3001. Set node URL on the login screen (defaults to `NEXT_PUBLIC_NODE_API_URL` from `.env`).
 
@@ -216,7 +222,7 @@ pnpm --filter @wikitraveler/core build              # individual
 pnpm --filter @wikitraveler/node build
 ```
 
-Build order: `core` → `ai-agent` → `sdk` → `node` / `field-kit`.
+Build order: `core` → `ai-agent` → `sdk` → `node` / `access`.
 
 ---
 
@@ -322,15 +328,15 @@ The script is idempotent — rows that already contain HTTPS URLs are skipped.
 
 ---
 
-## Field Kit URL
+## WikiTraveler Access URL
 
-When running Field Kit separately (`pnpm dev:field-kit`), point it at your local node:
+When running WikiTraveler Access separately (`pnpm dev:access`), point it at your local node:
 
 ```env
 NEXT_PUBLIC_NODE_API_URL=http://localhost:3000
 ```
 
-Baked in at build time for production Field Kit deployments — see [VERCEL.md](./VERCEL.md#5-deploy-field-kit).
+Baked in at build time for production WikiTraveler Access deployments — see [VERCEL.md](./VERCEL.md#5-deploy-wikitraveler-access).
 
 ---
 
@@ -341,7 +347,7 @@ Available on `/stats` after sign-in:
 | Tool | Use when |
 |------|----------|
 | **Full backup / restore** | Disaster recovery, clone node |
-| **Export / import audited** | Region move — preserve Field Kit / Lens audits (merge by OSM ID) |
+| **Export / import audited** | Region move — preserve WikiTraveler Access / Lens audits (merge by OSM ID) |
 | **Export / import users** | Move accounts (no passwords) |
 
 Full backup **replaces the entire database** on restore — do not use it for a region move.
@@ -355,5 +361,6 @@ Full backup **replaces the entire database** on restore — do not use it for a 
 | `Cannot find module 'next/dist/pages/_app'` | Corrupted `node_modules` — delete `node_modules` and run `pnpm install` |
 | Map is empty after start | Complete `/setup`, then run OSM ingest in Admin |
 | Ingest stopped mid-way | Restart `pnpm dev` — tile progress resumes from DB |
-| Field Kit CORS errors | Set `CORS_ORIGINS=*` in `.env` (fine for local dev) |
-| Port 5432 in use | Stop other Postgres instances or change the port mapping |
+| WikiTraveler Access CORS errors | Set `CORS_ORIGINS=*` in `.env` (fine for local dev) |
+| Port 5432 in use | Set `POSTGRES_HOST_PORT=5433` in `.env`, update `DATABASE_URL`, recreate the postgres container |
+| `pnpm db:setup` can't connect after `docker-compose.yml up` | Postgres must show `127.0.0.1:5432->5432/tcp` in `docker ps` — run `docker compose -f docker/docker-compose.yml up -d postgres` to apply port mapping |

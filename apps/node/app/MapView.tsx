@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, useLocale } from "@wikitraveler/ui";
 import { buildPopup, type MapPin } from "@/lib/mapPopup";
+import { getVisiblePins } from "@/lib/mapVisiblePins";
 
 export type { MapPin };
 
@@ -28,18 +29,6 @@ function getTileConfig() {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   };
-}
-
-function getVisiblePins(allPins: MapPin[], focusPins: MapPin[] | null | undefined, auditedOnly?: boolean): MapPin[] {
-  let pins = allPins;
-  if (focusPins && focusPins.length > 0) {
-    const focusIds = new Set(focusPins.map((p) => p.id));
-    pins = allPins.filter((p) => focusIds.has(p.id));
-  }
-  if (auditedOnly) {
-    pins = pins.filter((p) => p.audited);
-  }
-  return pins;
 }
 
 export function MapView({ focusPins, auditedOnly }: Props) {

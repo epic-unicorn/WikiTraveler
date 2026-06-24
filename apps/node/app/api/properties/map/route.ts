@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { collapseMapFacts, MAP_PIN_LIMIT } from "@/lib/mapPinFacts";
 import type { NextRequest } from "next/server";
 
-const TIER_RANK: Record<string, number> = { OFFICIAL: 0, AI_GUESS: 1, VERIFIED: 2, CONFIRMED: 3 };
-const AUDITED_TIERS = new Set(["VERIFIED", "CONFIRMED"]);
-
-// GET /api/properties/map — returns all properties that have lat/lon + accessibility facts
+// GET /api/properties/map — returns geo-tagged properties with key facts + audited flag
 export async function GET(req: NextRequest) {
   if (process.env.GOSSIP_DEV !== "true") {
     const authError = await requireAuth(req);
@@ -26,28 +24,21 @@ export async function GET(req: NextRequest) {
       },
     },
     orderBy: { name: "asc" },
+    take: MAP_PIN_LIMIT,
   });
 
   const pins = properties.map((p) => {
-    // Best tier per field — same collapse as the property detail page
-    const best = new Map<string, { value: string; tier: string }>();
-    for (const f of p.facts) {
-      const ex = best.get(f.fieldName);
-      if (!ex || (TIER_RANK[f.tier] ?? 0) > (TIER_RANK[ex.tier] ?? 0)) {
-        best.set(f.fieldName, { value: f.value, tier: f.tier });
-      }
-    }
+    const { facts, audited } = collapseMapFacts(p.facts);
     return {
       id: p.id,
       name: p.name,
       location: p.location,
       lat: p.lat,
       lon: p.lon,
-      // audited = any fact (any field) with VERIFIED or CONFIRMED tier
-      audited: p.facts.some((f) => AUDITED_TIERS.has(f.tier)),
-      facts: Object.fromEntries(best) as Record<string, { value: string; tier: string }>,
+      audited,
+      facts,
     };
   });
 
-  return NextResponse.json({ pins });
+  return NextResponse.json({ pins, truncated: properties.length >= MAP_PIN_LIMIT });
 }

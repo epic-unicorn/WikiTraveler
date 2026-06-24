@@ -9,6 +9,10 @@ try {
 const nextConfig = {
   transpilePackages: ["@wikitraveler/ui", "@wikitraveler/core", "@ionic/react"],
   output: "standalone",
+  onDemandEntries: {
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 2,
+  },
 };
 
 module.exports = nextConfig;

@@ -2,7 +2,7 @@ import { NodeAppShell } from "../NodeAppShell";
 
 export const metadata = {
   title: "Accessibility — WikiTraveler",
-  description: "Accessibility statement for WikiTraveler node, Field Kit, and Lens.",
+  description: "Accessibility statement for WikiTraveler node, WikiTraveler Access, and Lens.",
 };
 
 export default function AccessibilityStatementPage() {
@@ -11,7 +11,7 @@ export default function AccessibilityStatementPage() {
       <article>
         <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 8 }}>Accessibility statement</h1>
         <p style={{ color: "var(--wt-text-muted)", fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
-          WikiTraveler aims to meet <strong>WCAG 2.1 Level AA</strong> (EN 301 549) across Lens, Field Kit,
+          WikiTraveler aims to meet <strong>WCAG 2.1 Level AA</strong> (EN 301 549) across Lens, WikiTraveler Access,
           this node dashboard, and the agency SDK widget.
         </p>
 
@@ -51,7 +51,7 @@ export default function AccessibilityStatementPage() {
             <a href="https://github.com/wikitraveler/wikitraveler/issues/new" style={{ color: "var(--wt-primary)" }}>
               open an issue
             </a>{" "}
-            in the WikiTraveler project repository. Please include the app (Lens, Field Kit, or Node), your browser,
+            in the WikiTraveler project repository. Please include the app (Lens, WikiTraveler Access, or Node), your browser,
             and any assistive technology you use.
           </p>
         </section>

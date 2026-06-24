@@ -1,12 +1,14 @@
 {
-  "name": "@wikitraveler/field-kit",
+  "name": "@wikitraveler/access",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm exec next dev -p 3001",
+    "dev": "node dev.mjs",
     "build": "pnpm exec next build",
     "start": "pnpm exec next start -p 3001",
-    "lint": "pnpm exec next lint"
+    "lint": "pnpm exec next lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@ionic/react": "^8.5.4",
@@ -23,6 +25,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

@@ -577,7 +577,7 @@ function extractPropertyId() {
   const metaValue = metaTag?.getAttribute("content")?.trim();
   if (metaValue) return metaValue;
 
-  // 2. ?hotel= param — used by the StayWell Lens demo and similar agency sites
+  // 2. ?hotel= param — used by agency sites with deep-linked hotel pages
   const hotelParam = params.get("hotel");
   if (hotelParam) return hotelParam;
 

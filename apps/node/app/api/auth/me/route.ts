@@ -6,7 +6,7 @@ import type { JwtPayload } from "jsonwebtoken";
 /**
  * GET /api/auth/me
  * Returns the authenticated user's identity.
- * Used by Field Kit and Lens to display the logged-in user.
+ * Used by WikiTraveler Access and Lens to display the logged-in user.
  */
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization") ?? "";
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       username: payload.sub ?? null,
       homeNodeUrl: payload.homeNodeUrl ?? null,
-      role: payload.role ?? "auditor",
+      role: payload.role ?? "USER",
     });
   } catch {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

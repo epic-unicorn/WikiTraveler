@@ -2,7 +2,7 @@
 
 Self-host a WikiTraveler node with Docker Compose. Postgres and the node run in containers — no Vercel required.
 
-**Field Kit** is optional: enable the `field-kit` compose profile to run it in Docker, or use local dev / [Vercel](./VERCEL.md#5-deploy-field-kit) instead.
+**WikiTraveler Access** is optional: enable the `access` compose profile to run it in Docker, or use local dev / [Vercel](./VERCEL.md#5-deploy-wikitraveler-access) instead.
 
 ---
 
@@ -11,7 +11,7 @@ Self-host a WikiTraveler node with Docker Compose. Postgres and the node run in 
 - You want full control over hosting (VPS, home server, on-prem)
 - **Recommended host for the first large OSM ingest** (countries, Benelux) before pointing Vercel at the same database
 - You need Geofabrik PBF imports (`osmium-tool` is included in the image)
-- (Optional) Fully self-hosted Field Kit without a separate Vercel project
+- (Optional) Fully self-hosted WikiTraveler Access without a separate Vercel project
 
 ---
 
@@ -48,9 +48,13 @@ NODE_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
 CORS_ORIGINS=https://audit.example.com,https://myagency.com
 ```
 
-When using the optional Docker Field Kit on the same host, include its origin (e.g. `http://localhost:3001` or your public audit URL).
+When using the optional Docker WikiTraveler Access on the same host, include its origin (e.g. `http://localhost:3001` or your public audit URL).
 
-`DATABASE_URL` in `.env` is ignored inside Docker — compose overrides it to point at the `postgres` service. All other vars pass through from `.env`.
+`DATABASE_URL` in `.env` is what **host-side** tools use (`pnpm db:setup`, Prisma Studio). Keep it on `localhost:5432` when Postgres runs in Docker on the same machine.
+
+Inside Docker containers, compose overrides `DATABASE_URL` to `postgres:5432` on the internal network.
+
+Postgres is published on **127.0.0.1:5432** by default (`POSTGRES_HOST_PORT`) so `docker compose -f docker/docker-compose.yml up` does not leave the DB unreachable from the host. Change the port if 5432 is already in use.
 
 Restart after changing `.env`:
 
@@ -66,27 +70,27 @@ docker compose -f docker/docker-compose.yml up --build -d
 
 On first run this builds the image, starts Postgres, runs `prisma migrate deploy`, and starts the node on port 3000.
 
-### 2b. (Optional) Start Field Kit in Docker
+### 2b. (Optional) Start WikiTraveler Access in Docker
 
-Field Kit uses the compose profile `field-kit` — it is **not** started by the command above.
+WikiTraveler Access uses the compose profile `access` — it is **not** started by the command above.
 
 ```bash
-# Production Field Kit on :3001 (rebuild after changing NEXT_PUBLIC_NODE_API_URL)
-docker compose -f docker/docker-compose.yml --profile field-kit up --build -d
+# Production WikiTraveler Access on :3001 (rebuild after changing NEXT_PUBLIC_NODE_API_URL)
+docker compose -f docker/docker-compose.yml --profile access up --build -d
 
 # Or shorthand
-pnpm docker:field-kit
+pnpm docker:access
 ```
 
-Set `NEXT_PUBLIC_NODE_API_URL` in `.env` to the URL **browsers** use to reach your node (e.g. `http://localhost:3000` locally, or `https://wikitraveler.example.com` in production). This value is baked into the Field Kit image at build time.
+Set `NEXT_PUBLIC_NODE_API_URL` in `.env` to the URL **browsers** use to reach your node (e.g. `http://localhost:3000` locally, or `https://wikitraveler.example.com` in production). This value is baked into the WikiTraveler Access image at build time.
 
-Open http://localhost:3001 (or your `FIELD_KIT_PORT`). Add the Field Kit origin to `CORS_ORIGINS` on the node.
+Open http://localhost:3001 (or your `ACCESS_PORT`). Add the WikiTraveler Access origin to `CORS_ORIGINS` on the node.
 
 For dev Docker with hot reload:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml --profile field-kit up -d
-# or: pnpm docker:field-kit:dev
+docker compose -f docker/docker-compose.dev.yml --profile access up -d
+# or: pnpm docker:access:dev
 ```
 
 ### 3. Verify health
@@ -116,7 +120,7 @@ curl -X POST https://wikitraveler.example.com/api/setup \
 
 | Client | Configuration |
 |--------|---------------|
-| **Field Kit** | Optional Docker profile `field-kit` (see §2b), [Vercel](./VERCEL.md#5-deploy-field-kit), or `pnpm dev:field-kit` with `NEXT_PUBLIC_NODE_API_URL` pointing at your node |
+| **WikiTraveler Access** | Optional Docker profile `access` (see §2b), [Vercel](./VERCEL.md#5-deploy-wikitraveler-access), or `pnpm dev:access` with `NEXT_PUBLIC_NODE_API_URL` pointing at your node |
 | **Lens** | Extension options → your node URL |
 | **Agency SDK** | Widget points at your node URL; add agency origin to `CORS_ORIGINS` |
 
@@ -295,17 +299,29 @@ PHOTO_STORAGE_PROVIDER=r2 R2_ACCOUNT_ID=... R2_BUCKET=... \
 
 The script is idempotent — rows that already contain HTTPS URLs are skipped.
 
-### Field Kit URL
+### WikiTraveler Access URL
 
-`NEXT_PUBLIC_NODE_API_URL` in `.env` tells Field Kit which node API to call:
+`NEXT_PUBLIC_NODE_API_URL` in `.env` tells WikiTraveler Access which node API to call:
 
 ```env
 NEXT_PUBLIC_NODE_API_URL=https://wikitraveler.example.com
 ```
 
-- **Optional Docker Field Kit** — set before `docker compose --profile field-kit up --build`; rebuild the image when this changes.
-- **Local dev** (`pnpm dev:field-kit`) — read at dev-server startup.
-- **Vercel** — set in the Field Kit project env vars; see [VERCEL.md](./VERCEL.md#5-deploy-field-kit).
+- **Optional Docker WikiTraveler Access** — set before `docker compose --profile access up --build`; rebuild the image when this changes.
+- **Local dev** (`pnpm dev:access`) — read at dev-server startup.
+- **Vercel** — set in the WikiTraveler Access project env vars; see [VERCEL.md](./VERCEL.md#5-deploy-wikitraveler-access).
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `pnpm db:setup` → can't reach database at `localhost:5432` after `docker compose -f docker/docker-compose.yml up` | Recreate Postgres so the host port is published: `docker compose -f docker/docker-compose.yml up -d postgres`. `docker ps` should show `127.0.0.1:5432->5432/tcp` on the postgres container. |
+| Port 5432 already in use | Set `POSTGRES_HOST_PORT=5433` in `.env` and `DATABASE_URL=...@localhost:5433/...`, then `docker compose ... up -d postgres`. |
+| Dev + prod compose both need Postgres | Only one stack can bind a host port at a time. Use the same compose file, or different `POSTGRES_HOST_PORT` values. |
+| Migrations already applied inside Docker but host `db:setup` fails | Expected if Postgres wasn't reachable from the host — fix the port mapping above, then run `pnpm db:setup` or `pnpm db:migrate`. |
+| **P3009** — failed migration (e.g. `20260616120000_...`) when the node container starts | Postgres volume still has **old** migration rows from before migrations were squashed to `20260423123302_init`. Reset: `pnpm docker:reset` (or `docker compose -f docker/docker-compose.yml --profile access down -v`), then `up --build -d`. Seed fields from the host: `pnpm db:setup` or `pnpm db:seed`. |
 
 ---
 
@@ -313,9 +329,9 @@ NEXT_PUBLIC_NODE_API_URL=https://wikitraveler.example.com
 
 - [ ] `NODE_URL` matches the public domain exactly
 - [ ] RS256 keypair set
-- [ ] `CORS_ORIGINS` lists Field Kit and agency domains (not `*` in production)
+- [ ] `CORS_ORIGINS` lists WikiTraveler Access and agency domains (not `*` in production)
 - [ ] First admin created via `/setup`
 - [ ] Region configured and OSM ingest completed
 - [ ] At least one auditor promoted
 - [ ] `/api/health` returns 200
-- [ ] Test audit from Field Kit appears on dashboard
+- [ ] Test audit from WikiTraveler Access appears on dashboard

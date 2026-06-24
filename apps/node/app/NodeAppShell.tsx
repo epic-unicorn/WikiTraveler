@@ -16,15 +16,16 @@ import { SignOutButton } from "./SignOutButton";
 
 interface Props {
   lead?: string;
-  activeNav?: "map" | "stats";
+  activeNav?: "map" | "signals" | "stats";
   children: React.ReactNode;
   maxWidth?: number;
 }
 
-function useNavLinks(activeNav: "map" | "stats"): ToolbarLink[] {
+function useNavLinks(activeNav: "map" | "signals" | "stats"): ToolbarLink[] {
   const { t } = useLocale();
   return [
     { href: "/", label: t("ui.navMap"), active: activeNav === "map" },
+    { href: "/signals", label: t("ui.navSignals"), active: activeNav === "signals" },
     { href: "/stats", label: t("ui.navStats"), active: activeNav === "stats" },
     { href: "/properties/new", label: t("ui.navNewProperty") },
   ];

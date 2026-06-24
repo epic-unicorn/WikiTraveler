@@ -33,5 +33,9 @@ export async function GET() {
     bbox,
     publicKeyPem: process.env.NODE_PUBLIC_KEY ?? null,
     peers,
+    features: {
+      communitySignals: true,
+      passwordResetEmail: false,
+    },
   });
 }

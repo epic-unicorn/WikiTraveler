@@ -1,10 +1,10 @@
 # Vercel production
 
-Deploy the **node** (API + dashboard) and **Field Kit** (mobile audit UI) as two separate Vercel projects. The node needs hosted PostgreSQL; Field Kit is a frontend that calls the node over HTTPS.
+Deploy the **node** (API + dashboard) and **WikiTraveler Access** (mobile audit UI) as two separate Vercel projects. The node needs hosted PostgreSQL; WikiTraveler Access is a frontend that calls the node over HTTPS.
 
 ```
 https://node.example.com      → Node (API + dashboard)
-https://audit.example.com     → Field Kit
+https://audit.example.com     → WikiTraveler Access
 ```
 
 Lens and the agency SDK call the node URL directly.
@@ -15,7 +15,7 @@ Lens and the agency SDK call the node URL directly.
 
 - Serverless hosting without managing a VPS
 - Low-ops production with automatic cron jobs (gossip, AI scan, OSM refresh)
-- Field Kit as a separate mobile-friendly URL
+- WikiTraveler Access as a separate mobile-friendly URL
 
 **Not ideal for:** the **first** large OSM ingest (countries, Benelux). Do that on [local dev](./LOCAL.md) or [Docker](./DOCKER.md) first, then deploy.
 
@@ -80,7 +80,7 @@ The repo-root `vercel.json` configures cron jobs when deployed from root.
 | `NODE_PRIVATE_KEY` | **Recommended** | RSA private key PEM |
 | `NODE_PUBLIC_KEY` | **Recommended** | RSA public key PEM |
 | `CRON_SECRET` | **Yes** | Random string; all cron routes require `Authorization: Bearer <value>` |
-| `CORS_ORIGINS` | **Yes** | Comma-separated origins (Field Kit URL, agency domains, `chrome-extension://<lens-id>`) |
+| `CORS_ORIGINS` | **Yes** | Comma-separated origins (WikiTraveler Access URL, agency domains, `chrome-extension://<lens-id>`) |
 | `BOOTSTRAP_PEERS` | No | Comma-separated peer node URLs |
 | `OPENAI_API_KEY` / `AI_*` | No | AI features — see [LOCAL.md § AI provider](./LOCAL.md#ai-provider-optional) |
 
@@ -201,35 +201,35 @@ osmium export netherlands-accommodation.osm.pbf \
 
 Admin → **Import OSM GeoJSON** → select the file.
 
-### 5. Deploy Field Kit
+### 5. Deploy WikiTraveler Access
 
-Field Kit is a **separate** Vercel project — no database, no cron.
+WikiTraveler Access is a **separate** Vercel project — no database, no cron.
 
-1. Import the same repo again (second project), e.g. `wikitraveler-field-kit`.
-2. **Root Directory:** `apps/field-kit` (or repo root with output `apps/field-kit/.next`).
+1. Import the same repo again (second project), e.g. `wikitraveler-access`.
+2. **Root Directory:** `apps/access` (or repo root with output `apps/access/.next`).
 3. Build:
 
 | Setting | Value |
 |---------|-------|
-| **Install Command** | `cd ../.. && pnpm install` (if root is `apps/field-kit`) |
-| **Build Command** | `pnpm --filter @wikitraveler/field-kit build` |
-| **Output Directory** | `apps/field-kit/.next` |
+| **Install Command** | `cd ../.. && pnpm install` (if root is `apps/access`) |
+| **Build Command** | `pnpm --filter @wikitraveler/access build` |
+| **Output Directory** | `apps/access/.next` |
 
-4. Environment variable — points Field Kit at your node (only needed when running Field Kit separately):
+4. Environment variable — points WikiTraveler Access at your node (only needed when running WikiTraveler Access separately):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `NEXT_PUBLIC_NODE_API_URL` | **Yes** | Node URL, e.g. `https://node.example.com` (no trailing slash) |
 
-Baked in at build time — redeploy Field Kit after changing the node URL.
+Baked in at build time — redeploy WikiTraveler Access after changing the node URL.
 
-5. Add the Field Kit origin to the node's `CORS_ORIGINS`:
+5. Add the WikiTraveler Access origin to the node's `CORS_ORIGINS`:
 
 ```env
 CORS_ORIGINS=https://audit.example.com,https://node.example.com
 ```
 
-6. Verify: open Field Kit → `/login` → sign in → submit a test audit → confirm on node dashboard.
+6. Verify: open WikiTraveler Access → `/login` → sign in → submit a test audit → confirm on node dashboard.
 
 ### 6. Connect other clients
 
@@ -268,6 +268,6 @@ All cron routes verify `Authorization: Bearer <CRON_SECRET>`.
 - [ ] First admin created via `/setup`
 - [ ] Region configured in Admin
 - [ ] At least one auditor promoted
-- [ ] Field Kit deployed with `NEXT_PUBLIC_NODE_API_URL`
+- [ ] WikiTraveler Access deployed with `NEXT_PUBLIC_NODE_API_URL`
 - [ ] `/api/health` returns 200
-- [ ] Test audit from Field Kit appears on dashboard
+- [ ] Test audit from WikiTraveler Access appears on dashboard

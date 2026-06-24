@@ -1,7 +1,7 @@
 @import "./tokens.css";
 @import "./accessibility.css";
 
-/* ── App toolbar (Node, Field Kit, Agency demo) ─────────────────────────── */
+/* ── App toolbar (Node, WikiTraveler Access, Agency demo) ───────────────── */
 
 .wt-toolbar {
   background: var(--wt-bg-header);
@@ -17,9 +17,88 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.14);
 }
 
-.wt-toolbar--field-kit {
+.wt-toolbar--access {
   padding-top: env(safe-area-inset-top, 0px);
   min-height: calc(60px + env(safe-area-inset-top, 0px));
+}
+
+.wt-access-account {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: 120px;
+  min-width: 0;
+  margin-right: 4px;
+}
+
+.wt-access-account--card {
+  align-items: flex-start;
+  max-width: none;
+  margin-right: 0;
+  margin-bottom: 4px;
+}
+
+.wt-access-account__name {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.wt-access-account--card .wt-access-account__name {
+  font-size: 15px;
+  color: var(--wt-text);
+}
+
+.wt-access-account--card .wt-access-account__role {
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text-muted);
+}
+
+.wt-access-account--card .wt-access-account__role--auditor {
+  background: var(--wt-tier-verified-bg);
+  color: var(--wt-tier-verified-text);
+}
+
+.wt-access-account--card .wt-access-account__role--admin {
+  background: var(--wt-tier-confirmed-bg);
+  color: var(--wt-tier-confirmed-text);
+}
+
+.wt-access-account__meta {
+  font-size: 13px;
+  color: var(--wt-text-muted);
+  margin: 0;
+}
+
+.wt-access-account__role {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  line-height: 1.3;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.wt-access-account__role--user {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.wt-access-account__role--auditor {
+  background: rgba(52, 211, 153, 0.22);
+  color: #a7f3d0;
+}
+
+.wt-access-account__role--admin {
+  background: rgba(96, 165, 250, 0.22);
+  color: #bfdbfe;
 }
 
 /* Brand lockup — WikiTraveler + product subtitle */
@@ -134,7 +213,8 @@
 
 .wt-toolbar-link,
 .wt-toolbar-btn,
-.wt-toolbar-back {
+.wt-toolbar-back,
+button.wt-toolbar-back {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -156,7 +236,8 @@
 
 .wt-toolbar-link:hover,
 .wt-toolbar-btn:hover,
-.wt-toolbar-back:hover {
+.wt-toolbar-back:hover,
+button.wt-toolbar-back:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
@@ -168,7 +249,8 @@
   text-underline-offset: 4px;
 }
 
-.wt-toolbar-back {
+.wt-toolbar-back,
+button.wt-toolbar-back {
   font-weight: 600;
   padding-left: 4px;
 }
@@ -177,6 +259,29 @@
   font-size: 13px;
   color: var(--wt-text-muted);
   margin: -12px 0 20px;
+}
+
+.wt-page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--wt-primary);
+  text-decoration: none;
+  margin-bottom: 8px;
+  min-height: 44px;
+  padding: 4px 0;
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.wt-page-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .wt-fk-page-lead {
@@ -336,7 +441,7 @@
 }
 
 .wt-search-advanced > summary::before {
-  content: "▸";
+  content: "\25B8";
   display: inline-block;
   margin-right: 6px;
   transition: transform 0.15s ease;

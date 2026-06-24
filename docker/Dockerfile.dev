@@ -18,14 +18,14 @@ COPY packages/i18n/package.json        ./packages/i18n/
 COPY packages/ai-agent/package.json    ./packages/ai-agent/
 COPY packages/sdk/package.json         ./packages/sdk/
 COPY apps/node/package.json            ./apps/node/
-COPY apps/field-kit/package.json       ./apps/field-kit/
+COPY apps/access/package.json       ./apps/access/
 COPY prisma/schema.prisma              ./prisma/
 
 RUN pnpm install --frozen-lockfile
 
 COPY docker/entrypoint.dev.sh /entrypoint.dev.sh
-COPY docker/entrypoint.field-kit.dev.sh /entrypoint.field-kit.dev.sh
-RUN chmod +x /entrypoint.dev.sh /entrypoint.field-kit.dev.sh
+COPY docker/entrypoint.access.dev.sh /entrypoint.access.dev.sh
+RUN chmod +x /entrypoint.dev.sh /entrypoint.access.dev.sh
 
 EXPOSE 3000
 ENV PORT=3000

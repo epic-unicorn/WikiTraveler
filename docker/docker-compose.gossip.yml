@@ -7,7 +7,7 @@
 #   pnpm gossip:check            # verify peer registration
 #
 # Node A → http://localhost:3000
-# Node B → http://localhost:3010  (Field Kit keeps :3001)
+# Node B → http://localhost:3010  (WikiTraveler Access keeps :3001)
 
 services:
   postgres-a:

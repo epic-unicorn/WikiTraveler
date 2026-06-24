@@ -69,8 +69,8 @@ jobs:
       - name: Start node
         run: pnpm --filter @wikitraveler/node start &
 
-      - name: Start field-kit
-        run: pnpm --filter @wikitraveler/field-kit start &
+      - name: Start access
+        run: pnpm --filter @wikitraveler/access start &
 
       - name: Wait for servers
         run: |
