@@ -37,7 +37,7 @@ pnpm lighthouse:ci      # Lighthouse accessibility ≥ 90 (requires running node
 
 - **axe-core** — login forms, map list, SDK table, agency tabs, Lens table (`apps/node/lib/a11yStatic.test.ts`)
 - **Lighthouse** — `/accessibility`, `/login`, node home, WikiTraveler Access login + property detail (`.github/workflows/a11y.yml`)
-- Run `node scripts/prepare-lighthouse.mjs` before `lighthouse:ci` to provision CI auth cookies
+- Run `pnpm lighthouse:prepare` then `pnpm lighthouse:ci` to provision CI auth cookies (see `scripts/prepare-lighthouse.ts`)
 
 Formal conformance report: [docs/CONFORMANCE.md](./CONFORMANCE.md) (EN 301 549 / WCAG 2.1 AA).
 

@@ -11,9 +11,10 @@ import { readRecentAudits } from "../lib/recentAudits";
 
 interface Props {
   homeNodeUrl: string;
+  active?: boolean;
 }
 
-export function SavedTab({ homeNodeUrl }: Props) {
+export function SavedTab({ homeNodeUrl, active = true }: Props) {
   const { t } = useLocale();
   const [saved, setSaved] = useState(() => readSavedPlaces());
   const [signals, setSignals] = useState<
@@ -23,11 +24,23 @@ export function SavedTab({ homeNodeUrl }: Props) {
   const recentCount = readRecentAudits().length;
 
   useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    setSignalsLoading(true);
     fetchMySignals(homeNodeUrl)
-      .then((d) => setSignals(d.signals))
-      .catch(() => setSignals([]))
-      .finally(() => setSignalsLoading(false));
-  }, [homeNodeUrl]);
+      .then((d) => {
+        if (!cancelled) setSignals(d.signals);
+      })
+      .catch(() => {
+        if (!cancelled) setSignals([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSignalsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, homeNodeUrl]);
 
   return (
     <div className="tab-content" style={{ paddingTop: 16 }}>

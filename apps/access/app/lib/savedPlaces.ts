@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export type SavedPlace = {
   id: string;
   name: string;
@@ -7,6 +9,12 @@ export type SavedPlace = {
 };
 
 const KEY = "wt_saved_places";
+export const SAVED_PLACES_EVENT = "wt-saved-places-changed";
+
+function emitSavedChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(SAVED_PLACES_EVENT));
+}
 
 export function readSavedPlaces(): SavedPlace[] {
   if (typeof window === "undefined") return [];
@@ -22,6 +30,11 @@ export function readSavedPlaces(): SavedPlace[] {
 
 export function writeSavedPlaces(places: SavedPlace[]) {
   localStorage.setItem(KEY, JSON.stringify(places.slice(0, 100)));
+  emitSavedChange();
+}
+
+export function readSavedPlaceIds(): Set<string> {
+  return new Set(readSavedPlaces().map((p) => p.id));
 }
 
 export function isPlaceSaved(id: string): boolean {
@@ -43,4 +56,22 @@ export function toggleSavedPlace(place: Omit<SavedPlace, "savedAt">): boolean {
 
 export function removeSavedPlace(id: string) {
   writeSavedPlaces(readSavedPlaces().filter((p) => p.id !== id));
+}
+
+/** Reactive set of saved property IDs that updates on save/remove (same tab + cross tab). */
+export function useSavedPlaceIds(): Set<string> {
+  const [ids, setIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const sync = () => setIds(readSavedPlaceIds());
+    sync();
+    window.addEventListener(SAVED_PLACES_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(SAVED_PLACES_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  return ids;
 }

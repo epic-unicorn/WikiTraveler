@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useLocale } from "@wikitraveler/ui";
 import { AccessToolbar } from "./AccessToolbar";
 import { useNodeContext } from "./hooks/useNodeContext";
@@ -12,8 +13,9 @@ import { ContributeTab } from "./tabs/ContributeTab";
 import { SettingsTab } from "./tabs/SettingsTab";
 import { readAuthToken } from "./lib/authStorage";
 import { roleFromToken, canContribute } from "./lib/userRole";
+import { parseAccessTab, type AccessTabId } from "./lib/navigationReturn";
 
-type TabId = "search" | "nearby" | "saved" | "contribute" | "settings";
+type TabId = AccessTabId;
 
 const TAB_ICONS: Record<TabId, React.ReactNode> = {
   search: (
@@ -58,7 +60,8 @@ function PlusIcon() {
 
 export function AccessTabs() {
   const { t } = useLocale();
-  const [activeTab, setActiveTab] = useState<TabId>("search");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabId>(() => parseAccessTab(searchParams.get("tab")));
   const [role, setRole] = useState(() => roleFromToken(readAuthToken()));
   const {
     nodeUrl,
@@ -76,13 +79,22 @@ export function AccessTabs() {
 
   const contributor = canContribute(role);
 
-  const TABS: { id: TabId; label: string }[] = [
-    { id: "search", label: t("ui.tabSearch") },
-    { id: "nearby", label: t("ui.tabNearby") },
-    { id: "saved", label: t("ui.tabSaved") },
-    ...(contributor ? [{ id: "contribute" as const, label: t("ui.tabContribute") }] : []),
-    { id: "settings", label: t("ui.tabSettings") },
-  ];
+  useEffect(() => {
+    const next = parseAccessTab(searchParams.get("tab"));
+    if (next === "contribute" && !contributor) return;
+    setActiveTab(next);
+  }, [contributor, searchParams]);
+
+  const TABS: { id: TabId; label: string }[] = useMemo(
+    () => [
+      { id: "search", label: t("ui.tabSearch") },
+      { id: "nearby", label: t("ui.tabNearby") },
+      { id: "saved", label: t("ui.tabSaved") },
+      ...(contributor ? [{ id: "contribute" as const, label: t("ui.tabContribute") }] : []),
+      { id: "settings", label: t("ui.tabSettings") },
+    ],
+    [contributor, t]
+  );
 
   const focusTab = useCallback((id: TabId) => {
     setActiveTab(id);
@@ -118,6 +130,7 @@ export function AccessTabs() {
       </a>
       <AccessToolbar
         nodeReachable={nodeReachable}
+        nodeRegion={nodeInfo?.region}
         end={
           contributor ? (
             <Link
@@ -138,26 +151,30 @@ export function AccessTabs() {
         tabIndex={0}
         aria-labelledby={`tab-${activeTab}`}
       >
-        {activeTab === "search" && (
+        <div hidden={activeTab !== "search"}>
           <SearchTab
             searchNodeUrl={searchNodeUrl}
             homeNodeUrl={nodeUrl}
             gpsResolved={gpsResolved}
             regionLabel={nodeInfo?.region}
           />
-        )}
-        {activeTab === "nearby" && (
+        </div>
+        <div hidden={activeTab !== "nearby"}>
           <NearbyTab
             searchNodeUrl={searchNodeUrl}
             homeNodeUrl={nodeUrl}
             active={activeTab === "nearby"}
           />
+        </div>
+        <div hidden={activeTab !== "saved"}>
+          <SavedTab homeNodeUrl={nodeUrl} active={activeTab === "saved"} />
+        </div>
+        {contributor && (
+          <div hidden={activeTab !== "contribute"}>
+            <ContributeTab homeNodeUrl={nodeUrl} />
+          </div>
         )}
-        {activeTab === "saved" && <SavedTab homeNodeUrl={nodeUrl} />}
-        {activeTab === "contribute" && contributor && (
-          <ContributeTab homeNodeUrl={nodeUrl} />
-        )}
-        {activeTab === "settings" && (
+        <div hidden={activeTab !== "settings"}>
           <SettingsTab
             nodeUrl={nodeUrl}
             nodeInfo={nodeInfo}
@@ -165,7 +182,7 @@ export function AccessTabs() {
             onSaveNodeUrl={setNodeUrl}
             onResetNodeUrl={resetNodeUrl}
           />
-        )}
+        </div>
       </main>
 
       <nav className="fk-tab-bar" role="tablist" aria-label={t("ui.tabSections")}>

@@ -26,4 +26,4 @@ export { LocaleProvider, useLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from "./L
 export { LocalePicker } from "./LocalePicker";
 export { ProseFactValue } from "./ProseFactValue";
 export type { ProseFactValueProps } from "./ProseFactValue";
-export type { SearchFeature } from "./PropertySearchBar";
+export type { SearchFeature, SearchSuggestion } from "./PropertySearchBar";

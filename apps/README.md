@@ -54,10 +54,11 @@ pnpm dev:access
 3. Allow location access — the app calls `/api/peers/resolve` to find the node that covers your GPS position.
 4. Search or use **Near me**, tap a property → **property detail** with tier badges.
 5. As a traveler: **Save**, **Share**, or **Report issue** (community signal for auditors).
-6. As an **AUDITOR**: tap **Verify on site** to open the audit wizard and submit facts (`VERIFIED` tier).
-7. On the node dashboard (`/stats`), auditors see the **Community signals** queue.
+6. As an **AUDITOR**: on the map popup or property detail, tap **Start audit** to open the audit wizard and submit facts (`VERIFIED` tier).
+7. Toggle **Map** / **List** on the search tab; use filters via the filter icon in the search bar.
+8. **New property** (`+` in the toolbar): address is reverse-geocoded from GPS; coordinates are filled on submit.
 
-**Verify:** User reports do not change displayed facts until an auditor submits a verified audit. Audit JWTs are signed by the home node; remote nodes verify via `/.well-known/pubkey`.
+**Verify:** User reports do not change displayed facts until an auditor submits a verified audit. New properties and audits appear on the map after cache invalidation (or within five minutes). Audit JWTs are signed by the home node; remote nodes verify via `/.well-known/pubkey`.
 
 ---
 

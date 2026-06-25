@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { PropertyCard, useLocale, type PropertySummary } from "@wikitraveler/ui";
+import { useLocale } from "@wikitraveler/ui";
 import {
   fetchNearbyProperties,
   getStoredRadiusKm,
   setStoredRadiusKm,
   resolvePeerNode,
 } from "../lib/accessApi";
-import { propertyHref } from "../lib/propertyHref";
+import { PropertyDiscoveryView } from "../components/PropertyDiscoveryView";
 
 interface Props {
   searchNodeUrl: string;
@@ -17,12 +16,15 @@ interface Props {
   active: boolean;
 }
 
+const RADIUS_PRESETS = [0.5, 1, 2, 5];
+
 export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
   const { t } = useLocale();
   const [radiusKm, setRadiusKm] = useState(1);
+  const [showAdvancedRadius, setShowAdvancedRadius] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [nodeForSearch, setNodeForSearch] = useState(searchNodeUrl);
-  const [results, setResults] = useState<PropertySummary[] | null>(null);
+  const [results, setResults] = useState<Awaited<ReturnType<typeof fetchNearbyProperties>> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [geoDenied, setGeoDenied] = useState(false);
@@ -96,113 +98,123 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
     setRadiusKm(km);
   }
 
-  return (
-    <div className="tab-content" style={{ paddingTop: 16 }}>
-      {/* GPS + refresh row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div>
-          {geoDenied ? (
-            <span className="fk-chip fk-chip--err">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              {t("ui.nearbyGpsDenied")}
-            </span>
-          ) : gpsLoading ? (
-            <span className="fk-chip fk-chip--warn">{t("ui.nearbyLocating")}</span>
-          ) : coords ? (
-            <span className="fk-chip fk-chip--ok">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-              {coords.lat.toFixed(4)}, {coords.lon.toFixed(4)}
-            </span>
-          ) : (
-            <span className="fk-chip fk-chip--neutral">No GPS yet</span>
-          )}
-        </div>
-
+  const headerExtra = (
+    <div className="fk-nearby-controls">
+      <div className="fk-nearby-status-row">
+        {geoDenied ? (
+          <span className="fk-chip fk-chip--err">{t("ui.nearbyGpsDenied")}</span>
+        ) : gpsLoading ? (
+          <span className="fk-chip fk-chip--warn">{t("ui.nearbyLocating")}</span>
+        ) : coords ? (
+          <span className="fk-chip fk-chip--ok">{t("ui.discoveryYouAreHere")}</span>
+        ) : (
+          <span className="fk-chip fk-chip--neutral">{t("ui.nearbyLocating")}</span>
+        )}
         {coords && (
           <button
             type="button"
             className="btn-icon"
             onClick={() => loadNearby()}
             disabled={loading}
-            title="Refresh nearby"
+            title={t("ui.discoveryRefresh")}
+            aria-label={t("ui.discoveryRefresh")}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10"/>
-              <polyline points="1 20 1 14 7 14"/>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
           </button>
         )}
       </div>
 
-      {/* Radius slider */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <label htmlFor="radius" style={{ margin: 0, fontSize: 13 }}>{t("ui.nearbyRadius")}</label>
-          <span className="fk-chip fk-chip--neutral">{radiusKm} km</span>
+      <div className="fk-nearby-radius">
+        <span className="fk-nearby-radius-label">{t("ui.nearbyRadius")}</span>
+        <div className="fk-nearby-radius-chips" role="group" aria-label={t("ui.nearbyRadius")}>
+          {RADIUS_PRESETS.map((km) => (
+            <button
+              key={km}
+              type="button"
+              className={`fk-radius-chip${radiusKm === km ? " fk-radius-chip--active" : ""}`}
+              aria-pressed={radiusKm === km}
+              onClick={() => handleRadiusChange(km)}
+            >
+              {km < 1 ? `${km * 1000} m` : `${km} km`}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="fk-radius-chip fk-radius-chip--more"
+            aria-expanded={showAdvancedRadius}
+            onClick={() => setShowAdvancedRadius((v) => !v)}
+          >
+            …
+          </button>
         </div>
-        <input
-          id="radius"
-          type="range"
-          min={0.5}
-          max={5}
-          step={0.5}
-          value={radiusKm}
-          onChange={(e) => handleRadiusChange(Number(e.target.value))}
-        />
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-          <span style={{ fontSize: 11, color: "var(--wt-text-muted)" }}>0.5 km</span>
-          <span style={{ fontSize: 11, color: "var(--wt-text-muted)" }}>5 km</span>
-        </div>
+        {showAdvancedRadius && (
+          <div className="fk-nearby-radius-slider">
+            <input
+              id="radius"
+              type="range"
+              min={0.5}
+              max={5}
+              step={0.5}
+              value={radiusKm}
+              onChange={(e) => handleRadiusChange(Number(e.target.value))}
+              aria-valuetext={`${radiusKm} km`}
+            />
+          </div>
+        )}
       </div>
 
-      {/* GPS denied prompt */}
       {geoDenied && (
-        <button type="button" className="btn-secondary" style={{ marginTop: 0 }} onClick={requestGps}>
+        <button type="button" className="btn-secondary fk-nearby-allow-btn" onClick={requestGps}>
           📍 {t("ui.nearbyAllowLocation")}
         </button>
       )}
+    </div>
+  );
 
-      {/* Loading */}
-      {loading && (
-        <p className="status-muted" style={{ textAlign: "center", padding: "28px 0" }}>
-          {t("ui.nearbyFinding")}
-        </p>
-      )}
+  const emptyState =
+    !loading && results !== null && results.length === 0 ? (
+      <div className="fk-empty">
+        <span className="fk-empty-icon">📍</span>
+        <p className="fk-empty-title">{t("ui.nearbyNothing")}</p>
+        <p className="fk-empty-body">{t("ui.discoveryNearbyEmpty", { radius: radiusKm })}</p>
+        {radiusKm < 5 && (
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ marginTop: 12 }}
+            onClick={() => handleRadiusChange(Math.min(5, radiusKm + 1))}
+          >
+            {t("ui.discoveryIncreaseRadius")}
+          </button>
+        )}
+      </div>
+    ) : !loading && results === null && !geoDenied && !gpsLoading && !error ? (
+      <div className="fk-empty">
+        <span className="fk-empty-icon">🛰️</span>
+        <p className="fk-empty-title">{t("ui.nearbyLocating")}</p>
+        <p className="fk-empty-body">{t("ui.nearbyAllowLocation")}</p>
+      </div>
+    ) : null;
 
-      {/* Error */}
-      {error && <p className="status-err">{error}</p>}
-
-      {/* Empty result */}
-      {!loading && results !== null && results.length === 0 && (
-        <div className="fk-empty">
-          <span className="fk-empty-icon">📍</span>
-          <p className="fk-empty-title">{t("ui.nearbyNothing")}</p>
-          <p className="fk-empty-body">
-            No geo-tagged properties within {radiusKm} km. Try increasing the radius.
-          </p>
-        </div>
-      )}
-
-      {/* No GPS yet */}
-      {!loading && results === null && !geoDenied && !gpsLoading && !error && (
-        <div className="fk-empty">
-          <span className="fk-empty-icon">🛰️</span>
-          <p className="fk-empty-title">{t("ui.nearbyLocating")}</p>
-          <p className="fk-empty-body">{t("ui.nearbyAllowLocation")}</p>
-        </div>
-      )}
-
-      {/* Results */}
-      {results !== null && results.length > 0 && (
-        <div style={{ display: "grid", gap: 8 }}>
-          {results.map((p) => (
-            <Link key={p.id} href={propertyHref(p.id, nodeForSearch, homeNodeUrl)}>
-              <PropertyCard property={p} expandable={false} />
-            </Link>
-          ))}
-        </div>
-      )}
+  return (
+    <div className="tab-content fk-nearby-tab">
+      <PropertyDiscoveryView
+        properties={results ?? []}
+        loading={loading || gpsLoading}
+        error={error}
+        homeNodeUrl={homeNodeUrl}
+        propertyNodeUrl={nodeForSearch}
+        active={active}
+        userLocation={coords}
+        radiusKm={coords ? radiusKm : null}
+        headerExtra={headerExtra}
+        emptyState={emptyState}
+        mapAutoFit
+      />
     </div>
   );
 }

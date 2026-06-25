@@ -46,13 +46,6 @@ export function ContributeTab({ homeNodeUrl }: Props) {
       >
         {t("ui.addProperty")}
       </Link>
-
-      <p style={{ fontSize: 12, color: "var(--wt-text-muted)" }}>
-        {t("ui.contributeQueueHint")}{" "}
-        <a href={`${homeNodeUrl.replace(/\/$/, "")}/signals`} style={{ color: "var(--wt-primary)" }}>
-          {t("ui.navSignals")}
-        </a>
-      </p>
     </div>
   );
 }

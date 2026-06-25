@@ -13,6 +13,15 @@ const nextConfig = {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
   },
+  async rewrites() {
+    const nodeTarget = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
+    return [
+      {
+        source: "/node-api/:path*",
+        destination: `${nodeTarget.replace(/\/$/, "")}/:path*`,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

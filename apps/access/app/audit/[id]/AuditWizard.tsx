@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   AUDIT_WIZARD_STEPS,
   fieldsForStep,
+  FIELD_AUDIT_STEP,
   type AuditStepId,
 } from "@wikitraveler/core";
 import {
@@ -16,6 +17,7 @@ import { ProseFactValue } from "@wikitraveler/ui";
 import ExistingDataPanel, { type ExistingFact } from "./ExistingDataPanel";
 import { RoomAuditSection } from "./RoomAuditSection";
 import { resolveFactDisplay } from "../../lib/factDisplay";
+import { invalidateMapPins } from "../../lib/accessApi";
 import {
   loadAuditDraft,
   saveAuditDraft,
@@ -31,6 +33,7 @@ interface FieldDef {
   valueType: string;
   label: string;
   unit?: string | null;
+  enumValues?: string[];
 }
 
 interface Props {
@@ -258,7 +261,14 @@ export function AuditWizard({
 
   function fieldsInStep(step: AuditStepId): FieldDef[] {
     const names = new Set(fieldsForStep(step));
-    return propertyFields.filter((f) => names.has(f.fieldName));
+    const mapped = propertyFields.filter((f) => names.has(f.fieldName));
+    if (step !== "shared_facilities") return mapped;
+    // Catch-all: property fields not explicitly mapped to a wizard step (e.g.
+    // node-specific custom fields or newly added standard fields) must still be
+    // auditable here — otherwise they silently disappear vs. the node UI, which
+    // lets you audit every property field.
+    const unmapped = propertyFields.filter((f) => !FIELD_AUDIT_STEP[f.fieldName]);
+    return [...mapped, ...unmapped];
   }
 
   function buildSubmitFacts(): Array<{ fieldName: string; value: string; scopeKey?: string; confirm?: boolean }> {
@@ -325,6 +335,9 @@ export function AuditWizard({
       return;
     }
     clearAuditDraft(propertyId);
+    // New audit facts (e.g. VERIFIED) change the map's audited markers — drop
+    // the cached pins so the map reflects this audit on the next view.
+    invalidateMapPins();
     onSuccess();
   }
 
@@ -411,6 +424,26 @@ export function AuditWizard({
       if (scopeKey === "property") setProp(field.fieldName, v);
       else setRoomValue(scopeKey, field.fieldName, v);
     };
+
+    if (field.valueType === "ENUM" && field.enumValues && field.enumValues.length > 0) {
+      return (
+        <div key={`${scopeKey}-${field.fieldName}`}>
+          <label htmlFor={`f-${scopeKey}-${field.fieldName}`}>{field.label}</label>
+          <select
+            id={`f-${scopeKey}-${field.fieldName}`}
+            value={val}
+            onChange={(e) => onChange(e.target.value)}
+          >
+            <option value="">{t("ui.selectOption")}</option>
+            {field.enumValues.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
 
     if (type === "toggle") {
       return (

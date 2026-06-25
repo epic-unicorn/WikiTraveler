@@ -1,15 +1,17 @@
+<p align="center">
+  <img src="docs/assets/wikitraveler-mark.svg" width="72" alt="WikiTraveler logo" />
+</p>
 
+<h1 align="center">WikiTraveler</h1>
 
-# WikiTraveler
-
-**Open-source, federated accessibility intelligence for travel.**  
-Real specs from the field — not marketing copy from a booking site.
+<p align="center">
+  <strong>Open-source, federated accessibility intelligence for travel.</strong><br />
+  Real specs from the field — not marketing copy from a booking site.
 
   WikiTraveler sidecars verified accessibility facts onto hotels and destinations.
   Auditors capture ground truth with WikiTraveler Access and Lens; independent nodes gossip those facts
   across a peer mesh so the data stays community-owned and free to use.
-
-
+</p>
 
 ---
 
@@ -243,6 +245,7 @@ wikitraveler/
 | `pnpm osm:ingest`            | Fetch Overpass data for the **admin-configured bbox** (reads DB; refresh fixtures)                                                               |
 | `pnpm osm:import-pbf`        | Geofabrik PBF import (`--region france` or `--geojson file.geojsonseq`) — see [docs/LOCAL.md](docs/LOCAL.md) or [docs/DOCKER.md](docs/DOCKER.md) |
 | `pnpm osm:import-pbf:docker` | Same as above, inside Docker dev container (Windows / no local osmium)                                                                           |
+| `pnpm exec tsx scripts/geocode-missing-coords.ts` | Backfill lat/lon for properties missing coordinates (Nominatim; optional `--name`)                                                          |
 | `pnpm db:migrate-photos`     | One-time upload of base64 photos to R2/Supabase — see [docs/VERCEL.md](docs/VERCEL.md) or [docs/DOCKER.md](docs/DOCKER.md)                       |
 | `pnpm dev:gossip-lab`        | Docker: two nodes for peer gossip testing — see [docs/GOSSIP-DEV.md](docs/GOSSIP-DEV.md)                                                         |
 | `pnpm gossip:check`          | Smoke-check gossip lab peer registration                                                                                                         |

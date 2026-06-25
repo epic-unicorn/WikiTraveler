@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AccessToolbar } from "../../AccessToolbar";
+import { HistoryBackButton } from "../../lib/historyBack";
 import { type AuditPhotos, type ExistingFact } from "./ExistingDataPanel";
 import { AuditWizard } from "./AuditWizard";
 import { clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
@@ -109,6 +110,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
     valueType: string;
     label: string;
     unit?: string | null;
+    enumValues?: string[];
   }>>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -226,17 +228,13 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   }
 
   return (
-    <>
-      <AccessToolbar
-        showBack
-        backHref="/"
-        backLabel={t("ui.back")}
-        title={t("ui.fkAuditTitle")}
-      />
+    <div className="fk-shell">
+      <AccessToolbar />
 
-      <main className="page">
-        <div className="fk-property-header card">
-          <h1 className="fk-property-name">{displayName}</h1>
+      <main className="page fk-main">
+        <div className="fk-property-lead">
+          <HistoryBackButton />
+          <h1 className="fk-property-title">{displayName}</h1>
           {displayLocation && displayLocation !== displayName ? (
             <p className="fk-property-location">{displayLocation}</p>
           ) : null}
@@ -365,6 +363,6 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
           </>
         )}
       </main>
-    </>
+    </div>
   );
 }

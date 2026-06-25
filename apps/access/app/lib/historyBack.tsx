@@ -2,12 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useLocale } from "@wikitraveler/ui";
+import { consumeAccessReturn } from "./navigationReturn";
 
-/** Navigate back in session history, or to a fallback route when opened directly. */
+/** Navigate back in session history, or to a saved return URL / fallback when opened directly. */
 export function useHistoryBack(fallbackHref = "/") {
   const router = useRouter();
 
   return () => {
+    const saved = consumeAccessReturn();
+    if (saved) {
+      router.push(saved);
+      return;
+    }
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
       return;

@@ -8,6 +8,7 @@ import { pushFactsToPeers } from "@/lib/push";
 import { getPhotoStorage, photoToDisplayUrl } from "@/lib/photoStorage";
 import { validateAuditFacts, getFieldRegistryMap } from "@/lib/fieldRegistry";
 import { enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
+import { buildPropertyDetail, buildConfidenceSummary } from "@/lib/propertyEnrichment";
 import { invalidateFactTranslations } from "@/lib/translation";
 import { resolveLocale, isSupportedLocale } from "@wikitraveler/i18n";
 import { MAX_AUDIT_PHOTOS, AI_VISION_PHOTO_BUDGET } from "@wikitraveler/i18n";
@@ -166,12 +167,29 @@ export async function GET(
     };
   }
 
+  const propertyDetail = buildPropertyDetail(
+    property,
+    collapsedFacts,
+    auditPhotos?.photos.map((p) => ({ url: p.url, caption: p.caption })) ?? []
+  );
+
+  const notesFact = collapsedFacts.find((f) => f.fieldName === "notes");
+  if (notesFact?.value) {
+    propertyDetail.description = notesFact.value;
+  }
+
+  const confidenceSummary = buildConfidenceSummary(
+    collapsedFacts,
+    auditPhotos?.capturedAt ?? null
+  );
+
   return NextResponse.json({
     propertyId: params.id,
-    property,
+    property: propertyDetail,
     facts: enrichedFacts,
     auditPhotos,
     hasAiGuess,
+    confidenceSummary,
   });
 }
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "@wikitraveler/ui";
 import { propertyOrAuditHref } from "../lib/propertyHref";
+import { saveAccessReturn, type AccessReturnState } from "../lib/navigationReturn";
 import { readAuthToken } from "../lib/authStorage";
 import { canContribute, roleFromToken } from "../lib/userRole";
 import { getAuthHeaders, getStoredNodeUrl } from "../lib/accessApi";
@@ -22,6 +23,7 @@ interface Props {
   maxItems?: number;
   showClear?: boolean;
   onItemsChange?: (count: number) => void;
+  returnState?: AccessReturnState;
 }
 
 export function RecentPropertiesSection({
@@ -30,6 +32,7 @@ export function RecentPropertiesSection({
   maxItems = 10,
   showClear = true,
   onItemsChange,
+  returnState,
 }: Props) {
   const { t, locale } = useLocale();
   const [items, setItems] = useState<RecentAuditItem[]>([]);
@@ -142,6 +145,9 @@ export function RecentPropertiesSection({
               key={p.id}
               href={propertyOrAuditHref(p.id, propertyNodeUrl, homeNodeUrl, contributor)}
               style={{ textDecoration: "none", opacity: isMissing ? 0.75 : 1 }}
+              onClick={() => {
+                if (returnState) saveAccessReturn(returnState);
+              }}
             >
               <div className="recent-row">
                 <div className="recent-row-icon" aria-hidden="true">📝</div>

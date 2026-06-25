@@ -121,7 +121,7 @@ export function ReportIssueForm({
           {loading ? t("ui.loading") : t("ui.signalSubmit")}
         </button>
         {onCancel && (
-          <button type="button" className="btn-secondary" onClick={onCancel}>
+          <button type="button" className="btn-secondary" onClick={onCancel} style={{ flex: 1 }}>
             {t("ui.cancel")}
           </button>
         )}

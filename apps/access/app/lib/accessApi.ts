@@ -1,13 +1,32 @@
 import type { SearchFilters } from "@wikitraveler/ui";
 import type { PropertySummary } from "@wikitraveler/ui";
 import { readAuthToken } from "./authStorage";
+import { dedupedFetch, invalidateClientCache } from "./clientCache";
 
-export const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
+const RAW_ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
+const DEV_NODE_PROXY_URL = "/node-api";
+const LOCAL_NODE_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1):3000\/?$/;
+
+export const DISPLAY_ENV_NODE_URL = RAW_ENV_NODE_URL.replace(/\/$/, "");
+
+export function toClientNodeUrl(url: string): string {
+  const clean = url.trim().replace(/\/$/, "");
+  if (process.env.NODE_ENV === "development" && LOCAL_NODE_RE.test(clean)) {
+    return DEV_NODE_PROXY_URL;
+  }
+  return clean;
+}
+
+export function toDisplayNodeUrl(url: string): string {
+  return url === DEV_NODE_PROXY_URL ? DISPLAY_ENV_NODE_URL : url;
+}
+
+export const ENV_NODE_URL = toClientNodeUrl(RAW_ENV_NODE_URL);
 export const RADIUS_STORAGE_KEY = "wt_nearby_radius_km";
 
 export function getStoredNodeUrl(): string {
   if (typeof window === "undefined") return ENV_NODE_URL;
-  return localStorage.getItem("wt_node_url") ?? ENV_NODE_URL;
+  return toClientNodeUrl(localStorage.getItem("wt_node_url") ?? RAW_ENV_NODE_URL);
 }
 
 export function getAuthToken(): string | null {
@@ -25,7 +44,8 @@ export function buildSearchParams(q: string, filters: SearchFilters): URLSearchP
   if (filters.features.length) params.set("feature", filters.features.join(","));
   if (filters.audited === true) params.set("audited", "true");
   if (filters.audited === false) params.set("audited", "false");
-  if (filters.location.trim()) params.set("location", filters.location.trim());
+  if (filters.hasAccessibleRoom === true) params.set("hasAccessibleRoom", "true");
+  if (filters.location?.trim()) params.set("location", filters.location.trim());
   return params;
 }
 
@@ -105,21 +125,91 @@ export interface MapPin {
   facts?: Record<string, { value: string; tier: string }>;
 }
 
+/** Drop the cached map pins so the next fetch reflects new/edited properties. */
+export function invalidateMapPins(nodeUrl?: string): void {
+  invalidateClientCache(nodeUrl ? `map-pins:${nodeUrl}` : "map-pins:");
+}
+
 export async function fetchMapPins(
   nodeUrl: string,
   signal?: AbortSignal
 ): Promise<MapPin[]> {
-  const res = await fetch(`${nodeUrl}/api/properties/map`, {
-    signal,
-    headers: getAuthHeaders(),
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  return dedupedFetch(`map-pins:${nodeUrl}`, async () => {
+    const res = await fetch(`${nodeUrl}/api/properties/map`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("map failed");
+    const data = (await res.json()) as { pins?: MapPin[] };
+    return (data.pins ?? []).filter(
+      (p) => p.lat != null && p.lon != null && p.lat !== 0 && p.lon !== 0
+    );
   });
-  if (!res.ok) throw new Error("map failed");
-  const data = (await res.json()) as { pins?: MapPin[] };
-  return (data.pins ?? []).filter((p) => p.lat != null && p.lon != null && p.lat !== 0 && p.lon !== 0);
 }
 
+export type SearchFieldDto = {
+  fieldName: string;
+  label: string;
+  searchFilter: boolean;
+  valueType: string;
+};
+
+export async function fetchSearchFields(
+  nodeUrl: string,
+  locale: string,
+  signal?: AbortSignal
+): Promise<SearchFieldDto[]> {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  return dedupedFetch(`fields:${nodeUrl}:${locale}`, async () => {
+    const res = await fetch(`${nodeUrl}/api/fields?locale=${locale}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("fields failed");
+    const data = (await res.json()) as { fields?: SearchFieldDto[] };
+    return data.fields ?? [];
+  });
+}
+
+export type AuditPhotoItem = {
+  id: string;
+  url: string;
+  caption: string | null;
+  fieldName: string | null;
+  scopeKey: string | null;
+  width: number | null;
+  height: number | null;
+};
+
+export type AuditPhotosPayload = {
+  submissionId: string;
+  capturedAt: string;
+  photos: AuditPhotoItem[];
+  photoOriginNode: string | null;
+};
+
+export type PropertyEnrichment = {
+  description?: string | null;
+  website?: string | null;
+  address?: string | null;
+  sourceLinks?: Array<{ label: string; url: string }>;
+  photos?: Array<{ url: string; caption?: string | null; source?: string }>;
+};
+
 export type PropertyAccessibilityResponse = {
-  property: { id: string; name: string; location: string };
+  property: {
+    id: string;
+    name: string;
+    location: string;
+    lat?: number | null;
+    lon?: number | null;
+    osmId?: string | null;
+    wheelmapId?: string | null;
+    address?: string | null;
+    description?: string | null;
+    website?: string | null;
+    sourceLinks?: Array<{ label: string; url: string }>;
+    photos?: Array<{ url: string; caption?: string | null; source?: string }>;
+  };
   facts: Array<{
     fieldName: string;
     scopeKey?: string;
@@ -131,8 +221,15 @@ export type PropertyAccessibilityResponse = {
     machineTranslated?: boolean;
     signatureHash?: string | null;
   }>;
-  auditPhotos: unknown;
+  auditPhotos: AuditPhotosPayload | null;
+  enrichment?: PropertyEnrichment | null;
   hasAiGuess: boolean;
+  confidenceSummary?: {
+    verifiedCount: number;
+    aiGuessCount: number;
+    officialCount: number;
+    lastAuditAt?: string | null;
+  };
 };
 
 export async function fetchPropertyAccessibility(
@@ -204,21 +301,23 @@ export async function fetchPropertySignals(
 }
 
 export async function fetchMySignals(nodeUrl: string) {
-  const res = await fetch(`${nodeUrl}/api/auth/my-signals`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error("my signals fetch failed");
-  return res.json() as Promise<{
-    signals: Array<{
-      id: string;
-      type: string;
-      status: string;
-      fieldName: string | null;
-      note: string | null;
-      createdAt: string;
-      property: { id: string; name: string; location: string };
+  return dedupedFetch(`my-signals:${nodeUrl}`, async () => {
+    const res = await fetch(`${nodeUrl}/api/auth/my-signals`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("my signals fetch failed");
+    return res.json() as Promise<{
+      signals: Array<{
+        id: string;
+        type: string;
+        status: string;
+        fieldName: string | null;
+        note: string | null;
+        createdAt: string;
+        property: { id: string; name: string; location: string };
+      }>;
     }>;
-  }>;
+  });
 }
 
 export async function fetchContributorStats(nodeUrl: string) {

@@ -4,7 +4,7 @@ import { decodeAuthCookie, looksLikeJwt } from "./lib/authCookie";
 import { roleFromToken } from "./app/lib/userRole";
 import { contributorRouteRedirect } from "./lib/contributorRoutes";
 
-const SKIP_PREFIXES = ["/_next/"];
+const SKIP_PREFIXES = ["/_next/", "/node-api/"];
 const SKIP_EXACT = new Set(["/login", "/register", "/favicon.ico"]);
 
 export function middleware(req: NextRequest) {
@@ -35,5 +35,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|node-api|favicon.ico).*)"],
 };

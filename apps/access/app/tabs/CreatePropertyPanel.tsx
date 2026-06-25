@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { getAuthHeaders, getAuthToken } from "../lib/accessApi";
+import { useLocale } from "@wikitraveler/ui";
+import { getAuthHeaders, getAuthToken, invalidateMapPins } from "../lib/accessApi";
 import { clearAuth } from "../lib/authStorage";
 
 interface Props {
@@ -19,6 +20,7 @@ export function CreatePropertyPanel({
   onCancel,
   onCreated,
 }: Props) {
+  const { t } = useLocale();
   const [name, setName] = useState(defaultName);
   const [location, setLocation] = useState("");
   const [lat, setLat] = useState<number | null>(null);
@@ -27,26 +29,76 @@ export function CreatePropertyPanel({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  async function reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${latitude}&lon=${longitude}`,
+        { headers: { Accept: "application/json" } }
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        display_name?: string;
+        address?: Record<string, string>;
+      };
+      const a = data.address ?? {};
+      const street = [a.road, a.house_number].filter(Boolean).join(" ");
+      const city = a.city ?? a.town ?? a.village ?? a.municipality ?? "";
+      const concise = [street, [a.postcode, city].filter(Boolean).join(" ")]
+        .filter(Boolean)
+        .join(", ");
+      return concise || data.display_name || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function forwardGeocode(address: string): Promise<{ lat: number; lon: number } | null> {
+    const attempts = [
+      address,
+      /nederland|netherlands/i.test(address) ? "" : `${address}, Netherlands`,
+    ].filter(Boolean);
+
+    for (const query of attempts) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`,
+          { headers: { Accept: "application/json", "User-Agent": "WikiTraveler-Access/0.2" } }
+        );
+        if (!res.ok) continue;
+        const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
+        const hit = data[0];
+        if (!hit?.lat || !hit?.lon) continue;
+        const parsedLat = Number(hit.lat);
+        const parsedLon = Number(hit.lon);
+        if (Number.isNaN(parsedLat) || Number.isNaN(parsedLon)) continue;
+        return { lat: parsedLat, lon: parsedLon };
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
+
   async function useMyLocation() {
     if (!navigator.geolocation) {
-      setError("Geolocation not supported.");
+      setError(t("ui.createPropertyGeoUnsupported"));
       return;
     }
     setGeoLoading(true);
     setError("");
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(pos.coords.latitude);
-        setLon(pos.coords.longitude);
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setLat(latitude);
+        setLon(longitude);
+        const address = await reverseGeocode(latitude, longitude);
         if (!location.trim()) {
-          setLocation(
-            `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`
-          );
+          setLocation(address ?? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
         }
         setGeoLoading(false);
       },
       () => {
-        setError("Could not get your location.");
+        setError(t("ui.createPropertyGeoFailed"));
         setGeoLoading(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -56,12 +108,12 @@ export function CreatePropertyPanel({
   async function submit() {
     setError("");
     if (!name.trim() || !location.trim()) {
-      setError("Name and location are required.");
+      setError(t("ui.createPropertyNameLocationRequired"));
       return;
     }
     const token = getAuthToken();
     if (!token) {
-      setError("Not logged in.");
+      setError(t("ui.createPropertyNotLoggedIn"));
       return;
     }
 
@@ -71,9 +123,20 @@ export function CreatePropertyPanel({
         name: name.trim(),
         location: location.trim(),
       };
-      if (lat != null && lon != null) {
-        body.lat = lat;
-        body.lon = lon;
+      let resolvedLat = lat;
+      let resolvedLon = lon;
+      // Without coordinates a property never shows on the map, only in the list.
+      // If the user typed an address instead of using GPS, geocode it now.
+      if (resolvedLat == null || resolvedLon == null) {
+        const geo = await forwardGeocode(location.trim());
+        if (geo) {
+          resolvedLat = geo.lat;
+          resolvedLon = geo.lon;
+        }
+      }
+      if (resolvedLat != null && resolvedLon != null) {
+        body.lat = resolvedLat;
+        body.lon = resolvedLon;
       }
 
       const res = await fetch(`${searchNodeUrl}/api/properties`, {
@@ -84,19 +147,20 @@ export function CreatePropertyPanel({
 
       if (res.status === 401) {
         clearAuth();
-        setError("Session expired — please sign in again.");
+        setError(t("ui.createPropertySessionExpired"));
         return;
       }
 
       const data = (await res.json()) as { property?: { id: string }; message?: string };
       if (!res.ok) {
-        setError(data.message ?? "Failed to create property");
+        setError(data.message ?? t("ui.createPropertyFailed"));
         return;
       }
 
+      invalidateMapPins();
       onCreated(data.property!.id);
     } catch {
-      setError("Could not reach the node.");
+      setError(t("ui.createPropertyNodeUnreachable"));
     } finally {
       setLoading(false);
     }
@@ -104,22 +168,22 @@ export function CreatePropertyPanel({
 
   return (
     <div style={{ marginTop: 8 }}>
-      <label htmlFor="cp-name">Name</label>
+      <label htmlFor="cp-name">{t("ui.createPropertyName")}</label>
       <input
         id="cp-name"
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="e.g. Hotel Example"
+        placeholder={t("ui.createPropertyNamePlaceholder")}
       />
 
-      <label htmlFor="cp-location">Location</label>
+      <label htmlFor="cp-location">{t("ui.createPropertyLocation")}</label>
       <input
         id="cp-location"
         type="text"
         value={location}
         onChange={(e) => setLocation(e.target.value)}
-        placeholder="City, address, or region"
+        placeholder={t("ui.createPropertyLocationPlaceholder")}
       />
 
       <button
@@ -129,12 +193,12 @@ export function CreatePropertyPanel({
         onClick={useMyLocation}
         disabled={geoLoading}
       >
-        {geoLoading ? "Getting location…" : "📍 Use my location"}
+        {geoLoading ? t("ui.createPropertyGettingLocation") : `📍 ${t("ui.createPropertyUseLocation")}`}
       </button>
 
       {lat != null && lon != null && (
         <p className="status-muted" style={{ marginTop: 8, fontSize: 12 }}>
-          GPS: {lat.toFixed(5)}, {lon.toFixed(5)}
+          {t("ui.createPropertyGps", { lat: lat.toFixed(5), lon: lon.toFixed(5) })}
         </p>
       )}
 
@@ -148,11 +212,11 @@ export function CreatePropertyPanel({
           onClick={submit}
           disabled={loading}
         >
-          {loading ? "Creating…" : "Create & audit"}
+          {loading ? t("ui.createPropertyCreating") : t("ui.createAndAudit")}
         </button>
         {onCancel && (
           <button type="button" className="btn-secondary" style={{ marginTop: 0 }} onClick={onCancel}>
-            Cancel
+            {t("ui.cancel")}
           </button>
         )}
       </div>

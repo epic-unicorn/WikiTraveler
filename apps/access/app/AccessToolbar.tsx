@@ -34,11 +34,11 @@ function fkLinkWrap({
 interface Props {
   title?: string;
   showBack?: boolean;
-  /** Fixed href; omit to use browser history (with fallback). */
   backHref?: string;
   backLabel?: string;
   backFallbackHref?: string;
   nodeReachable?: boolean | null;
+  nodeRegion?: string | null;
   end?: ReactNode;
 }
 
@@ -71,6 +71,27 @@ function AccessHistoryBack({
   );
 }
 
+function NodeStatusChip({
+  reachable,
+  region,
+}: {
+  reachable: boolean | null;
+  region?: string | null;
+}) {
+  const { t } = useLocale();
+  if (reachable === null) {
+    return <span className="fk-node-status fk-node-status--checking">{t("ui.checking")}</span>;
+  }
+  if (!reachable) {
+    return <span className="fk-node-status fk-node-status--err">{t("ui.unreachable")}</span>;
+  }
+  return (
+    <span className="fk-node-status fk-node-status--ok" title={region ?? undefined}>
+      {region ? region : t("ui.connected")}
+    </span>
+  );
+}
+
 export function AccessToolbar({
   title,
   showBack,
@@ -78,57 +99,33 @@ export function AccessToolbar({
   backLabel,
   backFallbackHref = "/",
   nodeReachable,
+  nodeRegion,
   end,
 }: Props) {
   const { t } = useLocale();
-  const statusDot =
-    nodeReachable === true
-      ? { bg: "#34d399", label: "Node connected" }
-      : nodeReachable === false
-      ? { bg: "#f87171", label: "Node unreachable" }
-      : null;
 
-  const toolbarEnd = (
-    <>
-      <AccessAccountBadge />
-      {statusDot && (
-        <div
-          title={statusDot.label}
-          aria-label={statusDot.label}
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: statusDot.bg,
-            boxShadow: "0 0 0 2px rgba(255,255,255,0.2)",
-            flexShrink: 0,
-            marginRight: 4,
-          }}
-        />
-      )}
-      {end}
-    </>
-  );
+  const start = showBack ? (
+    backHref ? (
+      <ToolbarBackLink href={backHref} label={backLabel ?? t("ui.back")} linkWrap={fkLinkWrap} />
+    ) : (
+      <AccessHistoryBack label={backLabel ?? t("ui.back")} fallbackHref={backFallbackHref} />
+    )
+  ) : undefined;
 
   return (
     <AppToolbar
       className="wt-toolbar--access"
-      title={title ?? <WikiTravelerLogo product="access" size={32} />}
+      title={title ?? <WikiTravelerLogo product="access" size={28} />}
       titleHref={title ? undefined : "/"}
       linkWrap={fkLinkWrap}
-      start={
-        showBack ? (
-          backHref ? (
-            <ToolbarBackLink href={backHref} label={backLabel ?? t("ui.back")} linkWrap={fkLinkWrap} />
-          ) : (
-            <AccessHistoryBack
-              label={backLabel ?? t("ui.back")}
-              fallbackHref={backFallbackHref}
-            />
-          )
-        ) : undefined
+      start={start}
+      end={
+        <div className="fk-toolbar-end">
+          <NodeStatusChip reachable={nodeReachable ?? null} region={nodeRegion} />
+          <AccessAccountBadge />
+          {end}
+        </div>
       }
-      end={toolbarEnd}
     />
   );
 }

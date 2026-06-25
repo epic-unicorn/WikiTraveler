@@ -206,7 +206,18 @@ OSM_FIXTURE_PATH=/abs/path/to/scripts/fixtures/netherlands-osm.json
 
 ### WikiTraveler Access
 
-Runs on http://localhost:3001. Set node URL on the login screen (defaults to `NEXT_PUBLIC_NODE_API_URL` from `.env`).
+Runs on http://localhost:3001. Set node URL on the login screen (defaults to `NEXT_PUBLIC_NODE_API_URL` from `.env`). In local dev, Access proxies API calls to the node via `/node-api/` so cookies and CORS stay on one origin.
+
+**Audit wizard fields:** `pnpm db:setup` seeds `FieldDefinition` rows via `scripts/seed-fields.ts`. If the audit wizard shows no fields after a manual migration, run `pnpm exec tsx scripts/seed-fields.ts`.
+
+**Map coordinates:** new properties are forward-geocoded on create. For existing rows without lat/lon:
+
+```bash
+pnpm exec tsx scripts/geocode-missing-coords.ts
+pnpm exec tsx scripts/geocode-missing-coords.ts --name "Hotel Name"
+```
+
+Map pin data is cached client-side for five minutes; creating a property or submitting an audit invalidates the cache automatically.
 
 ### Two-node gossip testing
 
@@ -362,5 +373,7 @@ Full backup **replaces the entire database** on restore — do not use it for a 
 | Map is empty after start | Complete `/setup`, then run OSM ingest in Admin |
 | Ingest stopped mid-way | Restart `pnpm dev` — tile progress resumes from DB |
 | WikiTraveler Access CORS errors | Set `CORS_ORIGINS=*` in `.env` (fine for local dev) |
+| Properties missing from map | `pnpm exec tsx scripts/geocode-missing-coords.ts` |
+| Audit wizard shows no fields | `pnpm exec tsx scripts/seed-fields.ts` |
 | Port 5432 in use | Set `POSTGRES_HOST_PORT=5433` in `.env`, update `DATABASE_URL`, recreate the postgres container |
 | `pnpm db:setup` can't connect after `docker-compose.yml up` | Postgres must show `127.0.0.1:5432->5432/tcp` in `docker ps` — run `docker compose -f docker/docker-compose.yml up -d postgres` to apply port mapping |

@@ -2,11 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
+  DISPLAY_ENV_NODE_URL,
   ENV_NODE_URL,
   getStoredNodeUrl,
   resolvePeerNode,
+  toClientNodeUrl,
+  toDisplayNodeUrl,
 } from "../lib/accessApi";
 import { persistNodeUrlCookie } from "../lib/authStorage";
+import { dedupedFetch } from "../lib/clientCache";
 
 interface NodeInfo {
   nodeId?: string;
@@ -24,16 +28,19 @@ export function useNodeContext() {
   useEffect(() => {
     const stored = getStoredNodeUrl();
     setNodeUrlState(stored);
-    persistNodeUrlCookie(stored);
+    persistNodeUrlCookie(toDisplayNodeUrl(stored));
   }, []);
 
   useEffect(() => {
     setNodeInfo(null);
     setNodeReachable(null);
     const controller = new AbortController();
-    fetch(`${nodeUrl}/api/nodeinfo`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((d: NodeInfo) => {
+    dedupedFetch(`nodeinfo:${nodeUrl}`, async () => {
+      const res = await fetch(`${nodeUrl}/api/nodeinfo`);
+      if (!res.ok) throw new Error("nodeinfo failed");
+      return res.json() as Promise<NodeInfo>;
+    })
+      .then((d) => {
         setNodeInfo(d);
         setNodeReachable(true);
       })
@@ -68,14 +75,15 @@ export function useNodeContext() {
   }, [nodeUrl]);
 
   const setNodeUrl = useCallback((url: string) => {
-    localStorage.setItem("wt_node_url", url);
-    persistNodeUrlCookie(url);
-    setNodeUrlState(url);
+    const displayUrl = toDisplayNodeUrl(url.trim().replace(/\/$/, ""));
+    localStorage.setItem("wt_node_url", displayUrl);
+    persistNodeUrlCookie(displayUrl);
+    setNodeUrlState(toClientNodeUrl(displayUrl));
   }, []);
 
   const resetNodeUrl = useCallback(() => {
     localStorage.removeItem("wt_node_url");
-    persistNodeUrlCookie(ENV_NODE_URL);
+    persistNodeUrlCookie(DISPLAY_ENV_NODE_URL);
     setNodeUrlState(ENV_NODE_URL);
   }, []);
 

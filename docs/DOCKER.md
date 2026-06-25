@@ -322,6 +322,8 @@ NEXT_PUBLIC_NODE_API_URL=https://wikitraveler.example.com
 | Dev + prod compose both need Postgres | Only one stack can bind a host port at a time. Use the same compose file, or different `POSTGRES_HOST_PORT` values. |
 | Migrations already applied inside Docker but host `db:setup` fails | Expected if Postgres wasn't reachable from the host — fix the port mapping above, then run `pnpm db:setup` or `pnpm db:migrate`. |
 | **P3009** — failed migration (e.g. `20260616120000_...`) when the node container starts | Postgres volume still has **old** migration rows from before migrations were squashed to `20260423123302_init`. Reset: `pnpm docker:reset` (or `docker compose -f docker/docker-compose.yml --profile access down -v`), then `up --build -d`. Seed fields from the host: `pnpm db:setup` or `pnpm db:seed`. |
+| Properties missing from map | Backfill coordinates: `pnpm exec tsx scripts/geocode-missing-coords.ts` (from host with `DATABASE_URL` pointing at Postgres) |
+| Audit wizard shows no fields | Run `pnpm exec tsx scripts/seed-fields.ts` — included in `pnpm db:setup` |
 
 ---
 

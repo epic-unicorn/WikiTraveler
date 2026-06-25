@@ -49,7 +49,6 @@ export function AccessAccountBadge({ compact = true }: { compact?: boolean }) {
       title={t("ui.accessAccountSummary", { user: username, role: roleLabel })}
       aria-label={t("ui.accessAccountSummary", { user: username, role: roleLabel })}
     >
-      <span className="wt-access-account__name">{username}</span>
       <span className={`wt-access-account__role wt-access-account__role--${role.toLowerCase()}`}>
         {roleLabel}
       </span>

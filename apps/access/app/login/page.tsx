@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { WikiTravelerLogo } from "@wikitraveler/ui";
 import { persistAuth } from "../lib/authStorage";
+import { DISPLAY_ENV_NODE_URL, toClientNodeUrl } from "../lib/accessApi";
 
-const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
+const ENV_NODE_URL = DISPLAY_ENV_NODE_URL;
 
 const labelStyle: React.CSSProperties = {
   display: "block",
@@ -54,7 +55,8 @@ function LoginForm() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${cleanUrl}/api/auth/login`, {
+      const fetchUrl = toClientNodeUrl(cleanUrl);
+      const res = await fetch(`${fetchUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim().toLowerCase(), password }),

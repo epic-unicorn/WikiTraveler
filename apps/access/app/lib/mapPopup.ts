@@ -1,4 +1,5 @@
-import { propertyOrAuditHref } from "./propertyHref";
+import { propertyHref } from "./propertyHref";
+import { auditHref } from "./auditHref";
 import type { MapPin } from "./accessApi";
 
 const TIER_RANK: Record<string, number> = {
@@ -41,12 +42,26 @@ function tierLabel(tier: string): string | null {
   return null;
 }
 
+interface PopupLabels {
+  view: string;
+  audit: string;
+  auditedOpen: string;
+}
+
+export function buildAccessMapTooltip(pin: MapPin): string {
+  return `
+    <div class="wt-map-tooltip">
+      <p class="wt-map-tooltip-title">${pin.name}</p>
+      <p class="wt-map-tooltip-loc">${pin.location}</p>
+    </div>
+  `;
+}
+
 export function buildAccessMapPopup(
   pin: MapPin,
   homeNodeUrl: string,
   propertyNodeUrl: string,
-  ctaLabel: string,
-  auditedOpenLabel: string,
+  labels: PopupLabels,
   asContributor: boolean
 ): string {
   const facts = pin.facts ?? {};
@@ -67,14 +82,22 @@ export function buildAccessMapPopup(
     })
     .join("");
 
-  const href = propertyOrAuditHref(pin.id, propertyNodeUrl, homeNodeUrl, asContributor);
+  const viewUrl = propertyHref(pin.id, propertyNodeUrl, homeNodeUrl);
+  const auditUrl = auditHref(pin.id, propertyNodeUrl, homeNodeUrl);
+
+  const actions = asContributor
+    ? `<div class="wt-popup-actions">
+        <a href="${viewUrl}" class="wt-popup-cta wt-popup-cta--secondary">${labels.view}</a>
+        <a href="${auditUrl}" class="wt-popup-cta">${labels.audit}</a>
+      </div>`
+    : `<a href="${viewUrl}" class="wt-popup-cta">${labels.view}</a>`;
 
   return `
     <div class="wt-popup">
       <p class="wt-popup-title">${pin.name}</p>
       <p class="wt-popup-loc">${pin.location}</p>
-      ${factRows ? `<div class="wt-popup-facts">${factRows}</div>` : pin.audited ? `<p class="wt-popup-audited">${auditedOpenLabel}</p>` : ""}
-      <a href="${href}" class="wt-popup-cta">${ctaLabel}</a>
+      ${factRows ? `<div class="wt-popup-facts">${factRows}</div>` : pin.audited ? `<p class="wt-popup-audited">${labels.auditedOpen}</p>` : ""}
+      ${actions}
     </div>
   `;
 }
