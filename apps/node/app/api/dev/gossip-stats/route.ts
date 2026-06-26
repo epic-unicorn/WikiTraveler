@@ -11,9 +11,10 @@ export async function GET() {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
-  const [propertyCount, factCount, peerRows] = await Promise.all([
+  const [propertyCount, factCount, overrideCount, peerRows] = await Promise.all([
     prisma.property.count(),
     prisma.accessibilityFact.count(),
+    prisma.propertyMetadataOverride.count(),
     prisma.nodePeer.findMany({
       select: { url: true, nodeId: true, isActive: true, lastSeen: true },
       orderBy: { lastSeen: "desc" },
@@ -32,6 +33,7 @@ export async function GET() {
   return NextResponse.json({
     propertyCount,
     factCount,
+    overrideCount,
     peerCount: peers.filter((p) => p.isActive).length,
     peers,
   });

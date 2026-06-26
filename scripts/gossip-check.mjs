@@ -67,8 +67,8 @@ async function main() {
     console.log(`  A: ${statsPeerSummary(aStats)}`);
     console.log(`  B: ${statsPeerSummary(bStats)}`);
     console.log(`\nData:`);
-    console.log(`  A: ${aStats.propertyCount} properties, ${aStats.factCount} facts`);
-    console.log(`  B: ${bStats.propertyCount} properties, ${bStats.factCount} facts`);
+    console.log(`  A: ${aStats.propertyCount} properties, ${aStats.factCount} facts, ${aStats.overrideCount ?? 0} overrides`);
+    console.log(`  B: ${bStats.propertyCount} properties, ${bStats.factCount} facts, ${bStats.overrideCount ?? 0} overrides`);
   }
 
   const linked = aHasB && bHasA;
@@ -86,6 +86,8 @@ async function main() {
   }
 
   console.log("\n✓ Gossip lab peers are linked. Submit an audit on A, then run pnpm gossip:sync.");
+  console.log("  Property CRUD + override demo: pnpm gossip:crud");
+  console.log("  OSM re-ingest (overrides survive): pnpm gossip:reingest");
 }
 
 main().catch((err) => {

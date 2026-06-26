@@ -16,7 +16,7 @@ function override(
 ): PropertyMetadataOverride {
   return {
     canonicalId: property.canonicalId,
-    sourceType: "AUDITOR",
+    sourceType: "AUDITOR" as PropertyMetadataOverride["sourceType"],
     sourceNodeId: "node-local",
     submittedBy: "admin",
     timestamp: "2026-06-26T10:00:00.000Z",
