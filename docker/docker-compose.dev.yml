@@ -2,6 +2,8 @@
 # Usage: docker compose -f docker/docker-compose.dev.yml up
 # Or: right-click this file in the VS Code Docker extension → "Compose Up"
 
+name: wikitraveler
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -33,6 +35,10 @@ services:
     volumes:
       # Bind-mount the whole monorepo for hot reloading
       - ..:/app
+      # Isolated .next so the container's dev build never reads/writes the
+      # host's (possibly stale, production) .next — that mismatch corrupts
+      # webpack chunks and crashes route loading.
+      - next:/app/apps/node/.next
       # Named volumes keep the container's node_modules intact so the
       # Windows host node_modules (or absence thereof) doesn't interfere.
       - node_modules:/app/node_modules
@@ -65,6 +71,7 @@ services:
       - "${ACCESS_PORT:-3001}:3001"
     volumes:
       - ..:/app
+      - next_access:/app/apps/access/.next
       - node_modules:/app/node_modules
       - node_modules_core:/app/packages/core/node_modules
       - node_modules_ui:/app/packages/ui/node_modules
@@ -83,6 +90,8 @@ services:
 
 volumes:
   postgres_data:
+  next:
+  next_access:
   node_modules:
   node_modules_core:
   node_modules_ui:

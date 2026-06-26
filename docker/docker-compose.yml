@@ -1,6 +1,8 @@
 # Single-node deployment
 # Usage: docker compose -f docker/docker-compose.yml up
 
+name: wikitraveler
+
 services:
   postgres:
     image: postgres:16-alpine

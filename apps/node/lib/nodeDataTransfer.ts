@@ -47,11 +47,34 @@ export interface ExportPayload {
   metadataOverrides?: ExportMetadataOverride[];
 }
 
-export async function buildExportPayload(): Promise<ExportPayload> {
-  const [properties, facts, metadataOverrides] = await Promise.all([
-    prisma.property.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.accessibilityFact.findMany({ orderBy: { timestamp: "asc" } }),
-    prisma.propertyMetadataOverride.findMany({ orderBy: { timestamp: "asc" } }),
+export interface ExportFilter {
+  /**
+   * When provided, only export properties whose osmId is in this set (plus their
+   * facts and metadata overrides). Used to scope the bundled sample to a single
+   * region regardless of what else lives in the source database.
+   */
+  osmIds?: Iterable<string>;
+}
+
+export async function buildExportPayload(filter?: ExportFilter): Promise<ExportPayload> {
+  const osmIdFilter = filter?.osmIds ? [...new Set(filter.osmIds)] : null;
+
+  const properties = await prisma.property.findMany({
+    where: osmIdFilter ? { osmId: { in: osmIdFilter } } : undefined,
+    orderBy: { createdAt: "asc" },
+  });
+  const propertyIds = properties.map((p) => p.id);
+  const propertyCanonicalIds = properties.map((p) => p.canonicalId);
+
+  const [facts, metadataOverrides] = await Promise.all([
+    prisma.accessibilityFact.findMany({
+      where: osmIdFilter ? { propertyId: { in: propertyIds } } : undefined,
+      orderBy: { timestamp: "asc" },
+    }),
+    prisma.propertyMetadataOverride.findMany({
+      where: osmIdFilter ? { canonicalId: { in: propertyCanonicalIds } } : undefined,
+      orderBy: { timestamp: "asc" },
+    }),
   ]);
 
   return {

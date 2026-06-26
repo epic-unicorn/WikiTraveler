@@ -9,6 +9,8 @@
 # Node A → http://localhost:3000
 # Node B → http://localhost:3010  (WikiTraveler Access keeps :3001)
 
+name: wikitraveler
+
 services:
   postgres-a:
     image: postgres:16-alpine
@@ -56,6 +58,9 @@ services:
       - "3000:3000"
     volumes:
       - ..:/app
+      # Isolated .next per node: avoids sharing/clobbering the host's build
+      # output and prevents two dev servers writing the same dir (chunk corruption).
+      - next_a:/app/apps/node/.next
       - node_modules:/app/node_modules
       - node_modules_core:/app/packages/core/node_modules
       - node_modules_ui:/app/packages/ui/node_modules
@@ -90,6 +95,8 @@ services:
       - "3010:3000"
     volumes:
       - ..:/app
+      # Isolated .next per node (see node-a comment).
+      - next_b:/app/apps/node/.next
       - node_modules_b:/app/node_modules
       - node_modules_core_b:/app/packages/core/node_modules
       - node_modules_ui_b:/app/packages/ui/node_modules
@@ -113,6 +120,8 @@ services:
 volumes:
   gossip_pg_a:
   gossip_pg_b:
+  next_a:
+  next_b:
   node_modules:
   node_modules_core:
   node_modules_ui:

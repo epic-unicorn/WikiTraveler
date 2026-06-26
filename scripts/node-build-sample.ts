@@ -22,7 +22,12 @@ async function main() {
   const result = await fetchOverpassData("", FIXTURE);
   await ingestOverpassResult(result, `${NODE_ID}:osm`, prisma);
 
-  const payload = await buildExportPayload();
+  // Scope the export to ONLY the fixture's elements. buildExportPayload()
+  // otherwise dumps the entire database, so building against a DB that already
+  // holds other regions (e.g. a full Benelux import) would bake thousands of
+  // unrelated properties into the "Eindhoven" sample.
+  const osmIds = result.elements.map((el) => String(el.id));
+  const payload = await buildExportPayload({ osmIds });
   mkdirSync(OUT_DIR, { recursive: true });
   const compressed = gzipSync(Buffer.from(JSON.stringify(payload), "utf-8"));
   writeFileSync(OUT_FILE, compressed);
