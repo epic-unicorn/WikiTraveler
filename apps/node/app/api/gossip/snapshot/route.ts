@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
 import { requireNodeAuth } from "@/lib/auth";
+import { loadOverridesChangedSince } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 
 // GET /api/gossip/snapshot?since=<ISO>
@@ -19,9 +20,22 @@ export async function GET(req: NextRequest) {
     orderBy: { timestamp: "asc" },
   });
 
-  // Include all properties referenced by the facts so new nodes can upsert
-  // them before inserting facts (avoids FK violations).
-  const propertyIds = [...new Set(facts.map((f) => f.propertyId))];
+  const metadataOverrides = await loadOverridesChangedSince(sinceDate);
+
+  // Include properties referenced by facts or metadata overrides.
+  const propertyIds = [
+    ...new Set([
+      ...facts.map((f) => f.propertyId),
+      ...(metadataOverrides.length > 0
+        ? (
+            await prisma.property.findMany({
+              where: { canonicalId: { in: [...new Set(metadataOverrides.map((o) => o.canonicalId))] } },
+              select: { id: true },
+            })
+          ).map((p) => p.id)
+        : []),
+    ]),
+  ];
   const properties = propertyIds.length > 0
     ? await prisma.property.findMany({
         where: { id: { in: propertyIds } },
@@ -94,5 +108,6 @@ export async function GET(req: NextRequest) {
     })),
     peers,
     photoRefs,
+    metadataOverrides,
   });
 }

@@ -41,6 +41,12 @@ interface BackupFile {
       auditedReimportPending?: boolean;
       updatedAt: string;
     } | null;
+    metadataOverrides?: Array<{
+      id: string; propertyId: string; canonicalId: string; fieldName: string;
+      value: string; sourceType: string; sourceNodeId: string;
+      submittedBy: string | null; signatureHash: string | null;
+      timestamp: string; clearedAt: string | null;
+    }>;
   };
 }
 
@@ -82,8 +88,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
   }
 
-  if (backup.version !== 1 || !backup.data) {
-    return NextResponse.json({ message: "Unrecognised backup format (expected version 1)" }, { status: 400 });
+  if ((backup.version !== 1 && backup.version !== 2) || !backup.data) {
+    return NextResponse.json({ message: "Unrecognised backup format (expected version 1 or 2)" }, { status: 400 });
   }
 
   // Check migration compatibility
@@ -111,13 +117,14 @@ export async function POST(req: NextRequest) {
   await prisma.$transaction([
     prisma.gossipSnapshot.deleteMany(),
     prisma.auditSubmission.deleteMany(),
+    prisma.propertyMetadataOverride.deleteMany(),
     prisma.accessibilityFact.deleteMany(),
     prisma.property.deleteMany(),
     prisma.nodePeer.deleteMany(),
     prisma.osmSyncState.deleteMany(),
   ]);
 
-  const { properties, facts, audits, peers, osmSyncState, nodeSettings } = backup.data;
+  const { properties, facts, audits, peers, osmSyncState, nodeSettings, metadataOverrides } = backup.data;
 
   // Restore in FK-safe order
   // 1. Properties
@@ -138,7 +145,32 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2. Facts
+  // 2. Metadata overrides (after properties)
+  let metadataOverridesRestored = 0;
+  for (const o of metadataOverrides ?? []) {
+    try {
+      await prisma.propertyMetadataOverride.create({
+        data: {
+          id: o.id,
+          propertyId: o.propertyId,
+          canonicalId: o.canonicalId,
+          fieldName: o.fieldName,
+          value: o.value,
+          sourceType: o.sourceType as never,
+          sourceNodeId: o.sourceNodeId,
+          submittedBy: o.submittedBy,
+          signatureHash: o.signatureHash,
+          timestamp: new Date(o.timestamp),
+          clearedAt: o.clearedAt ? new Date(o.clearedAt) : null,
+        },
+      });
+      metadataOverridesRestored++;
+    } catch (err) {
+      warnings.push(`Metadata override ${o.id} skipped: ${String(err)}`);
+    }
+  }
+
+  // 3. Facts
   let factsRestored = 0;
   for (const f of facts ?? []) {
     try {
@@ -156,7 +188,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 3. Audits
+  // 4. Audits
   let auditsRestored = 0;
   for (const a of audits ?? []) {
     try {
@@ -173,7 +205,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 4. Peers
+  // 5. Peers
   let peersRestored = 0;
   for (const peer of peers ?? []) {
     try {
@@ -189,7 +221,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 5. OSM sync state
+  // 6. OSM sync state
   for (const s of osmSyncState ?? []) {
     try {
       await prisma.osmSyncState.create({
@@ -234,13 +266,19 @@ export async function POST(req: NextRequest) {
   }
 
   console.log(
-    "[restore] Done: %d properties, %d facts, %d audits, %d peers",
-    propertiesRestored, factsRestored, auditsRestored, peersRestored
+    "[restore] Done: %d properties, %d metadata overrides, %d facts, %d audits, %d peers",
+    propertiesRestored, metadataOverridesRestored, factsRestored, auditsRestored, peersRestored
   );
 
   return NextResponse.json({
     ok: true,
-    restored: { properties: propertiesRestored, facts: factsRestored, audits: auditsRestored, peers: peersRestored },
+    restored: {
+      properties: propertiesRestored,
+      metadataOverrides: metadataOverridesRestored,
+      facts: factsRestored,
+      audits: auditsRestored,
+      peers: peersRestored,
+    },
     warnings,
   });
 }

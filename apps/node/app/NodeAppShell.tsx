@@ -27,7 +27,6 @@ function useNavLinks(activeNav: "map" | "signals" | "stats"): ToolbarLink[] {
     { href: "/", label: t("ui.navMap"), active: activeNav === "map" },
     { href: "/signals", label: t("ui.navSignals"), active: activeNav === "signals" },
     { href: "/stats", label: t("ui.navStats"), active: activeNav === "stats" },
-    { href: "/properties/new", label: t("ui.navNewProperty") },
   ];
 }
 

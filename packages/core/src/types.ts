@@ -74,6 +74,28 @@ export interface Property {
   wheelmapId: string | null;
 }
 
+/** Metadata fields that can be overridden and synced across nodes. */
+export type PropertyMetadataFieldName = "name" | "location" | "lat" | "lon";
+
+export const PROPERTY_METADATA_FIELDS: PropertyMetadataFieldName[] = [
+  "name",
+  "location",
+  "lat",
+  "lon",
+];
+
+export interface PropertyMetadataOverride {
+  canonicalId: string;
+  fieldName: PropertyMetadataFieldName;
+  value: string;
+  sourceType: SourceType;
+  sourceNodeId: string;
+  submittedBy: string | null;
+  timestamp: string;
+  signatureHash: string | null;
+  clearedAt: string | null;
+}
+
 export interface NodeInfo {
   nodeId: string;
   version: string;
@@ -117,6 +139,8 @@ export interface GossipDelta {
   /** Properties referenced by the facts — allows new nodes to upsert them. */
   properties: (Pick<Property, "id" | "canonicalId" | "name" | "location" | "osmId" | "wheelmapId"> & { lat?: number | null; lon?: number | null })[];
   facts: AccessibilityFact[];
+  /** Manual metadata overrides changed since snapshot window. */
+  metadataOverrides?: PropertyMetadataOverride[];
   /** Known active peers — propagated during gossip for organic network discovery. */
   peers?: PeerInfo[];
 }

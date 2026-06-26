@@ -71,7 +71,7 @@ async function main() {
   await prisma.$disconnect();
 
   if (!property) {
-    console.warn("⚠️  No properties with facts — run pnpm exec tsx scripts/ci-bootstrap-region.ts && pnpm db:seed");
+    console.warn("⚠️  No properties with facts — run pnpm node:region --preset eindhoven && pnpm db:seed");
   } else {
     console.log(`Lighthouse audit target: ${property.name} (${property.id})`);
   }

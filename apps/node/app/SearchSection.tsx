@@ -183,7 +183,7 @@ export function SearchSection({ onResults }: Props) {
                 {t("ui.searchNoMatch", { query: query.trim() })}
               </p>
               <Link
-                href={`/properties/new?name=${encodeURIComponent(query.trim())}`}
+                href={`/stats?tab=properties&name=${encodeURIComponent(query.trim())}`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",

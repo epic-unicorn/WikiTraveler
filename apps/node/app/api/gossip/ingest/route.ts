@@ -7,6 +7,10 @@ import { remapFactsPropertyIds, upsertGossipProperties } from "@/lib/gossipPrope
 import { isSelfPeer } from "@/lib/linkPeer";
 import { getNodeBbox } from "@/lib/nodeSettings";
 import { makeBboxFilterFromString } from "@/lib/regionPurge";
+import {
+  applyIncomingMetadataOverrides,
+  filterMetadataOverridesByBbox,
+} from "@/lib/propertyMetadata";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 // POST /api/gossip/ingest
@@ -26,6 +30,8 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  const incomingOverrides = Array.isArray(delta.metadataOverrides) ? delta.metadataOverrides : [];
 
   // ------------------------------------------------------------------
   // 1. Upsert any properties that arrived with the delta.
@@ -62,69 +68,98 @@ export async function POST(req: Request) {
     allowedFacts = remapFactsPropertyIds(allowedFacts, idMap);
   }
 
-  // ------------------------------------------------------------------
-  // 2. Merge and upsert facts (only for allowed properties)
-  // ------------------------------------------------------------------
-  const propertyIds = [...new Set(allowedFacts.map((f) => f.propertyId))];
+  let metadataOverridesApplied = 0;
+  if (incomingOverrides.length > 0) {
+    const allowedOverrides = await filterMetadataOverridesByBbox(incomingOverrides, bboxFilter);
+    if (allowedOverrides.length < incomingOverrides.length) {
+      console.info(
+        `[ingest] Skipped ${incomingOverrides.length - allowedOverrides.length} out-of-bbox metadata overrides from ${delta.fromNodeId}`
+      );
+    }
+    metadataOverridesApplied = await applyIncomingMetadataOverrides(allowedOverrides);
+  }
 
-  const existingFacts = await prisma.accessibilityFact.findMany({
-    where: { propertyId: { in: propertyIds } },
-  });
+  if (allowedFacts.length === 0 && metadataOverridesApplied === 0) {
+    return NextResponse.json({
+      ok: true,
+      propertiesUpserted: allowedProperties.length,
+      ingested: 0,
+      metadataOverridesApplied: 0,
+    });
+  }
 
-  const asFacts = existingFacts.map((f) => ({
-    id: f.id,
-    propertyId: f.propertyId,
-    fieldName: f.fieldName,
-    value: f.value,
-    tier: f.tier as Tier,
-    sourceType: f.sourceType as SourceType,
-    sourceNodeId: f.sourceNodeId,
-    submittedBy: f.submittedBy,
-    timestamp: f.timestamp.toISOString(),
-    signatureHash: f.signatureHash,
-  }));
+  if (allowedFacts.length === 0) {
+    await prisma.gossipSnapshot.create({
+      data: {
+        fromNodeId: delta.fromNodeId,
+        snapshotHash: createHash("sha256").update(JSON.stringify(incomingOverrides)).digest("hex"),
+        factCount: 0,
+      },
+    });
+  } else {
+    // ------------------------------------------------------------------
+    // 2. Merge and upsert facts (only for allowed properties)
+    // ------------------------------------------------------------------
+    const propertyIds = [...new Set(allowedFacts.map((f) => f.propertyId))];
 
-  const merged = mergeGossipDelta(asFacts, { ...delta, facts: allowedFacts });
+    const existingFacts = await prisma.accessibilityFact.findMany({
+      where: { propertyId: { in: propertyIds } },
+    });
 
-  await Promise.all(
-    merged.map((fact) =>
-      prisma.accessibilityFact.upsert({
-        where: {
-          propertyId_fieldName_sourceNodeId_scopeKey: {
+    const asFacts = existingFacts.map((f) => ({
+      id: f.id,
+      propertyId: f.propertyId,
+      fieldName: f.fieldName,
+      value: f.value,
+      tier: f.tier as Tier,
+      sourceType: f.sourceType as SourceType,
+      sourceNodeId: f.sourceNodeId,
+      submittedBy: f.submittedBy,
+      timestamp: f.timestamp.toISOString(),
+      signatureHash: f.signatureHash,
+    }));
+
+    const merged = mergeGossipDelta(asFacts, { ...delta, facts: allowedFacts });
+
+    await Promise.all(
+      merged.map((fact) =>
+        prisma.accessibilityFact.upsert({
+          where: {
+            propertyId_fieldName_sourceNodeId_scopeKey: {
+              propertyId: fact.propertyId,
+              fieldName: fact.fieldName,
+              sourceNodeId: fact.sourceNodeId,
+              scopeKey: (fact as { scopeKey?: string }).scopeKey ?? "property",
+            },
+          },
+          update: { value: fact.value, tier: fact.tier, timestamp: new Date(fact.timestamp) },
+          create: {
             propertyId: fact.propertyId,
             fieldName: fact.fieldName,
+            value: fact.value,
+            tier: fact.tier,
+            sourceType: fact.sourceType ?? "AUDITOR",
             sourceNodeId: fact.sourceNodeId,
-            scopeKey: (fact as { scopeKey?: string }).scopeKey ?? "property",
+            submittedBy: fact.submittedBy,
+            timestamp: new Date(fact.timestamp),
+            signatureHash: fact.signatureHash,
           },
-        },
-        update: { value: fact.value, tier: fact.tier, timestamp: new Date(fact.timestamp) },
-        create: {
-          propertyId: fact.propertyId,
-          fieldName: fact.fieldName,
-          value: fact.value,
-          tier: fact.tier,
-          sourceType: fact.sourceType ?? "AUDITOR",
-          sourceNodeId: fact.sourceNodeId,
-          submittedBy: fact.submittedBy,
-          timestamp: new Date(fact.timestamp),
-          signatureHash: fact.signatureHash,
-        },
-      })
-    )
-  );
+        })
+      )
+    );
 
-  // Record the gossip snapshot
-  const snapshotHash = createHash("sha256")
-    .update(JSON.stringify(allowedFacts))
-    .digest("hex");
+    const snapshotHash = createHash("sha256")
+      .update(JSON.stringify(allowedFacts))
+      .digest("hex");
 
-  await prisma.gossipSnapshot.create({
-    data: {
-      fromNodeId: delta.fromNodeId,
-      snapshotHash,
-      factCount: allowedFacts.length,
-    },
-  });
+    await prisma.gossipSnapshot.create({
+      data: {
+        fromNodeId: delta.fromNodeId,
+        snapshotHash,
+        factCount: allowedFacts.length,
+      },
+    });
+  }
 
   // Upsert any peers that arrived in the delta (peer exchange) — never register self
   if (Array.isArray(delta.peers) && delta.peers.length > 0) {
@@ -144,5 +179,6 @@ export async function POST(req: Request) {
     ok: true,
     propertiesUpserted: allowedProperties.length,
     ingested: allowedFacts.length,
+    metadataOverridesApplied,
   });
 }

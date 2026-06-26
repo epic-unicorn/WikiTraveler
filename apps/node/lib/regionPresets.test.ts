@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { planTileIngest, validateBbox } from "./bbox";
 import {
   findPresetByBbox,
   listRegionPresets,
@@ -9,11 +8,12 @@ import {
   resolveRegionDisplayLabel,
   validateRegionBbox,
 } from "./regionPresets";
+import { validateBbox } from "./bbox";
 
 describe("listRegionPresets", () => {
   it("only includes Overpass presets within the tile limit", () => {
     for (const preset of listRegionPresets()) {
-      if (preset.geofabrikId) continue;
+      if (preset.geofabrikId || preset.offlineOnly) continue;
       expect(validateBbox(preset.bbox).ok).toBe(true);
     }
     expect(listRegionPresets().length).toBe(REGION_PRESETS.length);
@@ -28,13 +28,14 @@ describe("listRegionPresets", () => {
     expect(cities).toContain("amsterdam");
     expect(cities).not.toContain("rotterdam");
 
-    expect(countries).toContain("netherlands");
     expect(countries).toContain("belgium");
+    expect(countries).not.toContain("netherlands");
 
     expect(regions).toContain("benelux");
 
     expect(geofabrik).toContain("france");
     expect(geofabrik).toContain("germany");
+    expect(geofabrik).toContain("netherlands");
   });
 
   it("validates geofabrik presets without tile cap", () => {
@@ -52,17 +53,22 @@ describe("listRegionPresets", () => {
 });
 
 describe("country preset tile budgets", () => {
-  it("keeps Netherlands under the default tile cap", () => {
+  it("routes Netherlands through Geofabrik (no Overpass tile cap)", () => {
     const nl = REGION_PRESETS.find((p) => p.id === "netherlands")!;
-    const plan = planTileIngest(nl.bbox.split(",").map(Number) as [number, number, number, number]);
-    expect(plan.tileCount).toBeLessThanOrEqual(150);
-    expect(plan.warnLarge).toBe(true);
+    expect(nl.geofabrikId).toBe("netherlands");
+    const result = validateRegionBbox(nl.bbox, "netherlands");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.ingestMode).toBe("geofabrik");
+      expect(result.tileCount).toBe(0);
+    }
   });
 
-  it("keeps Benelux under the default tile cap", () => {
+  it("marks Benelux as offline-only (CLI, no Admin tile cap)", () => {
     const benelux = REGION_PRESETS.find((p) => p.id === "benelux")!;
-    const plan = planTileIngest(benelux.bbox.split(",").map(Number) as [number, number, number, number]);
-    expect(plan.tileCount).toBeLessThanOrEqual(150);
+    expect(benelux.offlineOnly).toBe(true);
+    const result = validateRegionBbox(benelux.bbox, "benelux");
+    expect(result.ok).toBe(true);
   });
 });
 

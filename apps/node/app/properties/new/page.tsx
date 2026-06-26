@@ -1,10 +1,11 @@
-import { NodeAppShell } from "../../NodeAppShell";
-import CreatePropertyPageClient from "./CreatePropertyForm";
+import { redirect } from "next/navigation";
 
-export default function NewPropertyPage() {
-  return (
-    <NodeAppShell activeNav="map" maxWidth={560}>
-      <CreatePropertyPageClient />
-    </NodeAppShell>
-  );
+export default function NewPropertyRedirect({
+  searchParams,
+}: {
+  searchParams: { name?: string };
+}) {
+  const name = searchParams.name?.trim();
+  const qs = name ? `?tab=properties&name=${encodeURIComponent(name)}` : "?tab=properties";
+  redirect(`/stats${qs}`);
 }

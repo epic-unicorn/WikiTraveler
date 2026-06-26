@@ -30,23 +30,24 @@ export async function GET(req: NextRequest) {
     migration = result[0]?.migration_name ?? "unknown";
   } catch { /* table may not exist in some setups */ }
 
-  const [properties, facts, audits, peers, osmSyncState, nodeSettings, region] = await Promise.all([
+  const [properties, facts, audits, peers, osmSyncState, nodeSettings, metadataOverrides, region] = await Promise.all([
     prisma.property.findMany(),
     prisma.accessibilityFact.findMany(),
     prisma.auditSubmission.findMany(),
     prisma.nodePeer.findMany(),
     prisma.osmSyncState.findMany(),
     prisma.nodeSettings.findUnique({ where: { id: "default" } }),
+    prisma.propertyMetadataOverride.findMany(),
     getNodeRegionLabel(),
   ]);
 
   const backup = {
-    version: 1,
+    version: 2,
     createdAt: new Date().toISOString(),
     migration,
     nodeId: NODE_ID,
     region,
-    data: { properties, facts, audits, peers, osmSyncState, nodeSettings },
+    data: { properties, facts, audits, peers, osmSyncState, nodeSettings, metadataOverrides },
   };
 
   return new NextResponse(JSON.stringify(backup, null, 2), {

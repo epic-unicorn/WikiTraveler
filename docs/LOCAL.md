@@ -100,94 +100,69 @@ The map stays empty until this step completes.
 
 ---
 
-## OSM ingest (local)
+## OSM ingest (offline CLI)
 
-Local dev runs ingest in **continuous mode**: one background process processes all tiles. Keep `pnpm dev` running until the job shows **COMPLETED**.
+OSM ingestion runs **offline only** — not in Admin and not on Vercel. Use the `node:*` CLI against your local `DATABASE_URL`, then export or share the database with production.
 
 | Method | When to use |
 |--------|-------------|
-| **Tiled Overpass** (Admin UI) | Default — cities, countries, Benelux-scale regions (≤ ~150 tiles) |
-| **Geofabrik PBF** (CLI) | Large countries (France, Germany, …) |
-| **GeoJSON upload** (Admin UI) | You prepared an extract offline |
-| **Fixture seed** (`pnpm db:seed`) | Offline dev — re-ingests committed fixture for the admin-configured bbox |
+| **Tiled Overpass** (`pnpm node:ingest overpass`) | Cities and medium regions (any size; Benelux ~128 tiles) |
+| **Geofabrik PBF** (`pnpm node:ingest pbf`) | Large countries (Netherlands, France, Germany, …) |
+| **GeoJSON file** (`pnpm node:ingest geojson`) | You prepared an extract offline with osmium |
+| **Bundled sample** (`pnpm db:seed` or Admin → Load sample data) | Zero-setup Eindhoven demo data |
 
-### Tiled Overpass (default)
-
-- Benelux (~128 tiles): ~1.5–2 hours with `pnpm dev` running
-- Tile cap: 150 tiles per job (default)
-- CLI equivalent: `pnpm osm:ingest` (uses bbox from Admin)
-
-### Geofabrik PBF (CLI)
-
-Requires `osmium-tool`. Region bbox in Admin **must match** the Geofabrik preset (e.g. France → `41.33,-5.14,51.09,9.56`). Configure via Admin → **France** preset → **Apply**, then run:
+### 1. Set region
 
 ```bash
-pnpm osm:import-pbf --region france
-pnpm osm:import-pbf --region germany
+pnpm node:region --preset eindhoven
+pnpm node:region --preset netherlands
+pnpm node:region --bbox "50.75,3.36,53.55,7.23" --label "Netherlands"
 ```
 
-Downloads from [Geofabrik](https://download.geofabrik.de/), runs `osmium-tool`, and ingests into the DB.
+This writes bbox/label to `NodeSettings` (same as Admin → **Save region**).
 
-**Windows:** `osmium-tool` is not available natively. Use Docker instead (reads secrets from repo-root `.env`):
+### 2. Ingest OSM data
+
+**Tiled Overpass** (default for cities; also works for Benelux-scale):
 
 ```bash
-cp .env.example .env   # if you have not already
-docker compose -f docker/docker-compose.dev.yml up -d
-pnpm osm:import-pbf:docker -- --region france
+pnpm node:ingest overpass --preset eindhoven
+pnpm node:ingest overpass --preset benelux
 ```
 
-On Linux/macOS install via `apt install osmium-tool` or `brew install osmium-tool`, or use the Docker command above.
-
-### GeoJSON upload (manual osmium)
-
-Use when Overpass is too slow or you want to prepare data offline.
-
-Geofabrik has **no single Benelux extract** — use **tiled Overpass** in Admin for the Benelux preset, or download individual countries (Netherlands, Belgium, Luxembourg). The example below uses Netherlands (~1.3 GB).
-
-**1. Download a `.pbf` extract** (pick a region that covers your Admin bbox):
+**Geofabrik PBF** (large countries):
 
 ```bash
-curl -L -o netherlands-latest.osm.pbf \
-  https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
+pnpm node:ingest pbf --region netherlands
+pnpm node:ingest pbf --region france
 ```
 
-**2. Filter to accommodations:**
+Requires `osmium-tool`. On Windows use Docker: `pnpm osm:import-pbf:docker -- --region netherlands`.
+
+**GeoJSON / geojsonseq** (offline osmium export):
 
 ```bash
-osmium tags-filter netherlands-latest.osm.pbf \
-  nwr/tourism=hotel nwr/tourism=hostel nwr/tourism=motel \
-  nwr/tourism=apartment nwr/tourism=guest_house nwr/tourism=chalet \
-  nwr/tourism=resort nwr/tourism=alpine_hut nwr/tourism=vacation_rental \
-  nwr/tourism=bed_and_breakfast nwr/amenity=hotel \
-  -o netherlands-accommodation.osm.pbf -f pbf --overwrite
+pnpm node:ingest geojson --file ./export.geojsonseq --preset netherlands
 ```
 
-**3. Export to geojsonseq (preferred for large files):**
+### 3. Move data to Vercel
+
+- **Shared DB:** point local `DATABASE_URL` at hosted Postgres, ingest, deploy Vercel with the same URL.
+- **Gzip JSON:** `pnpm node:export --out export.json.gz` → Admin → **Import production data**.
+- **Sample:** Admin → **Load sample data** (or `pnpm db:seed` with bundled `eindhoven.json.gz`).
+
+Build the sample bundle once in dev: `pnpm node:build-sample`.
+
+### Offline fixture (legacy)
 
 ```bash
-osmium export netherlands-accommodation.osm.pbf \
-  -o netherlands-accommodation.geojsonseq -f geojsonseq --overwrite
-```
-
-**4. Upload in Admin** → **Import OSM GeoJSON** (clips to your configured bbox).
-
-Shortcut if you already have a geojsonseq file:
-
-```bash
-pnpm osm:import-pbf --geojson ./path/to/export.geojsonseq
-```
-
-### Offline fixture
-
-After configuring a bbox in Admin:
-
-```bash
+pnpm node:region --preset eindhoven
 pnpm db:seed
 ```
 
-Re-ingests the committed fixture in `scripts/fixtures/` without hitting Overpass.
+Uses `scripts/fixtures/osm-51.39_5.42_51.49_5.52.json` when no bundled sample exists.
 
-Optional: point cron/CLI at a custom fixture file:
+Optional custom fixture:
 
 ```env
 OSM_FIXTURE_PATH=/abs/path/to/scripts/fixtures/netherlands-osm.json
@@ -213,8 +188,8 @@ Runs on http://localhost:3001. Set node URL on the login screen (defaults to `NE
 **Map coordinates:** new properties are forward-geocoded on create. For existing rows without lat/lon:
 
 ```bash
-pnpm exec tsx scripts/geocode-missing-coords.ts
-pnpm exec tsx scripts/geocode-missing-coords.ts --name "Hotel Name"
+pnpm geocode:missing
+pnpm geocode:missing --name "Hotel Name"
 ```
 
 Map pin data is cached client-side for five minutes; creating a property or submitting an audit invalidates the cache automatically.
@@ -243,7 +218,7 @@ Build order: `core` → `ai-agent` → `sdk` → `node` / `access`.
 |---------|-------------|
 | `pnpm db:setup` | Reset DB, migrate, seed field definitions |
 | `pnpm db:migrate` | Apply pending migrations (keep data) |
-| `pnpm db:seed` | Re-ingest OSM fixture for admin-configured bbox |
+| `pnpm db:seed` | Load bundled sample or legacy OSM fixture |
 | `pnpm exec prisma studio` | Visual DB browser |
 
 ---
@@ -351,13 +326,22 @@ Baked in at build time for production WikiTraveler Access deployments — see [V
 
 ---
 
-## Admin data tools
+## Admin (`/stats`)
 
-Available on `/stats` after sign-in:
+Tabbed management after sign-in:
+
+| Tab | Purpose |
+|-----|---------|
+| **Region & data** | Set bbox, load sample, import/export gzip JSON |
+| **Properties** | Create, edit, delete properties (with map picker) |
+| **Users** | Account management |
+| **Peers** | Federated node connections |
+| **Backup & restore** | Full-node snapshot |
+
+Legacy tools:
 
 | Tool | Use when |
 |------|----------|
-| **Full backup / restore** | Disaster recovery, clone node |
 | **Export / import audited** | Region move — preserve WikiTraveler Access / Lens audits (merge by OSM ID) |
 | **Export / import users** | Move accounts (no passwords) |
 
@@ -370,10 +354,9 @@ Full backup **replaces the entire database** on restore — do not use it for a 
 | Problem | Fix |
 |---------|-----|
 | `Cannot find module 'next/dist/pages/_app'` | Corrupted `node_modules` — delete `node_modules` and run `pnpm install` |
-| Map is empty after start | Complete `/setup`, then run OSM ingest in Admin |
-| Ingest stopped mid-way | Restart `pnpm dev` — tile progress resumes from DB |
+| Map is empty after start | Complete `/setup`, then **Load sample data** in Admin or run `pnpm node:region --preset eindhoven && pnpm db:seed` |
 | WikiTraveler Access CORS errors | Set `CORS_ORIGINS=*` in `.env` (fine for local dev) |
-| Properties missing from map | `pnpm exec tsx scripts/geocode-missing-coords.ts` |
+| Properties missing from map | `pnpm geocode:missing` |
 | Audit wizard shows no fields | `pnpm exec tsx scripts/seed-fields.ts` |
 | Port 5432 in use | Set `POSTGRES_HOST_PORT=5433` in `.env`, update `DATABASE_URL`, recreate the postgres container |
 | `pnpm db:setup` can't connect after `docker-compose.yml up` | Postgres must show `127.0.0.1:5432->5432/tcp` in `docker ps` — run `docker compose -f docker/docker-compose.yml up -d postgres` to apply port mapping |

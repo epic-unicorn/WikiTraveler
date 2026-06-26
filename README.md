@@ -23,7 +23,7 @@ Corporate travel platforms often show accessibility information that is vague, o
 
 ## How it works
 
-1. **Baseline** — Configure your region in Admin, then ingest open directory data (OpenStreetMap) as a starting `OFFICIAL` layer.
+1. **Baseline** — Configure your region, then load open directory data (OpenStreetMap) offline via CLI or import gzip JSON / sample data as a starting `OFFICIAL` layer.
 2. **Audit** — WikiTraveler Access and Lens let travelers and auditors record what is actually on the ground, upgrading facts to `VERIFIED`.
 3. **Confirm** — When independent auditors agree, facts rise to `CONFIRMED` — the highest tier wins.
 4. **Deploy** — Run a node on Vercel or Docker; each operator keeps sovereignty over their region.
@@ -44,6 +44,17 @@ Corporate travel platforms often show accessibility information that is vague, o
 
 
 Higher tiers always win. A `CONFIRMED` value overrides `OFFICIAL` and `VERIFIED` for the same field.
+
+### Property metadata overrides
+
+Property **name**, **location**, and **coordinates** have two layers:
+
+- **Base metadata** — stored on the `Property` row (OSM ingest, gzip import, or local create).
+- **Manual overrides** — field-level `PropertyMetadataOverride` rows with provenance (`sourceNodeId`, timestamp).
+
+APIs return **effective** values in `name` / `location` / `lat` / `lon`. Admin edits write overrides (not base rows for existing properties), so OSM re-ingest refreshes base data without clobbering manual fixes. Overrides sync via gossip, signed inbox push, and gzip export **schema v2** (`metadataOverrides` array; v1 imports still work).
+
+Conflict resolution: newest timestamp wins per `canonicalId + fieldName + sourceNodeId`; effective field winner is the newest active override across sources. Coordinates apply as a pair from the same source. Reset creates tombstones (`clearedAt`) so base values show again.
 
 ---
 
@@ -179,7 +190,7 @@ Pick the guide that matches your goal. Each includes a step-by-step plan and OSM
 | **Vercel production** | Serverless node + WikiTraveler Access | [docs/VERCEL.md](docs/VERCEL.md) |
 
 
-**OSM rule of thumb:** run the first large ingest (country or Benelux-scale) on **local dev or Docker**, then deploy to Vercel for maintenance cron refreshes.
+**OSM rule of thumb:** run the first large ingest (country or Benelux-scale) on **local dev or Docker** (`pnpm node:region` + `pnpm node:ingest`), then deploy to Vercel and import or share `DATABASE_URL`.
 
 ---
 
@@ -198,7 +209,7 @@ wikitraveler/
 │   └── ai-agent/        # GPT-4o vision + gap-fill engine
 ├── prisma/schema.prisma # Database schema (PostgreSQL)
 ├── docker/              # Dockerfiles + compose files
-├── scripts/             # seed.ts, osm-ingest.ts, lighthouse helpers
+├── scripts/             # node:* CLI, seed.ts, lighthouse helpers
 └── .env.example         # Environment variable reference
 ```
 
@@ -224,7 +235,23 @@ wikitraveler/
 | ----------------- | --------------------------------------------------------------------------------------- |
 | `pnpm db:setup`   | **Local fresh start:** reset DB, run migrations, seed field definitions                 |
 | `pnpm db:migrate` | Apply pending schema migrations (keep existing data)                                    |
-| `pnpm db:seed`    | Re-ingest OSM fixture for the admin-configured bbox (offline; requires region in Admin) |
+| `pnpm db:seed`    | Load bundled Eindhoven sample or legacy OSM fixture (offline)                          |
+
+
+### Node CLI (offline ingest & migration)
+
+
+| Script                 | Description                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `pnpm node:region`       | Set region bbox/label offline (`--preset eindhoven` or `--bbox "..."`)                         |
+| `pnpm node:ingest`     | OSM ingest: `overpass`, `pbf`, or `geojson` subcommands — any region size                      |
+| `pnpm node:export`     | Gzip JSON export (schema v2: properties, facts, metadata overrides)                            |
+| `pnpm node:import`     | Gzip JSON import into `DATABASE_URL` (merges overrides; v1 compatible)                          |
+| `pnpm node:build-sample` | Build bundled `apps/node/public/samples/eindhoven.json.gz` for Admin one-click import      |
+| `pnpm geocode:missing` | Backfill lat/lon for properties missing coordinates (Nominatim; optional `--name`)             |
+| `pnpm osm:ingest`      | Alias for `pnpm node:ingest overpass`                                                          |
+| `pnpm osm:import-pbf`  | Alias for `pnpm node:ingest pbf` — see [docs/LOCAL.md](docs/LOCAL.md) or [docs/DOCKER.md](docs/DOCKER.md) |
+| `pnpm osm:import-pbf:docker` | Same as above inside Docker dev container (Windows / no local osmium)                  |
 
 
 ### Quality
@@ -240,15 +267,11 @@ wikitraveler/
 ### Maintainers
 
 
-| Script                       | When you need it                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm osm:ingest`            | Fetch Overpass data for the **admin-configured bbox** (reads DB; refresh fixtures)                                                               |
-| `pnpm osm:import-pbf`        | Geofabrik PBF import (`--region france` or `--geojson file.geojsonseq`) — see [docs/LOCAL.md](docs/LOCAL.md) or [docs/DOCKER.md](docs/DOCKER.md) |
-| `pnpm osm:import-pbf:docker` | Same as above, inside Docker dev container (Windows / no local osmium)                                                                           |
-| `pnpm exec tsx scripts/geocode-missing-coords.ts` | Backfill lat/lon for properties missing coordinates (Nominatim; optional `--name`)                                                          |
-| `pnpm db:migrate-photos`     | One-time upload of base64 photos to R2/Supabase — see [docs/VERCEL.md](docs/VERCEL.md) or [docs/DOCKER.md](docs/DOCKER.md)                       |
-| `pnpm dev:gossip-lab`        | Docker: two nodes for peer gossip testing — see [docs/GOSSIP-DEV.md](docs/GOSSIP-DEV.md)                                                         |
-| `pnpm gossip:check`          | Smoke-check gossip lab peer registration                                                                                                         |
+| Script                  | When you need it                                                                 |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `pnpm db:migrate-photos` | One-time upload of base64 photos to R2/Supabase — see [docs/VERCEL.md](docs/VERCEL.md) |
+| `pnpm dev:gossip-lab`   | Docker: two nodes for peer gossip testing — see [docs/GOSSIP-DEV.md](docs/GOSSIP-DEV.md) |
+| `pnpm gossip:check`     | Smoke-check gossip lab peer registration                                         |
 
 
 ---

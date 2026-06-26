@@ -8,6 +8,12 @@ import {
   fetchPeerPublicKey,
 } from "@/lib/httpSignature";
 import { remapFactsPropertyIds, upsertGossipProperties } from "@/lib/gossipProperties";
+import { getNodeBbox } from "@/lib/nodeSettings";
+import { makeBboxFilterFromString } from "@/lib/regionPurge";
+import {
+  applyIncomingMetadataOverrides,
+  filterMetadataOverridesByBbox,
+} from "@/lib/propertyMetadata";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 /**
@@ -105,9 +111,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Signature verified — process the payload (already parsed above)
-  if (!payload.fromNodeId || !Array.isArray(payload.facts) || payload.facts.length === 0) {
+  const incomingOverrides = Array.isArray(payload.metadataOverrides) ? payload.metadataOverrides : [];
+  if (
+    !payload.fromNodeId ||
+    ((!Array.isArray(payload.facts) || payload.facts.length === 0) && incomingOverrides.length === 0)
+  ) {
     return NextResponse.json(
-      { message: "fromNodeId and facts[] are required" },
+      { message: "fromNodeId and facts[] or metadataOverrides[] are required" },
       { status: 400 }
     );
   }
@@ -121,13 +131,47 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Step 1: Upsert properties and remap fact propertyIds to local UUIDs
+  // Step 1: Upsert properties (bbox-filtered) and remap fact propertyIds to local UUIDs
   let propertiesUpserted = 0;
-  let facts = payload.facts;
+  let facts = payload.facts ?? [];
+  let metadataOverridesApplied = 0;
+
+  const nodeBbox = await getNodeBbox();
+  const bboxFilter = nodeBbox ? makeBboxFilterFromString(nodeBbox) : null;
+
+  if (incomingOverrides.length > 0 && bboxFilter) {
+    const allowedOverrides = await filterMetadataOverridesByBbox(incomingOverrides, bboxFilter);
+    metadataOverridesApplied = await applyIncomingMetadataOverrides(allowedOverrides);
+  } else if (incomingOverrides.length > 0) {
+    metadataOverridesApplied = await applyIncomingMetadataOverrides(incomingOverrides);
+  }
+
+  if (facts.length === 0) {
+    return NextResponse.json({ propertiesUpserted, ingested: 0, metadataOverridesApplied });
+  }
+
   if (Array.isArray(payload.properties) && payload.properties.length > 0) {
-    const idMap = await upsertGossipProperties(payload.properties);
-    facts = remapFactsPropertyIds(payload.facts, idMap);
-    propertiesUpserted = payload.properties.length;
+    const allowedProperties = bboxFilter
+      ? payload.properties.filter((p) => bboxFilter(p.lat ?? null, p.lon ?? null))
+      : payload.properties;
+
+    if (allowedProperties.length < payload.properties.length) {
+      console.info(
+        `[inbox] Skipped ${payload.properties.length - allowedProperties.length} out-of-bbox properties from ${payload.fromNodeId}`
+      );
+    }
+
+    if (allowedProperties.length > 0) {
+      const idMap = await upsertGossipProperties(allowedProperties);
+      const allowedIds = new Set(allowedProperties.map((p) => p.id));
+      facts = remapFactsPropertyIds(
+        payload.facts.filter((f) => allowedIds.has(f.propertyId)),
+        idMap
+      );
+      propertiesUpserted = allowedProperties.length;
+    } else {
+      facts = [];
+    }
   }
 
   // Step 2: Merge incoming facts with existing using core merge logic
@@ -183,5 +227,5 @@ export async function POST(req: NextRequest) {
     )
   );
 
-  return NextResponse.json({ propertiesUpserted, ingested: merged.length });
+  return NextResponse.json({ propertiesUpserted, ingested: merged.length, metadataOverridesApplied });
 }

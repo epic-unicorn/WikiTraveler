@@ -10,6 +10,17 @@ interface Props {
   onPick: (pick: { lat: number; lon: number }) => void;
 }
 
+/**
+ * CSS pin marker — avoids Leaflet's default PNG icon, whose asset URLs break
+ * under Next/webpack bundling (matches the image-free markers used in MapView).
+ */
+const PIN_ICON = L.divIcon({
+  className: "wt-map-pin",
+  html: '<span class="wt-map-pin__dot"></span>',
+  iconSize: [22, 22],
+  iconAnchor: [11, 22],
+});
+
 export function MapPicker({ lat, lon, onPick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -31,7 +42,7 @@ export function MapPicker({ lat, lon, onPick }: Props) {
     }).addTo(map);
 
     if (lat != null && lon != null) {
-      markerRef.current = L.marker([lat, lon]).addTo(map);
+      markerRef.current = L.marker([lat, lon], { icon: PIN_ICON }).addTo(map);
     }
 
     map.on("click", (e) => {
@@ -39,7 +50,7 @@ export function MapPicker({ lat, lon, onPick }: Props) {
       if (markerRef.current) {
         markerRef.current.setLatLng(e.latlng);
       } else {
-        markerRef.current = L.marker(e.latlng).addTo(map);
+        markerRef.current = L.marker(e.latlng, { icon: PIN_ICON }).addTo(map);
       }
       onPick({ lat: clickLat, lon: clickLon });
     });
@@ -59,7 +70,7 @@ export function MapPicker({ lat, lon, onPick }: Props) {
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lon]);
     } else {
-      markerRef.current = L.marker([lat, lon]).addTo(mapRef.current);
+      markerRef.current = L.marker([lat, lon], { icon: PIN_ICON }).addTo(mapRef.current);
     }
   }, [lat, lon]);
 

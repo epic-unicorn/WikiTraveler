@@ -477,11 +477,11 @@ export async function ingestOverpassResult(
     let propertyId: string;
 
     if (existingId) {
-      // Update coordinates if they are now known
+      // Refresh base metadata from OSM; effective values still respect manual overrides.
       if (lat !== undefined && lon !== undefined) {
         await prisma.property.update({
           where: { id: existingId },
-          data: { lat, lon, osmId: osmId },
+          data: { lat, lon, osmId, name, location },
         });
       }
       propertyId = existingId;

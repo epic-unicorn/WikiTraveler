@@ -16,13 +16,15 @@ import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { isSelfPeer } from "@/lib/linkPeer";
 import { signBody, buildSignatureHeader } from "@/lib/httpSignature";
-import type { AccessibilityFact } from "@wikitraveler/core";
+import type { AccessibilityFact, PropertyMetadataOverride } from "@wikitraveler/core";
 
 type PushProperty = {
   id: string;
   canonicalId: string;
   name: string;
   location: string;
+  lat?: number | null;
+  lon?: number | null;
   osmId?: string | null;
   wheelmapId?: string | null;
 };
@@ -87,6 +89,57 @@ export async function pushFactsToPeers(
         })
         .catch((err) => {
           console.warn(`[push] Failed to push to ${peer.url}:`, err);
+        })
+    )
+  );
+}
+
+/**
+ * Push metadata overrides to all active peers after an admin property edit.
+ */
+export async function pushMetadataOverridesToPeers(
+  metadataOverrides: PropertyMetadataOverride[]
+): Promise<void> {
+  if (!process.env.NODE_PRIVATE_KEY || metadataOverrides.length === 0) return;
+
+  const peers = (await prisma.nodePeer.findMany({ where: { isActive: true } })).filter(
+    (p) => !isSelfPeer(p.url, p.nodeId)
+  );
+  if (peers.length === 0) return;
+
+  const payload = JSON.stringify({
+    fromNodeId: NODE_ID,
+    fromNodeUrl: NODE_URL,
+    facts: [],
+    metadataOverrides,
+  });
+
+  let sigHeader: string;
+  try {
+    sigHeader = buildSignatureHeader(signBody(payload));
+  } catch (err) {
+    console.warn("[push] Could not sign metadata override payload:", err);
+    return;
+  }
+
+  await Promise.allSettled(
+    peers.map((peer) =>
+      fetch(`${peer.url}/api/inbox`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WikiTraveler-Signature": sigHeader,
+        },
+        body: payload,
+        signal: AbortSignal.timeout(10_000),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            console.warn(`[push] Peer ${peer.url} metadata push returned ${res.status}`);
+          }
+        })
+        .catch((err) => {
+          console.warn(`[push] Failed to push metadata to ${peer.url}:`, err);
         })
     )
   );

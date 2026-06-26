@@ -37,6 +37,8 @@ services:
       # Windows host node_modules (or absence thereof) doesn't interfere.
       - node_modules:/app/node_modules
       - node_modules_core:/app/packages/core/node_modules
+      - node_modules_ui:/app/packages/ui/node_modules
+      - node_modules_i18n:/app/packages/i18n/node_modules
       - node_modules_ai_agent:/app/packages/ai-agent/node_modules
       - node_modules_sdk:/app/packages/sdk/node_modules
       - node_modules_node_app:/app/apps/node/node_modules
@@ -65,6 +67,8 @@ services:
       - ..:/app
       - node_modules:/app/node_modules
       - node_modules_core:/app/packages/core/node_modules
+      - node_modules_ui:/app/packages/ui/node_modules
+      - node_modules_i18n:/app/packages/i18n/node_modules
       - node_modules_ai_agent:/app/packages/ai-agent/node_modules
       - node_modules_sdk:/app/packages/sdk/node_modules
       - node_modules_node_app:/app/apps/node/node_modules
@@ -81,6 +85,8 @@ volumes:
   postgres_data:
   node_modules:
   node_modules_core:
+  node_modules_ui:
+  node_modules_i18n:
   node_modules_ai_agent:
   node_modules_sdk:
   node_modules_node_app:

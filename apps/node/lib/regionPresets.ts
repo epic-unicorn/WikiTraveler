@@ -11,6 +11,8 @@ export interface RegionPreset {
   country?: string;
   /** When set, ingest uses Geofabrik PBF import instead of tiled Overpass. */
   geofabrikId?: string;
+  /** Large multi-country presets — CLI/offline only, skip Overpass tile cap. */
+  offlineOnly?: boolean;
 }
 
 export const REGION_PRESET_TIER_LABELS: Record<RegionPresetTier, string> = {
@@ -28,8 +30,15 @@ export const REGION_PRESETS: RegionPreset[] = [
   { id: "paris", label: "Paris", bbox: "48.80,2.22,48.92,2.47", tier: "city", country: "FR" },
   { id: "berlin", label: "Berlin", bbox: "52.33,13.09,52.68,13.76", tier: "city", country: "DE" },
 
-  // — Countries (tiled Overpass) —
-  { id: "netherlands", label: "Netherlands", bbox: "50.75,3.36,53.55,7.23", tier: "country", country: "NL" },
+  // — Countries (offline Geofabrik / CLI) —
+  {
+    id: "netherlands",
+    label: "Netherlands",
+    bbox: "50.75,3.36,53.55,7.23",
+    tier: "geofabrik",
+    country: "NL",
+    geofabrikId: "netherlands",
+  },
   { id: "belgium", label: "Belgium", bbox: "49.50,2.54,51.51,6.41", tier: "country", country: "BE" },
   { id: "luxembourg", label: "Luxembourg", bbox: "49.44,5.73,50.18,6.53", tier: "country", country: "LU" },
   { id: "ireland", label: "Ireland", bbox: "51.4,-10.5,55.4,-5.9", tier: "country", country: "IE" },
@@ -44,9 +53,16 @@ export const REGION_PRESETS: RegionPreset[] = [
   { id: "norway-south", label: "Norway (south)", bbox: "57.9,4.5,62.0,12.0", tier: "country", country: "NO" },
   { id: "sweden-south", label: "Sweden (south)", bbox: "55.3,11.0,59.5,19.0", tier: "country", country: "SE" },
 
-  // — Multi-country (tiled Overpass) —
-  { id: "benelux", label: "Benelux", bbox: "49.40,2.50,53.55,7.23", tier: "region" },
+  // — Multi-country (offline CLI) —
+  { id: "benelux", label: "Benelux", bbox: "49.40,2.50,53.55,7.23", tier: "region", offlineOnly: true },
   { id: "alpine", label: "Alpine region", bbox: "45.8,5.9,48.0,16.0", tier: "region" },
+  {
+    id: "west-europe",
+    label: "West Europe",
+    bbox: "36.0,-10.5,60.9,15.0",
+    tier: "region",
+    offlineOnly: true,
+  },
 
   // — Large countries (Geofabrik PBF — requires osmium-tool on server) —
   {
@@ -153,16 +169,16 @@ export type RegionValidationResult = ValidateBboxResult & {
 /** Validate bbox for admin apply — Geofabrik presets skip the Overpass tile cap. */
 export function validateRegionBbox(raw: string, presetId?: string | null): RegionValidationResult {
   const preset = presetId ? getPresetById(presetId) : undefined;
-  if (preset?.geofabrikId) {
+  if (preset?.geofabrikId || preset?.offlineOnly) {
     const bbox = parseBbox(raw);
     if (!bbox) return { ok: false, message: "Invalid bbox format. Use minLat,minLon,maxLat,maxLon." };
     return {
       ok: true,
       bbox,
       tileCount: 0,
-      warnLarge: false,
+      warnLarge: true,
       areaKm2: bboxAreaKm2(bbox),
-      ingestMode: "geofabrik",
+      ingestMode: preset.geofabrikId ? "geofabrik" : "overpass",
       geofabrikId: preset.geofabrikId,
     };
   }
@@ -174,7 +190,7 @@ export function validateRegionBbox(raw: string, presetId?: string | null): Regio
 /** Presets available in Admin (Overpass within tile cap, or Geofabrik). */
 export function listRegionPresets(): RegionPreset[] {
   return REGION_PRESETS.filter((p) => {
-    if (p.geofabrikId) return true;
+    if (p.geofabrikId || p.offlineOnly) return true;
     return validateBbox(p.bbox).ok;
   });
 }

@@ -50,7 +50,7 @@ RUN PRISMA_CLIENT="$(find /app/node_modules/.pnpm -path '*/.prisma/client' -type
   && cp -r "$PRISMA_PKG"/. /app/prisma-engine/npm-client/
 
 # Bundle OSM PBF import CLI for the production image (no pnpm in runner)
-RUN npx --yes esbuild@0.24.2 scripts/osm-import-pbf.ts \
+RUN npx --yes esbuild@0.24.2 scripts/node-ingest-pbf.ts \
   --bundle --platform=node --target=node20 --format=cjs \
   --external:@prisma/client \
   --alias:@/lib=./apps/node/lib \

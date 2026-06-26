@@ -9,6 +9,7 @@ import { getPhotoStorage, photoToDisplayUrl } from "@/lib/photoStorage";
 import { validateAuditFacts, getFieldRegistryMap } from "@/lib/fieldRegistry";
 import { enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
 import { buildPropertyDetail, buildConfidenceSummary } from "@/lib/propertyEnrichment";
+import { loadOverridesForCanonicalIds, resolveOne } from "@/lib/propertyMetadata";
 import { invalidateFactTranslations } from "@/lib/translation";
 import { resolveLocale, isSupportedLocale } from "@wikitraveler/i18n";
 import { MAX_AUDIT_PHOTOS, AI_VISION_PHOTO_BUDGET } from "@wikitraveler/i18n";
@@ -167,8 +168,18 @@ export async function GET(
     };
   }
 
+  const overrideMap = await loadOverridesForCanonicalIds([property.canonicalId]);
+  const resolved = resolveOne(property, overrideMap.get(property.canonicalId) ?? []);
+  const effectiveProperty = {
+    ...property,
+    name: resolved.effective.name,
+    location: resolved.effective.location,
+    lat: resolved.effective.lat,
+    lon: resolved.effective.lon,
+  };
+
   const propertyDetail = buildPropertyDetail(
-    property,
+    effectiveProperty,
     collapsedFacts,
     auditPhotos?.photos.map((p) => ({ url: p.url, caption: p.caption })) ?? []
   );
@@ -457,6 +468,8 @@ export async function POST(
           canonicalId: property.canonicalId,
           name: property.name,
           location: property.location,
+          lat: property.lat,
+          lon: property.lon,
           osmId: property.osmId,
           wheelmapId: property.wheelmapId,
         },

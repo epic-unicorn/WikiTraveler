@@ -128,78 +128,52 @@ Promote at least one auditor via Admin → **Users**.
 
 ---
 
-## OSM ingest (Docker)
+## OSM ingest (Docker / offline CLI)
 
-Docker runs ingest in **continuous mode** (all tiles in one background process). This is the best option for first-time country-scale ingests.
+Docker runs OSM ingest as a **one-shot CLI process** (not in Admin). Best for first-time country-scale ingests.
 
 | Method | Supported | Notes |
 |--------|-----------|-------|
-| **Tiled Overpass** (Admin) | Yes | ~1.5–2 hours for Benelux (~128 tiles); keep container running |
-| **Geofabrik PBF** (CLI) | Yes | Netherlands, France, Germany, and other large countries |
-| **GeoJSON upload** (Admin) | Yes | Upload a pre-processed file |
-| **Fixture seed** | Yes | `docker compose exec node sh -c "pnpm db:seed"` after bbox configured |
+| **Tiled Overpass** (`node:ingest overpass`) | Yes | Any region size; Benelux ~128 tiles |
+| **Geofabrik PBF** (`node:ingest pbf` / `osm-import-pbf`) | Yes | Netherlands, France, Germany, and other large countries |
+| **GeoJSON file** (`node:ingest geojson`) | Yes | Pre-processed geojsonseq from osmium |
+| **Bundled sample** (`pnpm db:seed`) | Yes | Eindhoven fixture / gzip sample |
 
-### Tiled Overpass (default)
+### Set region
 
-Same Admin flow as local dev. Ingest continues even if you close the browser — only stopping/restarting the container interrupts it.
+```bash
+docker compose -f docker/docker-compose.yml exec node pnpm node:region --preset netherlands
+```
+
+Or from the host with `DATABASE_URL` pointing at the container Postgres.
+
+### Tiled Overpass
+
+```bash
+docker compose -f docker/docker-compose.dev.yml exec node pnpm node:ingest overpass --preset benelux
+```
+
+Runs to completion in one process — no browser or Admin job polling.
 
 ### Geofabrik PBF (CLI)
-
-Region bbox in Admin **must match** the Geofabrik region. For Netherlands:
-
-1. Admin → **Netherlands** preset → **Preview changes**
-2. Click **Save region only** (not “Apply & ingest”)
-3. Run:
 
 ```bash
 docker compose -f docker/docker-compose.yml exec node osm-import-pbf --region netherlands
 ```
 
-The production image has no `pnpm` — use the `osm-import-pbf` command above (bundled at image build time). For the dev stack, `pnpm osm:import-pbf:docker` still works.
+The production image bundles `osm-import-pbf` (esbuild of `scripts/node-ingest-pbf.ts`). Dev stack: `pnpm osm:import-pbf:docker -- --region netherlands`.
 
-### GeoJSON upload (manual osmium)
+### GeoJSON (manual osmium)
 
-Prepare a file on any machine with `osmium-tool`, then upload via Admin → **Import OSM GeoJSON**.
-
-Geofabrik has **no single Benelux extract** — use tiled Overpass in Admin for Benelux, or download individual countries. Example below uses Netherlands.
-
-**1. Download extract:**
+Prepare a file on any machine with `osmium-tool`, then:
 
 ```bash
-curl -L -o netherlands-latest.osm.pbf \
-  https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
-```
-
-**2. Filter to accommodations:**
-
-```bash
-osmium tags-filter netherlands-latest.osm.pbf \
-  nwr/tourism=hotel nwr/tourism=hostel nwr/tourism=motel \
-  nwr/tourism=apartment nwr/tourism=guest_house nwr/tourism=chalet \
-  nwr/tourism=resort nwr/tourism=alpine_hut nwr/tourism=vacation_rental \
-  nwr/tourism=bed_and_breakfast nwr/amenity=hotel \
-  -o netherlands-accommodation.osm.pbf -f pbf --overwrite
-```
-
-**3. Export:**
-
-```bash
-osmium export netherlands-accommodation.osm.pbf \
-  -o netherlands-accommodation.geojsonseq -f geojsonseq --overwrite \
-  -a id,type -u type_id
-```
-
-**4. Upload** in Admin (clips to configured bbox).
-
-Or import inside the container:
-
-```bash
-docker compose exec node sh -c "osm-import-pbf --geojson /path/to/export.geojsonseq"
+docker compose exec node sh -c "osm-import-pbf --geojson /path/to/export.geojsonseq --preset netherlands"
 ```
 
 ### Weekly refresh
 
-Re-ingest manually in Admin, or set up an external cron that calls your node's ingest endpoint. Unlike Vercel, there is no built-in serverless cron — you manage scheduling yourself.
+Re-run `pnpm node:ingest` on local/Docker, then `pnpm node:export` + Admin import — or share `DATABASE_URL`. Vercel does not schedule OSM refresh.
 
 ---
 
@@ -322,7 +296,7 @@ NEXT_PUBLIC_NODE_API_URL=https://wikitraveler.example.com
 | Dev + prod compose both need Postgres | Only one stack can bind a host port at a time. Use the same compose file, or different `POSTGRES_HOST_PORT` values. |
 | Migrations already applied inside Docker but host `db:setup` fails | Expected if Postgres wasn't reachable from the host — fix the port mapping above, then run `pnpm db:setup` or `pnpm db:migrate`. |
 | **P3009** — failed migration (e.g. `20260616120000_...`) when the node container starts | Postgres volume still has **old** migration rows from before migrations were squashed to `20260423123302_init`. Reset: `pnpm docker:reset` (or `docker compose -f docker/docker-compose.yml --profile access down -v`), then `up --build -d`. Seed fields from the host: `pnpm db:setup` or `pnpm db:seed`. |
-| Properties missing from map | Backfill coordinates: `pnpm exec tsx scripts/geocode-missing-coords.ts` (from host with `DATABASE_URL` pointing at Postgres) |
+| Properties missing from map | Backfill coordinates: `pnpm geocode:missing` (from host with `DATABASE_URL` pointing at Postgres) |
 | Audit wizard shows no fields | Run `pnpm exec tsx scripts/seed-fields.ts` — included in `pnpm db:setup` |
 
 ---

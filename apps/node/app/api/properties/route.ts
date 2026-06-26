@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, requireRole } from "@/lib/auth";
+import { forwardGeocode } from "@/lib/nominatim";
+import { resolveEffectiveProperties } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 
@@ -17,6 +19,20 @@ export async function GET(req: NextRequest) {
   const locationFilter = req.nextUrl.searchParams.get("location")?.trim() ?? "";
   const idsParam = req.nextUrl.searchParams.get("ids")?.trim() ?? "";
   const ids = idsParam ? idsParam.split(",").map((id) => id.trim()).filter(Boolean) : [];
+  const adminList = req.nextUrl.searchParams.get("admin") === "1";
+  const pageParam = parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10);
+  const pageSizeParam = parseInt(req.nextUrl.searchParams.get("pageSize") ?? "50", 10);
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const pageSize = adminList
+    ? Math.min(100, Math.max(10, Number.isFinite(pageSizeParam) ? pageSizeParam : 50))
+    : 30;
+  const takeLimit = adminList ? pageSize : 30;
+  const skip = adminList ? (page - 1) * pageSize : 0;
+
+  if (adminList) {
+    const adminError = await requireRole(req, "ADMIN");
+    if (adminError) return adminError;
+  }
 
   const andFilters: Prisma.PropertyWhereInput[] = [];
 
@@ -110,24 +126,70 @@ export async function GET(req: NextRequest) {
   const where: Prisma.PropertyWhereInput =
     andFilters.length > 0 ? { AND: andFilters } : {};
 
+  const baseSelect = {
+    id: true,
+    name: true,
+    location: true,
+    canonicalId: true,
+    lat: true,
+    lon: true,
+  } as const;
+
+  if (adminList) {
+    const [properties, total] = await Promise.all([
+      prisma.property.findMany({
+        where,
+        orderBy: { name: "asc" },
+        skip,
+        take: pageSize,
+        select: { ...baseSelect, dataSource: true, osmId: true },
+      }),
+      prisma.property.count({ where }),
+    ]);
+    const resolved = await resolveEffectiveProperties(properties);
+    return NextResponse.json({
+      properties: resolved.map((p) => ({
+        id: p.id,
+        name: p.effective.name,
+        location: p.effective.location,
+        canonicalId: p.canonicalId,
+        lat: p.effective.lat,
+        lon: p.effective.lon,
+        dataSource: p.dataSource,
+        osmId: p.osmId,
+        baseMetadata: p.base,
+        metadataOverrides: p.overrides,
+      })),
+      total,
+      page,
+      pageSize,
+    });
+  }
+
   const properties = await prisma.property.findMany({
     where,
     orderBy: { name: "asc" },
-    take: 30,
+    take: takeLimit,
     select: {
-      id: true,
-      name: true,
-      location: true,
-      canonicalId: true,
-      lat: true,
-      lon: true,
+      ...baseSelect,
       facts: {
         select: { fieldName: true, value: true, tier: true, sourceType: true },
       },
     },
   });
 
-  return NextResponse.json({ properties });
+  const resolved = await resolveEffectiveProperties(properties);
+  return NextResponse.json({
+    properties: resolved.map((p) => ({
+      id: p.id,
+      name: p.effective.name,
+      location: p.effective.location,
+      canonicalId: p.canonicalId,
+      lat: p.effective.lat,
+      lon: p.effective.lon,
+      facts: "facts" in p ? p.facts : undefined,
+    })),
+  });
 }
 
 // POST /api/properties — create a new property (requires auditor JWT)
@@ -166,6 +228,19 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
       return NextResponse.json({ message: "Invalid lat/lon" }, { status: 422 });
     }
+  } else {
+    const geo = await forwardGeocode(location);
+    if (geo) {
+      lat = geo.lat;
+      lon = geo.lon;
+    }
+  }
+
+  if (lat == null || lon == null) {
+    return NextResponse.json(
+      { message: "lat/lon required for map visibility — pick on map or use a geocodable address" },
+      { status: 422 }
+    );
   }
 
   const canonicalId =
@@ -177,9 +252,10 @@ export async function POST(req: NextRequest) {
       name,
       location,
       canonicalId,
-      ...(lat != null && lon != null ? { lat, lon } : {}),
+      lat,
+      lon,
     },
-    select: { id: true, name: true, location: true, canonicalId: true, lat: true, lon: true },
+    select: { id: true, name: true, location: true, canonicalId: true, lat: true, lon: true, dataSource: true, osmId: true },
   });
 
   return NextResponse.json({ property }, { status: 201 });

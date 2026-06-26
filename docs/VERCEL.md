@@ -14,7 +14,7 @@ Lens and the agency SDK call the node URL directly.
 ## When to use this
 
 - Serverless hosting without managing a VPS
-- Low-ops production with automatic cron jobs (gossip, AI scan, OSM refresh)
+- Low-ops production with automatic cron jobs (gossip, AI scan, Wheelmap sync)
 - WikiTraveler Access as a separate mobile-friendly URL
 
 **Not ideal for:** the **first** large OSM ingest (countries, Benelux). Do that on [local dev](./LOCAL.md) or [Docker](./DOCKER.md) first, then deploy.
@@ -31,7 +31,7 @@ openssl genrsa -out node_private.pem 2048
 openssl rsa -in node_private.pem -pubout -out node_public.pem
 ```
 
-3. **Vercel Pro** — required for OSM tiled ingest (Hobby plan has a 10s function timeout, which is too short for Overpass tile downloads).
+3. **Vercel** — Hobby plan works; OSM ingestion does not run on Vercel.
 
 ---
 
@@ -160,46 +160,26 @@ curl -X POST https://node.example.com/api/setup \
   -d '{"username":"admin","password":"your-secure-password"}'
 ```
 
-### 4. OSM ingest
+### 4. Load data (no server-side OSM ingest on Vercel)
 
-**Recommended workflow:** run the first large ingest on [local dev](./LOCAL.md) or [Docker](./DOCKER.md) against the same `DATABASE_URL`, then deploy to Vercel. The data is already in Postgres when you go live.
+Vercel **serves and imports** property data only — it does not run OSM ingestion. Use one of these paths:
 
-If you must ingest on Vercel:
+**Option A — shared database (recommended for large regions)**
 
-1. Admin (`/stats`) → **Region & OSM ingest** → preset or bbox → **Apply & ingest**.
-2. Vercel uses **chunked mode**: one tile per function invocation, advanced by cron every 5 minutes.
-3. Keep Admin open for faster progress (each status poll processes one tile), or rely on cron alone.
-4. Set `CRON_SECRET` — without it, background ingest stops when nobody has Admin open.
+1. On local/Docker, point `DATABASE_URL` at your hosted Postgres.
+2. Run `pnpm node:region --preset netherlands` and `pnpm node:ingest pbf --region netherlands` (or Overpass for smaller areas).
+3. Deploy to Vercel with the same `DATABASE_URL` — data is already in Postgres.
 
-| Topic | Vercel behavior |
-|-------|-----------------|
-| Benelux (~128 tiles) | ~1–2 hours with Admin open; ~11 hours on cron alone (1 tile / 5 min) |
-| Geofabrik PBF | **Not supported** — use tiled Overpass or GeoJSON upload |
-| Tile cap | 150 tiles per job (default) |
-| Weekly refresh | Cron `/api/cron/osm-ingest` — runs when last sync was ≥ 7 days ago |
+**Option B — gzip JSON export/import**
 
-#### GeoJSON upload (when Overpass on Vercel is too slow)
+1. On local/Docker: `pnpm node:export --out wikitraveler-export.json.gz`
+2. On Vercel: Admin → **Region & data** → **Import production data**
 
-Prepare offline with `osmium-tool`, then upload in Admin.
+**Option C — sample data (zero setup)**
 
-Geofabrik has **no single Benelux extract** — use tiled Overpass in Admin for Benelux, or download individual countries. Example below uses Netherlands.
+Admin → **Region & data** → **Load sample data** (Eindhoven bundle). Useful for demos; run `pnpm node:build-sample` once in dev to generate the file.
 
-```bash
-curl -L -o netherlands-latest.osm.pbf \
-  https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
-
-osmium tags-filter netherlands-latest.osm.pbf \
-  nwr/tourism=hotel nwr/tourism=hostel nwr/tourism=motel \
-  nwr/tourism=apartment nwr/tourism=guest_house nwr/tourism=chalet \
-  nwr/tourism=resort nwr/tourism=alpine_hut nwr/tourism=vacation_rental \
-  nwr/tourism=bed_and_breakfast nwr/amenity=hotel \
-  -o netherlands-accommodation.osm.pbf -f pbf --overwrite
-
-osmium export netherlands-accommodation.osm.pbf \
-  -o netherlands-accommodation.geojsonseq -f geojsonseq --overwrite
-```
-
-Admin → **Import OSM GeoJSON** → select the file.
+Configure region bbox in Admin → **Region & data** (save only). Property CRUD lives under the **Properties** tab.
 
 ### 5. Deploy WikiTraveler Access
 
@@ -249,8 +229,8 @@ Defined in [`vercel.json`](../vercel.json):
 | `/api/cron/gossip` | Every 6 hours | Peer fact sync |
 | `/api/cron/ai-scan` | Daily 02:00 UTC | AI gap-fill |
 | `/api/cron/wheelmap-sync` | Daily 03:00 UTC | Wheelmap wheelchair data |
-| `/api/cron/osm-ingest` | Weekly Mon 04:00 UTC | OSM refresh (skips if synced < 7 days ago) |
-| `/api/cron/osm-ingest-tiles` | Every 5 minutes | Advances multi-tile Overpass ingest |
+
+OSM refresh is **offline only** (`pnpm node:ingest` on local/Docker) — not scheduled on Vercel.
 
 All cron routes verify `Authorization: Bearer <CRON_SECRET>`.
 
@@ -263,10 +243,10 @@ All cron routes verify `Authorization: Bearer <CRON_SECRET>`.
 - [ ] `NODE_URL` matches production domain
 - [ ] RS256 keypair set
 - [ ] `CRON_SECRET` set
-- [ ] First large OSM ingest done on local/Docker **or** GeoJSON uploaded
+- [ ] First data load: shared `DATABASE_URL` ingest, gzip import, or **Load sample data**
 - [ ] `CORS_ORIGINS` locked down (not `*`)
 - [ ] First admin created via `/setup`
-- [ ] Region configured in Admin
+- [ ] Region configured in Admin → Region & data
 - [ ] At least one auditor promoted
 - [ ] WikiTraveler Access deployed with `NEXT_PUBLIC_NODE_API_URL`
 - [ ] `/api/health` returns 200

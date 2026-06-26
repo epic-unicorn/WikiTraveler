@@ -64,6 +64,30 @@ model Property {
   facts      AccessibilityFact[]
   audits     AuditSubmission[]
   signals    CommunitySignal[]
+  metadataOverrides PropertyMetadataOverride[]
+}
+
+// ---------------------------------------------------------------------------
+// Manual metadata overrides — field-level corrections that sync across nodes
+// ---------------------------------------------------------------------------
+model PropertyMetadataOverride {
+  id            String     @id @default(cuid())
+  propertyId    String
+  property      Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  canonicalId   String
+  fieldName     String     // name | location | lat | lon
+  value         String
+  sourceType    SourceType @default(AUDITOR)
+  sourceNodeId  String
+  submittedBy   String?
+  signatureHash String?
+  timestamp     DateTime   @default(now())
+  clearedAt     DateTime?
+
+  @@unique([canonicalId, fieldName, sourceNodeId])
+  @@index([canonicalId])
+  @@index([propertyId])
+  @@index([timestamp])
 }
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ const { prismaMock, requireRole, getNodeRegionLabel, create, deleteMany } = vi.h
       nodePeer: { findMany: vi.fn(), create, deleteMany },
       osmSyncState: { findMany: vi.fn(), create, deleteMany },
       nodeSettings: { findUnique: vi.fn(), upsert: vi.fn() },
+      propertyMetadataOverride: { findMany: vi.fn(), create, deleteMany },
       gossipSnapshot: { deleteMany },
       $queryRaw: vi.fn(),
       $transaction: vi.fn(),
@@ -126,7 +127,7 @@ describe("GET /api/admin/backup", () => {
     expect(res.status).toBe(403);
   });
 
-  it("returns version 1 backup with all data sections", async () => {
+  it("returns version 2 backup with all data sections", async () => {
     const sample = sampleBackupData();
     prismaMock.property.findMany.mockResolvedValue(sample.data.properties);
     prismaMock.accessibilityFact.findMany.mockResolvedValue(sample.data.facts);
@@ -134,16 +135,18 @@ describe("GET /api/admin/backup", () => {
     prismaMock.nodePeer.findMany.mockResolvedValue(sample.data.peers);
     prismaMock.osmSyncState.findMany.mockResolvedValue(sample.data.osmSyncState);
     prismaMock.nodeSettings.findUnique.mockResolvedValue(sample.data.nodeSettings);
+    prismaMock.propertyMetadataOverride.findMany.mockResolvedValue([]);
 
     const res = await GET(new NextRequest("http://localhost/api/admin/backup"));
     expect(res.status).toBe(200);
 
     const body = JSON.parse(await res.text());
-    expect(body.version).toBe(1);
+    expect(body.version).toBe(2);
     expect(body.nodeId).toBe("test-node");
     expect(body.data.properties).toHaveLength(1);
     expect(body.data.facts).toHaveLength(1);
     expect(body.data.peers).toHaveLength(1);
+    expect(body.data.metadataOverrides).toEqual([]);
     expect(body.data.nodeSettings?.bbox).toBe("51.39,5.42,51.49,5.52");
     expect(res.headers.get("Content-Disposition")).toContain("wikitraveler-backup");
   });
@@ -164,7 +167,7 @@ describe("POST /api/admin/restore", () => {
   it("rejects invalid backup format", async () => {
     const req = new NextRequest("http://localhost/api/admin/restore", {
       method: "POST",
-      body: JSON.stringify({ version: 2 }),
+      body: JSON.stringify({ version: 99 }),
     });
     const res = await restorePOST(req);
     expect(res.status).toBe(400);
@@ -184,6 +187,7 @@ describe("POST /api/admin/restore", () => {
     expect(body.ok).toBe(true);
     expect(body.restored).toEqual({
       properties: 1,
+      metadataOverrides: 0,
       facts: 1,
       audits: 0,
       peers: 1,
@@ -227,6 +231,7 @@ describe("POST /api/admin/restore", () => {
     prismaMock.nodePeer.findMany.mockResolvedValue(backup.data.peers);
     prismaMock.osmSyncState.findMany.mockResolvedValue(backup.data.osmSyncState);
     prismaMock.nodeSettings.findUnique.mockResolvedValue(backup.data.nodeSettings);
+    prismaMock.propertyMetadataOverride.findMany.mockResolvedValue([]);
 
     const getRes = await GET(new NextRequest("http://localhost/api/admin/backup"));
     const exported = JSON.parse(await getRes.text());

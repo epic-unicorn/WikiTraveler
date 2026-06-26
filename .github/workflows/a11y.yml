@@ -60,7 +60,7 @@ jobs:
 
       - run: pnpm exec prisma migrate deploy
 
-      - run: pnpm exec tsx scripts/ci-bootstrap-region.ts
+      - run: pnpm node:region -- --preset eindhoven
 
       - run: pnpm db:seed
 

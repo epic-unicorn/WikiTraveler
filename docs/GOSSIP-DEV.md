@@ -25,13 +25,19 @@ docker compose -f docker/docker-compose.gossip.yml up --build
 **First run:**
 
 1. Complete `/setup` on both nodes (http://localhost:3000 and http://localhost:3010).
-2. On each node, open **Admin** (`/stats`) → **Region & OSM ingest**.
-3. Select preset **Eindhoven (lab)** (or draw the same bbox on both nodes).
-4. **Preview** → **Apply & ingest** on both nodes.
+2. On each node, open **Admin** (`/stats`) → **Region & data**.
+3. Select preset **Eindhoven** (or draw the same bbox on both nodes) → **Save region**.
 
 Use the **same bbox on both nodes** so gossip facts are not filtered out during ingest.
 
-**Offline fixture:** `scripts/fixtures/osm-51.39_5.42_51.49_5.52.json`. After configuring region in Admin, `pnpm gossip:seed` can load it into both lab databases without calling Overpass. Refresh the fixture with `pnpm osm:ingest --fixture-only` (reads bbox from DB).
+**Offline fixture:** `scripts/fixtures/osm-51.39_5.42_51.49_5.52.json`. After setting region:
+
+```bash
+pnpm node:region --preset eindhoven
+pnpm gossip:seed
+```
+
+Or load the bundled sample via Admin → **Load sample data**, then `pnpm gossip:seed`.
 
 **Keys:** Dev RSA keypairs live in `docker/gossip-lab/*.pem` and are mounted at startup. Inbox push requires keys — the lab provides them automatically.
 
@@ -89,8 +95,8 @@ pnpm gossip:check
 | Map empty on node A (logged out) | Gossip lab allows unauthenticated map when `GOSSIP_DEV=true`; hard-refresh after ingest |
 | Inbox push silent | `NODE_PRIVATE_KEY` must be set on Node A |
 | `snapshot fetch failed: 401` | Peers missing cached public keys — run `gossip:link-peers` |
-| Empty map / 0 properties on both nodes | Configure region in Admin on both nodes and run ingest |
-| Empty map (no fixture file) | Configure region, then `pnpm osm:ingest --fixture-only` and `pnpm gossip:seed` |
+| Empty map / 0 properties on both nodes | Set region on both nodes (`pnpm node:region --preset eindhoven`) and run `pnpm gossip:seed` or load sample data |
+| Empty map (no fixture file) | `pnpm node:region --preset eindhoven`, `pnpm node:ingest overpass --preset eindhoven`, then `pnpm gossip:seed` |
 
 ---
 
