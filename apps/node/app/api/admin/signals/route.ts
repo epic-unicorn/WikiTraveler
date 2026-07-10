@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { listSignalsForAdmin } from "@/lib/communitySignals";
 import type { SignalStatus } from "@prisma/client";
 
+
+export { dynamic } from "@/lib/apiRoute";
 const VALID_STATUS = new Set<SignalStatus>([
   "OPEN",
   "IN_PROGRESS",

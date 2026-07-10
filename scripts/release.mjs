@@ -18,7 +18,7 @@
  *   git checkout main && git pull
  *   pnpm install
  *   pnpm exec prisma generate   # required after pull — stale client breaks build
- *   pnpm test && pnpm build
+ *   pnpm test && pnpm build     # build does not require Postgres (API routes are force-dynamic)
  *   node scripts/release.mjs X.Y.Z --tag   # or: git tag -a vX.Y.Z -m "Release vX.Y.Z"
  *   git push origin vX.Y.Z                 # triggers GHCR + GitHub Release workflows
  *

@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { setAuditedReimportPending } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 interface AuditedImport {
   version?: number;
   type?: string;

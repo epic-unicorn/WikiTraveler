@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { NODE_ID } from "@/lib/nodeInfo";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * GET /api/dev/gossip-stats
  * Public property/fact/peer counts for gossip-lab smoke checks (no auth).

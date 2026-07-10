@@ -5,6 +5,8 @@ import { NODE_ID } from "@/lib/nodeInfo";
 import type { NextRequest } from "next/server";
 import type { FieldScope, ValueType } from "@prisma/client";
 
+
+export { dynamic } from "@/lib/apiRoute";
 function customFieldName(name: string): string {
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
   return `custom:${NODE_ID}:${slug}`;

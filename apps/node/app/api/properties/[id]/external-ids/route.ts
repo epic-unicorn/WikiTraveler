@@ -4,6 +4,8 @@ import { requireRole, requireAuth } from "@/lib/auth";
 import { syncPropertyFromWheeelmap, findWheelmapNode } from "@/lib/wheelmap";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * PATCH /api/properties/:id/external-ids
  *

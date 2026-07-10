@@ -5,6 +5,8 @@ import { getNodeRegionLabel } from "@/lib/nodeSettings";
 import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * GET /api/admin/backup
  *

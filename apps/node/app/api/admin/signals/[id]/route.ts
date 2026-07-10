@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole, auditorId } from "@/lib/auth";
 import type { SignalStatus } from "@prisma/client";
 
+
+export { dynamic } from "@/lib/apiRoute";
 const VALID_STATUS = new Set<SignalStatus>([
   "OPEN",
   "IN_PROGRESS",

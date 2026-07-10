@@ -118,7 +118,7 @@ Stale nodes continue to sync facts they understand. “Mandatory” upgrades app
 
 ### 2. Tag from `main` (after the release commit is merged)
 
-Run from the **repository root** (not `apps/node`). After `git pull`, refresh dependencies and the Prisma client — otherwise `pnpm build` can fail with missing ESLint or unknown fields like `lastKnownVersion`.
+Run from the **repository root** (not `apps/node`). After `git pull`, refresh dependencies and the Prisma client — otherwise `pnpm build` can fail with missing ESLint or unknown fields like `lastKnownVersion`. **Postgres does not need to be running for `pnpm build`** (API routes are `force-dynamic`).
 
 ```bash
 git checkout main
