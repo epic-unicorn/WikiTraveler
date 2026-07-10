@@ -114,6 +114,14 @@ After pulling schema changes on an existing DB: `pnpm db:migrate` (not `db:setup
 
 Maintainer-only: `pnpm db:migrate-photos` — see [VERCEL.md](./VERCEL.md).
 
+### Dependency updates (Dependabot)
+
+Dependabot opens **monthly** patch/minor PRs only — **major bumps are ignored** (review those manually). To close a pile of open bot PRs:
+
+```bash
+bash scripts/dependabot-close-open.sh
+```
+
 ---
 
 ## Pull request workflow
