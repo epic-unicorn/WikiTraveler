@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { isSelfPeer } from "@/lib/linkPeer";
 import { signBody, buildSignatureHeader } from "@/lib/httpSignature";
+import { peerApiUrl } from "@/lib/peerUrl";
 import type { AccessibilityFact, PropertyMetadataOverride } from "@wikitraveler/core";
 
 type PushProperty = {
@@ -72,8 +73,10 @@ export async function pushFactsToPeers(
   }
 
   await Promise.allSettled(
-    peers.map((peer) =>
-      fetch(`${peer.url}/api/inbox`, {
+    peers.map((peer) => {
+      const target = peerApiUrl(peer.url, "/api/inbox");
+      if (!target) return Promise.resolve();
+      return fetch(target, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -89,8 +92,8 @@ export async function pushFactsToPeers(
         })
         .catch((err) => {
           console.warn(`[push] Failed to push to ${peer.url}:`, err);
-        })
-    )
+        });
+    })
   );
 }
 
@@ -123,8 +126,10 @@ export async function pushMetadataOverridesToPeers(
   }
 
   await Promise.allSettled(
-    peers.map((peer) =>
-      fetch(`${peer.url}/api/inbox`, {
+    peers.map((peer) => {
+      const target = peerApiUrl(peer.url, "/api/inbox");
+      if (!target) return Promise.resolve();
+      return fetch(target, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -140,7 +145,7 @@ export async function pushMetadataOverridesToPeers(
         })
         .catch((err) => {
           console.warn(`[push] Failed to push metadata to ${peer.url}:`, err);
-        })
-    )
+        });
+    })
   );
 }

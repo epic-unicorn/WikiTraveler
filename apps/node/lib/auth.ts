@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { prisma } from "@/lib/prisma";
+import { peerApiUrl } from "@/lib/peerUrl";
 
 // Role hierarchy — higher index = more permissions
 const ROLE_RANK: Record<string, number> = { USER: 0, AUDITOR: 1, ADMIN: 2 };
@@ -38,8 +39,10 @@ const remoteKeyCache = new Map<string, string>();
 
 async function fetchRemotePublicKey(homeNodeUrl: string): Promise<string | null> {
   if (remoteKeyCache.has(homeNodeUrl)) return remoteKeyCache.get(homeNodeUrl)!;
+  const target = peerApiUrl(homeNodeUrl, "/.well-known/pubkey");
+  if (!target) return null;
   try {
-    const res = await fetch(`${homeNodeUrl}/.well-known/pubkey`, {
+    const res = await fetch(target, {
       signal: AbortSignal.timeout(5_000),
     });
     if (!res.ok) return null;
@@ -204,16 +207,22 @@ export async function requireNodeAuth(req: NextRequest): Promise<NextResponse | 
   if (!peer?.publicKey) {
     // Try fetching from the peer if we know its URL
     if (peer?.url) {
-      try {
-        const res = await fetch(`${peer.url}/.well-known/pubkey`, { signal: AbortSignal.timeout(5_000) });
-        if (res.ok) {
-          const data = await res.json() as { publicKeyPem?: string };
-          if (data.publicKeyPem) {
-            await prisma.nodePeer.update({ where: { id: peer.id }, data: { publicKey: data.publicKeyPem } });
-            return verifyNodeSignature(nodeId, timestamp, signature, data.publicKeyPem);
+      const pubkeyTarget = peerApiUrl(peer.url, "/.well-known/pubkey");
+      if (pubkeyTarget) {
+        try {
+          const res = await fetch(pubkeyTarget, { signal: AbortSignal.timeout(5_000) });
+          if (res.ok) {
+            const data = await res.json() as { publicKeyPem?: string };
+            if (data.publicKeyPem) {
+              await prisma.nodePeer.update({
+                where: { id: peer.id },
+                data: { publicKey: data.publicKeyPem },
+              });
+              return verifyNodeSignature(nodeId, timestamp, signature, data.publicKeyPem);
+            }
           }
-        }
-      } catch { /* fall through */ }
+        } catch { /* fall through */ }
+      }
     }
     return NextResponse.json({ message: "Unknown node" }, { status: 401 });
   }

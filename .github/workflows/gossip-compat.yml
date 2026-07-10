@@ -35,10 +35,29 @@ jobs:
             -f docker/docker-compose.gossip-compat.yml \
             up -d --build
 
+      - name: Wait for gossip lab nodes
+        run: |
+          set -e
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:3000/api/health >/dev/null \
+              && curl -sf http://localhost:3010/api/health >/dev/null; then
+              echo "Both nodes ready (attempt $i)"
+              exit 0
+            fi
+            echo "Waiting for nodes ($i/90)…"
+            sleep 15
+          done
+          echo "Gossip lab failed to become ready — container logs:"
+          docker compose \
+            -f docker/docker-compose.gossip.yml \
+            -f docker/docker-compose.gossip-compat.yml \
+            logs --tail 80 node-a node-b || true
+          exit 1
+
       - name: Federation compat check
         env:
           GOSSIP_COMPAT_MIXED: "1"
-          GOSSIP_COMPAT_RETRIES: "48"
+          GOSSIP_COMPAT_RETRIES: "6"
           GOSSIP_COMPAT_RETRY_MS: "5000"
         run: node scripts/gossip-compat.mjs
 

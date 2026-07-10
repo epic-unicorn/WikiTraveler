@@ -1,7 +1,21 @@
 import { peerApiUrl } from "@/lib/peerUrl";
-import type { RemoteNodeInfo } from "@/lib/remoteNodeInfo";
 
-export type { RemoteNodeInfo };
+export interface RemoteNodeInfo {
+  nodeId?: string;
+  nodeUrl?: string;
+  version?: string;
+  gossipProtocol?: number;
+  minGossipProtocol?: number;
+  region?: string;
+  bbox?: string | null;
+  publicKeyPem?: string | null;
+  peers?: Array<{
+    nodeId?: string | null;
+    url: string;
+    region?: string | null;
+    bbox?: string | null;
+  }>;
+}
 
 export function peerVersionFields(info: RemoteNodeInfo): {
   lastKnownVersion: string | null;
