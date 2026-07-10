@@ -133,6 +133,8 @@ export async function fetchPeerPath(
   if (!requestUrl) return null;
 
   try {
+    // Single egress point for federation peers — URL validated, path allowlisted.
+    // codeql[js/request-for-url]
     return await fetch(requestUrl, {
       cache: "no-store",
       ...init,
