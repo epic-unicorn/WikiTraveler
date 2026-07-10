@@ -70,9 +70,8 @@ git push && git push origin v0.2.0
 **Delivered**
 
 - `.github/workflows/ci.yml` — jobs: `lint`, `test`, `build`, `prisma`
-- `.github/dependabot.yml`
-- CodeQL via GitHub **default setup** (not a workflow file — enable in repo Settings)
-- `.github/dependabot.yml`
+- CodeQL via GitHub **default setup** (Settings → Code security)
+- Dependabot **alerts on**, **auto-PRs off** (no `dependabot.yml`; security updates disabled in Settings)
 - `CODEOWNERS` for auth, gossip, cron, prisma
 
 **Maintainer actions**

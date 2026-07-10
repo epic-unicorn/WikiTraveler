@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Dependabot: alerts on, auto-PRs off (removed `.github/dependabot.yml`; disable security updates in repo Settings)
+
 ---
 
 ## [0.2.0] - 2026-07-10
