@@ -1,5 +1,7 @@
 # Docker production
 
+**Docs:** [Hub](./README.md) · [Operators](./OPERATORS.md) · [Upgrade](./UPGRADE.md) · [Vercel](./VERCEL.md)
+
 Self-host a WikiTraveler node with Docker Compose. Postgres and the node run in containers — no Vercel required.
 
 **WikiTraveler Access** is optional: enable the `access` compose profile to run it in Docker, or use local dev / [Vercel](./VERCEL.md#5-deploy-wikitraveler-access) instead.

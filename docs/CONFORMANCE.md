@@ -1,5 +1,7 @@
 # WikiTraveler Accessibility Conformance Report
 
+**Docs:** [Hub](./README.md) · [Accessibility checklist](./ACCESSIBILITY.md)
+
 **Product:** WikiTraveler (open-source federated accessibility intelligence for travel)  
 **Report version:** 1.0  
 **Evaluation date:** June 2026  
