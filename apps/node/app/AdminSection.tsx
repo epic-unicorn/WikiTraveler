@@ -8,6 +8,7 @@ import { PropertiesPanel } from "./PropertiesPanel";
 import { StatsPanel } from "./StatsPanel";
 import { UsersPanel } from "./UsersPanel";
 import { PeersPanel } from "./PeersPanel";
+import { UpgradeBanner } from "./UpgradeBanner";
 
 const STORAGE_KEY = "wt_node_token";
 const TAB_KEY = "wt_admin_tab";
@@ -110,6 +111,7 @@ export function AdminSection() {
 
   return (
     <div className="wt-dashboard-admin">
+      <UpgradeBanner token={token} />
       <nav className="wt-admin-tabs" aria-label={t("ui.adminNavLabel")}>
         {TAB_ORDER.map((id) => (
           <button

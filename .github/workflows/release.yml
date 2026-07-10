@@ -60,6 +60,9 @@ jobs:
           cp packages/sdk/dist/* release-assets/sdk/
           cp packages/sdk/README.md release-assets/sdk/ 2>/dev/null || true
 
+      - name: Stage release manifest
+        run: cp releases/manifest.json release-assets/manifest.json
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -68,6 +71,7 @@ jobs:
           generate_release_notes: true
           files: |
             wikitraveler-lens-*.zip
+            release-assets/manifest.json
             release-assets/sdk/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

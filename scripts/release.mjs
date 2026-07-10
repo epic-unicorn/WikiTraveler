@@ -59,6 +59,7 @@ console.log("\nUpdated:");
 console.log("  package.json (root + workspaces)");
 console.log("  apps/lens/manifest.json");
 console.log("  versions.json");
+console.log("  releases/manifest.json");
 console.log("\nversions.json:");
 console.log(JSON.stringify(manifest, null, 2));
 console.log("\nNext steps:");

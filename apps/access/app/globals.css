@@ -1498,6 +1498,22 @@ html.wt-dark .wt-map-legend-swatch--not-audited {
   margin: 0;
 }
 
+.fk-settings-version-row {
+  font-size: 12px;
+  color: var(--wt-text-muted);
+  margin: 8px 0 0;
+}
+
+.fk-settings-hint {
+  font-size: 12px;
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+.fk-settings-hint--info {
+  color: var(--wt-text-muted);
+}
+
 .fk-settings-signout {
   margin-top: 12px !important;
   min-height: 40px !important;

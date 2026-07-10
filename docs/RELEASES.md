@@ -170,4 +170,4 @@ Contributors implementing automation should follow this doc and update the table
 }
 ```
 
-Future: nodes may optionally fetch a published manifest to show “upgrade available” in Admin — advisory only.
+Future: nodes may optionally fetch a published manifest to show “upgrade available” in Admin — advisory only. See [releases/manifest.json](../releases/manifest.json) and [OPERATOR-CHECKLIST.md](./OPERATOR-CHECKLIST.md).

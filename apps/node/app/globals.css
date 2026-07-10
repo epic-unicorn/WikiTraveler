@@ -538,6 +538,11 @@ html.wt-dark .leaflet-control-zoom a:hover {
   border: 1px solid #bfdbfe;
 }
 
+.wt-admin-banner--warn {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
 .wt-admin-muted {
   color: var(--wt-text-muted);
   font-size: 13px;
