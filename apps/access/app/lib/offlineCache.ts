@@ -3,32 +3,27 @@ const MAX_ENTRIES = 20;
 
 export type CachedProperty = {
   propertyId: string;
-  nodeUrl: string;
   locale: string;
   fetchedAt: string;
   payload: unknown;
 };
 
-function key(propertyId: string, nodeUrl: string, locale: string) {
-  return `${PREFIX}${nodeUrl}::${propertyId}::${locale}`;
+function key(propertyId: string, locale: string) {
+  return `${PREFIX}${propertyId}::${locale}`;
 }
 
 export function cachePropertyDetail(entry: CachedProperty) {
   try {
-    localStorage.setItem(key(entry.propertyId, entry.nodeUrl, entry.locale), JSON.stringify(entry));
+    localStorage.setItem(key(entry.propertyId, entry.locale), JSON.stringify(entry));
     pruneOldEntries();
   } catch {
     // storage full — ignore
   }
 }
 
-export function readCachedPropertyDetail(
-  propertyId: string,
-  nodeUrl: string,
-  locale: string
-): CachedProperty | null {
+export function readCachedPropertyDetail(propertyId: string, locale: string): CachedProperty | null {
   try {
-    const raw = localStorage.getItem(key(propertyId, nodeUrl, locale));
+    const raw = localStorage.getItem(key(propertyId, locale));
     if (!raw) return null;
     return JSON.parse(raw) as CachedProperty;
   } catch {
