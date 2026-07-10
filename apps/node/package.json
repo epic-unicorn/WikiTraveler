@@ -40,7 +40,7 @@
     "axe-core": "^4.10.3",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
-    "happy-dom": "^17.4.4",
+    "happy-dom": "^20.10.6",
     "tsx": "^4.15.0",
     "typescript": "^5",
     "vitest": "^3.2.4"
