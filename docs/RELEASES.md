@@ -106,17 +106,51 @@ Stale nodes continue to sync facts they understand. “Mandatory” upgrades app
 
 ## Maintainer release checklist
 
-Use this before tagging `vX.Y.Z`:
+### 1. Prepare the version (usually a PR)
 
-- [ ] `CHANGELOG.md` updated (Added / Changed / Fixed / Security / **Operator notes**)
-- [ ] `versions.json` matches tag
-- [ ] `NODE_VERSION` in node app aligned with tag (or build-injected)
-- [ ] `pnpm test` and `pnpm build` pass
-- [ ] `pnpm test:a11y` pass if UI changed
-- [ ] Prisma migrations tested: empty DB **and** upgrade from previous tag
-- [ ] `pnpm gossip:check` passes if federation code changed
-- [ ] [UPGRADE.md](./UPGRADE.md) updated if operators must take special steps
-- [ ] GitHub Release created with operator-facing summary
+- [ ] `CHANGELOG.md` — move `[Unreleased]` into `[X.Y.Z]` (operator notes required)
+- [ ] Run `node scripts/release.mjs X.Y.Z` (bumps packages, `versions.json`, `releases/manifest.json`)
+- [ ] Set `releasedAt` in `versions.json` if not set automatically
+- [ ] `pnpm test` and `pnpm build` pass on the PR branch
+- [ ] `pnpm test:a11y` if UI changed; `pnpm gossip:check` if federation changed
+- [ ] [UPGRADE.md](./UPGRADE.md) updated if operators need special steps
+- [ ] Merge to `main`
+
+### 2. Tag from `main` (after the release commit is merged)
+
+Run from the **repository root** (not `apps/node`). After `git pull`, refresh dependencies and the Prisma client — otherwise `pnpm build` can fail with missing ESLint or unknown fields like `lastKnownVersion`.
+
+```bash
+git checkout main
+git pull
+
+pnpm install
+pnpm exec prisma generate
+
+pnpm test
+pnpm build
+
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+Or use the helper (creates the tag locally; still push separately):
+
+```bash
+node scripts/release.mjs X.Y.Z --tag
+git push origin vX.Y.Z
+```
+
+If `package.json` is already at `X.Y.Z` on `main`, skip the version-bump commit — you only need install, generate, test, build, tag, push. Skip editing `CHANGELOG.md` if `## [X.Y.Z]` is already filled in.
+
+**Tag push triggers:** [release-docker.yml](../.github/workflows/release-docker.yml) (GHCR images) and [release.yml](../.github/workflows/release.yml) (GitHub Release: Lens zip, SDK dist, `manifest.json`).
+
+### Pre-tag verification (checklist)
+
+- [ ] `versions.json` and `releases/manifest.json` match the tag
+- [ ] Prisma migrations tested on empty DB and upgrade from previous tag (when migrations ship)
+- [ ] GitHub Release summary matches CHANGELOG operator notes (auto-generated notes are a starting point)
+- [ ] GHCR packages public (first publish only)
 
 ---
 
