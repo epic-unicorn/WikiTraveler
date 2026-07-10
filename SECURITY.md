@@ -58,3 +58,5 @@ This repository uses **alerts + security-update PRs, without version-bump PRs**:
 | **Dependabot version updates** | `.github/dependabot.yml` | **Off** — no scheduled bump PRs |
 
 Review and merge security PRs promptly. For non-CVE bumps, use `pnpm update` manually, then `pnpm test` / `pnpm build`. Document security-related dependency changes in [CHANGELOG.md](CHANGELOG.md).
+
+**Next.js 14 → 15:** Some CVEs are fixed only on Next 15.x; there is no newer 14.2 patch beyond **14.2.35**. Major-version Dependabot PRs for `next` should be **closed** (`@dependabot ignore this major version`). Planned migration: [docs/ROADMAP.md](docs/ROADMAP.md#nextjs-15-migration-node--access).
