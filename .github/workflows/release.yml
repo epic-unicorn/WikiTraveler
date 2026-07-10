@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish assets for (e.g. v0.2.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - uses: pnpm/action-setup@v4
 
@@ -22,20 +30,32 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Resolve version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.tag }}" | sed 's/^v//' >> "$GITHUB_ENV"
+            echo "TAG=${{ inputs.tag }}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+            echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          fi
+
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --filter @wikitraveler/sdk build
+      - name: Build SDK artifacts
+        run: |
+          pnpm --filter @wikitraveler/core build
+          pnpm --filter @wikitraveler/i18n build
+          pnpm --filter @wikitraveler/sdk build
 
       - name: Package Lens extension
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           cd apps/lens
           zip -r "../../wikitraveler-lens-${VERSION}.zip" . \
             -x "*.pem" -x ".DS_Store"
 
       - name: Stage SDK artifacts
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p release-assets/sdk
           cp packages/sdk/dist/* release-assets/sdk/
           cp packages/sdk/README.md release-assets/sdk/ 2>/dev/null || true
@@ -43,7 +63,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
           generate_release_notes: true
           files: |
             wikitraveler-lens-*.zip
