@@ -1,0 +1,52 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @wikitraveler/sdk build
+
+      - name: Package Lens extension
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd apps/lens
+          zip -r "../../wikitraveler-lens-${VERSION}.zip" . \
+            -x "*.pem" -x ".DS_Store"
+
+      - name: Stage SDK artifacts
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p release-assets/sdk
+          cp packages/sdk/dist/* release-assets/sdk/
+          cp packages/sdk/README.md release-assets/sdk/ 2>/dev/null || true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            wikitraveler-lens-*.zip
+            release-assets/sdk/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

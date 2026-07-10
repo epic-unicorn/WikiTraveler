@@ -142,8 +142,8 @@ Planned CI/CD (not all implemented yet):
 |------|----------|--------|
 | PR CI (lint, test, build) | `.github/workflows/ci.yml` | **Done** |
 | Gossip N/N-1 compat test | `.github/workflows/gossip-compat.yml` | Planned (Phase 4) |
-| Docker publish on tag | `.github/workflows/release-docker.yml` | Planned (Phase 3) |
-| GitHub Release from tag | `.github/workflows/release.yml` | Planned (Phase 3) |
+| Docker publish on tag | `.github/workflows/release-docker.yml` | **Done** |
+| GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
 | CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
 | Dependabot | `.github/dependabot.yml` | **Done** |
