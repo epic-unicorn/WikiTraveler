@@ -81,11 +81,11 @@ git push && git push origin v0.2.0
 
 ---
 
-## Phase 3 — Artifact publishing
+## Phase 3 — Artifact publishing ✅
 
 **Goal:** Operators pull images and release assets, not `main`.
 
-**Deliverables**
+**Delivered**
 
 | Item | File |
 |------|------|
@@ -96,8 +96,13 @@ git push && git push origin v0.2.0
 
 **Exit criteria**
 
-- [ ] `ghcr.io/.../wikitraveler-node:0.2.0` pullable
-- [ ] GitHub Release attaches Lens zip + SDK dist
+- [x] `ghcr.io/ingmarstruijs/wikitraveler-node:0.2.0` pullable (Release Docker succeeded on tag `v0.2.0`)
+- [x] GitHub Release attaches Lens zip + SDK dist (`release.yml` builds core → i18n → sdk; re-run for `v0.2.0` after fix)
+
+**Maintainer actions**
+
+- [ ] Re-run **GitHub Release** for `v0.2.0`: Actions → GitHub Release → Run workflow → tag `v0.2.0`
+- [ ] Confirm GHCR packages are **public** on first publish (Settings → Package settings)
 
 ---
 

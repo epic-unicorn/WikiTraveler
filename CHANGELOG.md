@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- GitHub Release workflow: build `@wikitraveler/i18n` before SDK (fixes failed `v0.2.0` release assets)
+- `release.yml` supports manual re-run via **workflow_dispatch** for an existing tag
+
 ### Changed
 
 - Phase 4 federation hardening: `protocolVersion` on gossip deltas, peer version columns, Admin skew warnings, `gossip-compat` CI
