@@ -11,6 +11,7 @@
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { buildNodeAuthHeaders, loadGossipLabPrivateKey } from "./gossip-node-auth.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -19,9 +20,32 @@ const NODE_B = (process.env.NODE_B_URL ?? "http://localhost:3010").replace(/\/$/
 
 const RETRIES = Number(process.env.GOSSIP_COMPAT_RETRIES ?? 40);
 const RETRY_MS = Number(process.env.GOSSIP_COMPAT_RETRY_MS ?? 5000);
+const FETCH_RETRIES = Number(process.env.GOSSIP_COMPAT_FETCH_RETRIES ?? 8);
+const FETCH_RETRY_MS = Number(process.env.GOSSIP_COMPAT_FETCH_RETRY_MS ?? 2_000);
+const POST_SYNC_MS = Number(process.env.GOSSIP_COMPAT_POST_SYNC_MS ?? 3_000);
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchWithRetry(url, { label, timeoutMs = 8_000, retries = FETCH_RETRIES, retryMs = FETCH_RETRY_MS, init } = {}) {
+  const name = label ?? url;
+  let lastErr;
+  for (let i = 1; i <= retries; i++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), ...init });
+      if (!res.ok) throw new Error(`${name} → HTTP ${res.status}`);
+      return res;
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (i < retries) {
+        console.log(`  ${name} unavailable (${msg}), retry ${i}/${retries}…`);
+        await sleep(retryMs);
+      }
+    }
+  }
+  throw new Error(`${name} failed after ${retries} attempts: ${lastErr instanceof Error ? lastErr.message : lastErr}`);
 }
 
 async function waitForNode(base, label) {
@@ -44,26 +68,42 @@ async function waitForNode(base, label) {
 }
 
 async function nodeinfo(base) {
-  const res = await fetch(`${base}/api/nodeinfo`, { signal: AbortSignal.timeout(8_000) });
-  if (!res.ok) throw new Error(`${base}/api/nodeinfo → ${res.status}`);
+  const res = await fetchWithRetry(`${base}/api/nodeinfo`, { label: `${base}/api/nodeinfo` });
   return res.json();
 }
 
 async function gossipStats(base) {
-  const res = await fetch(`${base}/api/dev/gossip-stats`, { signal: AbortSignal.timeout(8_000) });
-  if (!res.ok) throw new Error(`${base}/api/dev/gossip-stats → ${res.status}`);
+  const res = await fetchWithRetry(`${base}/api/dev/gossip-stats`, {
+    label: `${base}/api/dev/gossip-stats`,
+  });
   return res.json();
 }
 
-async function snapshotProtocol(base) {
-  const res = await fetch(`${base}/api/gossip/snapshot?since=1970-01-01T00:00:00.000Z`, {
-    signal: AbortSignal.timeout(8_000),
-  });
-  if (res.status === 401) {
-    console.log(`  (snapshot on ${base} requires auth — skipped in compat check)`);
-    return null;
+/** Peer node signs snapshot pulls (node-b → A, node-a → B). */
+const SNAPSHOT_SIGNERS = {
+  [NODE_A]: "node-b",
+  [NODE_B]: "node-a",
+};
+
+function snapshotAuthHeaders(base) {
+  const signerId = SNAPSHOT_SIGNERS[base];
+  if (!signerId) return {};
+  try {
+    const pem = loadGossipLabPrivateKey(signerId);
+    return buildNodeAuthHeaders(signerId, pem);
+  } catch {
+    console.log(`  (gossip lab key missing for ${signerId} — snapshot auth skipped)`);
+    return {};
   }
-  if (!res.ok) throw new Error(`${base}/api/gossip/snapshot → ${res.status}`);
+}
+
+async function snapshotProtocol(base) {
+  const url = `${base}/api/gossip/snapshot?since=1970-01-01T00:00:00.000Z`;
+  const headers = snapshotAuthHeaders(base);
+  const res = await fetchWithRetry(url, {
+    label: `${base}/api/gossip/snapshot`,
+    init: Object.keys(headers).length > 0 ? { headers } : undefined,
+  });
   const data = await res.json();
   return data.protocolVersion ?? null;
 }
@@ -130,7 +170,13 @@ async function main() {
   console.log("\nSyncing gossip…");
   run("node", ["scripts/gossip-sync.mjs"]);
 
-  const [aStats, bStats] = await Promise.all([gossipStats(NODE_A), gossipStats(NODE_B)]);
+  if (POST_SYNC_MS > 0) {
+    console.log(`Waiting ${POST_SYNC_MS}ms for dev servers to settle after sync…`);
+    await sleep(POST_SYNC_MS);
+  }
+
+  const aStats = await gossipStats(NODE_A);
+  const bStats = await gossipStats(NODE_B);
   console.log(`\nAfter sync:`);
   console.log(`  A: ${aStats.propertyCount} properties, ${aStats.factCount} facts`);
   console.log(`  B: ${bStats.propertyCount} properties, ${bStats.factCount} facts`);
@@ -152,6 +198,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err.message ?? err);
+  console.error(err instanceof Error ? err.message : err);
+  if (err instanceof Error && err.cause) console.error("cause:", err.cause);
   process.exit(1);
 });

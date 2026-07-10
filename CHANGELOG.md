@@ -10,6 +10,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- API routes export `force-dynamic` so `pnpm build` does not require a running Postgres
+- `gossip-compat` retries post-sync fetches (dev servers can be briefly unavailable after cron gossip)
+
+### Changed
+
+- [RELEASES.md](docs/RELEASES.md): maintainer pre-tag command sequence (`pnpm install`, `prisma generate`, test, build, tag)
+
 ---
 
 ## [0.2.1] - 2026-07-10
