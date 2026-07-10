@@ -9,6 +9,9 @@ concurrency:
   group: gossip-compat-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   gossip-compat:
     runs-on: ubuntu-latest

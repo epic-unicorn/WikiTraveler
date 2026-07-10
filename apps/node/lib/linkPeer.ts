@@ -9,10 +9,13 @@ import {
   peerVersionFields,
   type RemoteNodeInfo,
 } from "@/lib/remoteNodeInfo";
+import { peerApiUrl, validatePeerBaseUrl } from "@/lib/peerUrl";
 
 async function fetchPublicKeyPem(peerUrl: string): Promise<string | null> {
+  const target = peerApiUrl(peerUrl, "/.well-known/pubkey");
+  if (!target) return null;
   try {
-    const res = await fetch(`${peerUrl.replace(/\/$/, "")}/.well-known/pubkey`, {
+    const res = await fetch(target, {
       signal: AbortSignal.timeout(5_000),
       cache: "no-store",
     });
@@ -58,7 +61,11 @@ function peerUpsertData(info: RemoteNodeInfo, publicKey: string | null) {
 }
 
 export async function linkPeerUrl(rawUrl: string): Promise<{ ok: true; nodeId: string | null; url: string } | { ok: false; error: string }> {
-  const url = rawUrl.replace(/\/$/, "");
+  const validated = validatePeerBaseUrl(rawUrl);
+  if (!validated.ok) {
+    return { ok: false, error: validated.reason };
+  }
+  const url = validated.url;
   if (isSelfPeer(url)) {
     return { ok: false, error: "Cannot link to self" };
   }

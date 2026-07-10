@@ -8,6 +8,7 @@ import {
   fetchRemoteNodeInfo,
   peerVersionFields,
 } from "@/lib/remoteNodeInfo";
+import { validatePeerBaseUrl } from "@/lib/peerUrl";
 import type { NextRequest } from "next/server";
 
 // GET /api/nodes — lists locally known active peers (used by inbox push)
@@ -55,33 +56,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
   }
 
-  const url = body.url?.trim().replace(/\/$/, "");
+  const url = body.url?.trim();
   if (!url) {
     return NextResponse.json({ message: "url is required" }, { status: 422 });
   }
-  try {
-    new URL(url);
-  } catch {
-    return NextResponse.json({ message: "Invalid URL" }, { status: 422 });
+
+  const validated = validatePeerBaseUrl(url);
+  if (!validated.ok) {
+    return NextResponse.json({ message: validated.reason }, { status: 422 });
   }
-  if (url === NODE_URL?.replace(/\/$/, "")) {
+  if (validated.url === NODE_URL?.replace(/\/$/, "")) {
     return NextResponse.json(
       { message: "Cannot add this node as its own peer" },
       { status: 400 }
     );
   }
 
-  const info = await fetchRemoteNodeInfo(url);
+  const info = await fetchRemoteNodeInfo(validated.url);
   if (!info) {
     return NextResponse.json(
-      { message: `Could not reach node at ${url}. Check the URL and try again.` },
+      { message: `Could not reach node at ${validated.url}. Check the URL and try again.` },
       { status: 502 }
     );
   }
 
   const versionFields = peerVersionFields(info);
   const peer = await prisma.nodePeer.upsert({
-    where: { url },
+    where: { url: validated.url },
     update: {
       nodeId: info.nodeId ?? undefined,
       region: info.region ?? undefined,
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
       isActive: true,
     },
     create: {
-      url,
+      url: validated.url,
       nodeId: info.nodeId ?? null,
       region: info.region ?? null,
       bbox: info.bbox ?? null,

@@ -8,6 +8,7 @@ import {
 } from "@/lib/remoteNodeInfo";
 import type { NextRequest } from "next/server";
 import { isSelfPeer } from "@/lib/linkPeer";
+import { peerApiUrl } from "@/lib/peerUrl";
 
 /**
  * GET /api/cron/gossip
@@ -42,7 +43,9 @@ export async function GET(req: NextRequest) {
 
   for (const peerUrl of peerUrls) {
     try {
-      const snapshotRes = await fetch(`${peerUrl.replace(/\/$/, "")}/api/gossip/snapshot`, {
+      const snapshotTarget = peerApiUrl(peerUrl, "/api/gossip/snapshot");
+      if (!snapshotTarget) throw new Error("peer URL failed SSRF validation");
+      const snapshotRes = await fetch(snapshotTarget, {
         headers: nodeHeaders,
         signal: AbortSignal.timeout(10_000),
       });

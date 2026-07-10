@@ -1,19 +1,7 @@
-export interface RemoteNodeInfo {
-  nodeId?: string;
-  nodeUrl?: string;
-  version?: string;
-  gossipProtocol?: number;
-  minGossipProtocol?: number;
-  region?: string;
-  bbox?: string | null;
-  publicKeyPem?: string | null;
-  peers?: Array<{
-    nodeId?: string | null;
-    url: string;
-    region?: string | null;
-    bbox?: string | null;
-  }>;
-}
+import { peerApiUrl } from "@/lib/peerUrl";
+import type { RemoteNodeInfo } from "@/lib/remoteNodeInfo";
+
+export type { RemoteNodeInfo };
 
 export function peerVersionFields(info: RemoteNodeInfo): {
   lastKnownVersion: string | null;
@@ -29,8 +17,11 @@ export function peerVersionFields(info: RemoteNodeInfo): {
 export async function fetchRemoteNodeInfo(
   url: string
 ): Promise<RemoteNodeInfo | null> {
+  const target = peerApiUrl(url, "/api/nodeinfo");
+  if (!target) return null;
+
   try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/api/nodeinfo`, {
+    const res = await fetch(target, {
       signal: AbortSignal.timeout(5_000),
       cache: "no-store",
     });
