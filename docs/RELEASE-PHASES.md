@@ -33,9 +33,9 @@ Update this table when a phase completes.
 
 **Maintainer actions**
 
-- [ ] Enable Dependabot + secret scanning in GitHub Settings (if not already)
-- [ ] After first CI run: add `lint`, `test`, `build`, `prisma` to ruleset status checks
-- [ ] Merge docs + infra PR
+- [x] Enable Dependabot alerts + secret scanning in GitHub Settings
+- [x] Require CI jobs in ruleset (`lint`, `test`, `build`, `prisma`, `axe`, `gossip-compat`)
+- [x] Merge docs + infra PRs through Phase 5
 
 ---
 
@@ -71,13 +71,12 @@ git push && git push origin v0.2.0
 
 - `.github/workflows/ci.yml` — jobs: `lint`, `test`, `build`, `prisma`
 - CodeQL via GitHub **default setup** (Settings → Code security)
-- Dependabot **alerts on**, **auto-PRs off** (no `dependabot.yml`; security updates disabled in Settings)
+- Dependabot **alerts on**, **security-update PRs on**, **version-bump PRs off** (no `dependabot.yml`)
 - `CODEOWNERS` for auth, gossip, cron, prisma
 
 **Maintainer actions**
 
-- [ ] Require CI jobs in ruleset (in addition to `axe`)
-- [ ] Enable **Require review from Code Owners** in ruleset
+- [x] Require CI jobs in ruleset (in addition to `axe`)
 
 ---
 
@@ -101,7 +100,7 @@ git push && git push origin v0.2.0
 
 **Maintainer actions**
 
-- [ ] Re-run **GitHub Release** for `v0.2.0`: Actions → GitHub Release → Run workflow → tag `v0.2.0`
+- [x] GitHub Release workflow publishes Lens zip, SDK dist, and `manifest.json` on tag
 - [ ] Confirm GHCR packages are **public** on first publish (Settings → Package settings)
 
 ---
@@ -122,7 +121,7 @@ git push && git push origin v0.2.0
 
 **Maintainer actions**
 
-- [ ] Add `gossip-compat` job to ruleset after first workflow run
+- [x] Add `gossip-compat` job to ruleset
 
 ---
 
