@@ -46,3 +46,15 @@ Node operators are responsible for:
 ## Disclosure
 
 We follow coordinated disclosure: we will work with reporters on a fix before public announcement when possible, and credit reporters in the changelog unless they prefer anonymity.
+
+## Dependency vulnerabilities (maintainers)
+
+This repository uses **alerts without auto-PRs**:
+
+| GitHub setting | Location | Desired state |
+|----------------|----------|---------------|
+| **Dependabot alerts** | Settings → Code security and analysis | **Enabled** — vulnerabilities appear on the **Security** tab |
+| **Dependabot security updates** | Same page | **Disabled** — no automatic fix PRs for CVEs |
+| **Dependabot version updates** | `.github/dependabot.yml` | **Off** — file removed; no scheduled bump PRs |
+
+Maintainers review alerts on the Security tab and land fixes manually (e.g. `pnpm update`, targeted bumps, then `pnpm test` / `pnpm build`). Document security-related dependency changes in [CHANGELOG.md](CHANGELOG.md).

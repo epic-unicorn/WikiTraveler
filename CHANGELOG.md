@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- Removed Dependabot version updates (`.github/dependabot.yml` deleted)
+- Dependabot: alerts on, auto-PRs off (removed `.github/dependabot.yml`; disable security updates in repo Settings)
 
 ---
 
