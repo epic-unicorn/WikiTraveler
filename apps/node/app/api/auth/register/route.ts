@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getOpenRegistration } from "@/lib/nodeSettings";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /** GET /api/auth/register — public registration status */
 export async function GET() {
   const openRegistration = await getOpenRegistration();

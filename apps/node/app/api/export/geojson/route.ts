@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { resolveEffectiveProperties } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * GET /api/export/geojson
  * Mappable properties as GeoJSON FeatureCollection (ADMIN or CRON_SECRET).

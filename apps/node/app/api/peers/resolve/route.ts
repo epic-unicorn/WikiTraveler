@@ -6,6 +6,8 @@ import { containsPoint, parseBbox } from "@/lib/bbox";
 import { requireAuth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * GET /api/peers/resolve?lat=<lat>&lon=<lon>
  *

@@ -16,6 +16,8 @@ import { MAX_AUDIT_PHOTOS, AI_VISION_PHOTO_BUDGET } from "@wikitraveler/i18n";
 import type { NextRequest } from "next/server";
 import type { Tier, SourceType } from "@wikitraveler/core";
 
+
+export { dynamic } from "@/lib/apiRoute";
 type FactInput = { fieldName: string; value: string; scopeKey?: string; confirm?: boolean };
 
 type PhotoInput = {

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { signToken } from "@/lib/auth";
 import { NODE_ID } from "@/lib/nodeInfo";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * POST /api/auth/token
  * @deprecated Use POST /api/auth/login instead.

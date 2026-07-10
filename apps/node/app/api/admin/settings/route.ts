@@ -3,6 +3,8 @@ import { requireRole } from "@/lib/auth";
 import { getNodeSettings, updateNodeSettings } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /** GET /api/admin/settings — node settings (registration, etc.) */
 export async function GET(req: NextRequest) {
   const authError = await requireRole(req, "ADMIN");

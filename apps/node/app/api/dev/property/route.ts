@@ -12,6 +12,8 @@ import {
 } from "@/lib/propertyMetadata";
 import { pushMetadataOverridesToPeers } from "@/lib/push";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * Dev-only property CRUD for the gossip lab (no auth, GOSSIP_DEV gated).
  *

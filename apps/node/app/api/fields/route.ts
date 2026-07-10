@@ -3,6 +3,8 @@ import { listFieldDefinitions } from "@/lib/fieldRegistry";
 import { resolveLocale, DEFAULT_LOCALE } from "@wikitraveler/i18n";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 // GET /api/fields?locale=nl
 export async function GET(req: NextRequest) {
   const locale = resolveLocale({

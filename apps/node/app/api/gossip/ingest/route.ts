@@ -14,6 +14,8 @@ import {
 } from "@/lib/propertyMetadata";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
+
+export { dynamic } from "@/lib/apiRoute";
 // POST /api/gossip/ingest
 export async function POST(req: Request) {
   const authError = await requireNodeAuth(req as import("next/server").NextRequest);

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { syncPropertyFromWheeelmap } from "@/lib/wheelmap";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * GET /api/cron/wheelmap-sync
  *

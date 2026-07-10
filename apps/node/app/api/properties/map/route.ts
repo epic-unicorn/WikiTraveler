@@ -5,6 +5,8 @@ import { collapseMapFacts, MAP_PIN_LIMIT } from "@/lib/mapPinFacts";
 import { resolveEffectiveProperties } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 // GET /api/properties/map — returns geo-tagged properties with key facts + audited flag
 export async function GET(req: NextRequest) {
   if (process.env.GOSSIP_DEV !== "true") {

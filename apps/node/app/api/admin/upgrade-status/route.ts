@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { NODE_VERSION } from "@/lib/nodeInfo";
 import { assessUpgrade, fetchReleaseManifest } from "@/lib/releaseManifest";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /** GET /api/admin/upgrade-status — optional release manifest + upgrade advisory (ADMIN only) */
 export async function GET(req: NextRequest) {
   const authError = await requireRole(req, "ADMIN");

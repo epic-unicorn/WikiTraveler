@@ -5,6 +5,8 @@ import { requireRole } from "@/lib/auth";
 import { importExportPayload, type ExportPayload } from "@/lib/nodeDataTransfer";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 const gunzipAsync = promisify(gunzip);
 
 /**

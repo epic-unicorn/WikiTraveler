@@ -11,6 +11,8 @@ import {
 } from "@/lib/communitySignals";
 import type { SignalType } from "@prisma/client";
 
+
+export { dynamic } from "@/lib/apiRoute";
 const VALID_TYPES = new Set<SignalType>([
   "MISSING",
   "INCORRECT",
