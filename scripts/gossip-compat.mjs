@@ -11,6 +11,7 @@
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { buildNodeAuthHeaders, loadGossipLabPrivateKey } from "./gossip-node-auth.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -27,12 +28,12 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function fetchWithRetry(url, { label, timeoutMs = 8_000, retries = FETCH_RETRIES, retryMs = FETCH_RETRY_MS } = {}) {
+async function fetchWithRetry(url, { label, timeoutMs = 8_000, retries = FETCH_RETRIES, retryMs = FETCH_RETRY_MS, init } = {}) {
   const name = label ?? url;
   let lastErr;
   for (let i = 1; i <= retries; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), ...init });
       if (!res.ok) throw new Error(`${name} → HTTP ${res.status}`);
       return res;
     } catch (err) {
@@ -78,14 +79,31 @@ async function gossipStats(base) {
   return res.json();
 }
 
-async function snapshotProtocol(base) {
-  const res = await fetchWithRetry(`${base}/api/gossip/snapshot?since=1970-01-01T00:00:00.000Z`, {
-    label: `${base}/api/gossip/snapshot`,
-  });
-  if (res.status === 401) {
-    console.log(`  (snapshot on ${base} requires auth — skipped in compat check)`);
-    return null;
+/** Peer node signs snapshot pulls (node-b → A, node-a → B). */
+const SNAPSHOT_SIGNERS = {
+  [NODE_A]: "node-b",
+  [NODE_B]: "node-a",
+};
+
+function snapshotAuthHeaders(base) {
+  const signerId = SNAPSHOT_SIGNERS[base];
+  if (!signerId) return {};
+  try {
+    const pem = loadGossipLabPrivateKey(signerId);
+    return buildNodeAuthHeaders(signerId, pem);
+  } catch {
+    console.log(`  (gossip lab key missing for ${signerId} — snapshot auth skipped)`);
+    return {};
   }
+}
+
+async function snapshotProtocol(base) {
+  const url = `${base}/api/gossip/snapshot?since=1970-01-01T00:00:00.000Z`;
+  const headers = snapshotAuthHeaders(base);
+  const res = await fetchWithRetry(url, {
+    label: `${base}/api/gossip/snapshot`,
+    init: Object.keys(headers).length > 0 ? { headers } : undefined,
+  });
   const data = await res.json();
   return data.protocolVersion ?? null;
 }
