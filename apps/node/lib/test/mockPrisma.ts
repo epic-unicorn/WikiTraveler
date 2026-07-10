@@ -47,7 +47,7 @@ export function createMockPrisma() {
     $queryRaw: vi.fn().mockResolvedValue([]),
     $executeRaw: vi.fn().mockResolvedValue(0),
     $transaction: vi.fn((arg: unknown) => {
-      if (typeof arg === "function") return (arg as (tx: typeof prisma) => unknown)(prisma);
+      if (typeof arg === "function") return (arg as (tx: Record<string, unknown>) => unknown)(prisma);
       return Promise.all(arg as Promise<unknown>[]);
     }),
   };
@@ -80,7 +80,7 @@ export function resetMockPrisma(prisma: MockPrisma) {
   prisma.$queryRaw.mockResolvedValue([]);
   prisma.$executeRaw.mockResolvedValue(0);
   prisma.$transaction.mockImplementation((arg: unknown) => {
-    if (typeof arg === "function") return (arg as (tx: MockPrisma) => unknown)(prisma);
+    if (typeof arg === "function") return (arg as (tx: Record<string, unknown>) => unknown)(prisma);
     return Promise.all(arg as Promise<unknown>[]);
   });
 }
