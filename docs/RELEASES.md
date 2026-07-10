@@ -145,7 +145,7 @@ Planned CI/CD (not all implemented yet):
 | Docker publish on tag | `.github/workflows/release-docker.yml` | Planned (Phase 3) |
 | GitHub Release from tag | `.github/workflows/release.yml` | Planned (Phase 3) |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
-| CodeQL analysis | `.github/workflows/codeql.yml` | **Done** |
+| CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
 | Dependabot | `.github/dependabot.yml` | **Done** |
 
 See [RELEASE-PHASES.md](./RELEASE-PHASES.md) for the full execution plan.

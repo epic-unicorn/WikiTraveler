@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - [docs/RELEASE-PHASES.md](docs/RELEASE-PHASES.md), [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
 - [versions.json](versions.json) canonical version manifest
 - CI workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): lint, test, build, prisma
-- CodeQL ([`.github/workflows/codeql.yml`](.github/workflows/codeql.yml)) and Dependabot config
+- CodeQL via GitHub **default setup** (Settings → Code security; no custom `codeql.yml`)
 - `CODEOWNERS` for auth, gossip, cron, and schema paths
 - `scripts/release.mjs` version bump helper and build-time `WIKITRAVELER_VERSION` injection
 - `packages/core/src/protocol.ts` — gossip and export schema constants

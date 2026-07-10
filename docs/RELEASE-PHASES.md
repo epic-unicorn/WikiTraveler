@@ -70,7 +70,8 @@ git push && git push origin v0.2.0
 **Delivered**
 
 - `.github/workflows/ci.yml` — jobs: `lint`, `test`, `build`, `prisma`
-- `.github/workflows/codeql.yml`
+- `.github/dependabot.yml`
+- CodeQL via GitHub **default setup** (not a workflow file — enable in repo Settings)
 - `.github/dependabot.yml`
 - `CODEOWNERS` for auth, gossip, cron, prisma
 
@@ -154,8 +155,7 @@ Add these to the **Protect main** ruleset once workflows have run once:
 | `build` | CI | Required |
 | `prisma` | CI | Required |
 | `axe` | Accessibility tests | Required |
-| `lighthouse` | Accessibility tests | Optional (slow) |
-| `Analyze` | CodeQL | Optional |
+| Code scanning (default CodeQL) | GitHub Settings | Optional — do not add `codeql.yml` while default is on |
 
 ---
 
