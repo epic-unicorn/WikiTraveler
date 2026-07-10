@@ -11,6 +11,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | **Understand the system** | [Architecture](./ARCHITECTURE.md) |
 | **Run a node in production** | [Operators guide](./OPERATORS.md) → [Docker](./DOCKER.md) or [Vercel](./VERCEL.md) |
 | **Upgrade an existing deployment** | [Upgrade runbook](./UPGRADE.md) |
+| **Release phases** | [Release phases](./RELEASE-PHASES.md) · [Compatibility](./COMPATIBILITY.md) |
 | **Develop features locally** | [Development guide](./DEVELOPMENT.md) → [Local setup](./LOCAL.md) |
 | **Join as a contributor** | [Community](./COMMUNITY.md) → [Contributing](../CONTRIBUTING.md) |
 | **Ship or consume a release** | [Releases](./RELEASES.md) → [Changelog](../CHANGELOG.md) |
@@ -30,6 +31,8 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [VERCEL.md](./VERCEL.md) | Serverless node + Access on Vercel |
 | [UPGRADE.md](./UPGRADE.md) | Version upgrades, migrations, rollback, gossip compatibility |
 | [RELEASES.md](./RELEASES.md) | Versioning model, release cadence, artifacts, federation policy |
+| [RELEASE-PHASES.md](./RELEASE-PHASES.md) | Phased execution plan (CI, Docker, federation) |
+| [COMPATIBILITY.md](./COMPATIBILITY.md) | N/N-1 mesh and protocol compatibility matrix |
 
 ### For developers (build & test)
 

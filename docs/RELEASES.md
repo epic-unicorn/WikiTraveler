@@ -140,11 +140,15 @@ Planned CI/CD (not all implemented yet):
 
 | Step | Workflow | Status |
 |------|----------|--------|
-| PR CI (lint, test, build) | `.github/workflows/ci.yml` | Planned |
-| Gossip N/N-1 compat test | `.github/workflows/gossip-compat.yml` | Planned |
-| Docker publish on tag | `.github/workflows/release-docker.yml` | Planned |
-| GitHub Release from tag | `.github/workflows/release.yml` | Planned |
-| `scripts/release.mjs` version bump helper | `scripts/` | Planned |
+| PR CI (lint, test, build) | `.github/workflows/ci.yml` | **Done** |
+| Gossip N/N-1 compat test | `.github/workflows/gossip-compat.yml` | Planned (Phase 4) |
+| Docker publish on tag | `.github/workflows/release-docker.yml` | Planned (Phase 3) |
+| GitHub Release from tag | `.github/workflows/release.yml` | Planned (Phase 3) |
+| `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
+| CodeQL analysis | `.github/workflows/codeql.yml` | **Done** |
+| Dependabot | `.github/dependabot.yml` | **Done** |
+
+See [RELEASE-PHASES.md](./RELEASE-PHASES.md) for the full execution plan.
 
 Contributors implementing automation should follow this doc and update the table when workflows land.
 

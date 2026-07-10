@@ -41,6 +41,14 @@ Each node is **sovereign**: your `NODE_ID`, keys, region bbox, database, and upg
 - [ ] `CORS_ORIGINS` includes your Access URL and any SDK embed origins
 - [ ] Rate limiting via Upstash (recommended for public nodes) — see [VERCEL.md](./VERCEL.md)
 
+**Never in production:**
+
+- [ ] Do **not** deploy without `NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY` (HS256 fallback is dev-only)
+- [ ] Do **not** leave `CORS_ORIGINS=*` unless intentional
+- [ ] Do **not** commit `.env` or paste secrets into issues
+
+Report vulnerabilities: [SECURITY.md](../SECURITY.md) (private reporting, not public issues).
+
 ### 2. Database
 
 - [ ] PostgreSQL provisioned (Neon, Supabase, self-hosted, or Compose)

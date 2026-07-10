@@ -1,0 +1,16 @@
+# Default owners for the whole repo
+* @ingmarstruijs
+
+# Federation, auth, and schema — require explicit review
+/apps/node/lib/auth.ts @ingmarstruijs
+/apps/node/app/api/inbox/ @ingmarstruijs
+/apps/node/app/api/gossip/ @ingmarstruijs
+/apps/node/app/api/cron/ @ingmarstruijs
+/packages/core/src/merge.ts @ingmarstruijs
+/packages/core/src/protocol.ts @ingmarstruijs
+/prisma/ @ingmarstruijs
+
+# Release & security automation
+/.github/ @ingmarstruijs
+/versions.json @ingmarstruijs
+/scripts/release.mjs @ingmarstruijs

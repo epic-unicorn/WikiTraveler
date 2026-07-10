@@ -15,11 +15,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documentation hub ([docs/README.md](docs/README.md)) bundling operator, developer, community, and release guides
 - [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md)
 - [docs/RELEASES.md](docs/RELEASES.md), [docs/UPGRADE.md](docs/UPGRADE.md), [docs/OPERATORS.md](docs/OPERATORS.md), [docs/COMMUNITY.md](docs/COMMUNITY.md), [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- [docs/RELEASE-PHASES.md](docs/RELEASE-PHASES.md), [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
 - [versions.json](versions.json) canonical version manifest
+- CI workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): lint, test, build, prisma
+- CodeQL ([`.github/workflows/codeql.yml`](.github/workflows/codeql.yml)) and Dependabot config
+- `CODEOWNERS` for auth, gossip, cron, and schema paths
+- `scripts/release.mjs` version bump helper and build-time `WIKITRAVELER_VERSION` injection
+- `packages/core/src/protocol.ts` — gossip and export schema constants
+- `/api/nodeinfo` exposes `gossipProtocol`, `minGossipProtocol`, `exportSchema`
 
 ### Changed
 
 - [README.md](README.md) streamlined as community front door with links to bundled docs
+- All workspace packages aligned to version `0.2.0`
 
 ---
 
@@ -37,5 +45,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - WikiTraveler Access mobile audit flows
 - Gossip dev lab (`pnpm dev:gossip-lab`)
 
-[Unreleased]: https://github.com/your-org/wikitraveler/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/your-org/wikitraveler/releases/tag/v0.2.0
+[Unreleased]: https://github.com/ingmarstruijs/WikiTraveler/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.2.0

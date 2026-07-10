@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation hub
-    url: https://github.com/your-org/wikitraveler/blob/main/docs/README.md
+    url: https://github.com/ingmarstruijs/WikiTraveler/blob/main/docs/README.md
     about: Operator, developer, and release guides
   - name: Operator guide
-    url: https://github.com/your-org/wikitraveler/blob/main/docs/OPERATORS.md
+    url: https://github.com/ingmarstruijs/WikiTraveler/blob/main/docs/OPERATORS.md
     about: Deploy and run a production node

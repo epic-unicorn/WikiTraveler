@@ -20,7 +20,7 @@ Monorepo workflow for contributors building node, Access, Lens, SDK, and shared 
 ## First-time setup
 
 ```bash
-git clone https://github.com/your-org/wikitraveler.git
+git clone https://github.com/ingmarstruijs/WikiTraveler.git
 cd wikitraveler
 pnpm install
 cp .env.example .env
@@ -109,6 +109,7 @@ After pulling schema changes on an existing DB: `pnpm db:migrate` (not `db:setup
 | `pnpm lighthouse:ci` | Lighthouse gate (apps must be running) |
 | `pnpm dev:gossip-lab` | Two-node Docker gossip lab |
 | `pnpm gossip:check` | Peer smoke test |
+| `pnpm release:prepare` | Bump versions — `node scripts/release.mjs X.Y.Z` |
 | `pnpm gossip:sync` | Manual cron gossip on lab nodes |
 
 Maintainer-only: `pnpm db:migrate-photos` — see [VERCEL.md](./VERCEL.md).

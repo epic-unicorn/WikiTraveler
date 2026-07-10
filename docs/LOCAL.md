@@ -30,7 +30,7 @@ Run WikiTraveler on your machine for day-to-day coding. This is **not** a deploy
 ### 1. Install dependencies
 
 ```bash
-git clone https://github.com/your-org/wikitraveler.git
+git clone https://github.com/ingmarstruijs/WikiTraveler.git
 cd wikitraveler
 pnpm install
 cp .env.example .env

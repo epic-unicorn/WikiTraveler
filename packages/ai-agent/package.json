@@ -1,6 +1,6 @@
 {
   "name": "@wikitraveler/ai-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "AI agent for WikiTraveler — GPT-4o vision analysis and text-based gap-filling.",
   "main": "./dist/index.js",
@@ -13,7 +13,9 @@
       "require": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch"

@@ -64,7 +64,7 @@ End-to-end walkthroughs: [apps/README.md](apps/README.md)
 ## Quick start (local development)
 
 ```bash
-git clone https://github.com/your-org/wikitraveler.git && cd wikitraveler
+git clone https://github.com/ingmarstruijs/WikiTraveler.git && cd wikitraveler
 pnpm install && cp .env.example .env
 docker compose -f docker/docker-compose.dev.yml up postgres -d
 pnpm db:setup && pnpm dev
@@ -87,7 +87,7 @@ Open http://localhost:3000 → complete `/setup` → configure region in Admin.
 |-------|-----|
 | Self-hosted Docker | [docs/DOCKER.md](docs/DOCKER.md) |
 | Vercel + Postgres | [docs/VERCEL.md](docs/VERCEL.md) |
-| Versioning & federation policy | [docs/RELEASES.md](docs/RELEASES.md) |
+| Releases & phases | [docs/RELEASES.md](docs/RELEASES.md) · [docs/RELEASE-PHASES.md](docs/RELEASE-PHASES.md) |
 | Current versions | [versions.json](versions.json) |
 
 Operators upgrade on their own schedule; the mesh tolerates mixed node versions within policy. See [Releases](docs/RELEASES.md).

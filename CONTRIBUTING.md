@@ -7,7 +7,7 @@ Thank you for helping build open, federated accessibility data. This document co
 ## Before you start
 
 1. Read the [documentation hub](docs/README.md) for your area (dev, operator, federation).
-2. Check [open issues](https://github.com/your-org/wikitraveler/issues) — or open one to discuss large changes first.
+2. Check [open issues](https://github.com/ingmarstruijs/WikiTraveler/issues) — or open one to discuss large changes first.
 3. Set up locally: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ---

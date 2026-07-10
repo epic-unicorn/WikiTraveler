@@ -16,6 +16,7 @@
 
 - [ ] `pnpm test`
 - [ ] `pnpm build`
+- [ ] CI jobs: `lint`, `test`, `build`, `prisma` (see `.github/workflows/ci.yml`)
 - [ ] `pnpm test:a11y` (if UI changed)
 - [ ] Gossip lab (if federation changed)
 

@@ -30,8 +30,11 @@ COPY --from=deps /app/apps/access/node_modules ./apps/access/node_modules
 
 COPY . .
 
+ARG WIKITRAVELER_VERSION=dev
 ARG NEXT_PUBLIC_NODE_API_URL=http://localhost:3000
+ENV WIKITRAVELER_VERSION=$WIKITRAVELER_VERSION
 ENV NEXT_PUBLIC_NODE_API_URL=$NEXT_PUBLIC_NODE_API_URL
+ENV NEXT_PUBLIC_APP_VERSION=$WIKITRAVELER_VERSION
 
 RUN pnpm --filter @wikitraveler/core build
 RUN pnpm --filter @wikitraveler/i18n build
