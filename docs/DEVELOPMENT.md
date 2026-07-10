@@ -114,6 +114,10 @@ After pulling schema changes on an existing DB: `pnpm db:migrate` (not `db:setup
 
 Maintainer-only: `pnpm db:migrate-photos` — see [VERCEL.md](./VERCEL.md).
 
+### Dependency updates
+
+Dependabot is **off** (no `.github/dependabot.yml`). Bump deps manually when needed. To also stop GitHub security update PRs: **Settings → Code security and analysis** → disable **Dependabot security updates**.
+
 ---
 
 ## Pull request workflow

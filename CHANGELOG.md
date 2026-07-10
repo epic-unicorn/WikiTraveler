@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Removed Dependabot version updates (`.github/dependabot.yml` deleted)
+
 ---
 
 ## [0.2.0] - 2026-07-10

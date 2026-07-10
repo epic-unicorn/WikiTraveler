@@ -146,7 +146,7 @@ Planned CI/CD (not all implemented yet):
 | GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
 | CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
-| Dependabot | `.github/dependabot.yml` | **Done** |
+| Dependabot version PRs | Disabled — no `dependabot.yml` |
 
 See [RELEASE-PHASES.md](./RELEASE-PHASES.md) for the full execution plan.
 
