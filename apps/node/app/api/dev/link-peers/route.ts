@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { linkPeerUrl } from "@/lib/linkPeer";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * POST /api/dev/link-peers
  * Body: { peerUrl: string }

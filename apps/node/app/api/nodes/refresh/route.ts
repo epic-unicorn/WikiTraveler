@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { fetchRemoteNodeInfo, peerVersionFields } from "@/lib/remoteNodeInfo";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * POST /api/nodes/refresh
  * Re-fetches /api/nodeinfo for every active peer and updates the local record.

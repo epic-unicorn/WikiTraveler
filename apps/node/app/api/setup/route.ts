@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signToken } from "@/lib/auth";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * GET /api/setup
  * Returns { needed: true } when no admin account exists yet, { needed: false } otherwise.

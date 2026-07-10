@@ -6,6 +6,8 @@ import { importExportPayload, type ExportPayload } from "@/lib/nodeDataTransfer"
 import { recordIngestComplete } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 const gunzipAsync = promisify(gunzip);
 
 /**

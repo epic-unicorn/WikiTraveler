@@ -14,6 +14,8 @@ import {
 import { pushMetadataOverridesToPeers } from "@/lib/push";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 type RouteParams = { params: { id: string } };
 
 function usernameFromReq(req: NextRequest): string | null {

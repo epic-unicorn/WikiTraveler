@@ -4,6 +4,8 @@ import { validateRegionBbox } from "@/lib/regionPresets";
 import { saveRegionBbox } from "@/lib/regionSave";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * POST /api/admin/region/apply
  * Body: { bbox, presetId?, exportConfirmed? }

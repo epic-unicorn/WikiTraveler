@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * POST /api/properties/:id/analyze
  *

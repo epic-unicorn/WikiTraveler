@@ -10,6 +10,8 @@ import type { NextRequest } from "next/server";
 import { isSelfPeer } from "@/lib/linkPeer";
 import { fetchPeerPath, PEER_FETCH_PATHS } from "@/lib/peerUrl";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * GET /api/cron/gossip
  *

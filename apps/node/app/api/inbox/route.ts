@@ -17,6 +17,8 @@ import {
 import { validateGossipDeltaProtocol } from "@/lib/gossipProtocol";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * POST /api/inbox
  *

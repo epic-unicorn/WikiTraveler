@@ -11,6 +11,8 @@ import {
 import { validatePeerBaseUrl } from "@/lib/peerUrl";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 // GET /api/nodes — lists locally known active peers (used by inbox push)
 export async function GET() {
   const rows = await prisma.nodePeer.findMany({

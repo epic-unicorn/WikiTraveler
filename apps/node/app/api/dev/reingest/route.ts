@@ -8,6 +8,8 @@ import { parseBbox, formatBbox } from "@/lib/bbox";
 import { fetchOverpassData, ingestOverpassResult } from "@/lib/overpass";
 import { getNodeBbox, recordIngestComplete } from "@/lib/nodeSettings";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /**
  * POST /api/dev/reingest   (GOSSIP_DEV gated, no auth)
  *

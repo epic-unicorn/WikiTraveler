@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 const VALID_ROLES = ["USER", "AUDITOR", "ADMIN"] as const;
 type Role = typeof VALID_ROLES[number];
 

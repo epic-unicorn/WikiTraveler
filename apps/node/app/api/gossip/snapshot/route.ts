@@ -7,6 +7,8 @@ import { requireNodeAuth } from "@/lib/auth";
 import { loadOverridesChangedSince } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 // GET /api/gossip/snapshot?since=<ISO>
 export async function GET(req: NextRequest) {
   const authError = await requireNodeAuth(req);

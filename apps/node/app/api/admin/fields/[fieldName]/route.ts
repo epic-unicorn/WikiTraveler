@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { NODE_ID } from "@/lib/nodeInfo";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 // PATCH /api/admin/fields/:fieldName
 export async function PATCH(
   req: NextRequest,

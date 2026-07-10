@@ -4,6 +4,8 @@ import { getNodeSettings } from "@/lib/nodeSettings";
 import { listRegionPresets } from "@/lib/regionPresets";
 import type { NextRequest } from "next/server";
 
+
+export { dynamic } from "@/lib/apiRoute";
 /** GET /api/admin/region — current region settings + presets catalog */
 export async function GET(req: NextRequest) {
   const authError = await requireRole(req, "ADMIN");
