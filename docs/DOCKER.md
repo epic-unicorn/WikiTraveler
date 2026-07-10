@@ -64,6 +64,27 @@ Restart after changing `.env`:
 docker compose -f docker/docker-compose.yml up -d
 ```
 
+### Pull published images (after `v0.2.0`)
+
+Pre-built images are published to GitHub Container Registry on each release tag:
+
+```bash
+# In .env
+WIKITRAVELER_VERSION=0.2.0
+
+docker compose -f docker/docker-compose.yml pull node
+docker compose -f docker/docker-compose.yml up -d
+```
+
+| Image | Registry |
+|-------|----------|
+| Node | `ghcr.io/ingmarstruijs/wikitraveler-node:0.2.0` |
+| Access | `ghcr.io/ingmarstruijs/wikitraveler-access:0.2.0` |
+
+First-time GHCR pull may require making the package **public** in GitHub → **Packages** → package settings, or logging in with a PAT that has `read:packages`.
+
+To build from source instead of pulling, use `docker compose ... up --build` (compose still has `build:` alongside `image:`).
+
 ### 2. Start the stack
 
 ```bash

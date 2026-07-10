@@ -13,7 +13,7 @@ Execution plan for WikiTraveler releases — from governance through community s
 | **0** | Governance & process | **Done** — docs hub, CONTRIBUTING, ruleset |
 | **1** | Version truth | **Done** — build injection, `release.mjs`, `protocol.ts`, aligned `0.2.0` |
 | **2** | CI quality gates | **Done** — `ci.yml` (lint, test, build, prisma) |
-| **3** | Artifact publishing | Planned — GHCR + GitHub Release assets |
+| **3** | Artifact publishing | **Done** — GHCR on tag + GitHub Release assets |
 | **4** | Federation hardening | Planned — gossip compat CI, peer version UI |
 | **5** | Operator experience | Planned — doctor CLI, manifest, Admin banner |
 | **6** | Community scale | Planned — npm SDK, Lens store, roadmap |
