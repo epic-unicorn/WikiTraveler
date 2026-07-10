@@ -18,7 +18,7 @@
 
 import { createSign, createVerify } from "crypto";
 import { NODE_URL } from "@/lib/nodeInfo";
-import { peerApiUrl } from "@/lib/peerUrl";
+import { fetchPeerJson, PEER_FETCH_PATHS } from "@/lib/peerUrl";
 
 /**
  * Sign a request body string with this node's RSA private key.
@@ -80,18 +80,10 @@ export function parseSignatureHeader(
 export async function fetchPeerPublicKey(
   peerUrl: string
 ): Promise<string | null> {
-  const target = peerApiUrl(peerUrl, "/api/nodeinfo");
-  if (!target) return null;
-  try {
-    const res = await fetch(target, {
-      signal: AbortSignal.timeout(8_000),
-      // Bypass Next.js fetch cache so we always get the live key
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { publicKeyPem?: string | null };
-    return data.publicKeyPem ?? null;
-  } catch {
-    return null;
-  }
+  const data = await fetchPeerJson<{ publicKeyPem?: string | null }>(
+    peerUrl,
+    PEER_FETCH_PATHS.nodeinfo,
+    { signal: AbortSignal.timeout(8_000) }
+  );
+  return data?.publicKeyPem ?? null;
 }

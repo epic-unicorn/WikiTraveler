@@ -8,7 +8,7 @@ import {
 } from "@/lib/remoteNodeInfo";
 import type { NextRequest } from "next/server";
 import { isSelfPeer } from "@/lib/linkPeer";
-import { peerApiUrl } from "@/lib/peerUrl";
+import { fetchPeerPath, PEER_FETCH_PATHS } from "@/lib/peerUrl";
 
 /**
  * GET /api/cron/gossip
@@ -43,13 +43,15 @@ export async function GET(req: NextRequest) {
 
   for (const peerUrl of peerUrls) {
     try {
-      const snapshotTarget = peerApiUrl(peerUrl, "/api/gossip/snapshot");
-      if (!snapshotTarget) throw new Error("peer URL failed SSRF validation");
-      const snapshotRes = await fetch(snapshotTarget, {
-        headers: nodeHeaders,
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!snapshotRes.ok) throw new Error(`snapshot fetch failed: ${snapshotRes.status}`);
+      const snapshotRes = await fetchPeerPath(
+        peerUrl,
+        PEER_FETCH_PATHS.gossipSnapshot,
+        {
+          headers: nodeHeaders,
+          signal: AbortSignal.timeout(10_000),
+        }
+      );
+      if (!snapshotRes?.ok) throw new Error(`snapshot fetch failed: ${snapshotRes?.status ?? "blocked"}`);
       const delta = await snapshotRes.json();
 
       const ingestRes = await fetch(`${INTERNAL_NODE_URL.replace(/\/$/, "")}/api/gossip/ingest`, {

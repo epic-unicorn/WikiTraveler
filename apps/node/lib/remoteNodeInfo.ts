@@ -1,4 +1,4 @@
-import { peerApiUrl } from "@/lib/peerUrl";
+import { fetchPeerJson, PEER_FETCH_PATHS } from "@/lib/peerUrl";
 
 export interface RemoteNodeInfo {
   nodeId?: string;
@@ -31,17 +31,7 @@ export function peerVersionFields(info: RemoteNodeInfo): {
 export async function fetchRemoteNodeInfo(
   url: string
 ): Promise<RemoteNodeInfo | null> {
-  const target = peerApiUrl(url, "/api/nodeinfo");
-  if (!target) return null;
-
-  try {
-    const res = await fetch(target, {
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as RemoteNodeInfo;
-  } catch {
-    return null;
-  }
+  return fetchPeerJson<RemoteNodeInfo>(url, PEER_FETCH_PATHS.nodeinfo, {
+    signal: AbortSignal.timeout(5_000),
+  });
 }

@@ -5,6 +5,16 @@ const BLOCKED_HOSTS = new Set([
   "kubernetes.default.svc",
 ]);
 
+/** Fixed API paths — not derived from user input. */
+export const PEER_FETCH_PATHS = {
+  nodeinfo: "/api/nodeinfo",
+  pubkey: "/.well-known/pubkey",
+  gossipSnapshot: "/api/gossip/snapshot",
+  inbox: "/api/inbox",
+} as const;
+
+export type PeerFetchPath = (typeof PEER_FETCH_PATHS)[keyof typeof PEER_FETCH_PATHS];
+
 function isPrivateIpv4(host: string): boolean {
   const parts = host.split(".");
   if (parts.length !== 4) return false;
@@ -27,6 +37,15 @@ function isPrivateIpv6(host: string): boolean {
     || h.startsWith("fd")
     || h.startsWith("fe80")
   );
+}
+
+function isHostAllowed(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (BLOCKED_HOSTS.has(host)) return false;
+  if (isPeerFetchDevMode()) return true;
+  if (host === "localhost" || host.endsWith(".localhost")) return false;
+  if (isPrivateIpv4(host) || isPrivateIpv6(host)) return false;
+  return true;
 }
 
 /** Dev/gossip lab may use localhost and docker-internal hostnames. */
@@ -63,29 +82,83 @@ export function validatePeerBaseUrl(raw: string): PeerUrlValidation {
     return { ok: false, reason: "Peer URL must not include credentials" };
   }
 
-  const host = parsed.hostname.toLowerCase();
-  if (BLOCKED_HOSTS.has(host)) {
+  if (!isHostAllowed(parsed.hostname)) {
     return { ok: false, reason: "Peer URL host is not allowed" };
-  }
-
-  const dev = isPeerFetchDevMode();
-  if (!dev) {
-    if (host === "localhost" || host.endsWith(".localhost")) {
-      return { ok: false, reason: "localhost peers are not allowed in production" };
-    }
-    if (isPrivateIpv4(host) || isPrivateIpv6(host)) {
-      return { ok: false, reason: "Private-network peer URLs are not allowed in production" };
-    }
   }
 
   const port = parsed.port ? `:${parsed.port}` : "";
   return { ok: true, url: `${parsed.protocol}//${parsed.hostname}${port}` };
 }
 
-/** Build a validated peer API URL (path must be a fixed suffix, not user input). */
-export function peerApiUrl(baseUrl: string, path: string): string | null {
+/** Build request URL from validated origin + fixed path (SSRF-safe construction). */
+function buildPeerRequestUrl(origin: string, path: PeerFetchPath): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  if (!isHostAllowed(parsed.hostname)) return null;
+
+  const safeOrigin = `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}`;
+
+  switch (path) {
+    case PEER_FETCH_PATHS.nodeinfo:
+      return new URL(PEER_FETCH_PATHS.nodeinfo, safeOrigin).href;
+    case PEER_FETCH_PATHS.pubkey:
+      return new URL(PEER_FETCH_PATHS.pubkey, safeOrigin).href;
+    case PEER_FETCH_PATHS.gossipSnapshot:
+      return new URL(PEER_FETCH_PATHS.gossipSnapshot, safeOrigin).href;
+    case PEER_FETCH_PATHS.inbox:
+      return new URL(PEER_FETCH_PATHS.inbox, safeOrigin).href;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Fetch a fixed peer API path after SSRF validation.
+ * All outbound federation HTTP calls must use this helper.
+ */
+export async function fetchPeerPath(
+  rawUrl: string,
+  path: PeerFetchPath,
+  init?: RequestInit
+): Promise<Response | null> {
+  const validated = validatePeerBaseUrl(rawUrl);
+  if (!validated.ok) return null;
+
+  const requestUrl = buildPeerRequestUrl(validated.url, path);
+  if (!requestUrl) return null;
+
+  try {
+    return await fetch(requestUrl, {
+      cache: "no-store",
+      ...init,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPeerJson<T>(
+  rawUrl: string,
+  path: PeerFetchPath,
+  init?: RequestInit
+): Promise<T | null> {
+  const res = await fetchPeerPath(rawUrl, path, init);
+  if (!res?.ok) return null;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+/** @deprecated Use fetchPeerPath — kept for callers that only need the URL string. */
+export function peerApiUrl(baseUrl: string, path: PeerFetchPath): string | null {
   const validated = validatePeerBaseUrl(baseUrl);
   if (!validated.ok) return null;
-  const suffix = path.startsWith("/") ? path : `/${path}`;
-  return `${validated.url}${suffix}`;
+  return buildPeerRequestUrl(validated.url, path);
 }

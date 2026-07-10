@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { validatePeerBaseUrl, peerApiUrl } from "./peerUrl";
+import { validatePeerBaseUrl, peerApiUrl, PEER_FETCH_PATHS } from "./peerUrl";
 
 describe("validatePeerBaseUrl", () => {
   const env = process.env;
@@ -51,12 +51,12 @@ describe("peerApiUrl", () => {
   });
 
   it("builds validated API paths", () => {
-    expect(peerApiUrl("https://peer.example.com", "/api/nodeinfo")).toBe(
+    expect(peerApiUrl("https://peer.example.com", PEER_FETCH_PATHS.nodeinfo)).toBe(
       "https://peer.example.com/api/nodeinfo"
     );
   });
 
   it("returns null for blocked hosts", () => {
-    expect(peerApiUrl("http://127.0.0.1:3000", "/api/nodeinfo")).toBeNull();
+    expect(peerApiUrl("http://127.0.0.1:3000", PEER_FETCH_PATHS.nodeinfo)).toBeNull();
   });
 });
