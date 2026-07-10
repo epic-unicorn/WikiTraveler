@@ -10,19 +10,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.2.1] - 2026-07-10
+
+### Operator notes
+
+- **Recommended first deploy tag** — includes Phase 5 operator tooling (`pnpm doctor`, release manifest, upgrade advisories).
+- No new Prisma migrations since `0.2.0`. Redeploy app images only.
+- GitHub Release attaches `manifest.json` alongside Lens zip and SDK dist.
+- Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.2.1`, `wikitraveler-access:0.2.1`.
+
 ### Added
 
 - Phase 5 operator experience: `pnpm doctor`, `releases/manifest.json`, Admin upgrade banner, Access Settings version display, [OPERATOR-CHECKLIST.md](docs/OPERATOR-CHECKLIST.md)
 - `@wikitraveler/core` semver helpers and upgrade assessment for node/Access advisories
 
-### Fixed
-
-- GitHub Release workflow: build `@wikitraveler/i18n` before SDK (fixes failed `v0.2.0` release assets)
-- `release.yml` supports manual re-run via **workflow_dispatch** for an existing tag
-
 ### Changed
 
-- Phase 4 federation hardening: `protocolVersion` on gossip deltas, peer version columns, Admin skew warnings, `gossip-compat` CI
+- Dependabot: security-update PRs enabled; version-bump PRs remain off (documented in [SECURITY.md](SECURITY.md))
+- Lighthouse CI uses runner Chrome instead of downloading Chrome each run (faster `a11y` workflow)
+- [RELEASES.md](docs/RELEASES.md) reflects completed release automation (GHCR, GitHub Release, manifest)
+
+### Fixed
+
+- GitHub Release workflow: build `@wikitraveler/i18n` before SDK
+- `release.yml` supports manual re-run via **workflow_dispatch** for an existing tag
 
 ---
 
@@ -52,5 +65,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - All workspace packages aligned to version `0.2.0`
 - CodeQL via GitHub default setup (no custom `codeql.yml`)
 
-[Unreleased]: https://github.com/ingmarstruijs/WikiTraveler/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ingmarstruijs/WikiTraveler/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.2.1
 [0.2.0]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.2.0

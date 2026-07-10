@@ -52,9 +52,10 @@ Each `v*` tag should produce:
 | **Docker images** | Self-hosters | `wikitraveler-node`, `wikitraveler-access` (GHCR) |
 | **Source tree** | Vercel / custom hosts | Git checkout at tag |
 | **Lens zip** | Auditors | Attached to GitHub Release |
-| **SDK bundles** | Agencies | `packages/sdk/dist` on Release or npm |
+| **SDK bundles** | Agencies | `packages/sdk/dist` on Release (npm in Phase 6) |
+| **Release manifest** | Operators | `manifest.json` on GitHub Release + [releases/manifest.json](../releases/manifest.json) on `main` |
 
-Today: tags and changelog are manual; Docker GHCR and automated Release assets are **planned** — see [Release automation](#release-automation-roadmap).
+Tags and changelog are prepared with `scripts/release.mjs`. Docker GHCR images and GitHub Release assets publish automatically on tag push — see [Release automation](#release-automation-roadmap).
 
 ---
 
@@ -134,9 +135,7 @@ Full steps: [UPGRADE.md](./UPGRADE.md).
 
 ---
 
-## Release automation roadmap
-
-Planned CI/CD (not all implemented yet):
+## Release automation
 
 | Step | Workflow | Status |
 |------|----------|--------|
@@ -146,8 +145,9 @@ Planned CI/CD (not all implemented yet):
 | GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
 | CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
-| Dependabot alerts | Settings → Code security — **enabled** |
-| Dependabot auto-PRs | **Disabled** — no `dependabot.yml`; security updates off in Settings |
+| Dependabot alerts | Settings → Code security | **Enabled** |
+| Dependabot security updates | Same | **Enabled** — CVE PRs only |
+| Dependabot version updates | `.github/dependabot.yml` | **Off** — no scheduled bump PRs |
 
 See [RELEASE-PHASES.md](./RELEASE-PHASES.md) for the full execution plan.
 
@@ -161,13 +161,13 @@ Contributors implementing automation should follow this doc and update the table
 
 ```json
 {
-  "release": "0.2.0",
-  "node": "0.2.0",
+  "release": "0.2.1",
+  "node": "0.2.1",
   "gossipProtocol": 1,
   "exportSchema": 2,
   "minSupportedNode": "0.2.0",
-  "minRecommendedNode": "0.2.0"
+  "minRecommendedNode": "0.2.1"
 }
 ```
 
-Future: nodes may optionally fetch a published manifest to show “upgrade available” in Admin — advisory only. See [releases/manifest.json](../releases/manifest.json) and [OPERATOR-CHECKLIST.md](./OPERATOR-CHECKLIST.md).
+Future: npm SDK publish and Chrome Web Store remain Phase 6. Nodes optionally fetch a published manifest for upgrade advisories — see [releases/manifest.json](../releases/manifest.json) and [OPERATOR-CHECKLIST.md](./OPERATOR-CHECKLIST.md).
