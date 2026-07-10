@@ -48,11 +48,11 @@
   "devDependencies": {
     "@lhci/cli": "^0.14.0",
     "@types/node": "^20.19.37",
-    "prisma": "^5.14.0",
+    "prisma": "^7.8.0",
     "tsx": "^4.15.0",
     "typescript": "^5.4.0"
   },
   "dependencies": {
-    "@prisma/client": "^5.14.0"
+    "@prisma/client": "^7.8.0"
   }
 }
