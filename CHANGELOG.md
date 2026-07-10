@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Security:** `pnpm.overrides` pin patched transitive deps — `glob` (GHSA-5j98-mcp5-4vw2), `picomatch` (GHSA-c2c7-rcm5-vvqj), `tmp` (GHSA-ph9p-34f9-6g65), `form-data` (GHSA-hmw2-7cc7-3qxx). Next.js 14 high advisories remain until the planned 15.x migration ([docs/ROADMAP.md](docs/ROADMAP.md)).
 - API routes export `force-dynamic` so `pnpm build` does not require a running Postgres
 - `gossip-compat` retries post-sync fetches (dev servers can be briefly unavailable after cron gossip)
 
