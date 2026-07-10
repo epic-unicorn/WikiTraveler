@@ -72,7 +72,8 @@ Report vulnerabilities: [SECURITY.md](../SECURITY.md) (private reporting, not pu
 
 - [ ] Separate deploy with `NEXT_PUBLIC_NODE_API_URL` = your node URL
 - [ ] Rebuild Access whenever that URL changes (build-time env)
-- [ ] Docker: `docker compose --profile access up -d` — see [DOCKER.md](./DOCKER.md)
+- [ ] Docker (both apps): `pnpm docker:stack` — see [DOCKER.md](./DOCKER.md#node--access-stack)
+- [ ] Docker (Access profile on node-only compose): `pnpm docker:access`
 
 ### 6. Verify
 

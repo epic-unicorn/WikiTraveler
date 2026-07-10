@@ -4,7 +4,45 @@
 
 Self-host a WikiTraveler node with Docker Compose. Postgres and the node run in containers — no Vercel required.
 
-**WikiTraveler Access** is optional: enable the `access` compose profile to run it in Docker, or use local dev / [Vercel](./VERCEL.md#5-deploy-wikitraveler-access) instead.
+**WikiTraveler Access** can run in the same stack — see [Node + Access stack](#node--access-stack) below, or use local dev / [Vercel](./VERCEL.md#5-deploy-wikitraveler-access) instead.
+
+---
+
+## Node + Access stack
+
+Run **Postgres, node, and WikiTraveler Access** together (no compose profile):
+
+```bash
+cp .env.example .env   # set keys, NODE_URL, etc.
+pnpm docker:stack      # or: docker compose -f docker/docker-compose.node-access.yml up -d
+```
+
+| Service | URL |
+|---------|-----|
+| Node | http://localhost:3000 |
+| WikiTraveler Access | http://localhost:3001 |
+| Postgres (host tools) | `localhost:5432` (`POSTGRES_HOST_PORT` in `.env`) |
+
+First-time setup: open http://localhost:3000/setup for the admin account, then use Access at http://localhost:3001.
+
+Set `NEXT_PUBLIC_NODE_API_URL` in `.env` to the URL **browsers** use for the node (default `http://localhost:3000`). Rebuild Access after changing it:
+
+```bash
+pnpm docker:stack:build
+# or rebuild access only:
+docker compose -f docker/docker-compose.node-access.yml up --build -d access
+```
+
+Include the Access origin in `CORS_ORIGINS` (the stack defaults to `http://localhost:3001,http://localhost:3000` when unset).
+
+Stop / reset:
+
+```bash
+pnpm docker:stack:down        # keep database volume
+pnpm docker:stack:reset       # wipe postgres volume
+```
+
+Compose file: [`docker/docker-compose.node-access.yml`](../docker/docker-compose.node-access.yml).
 
 ---
 
@@ -95,7 +133,7 @@ On first run this builds the image, starts Postgres, runs `prisma migrate deploy
 
 ### 2b. (Optional) Start WikiTraveler Access in Docker
 
-WikiTraveler Access uses the compose profile `access` — it is **not** started by the command above.
+Prefer the [Node + Access stack](#node--access-stack) for both apps in one command. Alternatively, WikiTraveler Access uses the compose profile `access` on `docker-compose.yml` — it is **not** started by the node-only command above.
 
 ```bash
 # Production WikiTraveler Access on :3001 (rebuild after changing NEXT_PUBLIC_NODE_API_URL)

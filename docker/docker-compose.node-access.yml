@@ -1,0 +1,77 @@
+# Node + WikiTraveler Access + Postgres — one command, no compose profile.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.node-access.yml up -d
+#   pnpm docker:stack
+#
+# Node:   http://localhost:3000
+# Access: http://localhost:3001  (override with ACCESS_PORT in .env)
+#
+# Set NEXT_PUBLIC_NODE_API_URL in .env to the URL browsers use for the node
+# (default http://localhost:3000). Rebuild access after changing it:
+#   docker compose -f docker/docker-compose.node-access.yml up --build -d access
+
+name: wikitraveler
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wikitraveler
+      POSTGRES_PASSWORD: wikitraveler
+      POSTGRES_DB: wikitraveler
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikitraveler"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  node:
+    image: ghcr.io/ingmarstruijs/wikitraveler-node:${WIKITRAVELER_VERSION:-0.2.1}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        WIKITRAVELER_VERSION: ${WIKITRAVELER_VERSION:-0.2.1}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres:5432/wikitraveler
+      NODE_ENV: production
+      # Allow WikiTraveler Access origin when .env still has CORS_ORIGINS=*
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001,http://localhost:3000}
+
+  access:
+    image: ghcr.io/ingmarstruijs/wikitraveler-access:${WIKITRAVELER_VERSION:-0.2.1}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.access
+      args:
+        NEXT_PUBLIC_NODE_API_URL: ${NEXT_PUBLIC_NODE_API_URL:-http://localhost:3000}
+        WIKITRAVELER_VERSION: ${WIKITRAVELER_VERSION:-0.2.1}
+    restart: unless-stopped
+    depends_on:
+      node:
+        condition: service_started
+    ports:
+      - "${ACCESS_PORT:-3001}:3001"
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOSTNAME: "0.0.0.0"
+
+volumes:
+  postgres_data:

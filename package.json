@@ -40,7 +40,11 @@
     "osm:import-pbf:docker:prod": "docker compose -f docker/docker-compose.yml exec node osm-import-pbf",
     "docker:access": "docker compose -f docker/docker-compose.yml --profile access up -d",
     "docker:access:dev": "docker compose -f docker/docker-compose.dev.yml --profile access up -d",
+    "docker:stack": "docker compose -f docker/docker-compose.node-access.yml up -d",
+    "docker:stack:build": "docker compose -f docker/docker-compose.node-access.yml up --build -d",
+    "docker:stack:down": "docker compose -f docker/docker-compose.node-access.yml down",
     "docker:reset": "docker compose -f docker/docker-compose.yml --profile access down -v",
+    "docker:stack:reset": "docker compose -f docker/docker-compose.node-access.yml down -v",
     "postinstall": "prisma generate"
   },
   "workspaces": [
