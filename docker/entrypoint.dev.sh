@@ -20,9 +20,13 @@ pnpm exec prisma migrate deploy --schema=/app/prisma/schema.prisma
 echo "⚙️  Generating Prisma client..."
 pnpm exec prisma generate --schema=/app/prisma/schema.prisma
 
-echo "🔧 Building shared packages..."
-pnpm --filter @wikitraveler/core build
-pnpm --filter @wikitraveler/ui build
+if [ "$GOSSIP_CI" = "true" ]; then
+  echo "🔧 CI mode — packages pre-built on runner, skipping core/ui build"
+else
+  echo "🔧 Building shared packages..."
+  pnpm --filter @wikitraveler/core build
+  pnpm --filter @wikitraveler/ui build
+fi
 
 echo "🚀 Starting WikiTraveler node in development mode (port ${PORT:-3000})..."
 exec pnpm --filter @wikitraveler/node exec next dev -p "${PORT:-3000}"

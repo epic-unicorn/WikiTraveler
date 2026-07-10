@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { isSelfPeer } from "@/lib/linkPeer";
 import { signBody, buildSignatureHeader } from "@/lib/httpSignature";
+import { fetchPeerPath, PEER_FETCH_PATHS } from "@/lib/peerUrl";
 import type { AccessibilityFact, PropertyMetadataOverride } from "@wikitraveler/core";
 
 type PushProperty = {
@@ -72,8 +73,8 @@ export async function pushFactsToPeers(
   }
 
   await Promise.allSettled(
-    peers.map((peer) =>
-      fetch(`${peer.url}/api/inbox`, {
+    peers.map(async (peer) => {
+      const res = await fetchPeerPath(peer.url, PEER_FETCH_PATHS.inbox, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,16 +82,12 @@ export async function pushFactsToPeers(
         },
         body: payload,
         signal: AbortSignal.timeout(10_000),
-      })
-        .then((res) => {
-          if (!res.ok) {
-            console.warn(`[push] Peer ${peer.url} returned ${res.status}`);
-          }
-        })
-        .catch((err) => {
-          console.warn(`[push] Failed to push to ${peer.url}:`, err);
-        })
-    )
+      });
+      if (!res) return;
+      if (!res.ok) {
+        console.warn(`[push] Peer ${peer.url} returned ${res.status}`);
+      }
+    })
   );
 }
 
@@ -123,8 +120,8 @@ export async function pushMetadataOverridesToPeers(
   }
 
   await Promise.allSettled(
-    peers.map((peer) =>
-      fetch(`${peer.url}/api/inbox`, {
+    peers.map(async (peer) => {
+      const res = await fetchPeerPath(peer.url, PEER_FETCH_PATHS.inbox, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,15 +129,11 @@ export async function pushMetadataOverridesToPeers(
         },
         body: payload,
         signal: AbortSignal.timeout(10_000),
-      })
-        .then((res) => {
-          if (!res.ok) {
-            console.warn(`[push] Peer ${peer.url} metadata push returned ${res.status}`);
-          }
-        })
-        .catch((err) => {
-          console.warn(`[push] Failed to push metadata to ${peer.url}:`, err);
-        })
-    )
+      });
+      if (!res) return;
+      if (!res.ok) {
+        console.warn(`[push] Peer ${peer.url} metadata push returned ${res.status}`);
+      }
+    })
   );
 }

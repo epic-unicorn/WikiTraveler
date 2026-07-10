@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { GOSSIP_PROTOCOL_VERSION } from "@wikitraveler/core";
 import { prisma } from "@/lib/prisma";
 import { NODE_ID } from "@/lib/nodeInfo";
 import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
@@ -90,6 +91,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     fromNodeId: NODE_ID,
+    protocolVersion: GOSSIP_PROTOCOL_VERSION,
     since: sinceDate.toISOString(),
     until: new Date().toISOString(),
     properties,

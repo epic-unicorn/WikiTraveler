@@ -16,7 +16,14 @@ export async function GET() {
     prisma.accessibilityFact.count(),
     prisma.propertyMetadataOverride.count(),
     prisma.nodePeer.findMany({
-      select: { url: true, nodeId: true, isActive: true, lastSeen: true },
+      select: {
+        url: true,
+        nodeId: true,
+        isActive: true,
+        lastSeen: true,
+        lastKnownVersion: true,
+        gossipProtocol: true,
+      },
       orderBy: { lastSeen: "desc" },
     }),
   ]);
@@ -28,6 +35,8 @@ export async function GET() {
       nodeId: p.nodeId,
       isActive: p.isActive,
       lastSeen: p.lastSeen.toISOString(),
+      lastKnownVersion: p.lastKnownVersion,
+      gossipProtocol: p.gossipProtocol,
     }));
 
   return NextResponse.json({

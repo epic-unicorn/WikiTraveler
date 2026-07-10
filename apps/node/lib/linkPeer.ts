@@ -4,41 +4,20 @@
 
 import { prisma } from "@/lib/prisma";
 import { INTERNAL_NODE_URL, NODE_ID, NODE_URL } from "@/lib/nodeInfo";
-
-interface RemoteNodeInfo {
-  nodeId?: string;
-  nodeUrl?: string;
-  region?: string;
-  bbox?: string | null;
-  publicKeyPem?: string | null;
-  peers?: Array<{ nodeId?: string | null; url: string; region?: string | null; bbox?: string | null }>;
-}
+import {
+  fetchRemoteNodeInfo,
+  peerVersionFields,
+  type RemoteNodeInfo,
+} from "@/lib/remoteNodeInfo";
+import { fetchPeerJson, PEER_FETCH_PATHS, validatePeerBaseUrl } from "@/lib/peerUrl";
 
 async function fetchPublicKeyPem(peerUrl: string): Promise<string | null> {
-  try {
-    const res = await fetch(`${peerUrl.replace(/\/$/, "")}/.well-known/pubkey`, {
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { publicKeyPem?: string };
-    return data.publicKeyPem ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchNodeInfo(url: string): Promise<RemoteNodeInfo | null> {
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/api/nodeinfo`, {
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as RemoteNodeInfo;
-  } catch {
-    return null;
-  }
+  const data = await fetchPeerJson<{ publicKeyPem?: string }>(
+    peerUrl,
+    PEER_FETCH_PATHS.pubkey,
+    { signal: AbortSignal.timeout(5_000) }
+  );
+  return data?.publicKeyPem ?? null;
 }
 
 function peerHostname(url: string): string | null {
@@ -60,13 +39,31 @@ export function isSelfPeer(peerUrl: string, peerNodeId?: string | null): boolean
   return false;
 }
 
+function peerUpsertData(info: RemoteNodeInfo, publicKey: string | null) {
+  const versionFields = peerVersionFields(info);
+  return {
+    nodeId: info.nodeId ?? undefined,
+    region: info.region ?? undefined,
+    bbox: info.bbox ?? undefined,
+    publicKey: publicKey ?? undefined,
+    lastKnownVersion: versionFields.lastKnownVersion ?? undefined,
+    gossipProtocol: versionFields.gossipProtocol ?? undefined,
+    lastSeen: new Date(),
+    isActive: true,
+  };
+}
+
 export async function linkPeerUrl(rawUrl: string): Promise<{ ok: true; nodeId: string | null; url: string } | { ok: false; error: string }> {
-  const url = rawUrl.replace(/\/$/, "");
+  const validated = validatePeerBaseUrl(rawUrl);
+  if (!validated.ok) {
+    return { ok: false, error: validated.reason };
+  }
+  const url = validated.url;
   if (isSelfPeer(url)) {
     return { ok: false, error: "Cannot link to self" };
   }
 
-  const info = await fetchNodeInfo(url);
+  const info = await fetchRemoteNodeInfo(url);
   if (!info) {
     return { ok: false, error: `Could not reach ${url}/api/nodeinfo` };
   }
@@ -80,20 +77,15 @@ export async function linkPeerUrl(rawUrl: string): Promise<{ ok: true; nodeId: s
 
   await prisma.nodePeer.upsert({
     where: { url },
-    update: {
-      nodeId: info.nodeId ?? undefined,
-      region: info.region ?? undefined,
-      bbox: info.bbox ?? undefined,
-      publicKey: publicKey ?? undefined,
-      lastSeen: new Date(),
-      isActive: true,
-    },
+    update: peerUpsertData(info, publicKey),
     create: {
       url,
       nodeId: info.nodeId ?? null,
       region: info.region ?? null,
       bbox: info.bbox ?? null,
       publicKey,
+      lastKnownVersion: peerVersionFields(info).lastKnownVersion,
+      gossipProtocol: peerVersionFields(info).gossipProtocol,
       isActive: true,
     },
   });

@@ -9,8 +9,12 @@ type Peer = {
   nodeId: string | null;
   region: string | null;
   bbox: string | null;
+  lastKnownVersion: string | null;
+  gossipProtocol: number | null;
   lastSeen: string;
   isActive: boolean;
+  skewLevel?: "ok" | "warn" | "error";
+  skewMessage?: string | null;
 };
 
 const cell: React.CSSProperties = {
@@ -120,6 +124,8 @@ export function PeersPanel({ token }: { token: string }) {
     }
   }
 
+  const skewCount = peers.filter((p) => p.skewLevel === "warn" || p.skewLevel === "error").length;
+
   return (
     <div
       style={{
@@ -166,6 +172,19 @@ export function PeersPanel({ token }: { token: string }) {
         </button>
       </div>
 
+      {skewCount > 0 && (
+        <p
+          style={{
+            fontSize: 12,
+            color: "var(--wt-warning, #b45309)",
+            marginBottom: 12,
+            marginTop: 8,
+          }}
+        >
+          {skewCount} peer{skewCount === 1 ? "" : "s"} with version or protocol skew — refresh peers after upgrades.
+        </p>
+      )}
+
       {refreshMsg && (
         <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginBottom: 12, marginTop: 8 }}>
           {refreshMsg}
@@ -183,10 +202,11 @@ export function PeersPanel({ token }: { token: string }) {
 
       {!loading && !error && (
         <div style={{ overflowX: "auto", marginTop: 16 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
             <thead>
               <tr>
                 <th style={{ ...th, textAlign: "left" }}>{t("ui.adminUrl")}</th>
+                <th style={{ ...th, textAlign: "left" }}>{t("ui.adminVersionCol")}</th>
                 <th style={{ ...th, textAlign: "left" }}>{t("ui.adminRegionCol")}</th>
                 <th style={{ ...th, textAlign: "right" }}>{t("ui.adminLastSeen")}</th>
                 <th style={th}></th>
@@ -196,7 +216,7 @@ export function PeersPanel({ token }: { token: string }) {
               {peers.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     style={{ ...cell, color: "var(--wt-text-muted)", textAlign: "center", padding: "20px 12px" }}
                   >
                     {t("ui.adminNoPeers")}
@@ -206,6 +226,7 @@ export function PeersPanel({ token }: { token: string }) {
               {peers.map((p) => {
                 const isBusy = removing === p.url;
                 const ago = formatAgo(p.lastSeen, t);
+                const skew = p.skewLevel ?? "ok";
                 return (
                   <tr key={p.url}>
                     <td style={cell}>
@@ -237,6 +258,30 @@ export function PeersPanel({ token }: { token: string }) {
                             }}
                           >
                             {p.nodeId}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={cell}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <span style={{ fontFamily: "var(--wt-font-mono)", fontSize: 12 }}>
+                          {p.lastKnownVersion ?? "—"}
+                        </span>
+                        <span style={{ fontSize: 11, color: "var(--wt-text-muted)" }}>
+                          {t("ui.adminGossipProtocolCol")} {p.gossipProtocol ?? "—"}
+                        </span>
+                        {skew !== "ok" && p.skewMessage && (
+                          <span
+                            title={p.skewMessage}
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: skew === "error" ? "var(--wt-danger)" : "var(--wt-warning, #b45309)",
+                            }}
+                          >
+                            {skew === "error" ? t("ui.adminPeerSkewError") : t("ui.adminPeerSkewWarn")}
+                            {": "}
+                            {p.skewMessage}
                           </span>
                         )}
                       </div>

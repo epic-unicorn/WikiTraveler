@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { mergeGossipDelta } from "@wikitraveler/core";
 import { createHash } from "crypto";
 import { requireNodeAuth } from "@/lib/auth";
+import { validateGossipDeltaProtocol } from "@/lib/gossipProtocol";
 import { remapFactsPropertyIds, upsertGossipProperties } from "@/lib/gossipProperties";
 import { isSelfPeer } from "@/lib/linkPeer";
 import { getNodeBbox } from "@/lib/nodeSettings";
@@ -29,6 +30,11 @@ export async function POST(req: Request) {
       { message: "Invalid delta: fromNodeId and facts[] are required" },
       { status: 400 }
     );
+  }
+
+  const protocolCheck = validateGossipDeltaProtocol(delta);
+  if (!protocolCheck.ok) {
+    return NextResponse.json({ message: protocolCheck.message }, { status: 400 });
   }
 
   const incomingOverrides = Array.isArray(delta.metadataOverrides) ? delta.metadataOverrides : [];

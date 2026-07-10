@@ -48,8 +48,8 @@ async function main() {
     gossipStats(NODE_B),
   ]);
 
-  console.log(`Node A (${aInfo.nodeId}) @ ${NODE_A}`);
-  console.log(`Node B (${bInfo.nodeId}) @ ${NODE_B}`);
+  console.log(`Node A (${aInfo.nodeId}) @ ${NODE_A} — v${aInfo.version}, gossip ${aInfo.gossipProtocol}`);
+  console.log(`Node B (${bInfo.nodeId}) @ ${NODE_B} — v${bInfo.version}, gossip ${bInfo.gossipProtocol}`);
 
   const aSeesB = (aInfo.peers ?? []).some((p) => p.nodeId === "node-b");
   const bSeesA = (bInfo.peers ?? []).some((p) => p.nodeId === "node-a");

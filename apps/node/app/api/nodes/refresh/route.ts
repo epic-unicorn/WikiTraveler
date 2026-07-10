@@ -1,26 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
+import { fetchRemoteNodeInfo, peerVersionFields } from "@/lib/remoteNodeInfo";
 import type { NextRequest } from "next/server";
-
-interface RemoteNodeInfo {
-  nodeId?: string;
-  region?: string;
-  bbox?: string | null;
-  publicKeyPem?: string | null;
-}
-
-async function fetchNodeInfo(url: string): Promise<RemoteNodeInfo | null> {
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/api/nodeinfo`, {
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as RemoteNodeInfo;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * POST /api/nodes/refresh
@@ -36,9 +18,10 @@ export async function POST(req: NextRequest) {
 
   const results = await Promise.allSettled(
     peers.map(async (peer) => {
-      const info = await fetchNodeInfo(peer.url);
+      const info = await fetchRemoteNodeInfo(peer.url);
       if (!info) return { url: peer.url, ok: false };
 
+      const versionFields = peerVersionFields(info);
       await prisma.nodePeer.update({
         where: { url: peer.url },
         data: {
@@ -46,6 +29,8 @@ export async function POST(req: NextRequest) {
           region: info.region ?? undefined,
           bbox: info.bbox ?? undefined,
           publicKey: info.publicKeyPem ?? undefined,
+          lastKnownVersion: versionFields.lastKnownVersion ?? undefined,
+          gossipProtocol: versionFields.gossipProtocol ?? undefined,
           lastSeen: new Date(),
         },
       });

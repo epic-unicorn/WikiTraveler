@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildNodeAuthHeaders } from "@/lib/auth";
 import { INTERNAL_NODE_URL } from "@/lib/nodeInfo";
+import {
+  fetchRemoteNodeInfo,
+  peerVersionFields,
+} from "@/lib/remoteNodeInfo";
 import type { NextRequest } from "next/server";
 import { isSelfPeer } from "@/lib/linkPeer";
+import { fetchPeerPath, PEER_FETCH_PATHS } from "@/lib/peerUrl";
 
 /**
  * GET /api/cron/gossip
@@ -38,11 +43,15 @@ export async function GET(req: NextRequest) {
 
   for (const peerUrl of peerUrls) {
     try {
-      const snapshotRes = await fetch(`${peerUrl.replace(/\/$/, "")}/api/gossip/snapshot`, {
-        headers: nodeHeaders,
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!snapshotRes.ok) throw new Error(`snapshot fetch failed: ${snapshotRes.status}`);
+      const snapshotRes = await fetchPeerPath(
+        peerUrl,
+        PEER_FETCH_PATHS.gossipSnapshot,
+        {
+          headers: nodeHeaders,
+          signal: AbortSignal.timeout(10_000),
+        }
+      );
+      if (!snapshotRes?.ok) throw new Error(`snapshot fetch failed: ${snapshotRes?.status ?? "blocked"}`);
       const delta = await snapshotRes.json();
 
       const ingestRes = await fetch(`${INTERNAL_NODE_URL.replace(/\/$/, "")}/api/gossip/ingest`, {
@@ -55,10 +64,28 @@ export async function GET(req: NextRequest) {
       const ingestData = await ingestRes.json() as { ingested?: number };
 
       const peerNodeId = (delta as { fromNodeId?: string }).fromNodeId;
+      const peerInfo = await fetchRemoteNodeInfo(peerUrl);
+      const versionFields = peerInfo ? peerVersionFields(peerInfo) : null;
       await prisma.nodePeer.upsert({
         where: { url: peerUrl },
-        update: { lastSeen: new Date(), isActive: true, ...(peerNodeId ? { nodeId: peerNodeId } : {}) },
-        create: { url: peerUrl, nodeId: peerNodeId, isActive: true },
+        update: {
+          lastSeen: new Date(),
+          isActive: true,
+          ...(peerNodeId ? { nodeId: peerNodeId } : {}),
+          ...(versionFields?.lastKnownVersion
+            ? { lastKnownVersion: versionFields.lastKnownVersion }
+            : {}),
+          ...(versionFields?.gossipProtocol != null
+            ? { gossipProtocol: versionFields.gossipProtocol }
+            : {}),
+        },
+        create: {
+          url: peerUrl,
+          nodeId: peerNodeId,
+          lastKnownVersion: versionFields?.lastKnownVersion ?? null,
+          gossipProtocol: versionFields?.gossipProtocol ?? null,
+          isActive: true,
+        },
       });
 
       results.push({ url: peerUrl, ok: true, ingested: ingestData.ingested });
