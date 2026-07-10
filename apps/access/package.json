@@ -11,7 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ionic/react": "^8.5.4",
+    "@ionic/react": "^8.8.13",
     "@wikitraveler/core": "workspace:*",
     "@wikitraveler/i18n": "workspace:*",
     "@wikitraveler/ui": "workspace:*",
