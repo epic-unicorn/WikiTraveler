@@ -152,14 +152,13 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
       setOpenCount(signals.openCount);
       cachePropertyDetail({
         propertyId,
-        nodeUrl: targetNodeUrl,
         locale,
         fetchedAt: new Date().toISOString(),
         payload: access,
       });
       setSaved(isPlaceSaved(access.property.id));
     } catch {
-      const cached = readCachedPropertyDetail(propertyId, targetNodeUrl, locale);
+      const cached = readCachedPropertyDetail(propertyId, locale);
       if (cached?.payload) {
         setData(cached.payload as Awaited<ReturnType<typeof fetchPropertyAccessibility>>);
         setOffline(true);
