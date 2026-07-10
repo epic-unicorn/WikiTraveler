@@ -31,7 +31,7 @@ function seedNode({ label, databaseUrl, nodeId }) {
   console.log(`\n🌱 ${label} (${databaseUrl.replace(/:[^:@/]+@/, ":****@")})`);
   const result = spawnSync(
     "pnpm",
-    ["exec", "tsx", "scripts/seed.ts"],
+    ["exec", "tsx", "--tsconfig", "apps/node/tsconfig.json", "scripts/seed.ts"],
     {
       cwd: ROOT,
       stdio: "inherit",
