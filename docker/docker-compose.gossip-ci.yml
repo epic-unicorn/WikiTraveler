@@ -1,0 +1,26 @@
+# CI overlay — reuse runner node_modules instead of empty Docker volumes.
+#
+# Without this, first boot runs `pnpm install` inside each container (~10+ min).
+# Usage (CI only):
+#   docker compose -f docker/docker-compose.gossip.yml \
+#     -f docker/docker-compose.gossip-compat.yml \
+#     -f docker/docker-compose.gossip-ci.yml up -d --build
+
+services:
+  node-a:
+    volumes:
+      - ..:/app
+      - next_a:/app/apps/node/.next
+      - ./gossip-lab/node-a.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-a.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      GOSSIP_CI: "true"
+
+  node-b:
+    volumes:
+      - ..:/app
+      - next_b:/app/apps/node/.next
+      - ./gossip-lab/node-b.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-b.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      GOSSIP_CI: "true"
