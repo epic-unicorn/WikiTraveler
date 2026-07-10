@@ -427,6 +427,15 @@
       </li>`).join("")}</ul>`;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function renderHotelDetail(prop) {
     const el = document.getElementById("hotel-detail");
     if (!prop) {
@@ -439,11 +448,17 @@
       ? `${prop.lat.toFixed(4)}, ${prop.lon.toFixed(4)}`
       : null;
 
+    const safeLocation = escapeHtml(prop.location || "Hotel listing");
+    const safeName = escapeHtml(prop.name);
+    const safeCoords = coords ? escapeHtml(coords) : "";
+    const safeId = escapeHtml(prop.id);
+    const safeNodeUrl = escapeHtml(currentNodeUrl);
+
     el.innerHTML = `
-      <div class="hotel-hero">${prop.location || "Hotel listing"}</div>
-      <h3 class="hotel-name">${prop.name}</h3>
-      <p class="hotel-meta">${prop.location}${coords ? ` · ${coords}` : ""}</p>
-      <p class="hotel-id">Property ID: ${prop.id}</p>
+      <div class="hotel-hero">${safeLocation}</div>
+      <h3 class="hotel-name">${safeName}</h3>
+      <p class="hotel-meta">${safeLocation}${safeCoords ? ` · ${safeCoords}` : ""}</p>
+      <p class="hotel-id">Property ID: ${safeId}</p>
       <div class="price-box">
         <p class="wt-text-muted" style="margin-bottom:4px">From</p>
         <span class="price">€129</span>
@@ -451,12 +466,12 @@
         <button type="button" class="btn-book wt-btn-primary">Book now</button>
       </div>
       <p class="wt-text-muted" style="line-height:1.7;margin-bottom:4px">
-        Accessibility data below is loaded live from <strong>${currentNodeUrl}</strong> via the WikiTraveler SDK — the same integration your agency site would use.
+        Accessibility data below is loaded live from <strong>${safeNodeUrl}</strong> via the WikiTraveler SDK — the same integration your agency site would use.
       </p>
       <h4 class="snapshot-heading">Accessibility snapshot</h4>
       ${formatFactRows(prop.facts)}
     `;
-    document.title = `${prop.name} — Agency Demo | WikiTraveler SDK`;
+    document.title = `${safeName} — Agency Demo | WikiTraveler SDK`;
   }
 
   function renderSearchResults() {
