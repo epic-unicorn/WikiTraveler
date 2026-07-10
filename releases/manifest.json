@@ -1,0 +1,12 @@
+{
+  "latest": "0.2.0",
+  "minRecommended": "0.2.0",
+  "releasedAt": "2026-07-10",
+  "node": "0.2.0",
+  "access": "0.2.0",
+  "lens": "0.2.0",
+  "sdk": "0.2.0",
+  "gossipProtocol": 1,
+  "exportSchema": 2,
+  "minSupportedNode": "0.2.0"
+}

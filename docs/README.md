@@ -27,6 +27,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | Doc | Purpose |
 |-----|---------|
 | [OPERATORS.md](./OPERATORS.md) | Who runs what, deployment options, first-time production checklist |
+| [OPERATOR-CHECKLIST.md](./OPERATOR-CHECKLIST.md) | Post-deploy verification (`pnpm doctor`, smoke tests) |
 | [DOCKER.md](./DOCKER.md) | Self-hosted node (+ optional Access) with Docker Compose |
 | [VERCEL.md](./VERCEL.md) | Serverless node + Access on Vercel |
 | [UPGRADE.md](./UPGRADE.md) | Version upgrades, migrations, rollback, gossip compatibility |

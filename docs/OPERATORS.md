@@ -76,7 +76,11 @@ Report vulnerabilities: [SECURITY.md](../SECURITY.md) (private reporting, not pu
 
 ### 6. Verify
 
+See [OPERATOR-CHECKLIST.md](./OPERATOR-CHECKLIST.md) for the full post-deploy list.
+
 ```bash
+pnpm doctor   # or: NODE_URL=https://your-node.example.com pnpm doctor
+
 curl -s https://your-node.example.com/api/health | jq .
 # Expect: ok, version, nodeId
 

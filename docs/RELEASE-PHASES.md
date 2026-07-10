@@ -15,7 +15,7 @@ Execution plan for WikiTraveler releases — from governance through community s
 | **2** | CI quality gates | **Done** — `ci.yml` (lint, test, build, prisma) |
 | **3** | Artifact publishing | **Done** — GHCR on tag + GitHub Release assets |
 | **4** | Federation hardening | **Done** — gossip compat CI, peer version UI |
-| **5** | Operator experience | Planned — doctor CLI, manifest, Admin banner |
+| **5** | Operator experience | **Done** — doctor CLI, manifest, Admin banner, Access versions |
 | **6** | Community scale | Planned — npm SDK, Lens store, roadmap |
 
 Update this table when a phase completes.
@@ -126,16 +126,16 @@ git push && git push origin v0.2.0
 
 ---
 
-## Phase 5 — Operator experience
+## Phase 5 — Operator experience ✅
 
 **Deliverables**
 
 | Item | Detail |
 |------|--------|
-| `scripts/wikitraveler-doctor.mjs` | Version, migrations, peers, keys |
-| `releases/manifest.json` | Published `latest`, `minRecommended` |
-| Admin upgrade banner | Optional manifest fetch |
-| Access Settings | Node + client version display |
+| `scripts/wikitraveler-doctor.mjs` | Version, migrations, peers, keys (`pnpm doctor`) |
+| `releases/manifest.json` | Published `latest`, `minRecommended` (GitHub Release asset) |
+| Admin upgrade banner | Optional manifest fetch via `/api/admin/upgrade-status` |
+| Access Settings | Node + client version display, advisory warnings |
 | `docs/OPERATOR-CHECKLIST.md` | Post-deploy verification |
 
 ---
@@ -170,4 +170,4 @@ Add these to the **Protect main** ruleset once workflows have run once:
 
 ## Next step
 
-**Add `gossip-compat` to ruleset → start Phase 5 (operator experience).**
+**Phase 6 — community scale** (npm SDK, Lens store, public roadmap).

@@ -58,5 +58,24 @@ export function updateVersionsJson(version, { releasedAt = null } = {}) {
     minRecommendedNode: version,
   };
   writeVersionsManifest(manifest);
+  syncReleaseManifest(manifest);
+  return manifest;
+}
+
+/** Public release manifest for upgrade banners and doctor checks. */
+export function syncReleaseManifest(source = readVersionsManifest()) {
+  const manifest = {
+    latest: source.release ?? source.node,
+    minRecommended: source.minRecommendedNode ?? source.release ?? source.node,
+    releasedAt: source.releasedAt ?? null,
+    node: source.node,
+    access: source.access,
+    lens: source.lens,
+    sdk: source.sdk,
+    gossipProtocol: source.gossipProtocol,
+    exportSchema: source.exportSchema,
+    minSupportedNode: source.minSupportedNode,
+  };
+  writeFileSync(join(ROOT, "releases/manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;
 }

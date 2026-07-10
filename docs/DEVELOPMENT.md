@@ -109,6 +109,7 @@ After pulling schema changes on an existing DB: `pnpm db:migrate` (not `db:setup
 | `pnpm lighthouse:ci` | Lighthouse gate (apps must be running) |
 | `pnpm dev:gossip-lab` | Two-node Docker gossip lab |
 | `pnpm gossip:check` | Peer smoke test |
+| `pnpm doctor` | Operator health check (version, migrations, peers, keys) |
 | `pnpm release:prepare` | Bump versions — `node scripts/release.mjs X.Y.Z` |
 | `pnpm gossip:sync` | Manual cron gossip on lab nodes |
 

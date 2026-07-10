@@ -5,6 +5,7 @@ import { ThemeToggle, LocalePicker, useLocale } from "@wikitraveler/ui";
 import { DISPLAY_ENV_NODE_URL, toDisplayNodeUrl } from "../lib/accessApi";
 import { clearAuth } from "../lib/authStorage";
 import { AccessAccountBadge } from "../AccessAccountBadge";
+import { useUpgradeHints } from "../hooks/useUpgradeHints";
 
 interface Props {
   nodeUrl: string;
@@ -38,6 +39,7 @@ export function SettingsTab({
   onResetNodeUrl,
 }: Props) {
   const { t } = useLocale();
+  const { clientVersion, hints } = useUpgradeHints(nodeInfo?.version);
   const [settingsUrl, setSettingsUrl] = useState(() => toDisplayNodeUrl(nodeUrl));
   const [settingsError, setSettingsError] = useState("");
 
@@ -72,7 +74,7 @@ export function SettingsTab({
             <>
               <span className="fk-chip fk-chip--ok"><CheckIcon /> {t("ui.connected")}</span>
               <span className="fk-settings-meta">
-                {nodeInfo.region ?? "Global"} · v{nodeInfo.version}
+                {nodeInfo.region ?? "Global"} · {t("ui.settingsNodeVersion", { version: nodeInfo.version ?? "?" })}
               </span>
             </>
           ) : nodeReachable === false ? (
@@ -81,6 +83,20 @@ export function SettingsTab({
             <span className="fk-chip fk-chip--neutral">{t("ui.checking")}</span>
           )}
         </div>
+
+        <p className="fk-settings-version-row">
+          {t("ui.settingsClientVersion", { version: clientVersion })}
+        </p>
+
+        {hints.map((hint, index) => (
+          <p
+            key={index}
+            className={hint.level === "warn" ? "status-err fk-settings-hint" : "fk-settings-hint fk-settings-hint--info"}
+            role="status"
+          >
+            {hint.message}
+          </p>
+        ))}
 
         <label htmlFor="node-url" className="fk-settings-label">{t("ui.settingsHomeNodeUrl")}</label>
         <input

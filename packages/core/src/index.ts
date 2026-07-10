@@ -4,3 +4,5 @@ export * from "./metadataMerge";
 export * from "./auditSteps";
 export * from "./latestRequest";
 export * from "./protocol";
+export * from "./semver";
+export * from "./upgradeStatus";

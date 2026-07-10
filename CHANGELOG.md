@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Phase 5 operator experience: `pnpm doctor`, `releases/manifest.json`, Admin upgrade banner, Access Settings version display, [OPERATOR-CHECKLIST.md](docs/OPERATOR-CHECKLIST.md)
+- `@wikitraveler/core` semver helpers and upgrade assessment for node/Access advisories
+
 ### Fixed
 
 - GitHub Release workflow: build `@wikitraveler/i18n` before SDK (fixes failed `v0.2.0` release assets)
