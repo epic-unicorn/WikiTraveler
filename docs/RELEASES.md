@@ -141,7 +141,7 @@ Planned CI/CD (not all implemented yet):
 | Step | Workflow | Status |
 |------|----------|--------|
 | PR CI (lint, test, build) | `.github/workflows/ci.yml` | **Done** |
-| Gossip N/N-1 compat test | `.github/workflows/gossip-compat.yml` | Planned (Phase 4) |
+| Gossip N/N-1 compat test | `.github/workflows/gossip-compat.yml` | **Done** |
 | Docker publish on tag | `.github/workflows/release-docker.yml` | **Done** |
 | GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |

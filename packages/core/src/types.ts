@@ -134,6 +134,8 @@ export interface AuditPayload {
 
 export interface GossipDelta {
   fromNodeId: string;
+  /** Gossip wire protocol — optional; peers without this field are treated as `1`. */
+  protocolVersion?: number;
   since: string;     // ISO-8601 — snapshot covers changes after this timestamp
   until: string;     // ISO-8601
   /** Properties referenced by the facts — allows new nodes to upsert them. */

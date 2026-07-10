@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- Dependabot: alerts on, auto-PRs off (removed `.github/dependabot.yml`; disable security updates in repo Settings)
+- Phase 4 federation hardening: `protocolVersion` on gossip deltas, peer version columns, Admin skew warnings, `gossip-compat` CI
 
 ---
 

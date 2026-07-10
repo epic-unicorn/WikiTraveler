@@ -14,6 +14,7 @@ import {
   applyIncomingMetadataOverrides,
   filterMetadataOverridesByBbox,
 } from "@/lib/propertyMetadata";
+import { validateGossipDeltaProtocol } from "@/lib/gossipProtocol";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 /**
@@ -111,6 +112,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Signature verified — process the payload (already parsed above)
+  const protocolCheck = validateGossipDeltaProtocol(payload);
+  if (!protocolCheck.ok) {
+    return NextResponse.json({ message: protocolCheck.message }, { status: 400 });
+  }
+
   const incomingOverrides = Array.isArray(payload.metadataOverrides) ? payload.metadataOverrides : [];
   if (
     !payload.fromNodeId ||

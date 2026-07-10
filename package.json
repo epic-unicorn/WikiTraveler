@@ -14,6 +14,7 @@
     "gossip:crud": "node scripts/gossip-crud.mjs",
     "gossip:reingest": "node scripts/gossip-reingest.mjs",
     "gossip:check": "node scripts/gossip-check.mjs",
+    "gossip:compat": "node scripts/gossip-compat.mjs",
     "release:prepare": "node scripts/release.mjs",
     "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/i18n build && pnpm --filter @wikitraveler/i18n build:browser && pnpm --filter @wikitraveler/ui build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/access build",
     "lint": "pnpm --recursive lint",

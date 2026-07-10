@@ -63,7 +63,7 @@ Update this table on every minor/major release.
 | `metadataOverrides` | No | v0.2 | Ignored if absent |
 | `peers[]` | No | v0.2 | Ignored if absent |
 | `photoRefs` | No | v0.2+ | Ignored if absent |
-| `protocolVersion` | No | Planned Phase 4 | Defaults to `1` |
+| `protocolVersion` | No | v0.2+ (Phase 4) | Defaults to `1` when absent |
 
 ---
 

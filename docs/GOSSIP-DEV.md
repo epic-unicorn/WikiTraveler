@@ -123,7 +123,8 @@ pnpm gossip:check
 | `pnpm gossip:sync`       | `GET /api/cron/gossip` on both nodes                                                  |
 | `pnpm gossip:crud`       | Property CRUD + metadata-override propagation demo (create → override → sync → reset) |
 | `pnpm gossip:reingest`   | Re-run OSM ingest from the fixture on both nodes; verifies manual overrides survive   |
-| `pnpm gossip:check`      | Peer + property + override smoke check                                                |
+| `gossip:check`      | Peer + property + override smoke check                                                |
+| `gossip:compat`     | Full federation compat (seed, link, sync, version cache) — used in CI                 |
 
 
 ---

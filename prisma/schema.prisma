@@ -338,14 +338,16 @@ model User {
 // Peer node registry
 // ---------------------------------------------------------------------------
 model NodePeer {
-  id        String   @id @default(cuid())
-  url       String   @unique
-  nodeId    String?
-  region    String?
-  bbox      String?  // "minLat,minLon,maxLat,maxLon"
-  publicKey String?  // RSA public key PEM — cached from peer's /api/nodeinfo
-  lastSeen  DateTime @default(now())
-  isActive  Boolean  @default(true)
+  id               String   @id @default(cuid())
+  url              String   @unique
+  nodeId           String?
+  region           String?
+  bbox             String?  // "minLat,minLon,maxLat,maxLon"
+  publicKey        String?  // RSA public key PEM — cached from peer's /api/nodeinfo
+  lastKnownVersion String?  // Cached from peer /api/nodeinfo `version`
+  gossipProtocol   Int?     // Cached gossip wire protocol from /api/nodeinfo
+  lastSeen         DateTime @default(now())
+  isActive         Boolean  @default(true)
 }
 
 // ---------------------------------------------------------------------------

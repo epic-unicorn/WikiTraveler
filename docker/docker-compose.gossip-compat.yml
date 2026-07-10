@@ -1,0 +1,7 @@
+# Gossip compat overlay — simulates N-1 peer (node-b on previous minor).
+# Usage: docker compose -f docker/docker-compose.gossip.yml -f docker/docker-compose.gossip-compat.yml up
+
+services:
+  node-b:
+    environment:
+      WIKITRAVELER_VERSION: "0.1.0"

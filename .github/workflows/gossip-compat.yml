@@ -1,0 +1,48 @@
+name: Gossip compat
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: gossip-compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gossip-compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start gossip lab (N ↔ N-1)
+        run: |
+          docker compose \
+            -f docker/docker-compose.gossip.yml \
+            -f docker/docker-compose.gossip-compat.yml \
+            up -d --build
+
+      - name: Federation compat check
+        env:
+          GOSSIP_COMPAT_MIXED: "1"
+          GOSSIP_COMPAT_RETRIES: "48"
+          GOSSIP_COMPAT_RETRY_MS: "5000"
+        run: node scripts/gossip-compat.mjs
+
+      - name: Stop gossip lab
+        if: always()
+        run: |
+          docker compose \
+            -f docker/docker-compose.gossip.yml \
+            -f docker/docker-compose.gossip-compat.yml \
+            down -v

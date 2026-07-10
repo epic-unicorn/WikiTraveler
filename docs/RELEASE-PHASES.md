@@ -14,7 +14,7 @@ Execution plan for WikiTraveler releases — from governance through community s
 | **1** | Version truth | **Done** — build injection, `release.mjs`, `protocol.ts`, aligned `0.2.0` |
 | **2** | CI quality gates | **Done** — `ci.yml` (lint, test, build, prisma) |
 | **3** | Artifact publishing | **Done** — GHCR on tag + GitHub Release assets |
-| **4** | Federation hardening | Planned — gossip compat CI, peer version UI |
+| **4** | Federation hardening | **Done** — gossip compat CI, peer version UI |
 | **5** | Operator experience | Planned — doctor CLI, manifest, Admin banner |
 | **6** | Community scale | Planned — npm SDK, Lens store, roadmap |
 
@@ -101,19 +101,23 @@ git push && git push origin v0.2.0
 
 ---
 
-## Phase 4 — Federation hardening
+## Phase 4 — Federation hardening ✅
 
 **Goal:** Safe multi-version mesh with tested N ↔ N-1 gossip.
 
-**Deliverables**
+**Delivered**
 
 | Item | Detail |
 |------|--------|
-| `protocolVersion` in `GossipDelta` | Optional field, default `1` |
-| `.github/workflows/gossip-compat.yml` | Mixed-version gossip lab |
+| `protocolVersion` in `GossipDelta` | Optional field on snapshot/ingest/inbox; defaults to `1` |
+| `.github/workflows/gossip-compat.yml` | Mixed-version gossip lab (node-b on `0.1.0`) |
 | `NodePeer` version columns | `lastKnownVersion`, `gossipProtocol` |
-| Admin peer table | Version skew warnings |
-| [COMPATIBILITY.md](./COMPATIBILITY.md) | Updated each release |
+| Admin peer table | Version + gossip protocol columns, skew warnings |
+| [COMPATIBILITY.md](./COMPATIBILITY.md) | Updated for Phase 4 |
+
+**Maintainer actions**
+
+- [ ] Add `gossip-compat` job to ruleset after first workflow run
 
 ---
 
@@ -154,10 +158,11 @@ Add these to the **Protect main** ruleset once workflows have run once:
 | `build` | CI | Required |
 | `prisma` | CI | Required |
 | `axe` | Accessibility tests | Required |
+| `gossip-compat` | Gossip compat | Required (after first run) |
 | Code scanning (default CodeQL) | GitHub Settings | Optional — do not add `codeql.yml` while default is on |
 
 ---
 
 ## Next step
 
-**Merge PR → run CI → add status checks to ruleset → tag `v0.2.0` → start Phase 3 PR.**
+**Add `gossip-compat` to ruleset → start Phase 5 (operator experience).**

@@ -1,27 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
+import { NODE_ID, NODE_URL, NODE_VERSION } from "@/lib/nodeInfo";
+import { GOSSIP_PROTOCOL_VERSION } from "@wikitraveler/core";
+import { assessPeerSkew } from "@/lib/peerVersion";
+import {
+  fetchRemoteNodeInfo,
+  peerVersionFields,
+} from "@/lib/remoteNodeInfo";
 import type { NextRequest } from "next/server";
-
-interface RemoteNodeInfo {
-  nodeId?: string;
-  region?: string;
-  bbox?: string | null;
-  publicKeyPem?: string | null;
-}
-
-async function fetchNodeInfo(url: string): Promise<RemoteNodeInfo | null> {
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/api/nodeinfo`, {
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as RemoteNodeInfo;
-  } catch {
-    return null;
-  }
-}
 
 // GET /api/nodes — lists locally known active peers (used by inbox push)
 export async function GET() {
@@ -29,8 +16,26 @@ export async function GET() {
     where: { isActive: true },
     orderBy: { lastSeen: "desc" },
   });
-  const peers = rows.filter((p) => p.nodeId !== NODE_ID);
-  return NextResponse.json({ peers });
+  const peers = rows
+    .filter((p) => p.nodeId !== NODE_ID)
+    .map((peer) => {
+      const skew = assessPeerSkew({
+        localVersion: NODE_VERSION,
+        localGossipProtocol: GOSSIP_PROTOCOL_VERSION,
+        peerVersion: peer.lastKnownVersion,
+        peerGossipProtocol: peer.gossipProtocol,
+      });
+      return {
+        ...peer,
+        skewLevel: skew.level,
+        skewMessage: skew.message,
+      };
+    });
+  return NextResponse.json({
+    peers,
+    localVersion: NODE_VERSION,
+    localGossipProtocol: GOSSIP_PROTOCOL_VERSION,
+  });
 }
 
 /**
@@ -66,7 +71,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const info = await fetchNodeInfo(url);
+  const info = await fetchRemoteNodeInfo(url);
   if (!info) {
     return NextResponse.json(
       { message: `Could not reach node at ${url}. Check the URL and try again.` },
@@ -74,6 +79,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const versionFields = peerVersionFields(info);
   const peer = await prisma.nodePeer.upsert({
     where: { url },
     update: {
@@ -81,6 +87,8 @@ export async function POST(req: NextRequest) {
       region: info.region ?? undefined,
       bbox: info.bbox ?? undefined,
       publicKey: info.publicKeyPem ?? undefined,
+      lastKnownVersion: versionFields.lastKnownVersion ?? undefined,
+      gossipProtocol: versionFields.gossipProtocol ?? undefined,
       lastSeen: new Date(),
       isActive: true,
     },
@@ -90,6 +98,8 @@ export async function POST(req: NextRequest) {
       region: info.region ?? null,
       bbox: info.bbox ?? null,
       publicKey: info.publicKeyPem ?? null,
+      lastKnownVersion: versionFields.lastKnownVersion,
+      gossipProtocol: versionFields.gossipProtocol,
       isActive: true,
     },
   });

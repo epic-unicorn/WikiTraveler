@@ -14,7 +14,11 @@ const { prismaMock, requireRole } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
-vi.mock("@/lib/nodeInfo", () => ({ NODE_ID: "node-a", NODE_URL: "http://localhost:3000" }));
+vi.mock("@/lib/nodeInfo", () => ({
+  NODE_ID: "node-a",
+  NODE_URL: "http://localhost:3000",
+  NODE_VERSION: "0.2.0",
+}));
 vi.mock("@/lib/auth", () => ({ requireRole }));
 
 import { DELETE, GET, POST } from "./route";
@@ -34,17 +38,29 @@ describe("GET /api/nodes", () => {
     vi.clearAllMocks();
   });
 
-  it("returns active peers excluding self", async () => {
+  it("returns active peers excluding self with skew metadata", async () => {
     const peers = [
-      { url: "https://peer.example.com", nodeId: "node-b", isActive: true },
+      {
+        url: "https://peer.example.com",
+        nodeId: "node-b",
+        isActive: true,
+        lastKnownVersion: "0.2.0",
+        gossipProtocol: 1,
+      },
       { url: "http://node-a:3000", nodeId: "node-a", isActive: true },
     ];
     prismaMock.nodePeer.findMany.mockResolvedValue(peers);
 
     const res = await GET();
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({
-      peers: [{ url: "https://peer.example.com", nodeId: "node-b", isActive: true }],
+    const body = await res.json();
+    expect(body.localVersion).toBe("0.2.0");
+    expect(body.localGossipProtocol).toBe(1);
+    expect(body.peers).toHaveLength(1);
+    expect(body.peers[0]).toMatchObject({
+      url: "https://peer.example.com",
+      nodeId: "node-b",
+      skewLevel: "ok",
     });
   });
 });
