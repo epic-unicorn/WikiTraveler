@@ -1,5 +1,7 @@
 # Gossip lab (local peer testing)
 
+**Docs:** [Hub](./README.md) · [Development](./DEVELOPMENT.md) · [Releases](./RELEASES.md) · [Architecture](./ARCHITECTURE.md)
+
 Two-node setup for testing inbox push and gossip pull without production infrastructure.
 
 ---

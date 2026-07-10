@@ -1,6 +1,8 @@
 # Running the Apps
 
-All flows assume you've completed setup (see root [README](../README.md)):
+**Docs:** [Documentation hub](../docs/README.md) · [Local setup](../docs/LOCAL.md) · [Development](../docs/DEVELOPMENT.md)
+
+All flows assume you've completed setup (see [docs/LOCAL.md](../docs/LOCAL.md)):
 
 ```bash
 docker compose -f docker/docker-compose.dev.yml up postgres -d

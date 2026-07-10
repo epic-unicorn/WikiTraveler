@@ -1,0 +1,48 @@
+name: Feature request
+description: Propose a new capability or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Federation, auth, and schema changes may need design discussion before implementation.
+        See [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) and [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What user or operator need does this address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Primary audience
+      options:
+        - Travelers / auditors
+        - Node operators
+        - Agency integrators
+        - Core contributors / maintainers
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Potential impact areas
+      options:
+        - label: Gossip / federation protocol
+        - label: Database schema (Prisma)
+        - label: Authentication
+        - label: Operator deployment / migrations
+        - label: Documentation only

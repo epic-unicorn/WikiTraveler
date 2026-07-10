@@ -1,0 +1,59 @@
+name: Bug report
+description: Something is broken in the codebase or a deployed app
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For deployment problems, consider **Operator help** instead.
+        Security issues: [SECURITY.md](../SECURITY.md) — do not file publicly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. pnpm dev
+        2. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Node (API / dashboard)
+        - WikiTraveler Access
+        - Lens extension
+        - SDK / agency demo
+        - Gossip / federation
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version (if deployed)
+      placeholder: From /api/health or git tag
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, Node version, Docker or Vercel, browser
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or errors

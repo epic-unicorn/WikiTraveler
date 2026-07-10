@@ -1,5 +1,7 @@
 # Architecture
 
+**Docs:** [Hub](./README.md) · [Releases](./RELEASES.md) · [Community](./COMMUNITY.md)
+
 WikiTraveler is a federated truth layer for accessibility data — a mesh of independently operated nodes that share and corroborate facts contributed by field auditors.
 
 ---

@@ -33,6 +33,9 @@ COPY --from=deps /app/apps/node/node_modules ./apps/node/node_modules
 
 COPY . .
 
+ARG WIKITRAVELER_VERSION=dev
+ENV WIKITRAVELER_VERSION=$WIKITRAVELER_VERSION
+
 # Generate Prisma client (debian-openssl-3.0.x), build shared packages, then the node app
 RUN pnpm exec prisma generate --schema=/app/prisma/schema.prisma
 RUN pnpm --filter @wikitraveler/core build
@@ -63,7 +66,9 @@ RUN apt-get update -y \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
+ARG WIKITRAVELER_VERSION=dev
 ENV NODE_ENV=production
+ENV WIKITRAVELER_VERSION=$WIKITRAVELER_VERSION
 
 COPY --from=builder /app/apps/node/.next/standalone ./
 COPY --from=builder /app/apps/node/.next/static ./apps/node/.next/static

@@ -1,0 +1,20 @@
+{
+  "release": "0.2.0",
+  "releasedAt": null,
+  "node": "0.2.0",
+  "access": "0.2.0",
+  "lens": "0.2.0",
+  "sdk": "0.2.0",
+  "gossipProtocol": 1,
+  "exportSchema": 2,
+  "minSupportedNode": "0.2.0",
+  "minRecommendedNode": "0.2.0",
+  "documentation": {
+    "hub": "docs/README.md",
+    "releases": "docs/RELEASES.md",
+    "upgrade": "docs/UPGRADE.md",
+    "operators": "docs/OPERATORS.md",
+    "development": "docs/DEVELOPMENT.md",
+    "community": "docs/COMMUNITY.md"
+  }
+}

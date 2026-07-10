@@ -1,5 +1,7 @@
 # Vercel production
 
+**Docs:** [Hub](./README.md) · [Operators](./OPERATORS.md) · [Upgrade](./UPGRADE.md) · [Docker](./DOCKER.md)
+
 Deploy the **node** (API + dashboard) and **WikiTraveler Access** (mobile audit UI) as two separate Vercel projects. The node needs hosted PostgreSQL; WikiTraveler Access is a frontend that calls the node over HTTPS.
 
 ```

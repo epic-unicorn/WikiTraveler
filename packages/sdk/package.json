@@ -1,6 +1,6 @@
 {
   "name": "@wikitraveler/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "WikiTraveler JS SDK — embed accessibility data into any travel website.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -12,7 +12,9 @@
       "require": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch"

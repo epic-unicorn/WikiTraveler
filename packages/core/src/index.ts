@@ -3,3 +3,4 @@ export * from "./merge";
 export * from "./metadataMerge";
 export * from "./auditSteps";
 export * from "./latestRequest";
+export * from "./protocol";

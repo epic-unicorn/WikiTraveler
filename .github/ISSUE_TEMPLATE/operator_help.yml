@@ -1,0 +1,52 @@
+name: Operator help
+description: Deployment, upgrade, or production node questions
+title: "[Operator]: "
+labels: ["operator", "documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Guides: [Operators](docs/OPERATORS.md) · [Docker](docs/DOCKER.md) · [Vercel](docs/VERCEL.md) · [Upgrade](docs/UPGRADE.md)
+
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: Hosting
+      options:
+        - Docker Compose
+        - Vercel
+        - Hybrid (ingest local, API hosted)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: blocked
+    attributes:
+      label: What is blocking you?
+    validations:
+      required: true
+
+  - type: textarea
+    id: health
+    attributes:
+      label: /api/health output (redact secrets)
+      placeholder: |
+        curl -s https://your-node/api/health
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Already tried
+      options:
+        - label: Read docs/OPERATORS.md and the relevant deploy guide
+        - label: Ran pnpm db:deploy before deploy (if upgrading)
+        - label: Verified NODE_URL and RS256 keys are set
+        - label: Checked CORS_ORIGINS for Access URL

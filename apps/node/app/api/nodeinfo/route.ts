@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { NODE_ID, NODE_URL, NODE_VERSION } from "@/lib/nodeInfo";
 import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
 import { prisma } from "@/lib/prisma";
+import {
+  EXPORT_SCHEMA_VERSION,
+  GOSSIP_PROTOCOL_VERSION,
+  MIN_SUPPORTED_GOSSIP_PROTOCOL,
+} from "@wikitraveler/core";
 
 export { dynamic } from "@/lib/apiRoute";
 
@@ -29,6 +34,9 @@ export async function GET() {
     nodeId: NODE_ID,
     nodeUrl: NODE_URL,
     version: NODE_VERSION,
+    gossipProtocol: GOSSIP_PROTOCOL_VERSION,
+    minGossipProtocol: MIN_SUPPORTED_GOSSIP_PROTOCOL,
+    exportSchema: EXPORT_SCHEMA_VERSION,
     region,
     bbox,
     publicKeyPem: process.env.NODE_PUBLIC_KEY ?? null,
