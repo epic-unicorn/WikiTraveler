@@ -12,6 +12,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "."),
       "@wikitraveler/core": path.resolve(__dirname, "../../packages/core/src/index.ts"),
+      "@wikitraveler/i18n": path.resolve(__dirname, "../../packages/i18n/src/index.ts"),
       "@wikitraveler/ui": path.resolve(__dirname, "../../packages/ui/src/index.ts"),
     },
   },
