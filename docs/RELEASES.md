@@ -106,6 +106,10 @@ Stale nodes continue to sync facts they understand. “Mandatory” upgrades app
 
 ## Maintainer release checklist
 
+### Keeping `[Unreleased]` current
+
+Ship-facing PRs update `CHANGELOG.md` → `## [Unreleased]` as they land (see [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md)). CI fails PRs that touch product paths without a changelog edit unless labeled `skip-changelog`. Tag time only moves that section into a versioned release.
+
 ### 1. Prepare the version (usually a PR)
 
 - [ ] `CHANGELOG.md` — move `[Unreleased]` into `[X.Y.Z]` (operator notes required)

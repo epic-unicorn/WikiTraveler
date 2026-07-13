@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Access audit photos attach to wizard steps and room types (not per-fact tags); property detail shows evidence by step ([PHOTO-FACT-LINKING.md](docs/PHOTO-FACT-LINKING.md))
+- Changelog gate: PRs that touch product paths must update `CHANGELOG.md` (`scripts/check-changelog.mjs`, CI job `changelog`); agent rule in [AGENTS.md](AGENTS.md)
+
 ### Fixed
 
 - **Security:** `pnpm.overrides` pin patched transitive deps — `glob` (GHSA-5j98-mcp5-4vw2), `picomatch` (GHSA-c2c7-rcm5-vvqj), `tmp` (GHSA-ph9p-34f9-6g65), `form-data` (GHSA-hmw2-7cc7-3qxx). Next.js 14 high advisories remain until the planned 15.x migration ([docs/ROADMAP.md](docs/ROADMAP.md)).
@@ -18,7 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- [RELEASES.md](docs/RELEASES.md): maintainer pre-tag command sequence (`pnpm install`, `prisma generate`, test, build, tag)
+- [RELEASES.md](docs/RELEASES.md): maintainer pre-tag command sequence (`pnpm install`, `prisma generate`, test, build, tag); Unreleased kept current on each ship-facing PR
+- Access: “Accessible rooms” fact renamed to “Number of accessible guest rooms” with clearer hint copy
 
 ---
 
