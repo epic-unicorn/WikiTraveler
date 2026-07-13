@@ -20,7 +20,7 @@
     "pool_lift": "Lève-personne piscine",
     "service_animal_policy": "Politique animaux d'assistance",
     "room_types_available": "Types de chambres disponibles",
-    "accessible_room_count": "Chambres accessibles",
+    "accessible_room_count": "Nombre de chambres accessibles",
     "accessible_room_description": "Description chambre accessible"
   },
   "tier": {
@@ -278,6 +278,14 @@
     "removePhoto": "Supprimer la photo",
     "searchRecentHint": "Recherchez ci-dessus pour trouver d'autres établissements, ou appuyez sur + pour en ajouter un.",
     "reviewGapNoPhotos": "Aucune photo jointe",
+    "auditStepPhotos": "Photos pour cette étape",
+    "auditStepPhotosHint": "Ajoutez des photos qui montrent l'accessibilité pour cette étape.",
+    "reviewPhotosTitle": "Photos ajoutées",
+    "reviewPhotosHint": "Les photos sont regroupées par l'étape où vous les avez ajoutées.",
+    "accessibleRoomCountHint": "Si vous le savez, indiquer combien de chambres sont accessibles en fauteuil roulant.",
+    "closePhoto": "Fermer la photo",
+    "photoPrev": "Photo précédente",
+    "photoNext": "Photo suivante",
     "mapProperties": "Établissements",
     "mapFacts": "Données",
     "mapPeers": "Pairs",

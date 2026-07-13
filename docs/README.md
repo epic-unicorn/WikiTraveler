@@ -61,6 +61,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | Doc | Purpose |
 |-----|---------|
 | [ACCESSIBILITY.md](./ACCESSIBILITY.md) | WCAG developer checklist |
+| [PHOTO-FACT-LINKING.md](./PHOTO-FACT-LINKING.md) | Audit photo evidence (step-level) |
 | [CONFORMANCE.md](./CONFORMANCE.md) | Formal accessibility conformance statement |
 
 ---

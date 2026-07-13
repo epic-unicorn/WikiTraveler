@@ -38,7 +38,7 @@ const STANDARD_FIELDS: FieldSeed[] = [
   { fieldName: "pool_lift", scope: "PROPERTY", valueType: "BOOLEAN", labels: { en: "Pool lift", nl: "Zwembadlift", de: "Poollift", fr: "Lève-personne piscine" } },
   { fieldName: "service_animal_policy", scope: "PROPERTY", valueType: "TEXT", labels: { en: "Service animal policy", nl: "Beleid hulphonden", de: "Assistenzhunde-Richtlinie", fr: "Politique animaux d'assistance" } },
   { fieldName: "room_types_available", scope: "PROPERTY", valueType: "ENUM", enumValues: ["double", "twin", "single", "accessible_king", "accessible_queen", "suite", "family"], labels: { en: "Room types available", nl: "Beschikbare kamertypes", de: "Verfügbare Zimmertypen", fr: "Types de chambres disponibles" } },
-  { fieldName: "accessible_room_count", scope: "PROPERTY", valueType: "NUMBER", labels: { en: "Accessible rooms", nl: "Toegankelijke kamers", de: "Barrierefreie Zimmer", fr: "Chambres accessibles" }, searchFilter: true },
+  { fieldName: "accessible_room_count", scope: "PROPERTY", valueType: "NUMBER", labels: { en: "Number of accessible guest rooms", nl: "Aantal toegankelijke gastenkamers", de: "Anzahl barrierefreier Gästezimmer", fr: "Nombre de chambres accessibles" }, searchFilter: true },
   { fieldName: "accessible_room_description", scope: "ROOM", valueType: "TEXT", labels: { en: "Accessible room description", nl: "Beschrijving toegankelijke kamer", de: "Beschreibung barrierefreies Zimmer", fr: "Description chambre accessible" } },
 ];
 

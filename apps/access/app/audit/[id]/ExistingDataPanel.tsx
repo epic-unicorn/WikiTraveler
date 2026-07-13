@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, ProseFactValue } from "@wikitraveler/ui";
+import { getRoomTypeLabel } from "@wikitraveler/i18n";
 import { resolveFactDisplay } from "../../lib/factDisplay";
+import {
+  groupPhotosByStepScope,
+  isRoomPhotoScope,
+  unassignedPhotos,
+  type AuditPhotoRef,
+} from "../../lib/propertyFacts";
 
 export interface ExistingFact {
   fieldName: string;
@@ -20,6 +27,8 @@ export interface AuditPhotoItem {
   id?: string;
   url: string;
   caption?: string | null;
+  fieldName?: string | null;
+  scopeKey?: string | null;
 }
 
 export interface AuditPhotos {
@@ -28,8 +37,15 @@ export interface AuditPhotos {
   photos: Array<string | AuditPhotoItem>;
 }
 
-function photoUrl(photo: string | AuditPhotoItem): string {
-  return typeof photo === "string" ? photo : photo.url;
+function normalizeAuditPhoto(photo: string | AuditPhotoItem): AuditPhotoRef {
+  if (typeof photo === "string") return { url: photo };
+  return {
+    id: photo.id,
+    url: photo.url,
+    caption: photo.caption,
+    fieldName: photo.fieldName,
+    scopeKey: photo.scopeKey,
+  };
 }
 
 interface Props {
@@ -115,12 +131,36 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
   const { locale, t } = useLocale();
   const [panelOpen, setPanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("verified");
-  const [expandedPhoto, setExpandedPhoto] = useState<number | null>(null);
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
 
   const verifiedFacts = facts.filter((f) => VERIFIED_TIERS.has(f.tier));
   const aiFacts = facts.filter((f) => f.tier === "AI_GUESS");
   const officialFacts = facts.filter((f) => f.tier === "OFFICIAL");
   const photoCount = auditPhotos?.photos.length ?? 0;
+
+  const normalizedPhotos = useMemo(
+    () => (auditPhotos?.photos ?? []).map(normalizeAuditPhoto),
+    [auditPhotos?.photos]
+  );
+
+  const photoGroups = useMemo(
+    () => groupPhotosByStepScope(normalizedPhotos),
+    [normalizedPhotos]
+  );
+
+  const generalPhotos = useMemo(
+    () => unassignedPhotos(normalizedPhotos),
+    [normalizedPhotos]
+  );
+
+  function photoGroupLabel(scopeKey: string): string {
+    if (scopeKey === "step:building_access") return t("ui.auditStepBuilding");
+    if (scopeKey === "step:shared_facilities") return t("ui.auditStepShared");
+    if (isRoomPhotoScope(scopeKey)) {
+      return getRoomTypeLabel(scopeKey.slice("room-type:".length), locale);
+    }
+    return t("ui.propertyAuditPhotos");
+  }
 
   const tabs = useMemo(() => {
     const items: Array<{ id: TabId; label: string; count: number }> = [];
@@ -208,29 +248,62 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
                 <p className="existing-data-panel-hint">
                   {hasAiGuess ? t("ui.existingDataUsedForAi") : t("ui.existingDataLatest")}
                 </p>
-                <div className="audit-photos-strip">
-                  {auditPhotos.photos.map((photo, i) => (
-                    <button
-                      key={`${auditPhotos.submissionId}-${i}`}
-                      type="button"
-                      className={`audit-photo-thumb${expandedPhoto === i ? " is-active" : ""}`}
-                      onClick={() => setExpandedPhoto(expandedPhoto === i ? null : i)}
-                      aria-label={`${t("ui.existingDataPhotos")} ${i + 1}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photoUrl(photo)} alt={`${t("ui.existingDataPhotos")} ${i + 1}`} />
-                    </button>
-                  ))}
-                </div>
-                {expandedPhoto !== null && auditPhotos.photos[expandedPhoto] && (
+                {photoGroups.map((group) => {
+                  if (group.scopeKey === "general") return null;
+                  const label = photoGroupLabel(group.scopeKey);
+                  return (
+                    <div key={group.key} className="audit-photos-fact-group" style={{ marginTop: 12 }}>
+                      <p className="audit-photos-group-title" style={{ fontSize: 12, fontWeight: 600 }}>
+                        {label}
+                      </p>
+                      <div className="audit-photos-strip">
+                        {group.photos.map((photo) => (
+                          <button
+                            key={photo.id ?? photo.url}
+                            type="button"
+                            className={`audit-photo-thumb${expandedPhoto === photo.url ? " is-active" : ""}`}
+                            onClick={() =>
+                              setExpandedPhoto(expandedPhoto === photo.url ? null : photo.url)
+                            }
+                            aria-label={`${label} — ${t("ui.existingDataPhotos")}`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={photo.url} alt="" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {generalPhotos.length > 0 ? (
+                  <div className="audit-photos-fact-group" style={{ marginTop: 12 }}>
+                    <p className="audit-photos-group-title" style={{ fontSize: 12, fontWeight: 600 }}>
+                      {t("ui.propertyAuditPhotos")}
+                    </p>
+                    <div className="audit-photos-strip">
+                      {generalPhotos.map((photo) => (
+                        <button
+                          key={photo.id ?? photo.url}
+                          type="button"
+                          className={`audit-photo-thumb${expandedPhoto === photo.url ? " is-active" : ""}`}
+                          onClick={() =>
+                            setExpandedPhoto(expandedPhoto === photo.url ? null : photo.url)
+                          }
+                          aria-label={t("ui.existingDataPhotos")}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={photo.url} alt="" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {expandedPhoto ? (
                   <div className="audit-photo-expanded">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photoUrl(auditPhotos.photos[expandedPhoto])}
-                      alt={`${t("ui.existingDataPhotos")} ${expandedPhoto + 1}`}
-                    />
+                    <img src={expandedPhoto} alt={t("ui.existingDataPhotos")} />
                   </div>
-                )}
+                ) : null}
                 <p className="audit-photos-date">
                   {new Date(auditPhotos.capturedAt).toLocaleString(locale)}
                 </p>

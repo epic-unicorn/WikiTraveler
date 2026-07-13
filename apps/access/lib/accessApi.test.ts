@@ -7,7 +7,7 @@ import {
   pinsFromSummaries,
   propertySummaryToMapPin,
 } from "../app/lib/discoveryUtils";
-import { groupFactsBySection, photosForFact } from "../app/lib/propertyFacts";
+import { groupFactsBySection, photosForFact, unassignedPhotos, photosForSection, photosForStepScope } from "../app/lib/propertyFacts";
 
 describe("buildSearchParams", () => {
   it("includes trimmed query", () => {
@@ -93,7 +93,7 @@ describe("propertyFacts", () => {
     expect(sections.map((s) => s.id)).toEqual(["entrance", "bathroom", "other"]);
   });
 
-  it("matches audit photos to facts", () => {
+  it("matches audit photos to facts with strict fieldName + scopeKey", () => {
     const matched = photosForFact(
       [
         {
@@ -107,5 +107,41 @@ describe("propertyFacts", () => {
     );
     expect(matched).toHaveLength(1);
     expect(matched[0].url).toContain("1.jpg");
+  });
+
+  it("does not attach room-scoped photos to every room fact", () => {
+    const photos = [
+      { url: "https://example.com/room.jpg", fieldName: null, scopeKey: "room-type:double" },
+    ];
+    expect(
+      photosForFact(photos, {
+        fieldName: "roll_in_shower",
+        value: "yes",
+        tier: "VERIFIED",
+        scopeKey: "room-type:double",
+      })
+    ).toHaveLength(0);
+  });
+
+  it("keeps step photos out of the general orphan pool", () => {
+    const photos = [
+      { url: "https://example.com/a.jpg", fieldName: null, scopeKey: "step:building_access" },
+      { url: "https://example.com/b.jpg", fieldName: null, scopeKey: null },
+    ];
+    const orphans = unassignedPhotos(photos);
+    expect(orphans).toHaveLength(1);
+    expect(orphans[0].url).toContain("b.jpg");
+    expect(photosForStepScope(photos, "step:building_access")).toHaveLength(1);
+  });
+
+  it("shows step photos once per section via photosForSection", () => {
+    const photos = [
+      { url: "https://example.com/entry.jpg", fieldName: null, scopeKey: "step:building_access" },
+    ];
+    const sections = groupFactsBySection([
+      { fieldName: "step_free_entrance", value: "yes", tier: "VERIFIED" },
+    ]);
+    const entrance = sections.find((s) => s.id === "entrance")!;
+    expect(photosForSection(photos, entrance)).toHaveLength(1);
   });
 });
