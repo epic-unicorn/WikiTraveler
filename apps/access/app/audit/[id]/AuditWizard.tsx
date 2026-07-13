@@ -11,11 +11,15 @@ import {
   compressPhoto,
   MAX_AUDIT_PHOTOS,
   roomScopeKey,
+  getRoomTypeLabel,
   type AuditPhotoInput,
 } from "@wikitraveler/i18n";
 import { ProseFactValue } from "@wikitraveler/ui";
 import ExistingDataPanel, { type ExistingFact } from "./ExistingDataPanel";
 import { RoomAuditSection } from "./RoomAuditSection";
+import { AuditPhotoGallery } from "../../components/AuditPhotoGallery";
+import { PhotoLightbox } from "../../components/PhotoLightbox";
+import { stepScopeKey, groupPhotosByStepScope } from "../../lib/propertyFacts";
 import { resolveFactDisplay } from "../../lib/factDisplay";
 import { invalidateMapPins } from "../../lib/accessApi";
 import {
@@ -84,9 +88,16 @@ function flattenPhotos(
   roomPhotos: Record<string, AuditPhotoInput[]>
 ): AuditPhotoInput[] {
   const room = Object.entries(roomPhotos).flatMap(([typeId, list]) =>
-    list.map((p) => ({ ...p, scopeKey: p.scopeKey ?? roomScopeKey(typeId) }))
+    list.map((p) => ({
+      ...p,
+      fieldName: undefined,
+      scopeKey: p.scopeKey ?? roomScopeKey(typeId),
+    }))
   );
-  return [...propertyPhotos, ...room].slice(0, MAX_AUDIT_PHOTOS);
+  return [
+    ...propertyPhotos.map((p) => ({ ...p, fieldName: undefined })),
+    ...room,
+  ].slice(0, MAX_AUDIT_PHOTOS);
 }
 
 const FALLBACK_WIZARD_STEPS: AuditStepId[] = [
@@ -125,6 +136,7 @@ export function AuditWizard({
   const [propertyPhotos, setPropertyPhotos] = useState<AuditPhotoInput[]>([]);
   const [roomPhotos, setRoomPhotos] = useState<Record<string, AuditPhotoInput[]>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [reviewLightbox, setReviewLightbox] = useState<number | null>(null);
 
   const currentStep = steps[stepIndex] ?? "review";
 
@@ -341,17 +353,146 @@ export function AuditWizard({
     onSuccess();
   }
 
-  async function handlePropertyPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleStepPhotoAdd(
+    step: "building_access" | "shared_facilities",
+    files: FileList | File[]
+  ) {
     const remaining = MAX_AUDIT_PHOTOS - totalPhotoCount;
-    const files = Array.from(e.target.files ?? []).slice(0, remaining);
-    const compressed = await Promise.all(files.map((f) => compressPhoto(f)));
+    const list = Array.from(files).slice(0, remaining);
+    const scopeKey = stepScopeKey(step);
+    const compressed = await Promise.all(list.map((f) => compressPhoto(f)));
     setPropertyPhotos((prev) =>
       [
         ...prev,
-        ...compressed.map((c) => ({ dataUri: c.dataUri, width: c.width, height: c.height })),
+        ...compressed.map((c) => ({
+          dataUri: c.dataUri,
+          width: c.width,
+          height: c.height,
+          scopeKey,
+          fieldName: undefined,
+        })),
       ].slice(0, MAX_AUDIT_PHOTOS)
     );
-    e.target.value = "";
+  }
+
+  function photosForStep(step: "building_access" | "shared_facilities"): AuditPhotoInput[] {
+    const scope = stepScopeKey(step);
+    return propertyPhotos.filter((p) => (p.scopeKey ?? "") === scope);
+  }
+
+  function setPhotosForStep(step: "building_access" | "shared_facilities", next: AuditPhotoInput[]) {
+    const scope = stepScopeKey(step);
+    const others = propertyPhotos.filter((p) => (p.scopeKey ?? "") !== scope);
+    setPropertyPhotos([
+      ...others,
+      ...next.map((p) => ({ ...p, scopeKey: scope, fieldName: undefined })),
+    ]);
+  }
+
+  function stepPhotoGroupLabel(scopeKey: string): string {
+    if (scopeKey === "step:building_access") return t("ui.auditStepBuilding");
+    if (scopeKey === "step:shared_facilities") return t("ui.auditStepShared");
+    if (scopeKey.startsWith("room-type:")) {
+      return getRoomTypeLabel(scopeKey.slice("room-type:".length), locale);
+    }
+    return t("ui.propertyAuditPhotos");
+  }
+
+  function renderPropertyPhotoSection(step: "building_access" | "shared_facilities") {
+    const stepPhotos = photosForStep(step);
+    return (
+      <div style={{ marginTop: 16 }}>
+        <label htmlFor={`step-photos-${step}`} style={{ fontSize: 13, fontWeight: 600 }}>
+          {t("ui.auditStepPhotos")}
+        </label>
+        <p className="existing-data-panel-hint" style={{ marginTop: 4 }}>
+          {t("ui.auditStepPhotosHint")}
+        </p>
+        <AuditPhotoGallery
+          photos={stepPhotos}
+          onChange={(next) => setPhotosForStep(step, next)}
+          photoLabel={t("ui.auditStepPhotos")}
+          removePhotoLabel={t("ui.removePhoto")}
+          closePhotoLabel={t("ui.closePhoto")}
+          prevPhotoLabel={t("ui.photoPrev")}
+          nextPhotoLabel={t("ui.photoNext")}
+          maxPhotos={MAX_AUDIT_PHOTOS}
+          totalPhotoCount={totalPhotoCount}
+          onAddFiles={(files) => handleStepPhotoAdd(step, files)}
+          inputId={`step-photos-${step}`}
+          showFileInput
+        />
+      </div>
+    );
+  }
+
+  function renderReviewPhotoSummary() {
+    const flat = flattenPhotos(propertyPhotos, roomPhotos);
+    if (flat.length === 0) {
+      return (
+        <p style={{ fontSize: 12, color: "var(--wt-warning, #b45309)", marginTop: 8 }}>
+          {t("ui.reviewGapNoPhotos")}
+        </p>
+      );
+    }
+
+    const groups = groupPhotosByStepScope(
+      flat.map((p, i) => ({
+        id: String(i),
+        url: p.dataUri,
+        caption: p.caption ?? null,
+        scopeKey: p.scopeKey,
+        fieldName: p.fieldName,
+      }))
+    );
+
+    const lightboxPhotos = flat.map((p, i) => ({
+      url: p.dataUri,
+      alt: `${t("ui.auditStepPhotos")} ${i + 1}`,
+    }));
+
+    const indexByUrl = new Map(flat.map((p, i) => [p.dataUri, i]));
+
+    return (
+      <section className="photo-step-summary" style={{ marginTop: 16 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600 }}>{t("ui.reviewPhotosTitle")}</h3>
+        <p className="existing-data-panel-hint">{t("ui.reviewPhotosHint")}</p>
+        {groups.map((group) => (
+          <div key={group.key} style={{ marginTop: 12 }}>
+            <p className="audit-photos-group-title" style={{ fontSize: 12, fontWeight: 600 }}>
+              {stepPhotoGroupLabel(group.scopeKey)}
+              <span style={{ fontWeight: 400 }}> ({group.photos.length})</span>
+            </p>
+            <div className="audit-photos-strip">
+              {group.photos.map((photo) => {
+                const index = indexByUrl.get(photo.url) ?? 0;
+                return (
+                  <button
+                    key={photo.id ?? photo.url}
+                    type="button"
+                    className="audit-photo-thumb"
+                    onClick={() => setReviewLightbox(index)}
+                    aria-label={`${stepPhotoGroupLabel(group.scopeKey)} ${index + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photo.url} alt="" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        <PhotoLightbox
+          photos={lightboxPhotos}
+          index={reviewLightbox}
+          onClose={() => setReviewLightbox(null)}
+          onNavigate={setReviewLightbox}
+          closeLabel={t("ui.closePhoto")}
+          prevLabel={t("ui.photoPrev")}
+          nextLabel={t("ui.photoNext")}
+        />
+      </section>
+    );
   }
 
   function renderConfirmRow(field: FieldDef, scopeKey = "property") {
@@ -505,11 +646,7 @@ export function AuditWizard({
             {updating > 0 ? `${t("ui.reviewUpdating", { count: updating })} · ` : ""}
             {newCount > 0 ? t("ui.reviewNew", { count: newCount }) : ""}
           </p>
-          {totalPhotoCount === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--wt-warning, #b45309)", marginTop: 8 }}>
-              {t("ui.reviewGapNoPhotos")}
-            </p>
-          ) : null}
+          {renderReviewPhotoSummary()}
           <button className="btn-primary" style={{ marginTop: 16 }} onClick={submit} disabled={submitting}>
             {submitting ? t("ui.submitting") : t("ui.submitAudit")}
           </button>
@@ -531,12 +668,27 @@ export function AuditWizard({
           }
           accessibleRoomCount={propertyValues.accessible_room_count ?? ""}
           onAccessibleRoomCountChange={(value) => setProp("accessible_room_count", value)}
-          accessibleRoomCountLabel={accessibleRoomCountField?.label ?? "Accessible rooms"}
+          accessibleRoomCountLabel={
+            accessibleRoomCountField?.label ?? t("fields.accessible_room_count")
+          }
+          accessibleRoomCountHint={t("ui.accessibleRoomCountHint")}
           roomPhotos={roomPhotos}
           onRoomPhotosChange={(typeId, photos) =>
-            setRoomPhotos((prev) => ({ ...prev, [typeId]: photos }))
+            setRoomPhotos((prev) => ({
+              ...prev,
+              [typeId]: photos.map((p) => ({
+                ...p,
+                fieldName: undefined,
+                scopeKey: roomScopeKey(typeId),
+              })),
+            }))
           }
           totalPhotoCount={totalPhotoCount}
+          photoLabel={t("ui.auditStepPhotos")}
+          closePhotoLabel={t("ui.closePhoto")}
+          prevPhotoLabel={t("ui.photoPrev")}
+          nextPhotoLabel={t("ui.photoNext")}
+          removePhotoLabel={t("ui.removePhoto")}
           renderRoomField={(field, scopeKey) =>
             renderConfirmRow({ ...field, scope: "ROOM" }, scopeKey)
           }
@@ -554,58 +706,8 @@ export function AuditWizard({
           </label>
         )}
         {stepFields.map((f) => renderConfirmRow(f))}
-        {currentStep === "building_access" && (
-          <div style={{ marginTop: 16 }}>
-            <label htmlFor="step-photos" style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>
-              {t("ui.optionalPhoto")}
-            </label>
-            {propertyPhotos.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                {propertyPhotos.map((photo, index) => (
-                  <div key={index} style={{ position: "relative" }}>
-                    <img
-                      src={photo.dataUri}
-                      alt=""
-                      style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8 }}
-                    />
-                    <button
-                      type="button"
-                      aria-label={t("ui.removePhoto")}
-                      onClick={() => setPropertyPhotos((prev) => prev.filter((_, i) => i !== index))}
-                      style={{
-                        position: "absolute",
-                        top: -6,
-                        right: -6,
-                        width: 22,
-                        height: 22,
-                        borderRadius: "50%",
-                        border: "none",
-                        background: "var(--wt-danger)",
-                        color: "#fff",
-                        fontSize: 14,
-                        cursor: "pointer",
-                        lineHeight: 1,
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {totalPhotoCount < MAX_AUDIT_PHOTOS && (
-              <input
-                id="step-photos"
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={handlePropertyPhotoChange}
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </div>
-        )}
+        {(currentStep === "building_access" || currentStep === "shared_facilities") &&
+          renderPropertyPhotoSection(currentStep)}
       </div>
     );
   }

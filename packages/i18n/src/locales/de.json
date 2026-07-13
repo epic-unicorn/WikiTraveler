@@ -20,7 +20,7 @@
     "pool_lift": "Poollift",
     "service_animal_policy": "Assistenzhunde-Richtlinie",
     "room_types_available": "Verfügbare Zimmertypen",
-    "accessible_room_count": "Barrierefreie Zimmer",
+    "accessible_room_count": "Anzahl barrierefreier Gästezimmer",
     "accessible_room_description": "Beschreibung barrierefreies Zimmer"
   },
   "tier": {
@@ -278,6 +278,14 @@
     "removePhoto": "Foto entfernen",
     "searchRecentHint": "Suchen Sie oben nach weiteren Unterkünften oder tippen Sie auf +, um eine neue hinzuzufügen.",
     "reviewGapNoPhotos": "Keine Fotos angehängt",
+    "auditStepPhotos": "Fotos für diesen Schritt",
+    "auditStepPhotosHint": "Fügen Sie Fotos hinzu, die die Barrierefreiheit für diesen Schritt zeigen.",
+    "reviewPhotosTitle": "Hinzugefügte Fotos",
+    "reviewPhotosHint": "Fotos sind nach dem Schritt gruppiert, in dem Sie sie hinzugefügt haben.",
+    "accessibleRoomCountHint": "Falls bekannt: Wie viele Gästezimmer sind rollstuhlgerecht?",
+    "closePhoto": "Foto schließen",
+    "photoPrev": "Vorheriges Foto",
+    "photoNext": "Nächstes Foto",
     "mapProperties": "Unterkünfte",
     "mapFacts": "Fakten",
     "mapPeers": "Peers",

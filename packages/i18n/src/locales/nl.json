@@ -20,7 +20,7 @@
     "pool_lift": "Zwembadlift",
     "service_animal_policy": "Beleid hulphonden",
     "room_types_available": "Beschikbare kamertypes",
-    "accessible_room_count": "Toegankelijke kamers",
+    "accessible_room_count": "Aantal toegankelijke gastenkamers",
     "accessible_room_description": "Beschrijving toegankelijke kamer"
   },
   "tier": {
@@ -278,6 +278,14 @@
     "removePhoto": "Foto verwijderen",
     "searchRecentHint": "Zoek hierboven voor meer locaties, of tik op + om een nieuwe toe te voegen.",
     "reviewGapNoPhotos": "Geen foto's toegevoegd",
+    "auditStepPhotos": "Foto's voor deze stap",
+    "auditStepPhotosHint": "Voeg foto's toe die toegankelijkheid voor deze stap tonen.",
+    "reviewPhotosTitle": "Toegevoegde foto's",
+    "reviewPhotosHint": "Foto's zijn gegroepeerd per stap waarin je ze hebt toegevoegd.",
+    "accessibleRoomCountHint": "Vul in hoeveel gastenkamers rolstoeltoegankelijk zijn, als je dat weet.",
+    "closePhoto": "Foto sluiten",
+    "photoPrev": "Vorige foto",
+    "photoNext": "Volgende foto",
     "mapProperties": "Locaties",
     "mapFacts": "Gegevens",
     "mapPeers": "Peers",

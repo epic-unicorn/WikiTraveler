@@ -10,6 +10,7 @@ import {
   type AuditPhotoInput,
 } from "@wikitraveler/i18n";
 import { useLocale } from "@wikitraveler/ui";
+import { AuditPhotoGallery } from "../../components/AuditPhotoGallery";
 
 export interface RoomFieldDef {
   fieldName: string;
@@ -31,9 +32,15 @@ interface Props {
   accessibleRoomCount?: string;
   onAccessibleRoomCountChange?: (value: string) => void;
   accessibleRoomCountLabel?: string;
+  accessibleRoomCountHint?: string;
   roomPhotos?: Record<string, AuditPhotoInput[]>;
   onRoomPhotosChange?: (typeId: string, photos: AuditPhotoInput[]) => void;
   totalPhotoCount?: number;
+  photoLabel?: string;
+  closePhotoLabel?: string;
+  prevPhotoLabel?: string;
+  nextPhotoLabel?: string;
+  removePhotoLabel?: string;
   renderRoomField?: (field: RoomFieldDef, scopeKey: string) => React.ReactNode;
 }
 
@@ -48,9 +55,15 @@ export function RoomAuditSection({
   accessibleRoomCount,
   onAccessibleRoomCountChange,
   accessibleRoomCountLabel,
+  accessibleRoomCountHint,
   roomPhotos = {},
   onRoomPhotosChange,
   totalPhotoCount = 0,
+  photoLabel,
+  closePhotoLabel,
+  prevPhotoLabel,
+  nextPhotoLabel,
+  removePhotoLabel,
   renderRoomField,
 }: Props) {
   const { locale, t } = useLocale();
@@ -75,23 +88,24 @@ export function RoomAuditSection({
     }
   }
 
-  async function handlePhotoAdd(typeId: string, e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoAdd(typeId: string, files: FileList | File[]) {
     if (!onRoomPhotosChange) return;
     const remaining = MAX_AUDIT_PHOTOS - totalPhotoCount;
     if (remaining <= 0) return;
-    const files = Array.from(e.target.files ?? []).slice(0, remaining);
-    const compressed = await Promise.all(files.map((f) => compressPhoto(f)));
+    const list = Array.from(files).slice(0, remaining);
+    const compressed = await Promise.all(list.map((f) => compressPhoto(f)));
+    const scope = roomScopeKey(typeId);
     const next = [
       ...(roomPhotos[typeId] ?? []),
       ...compressed.map((c) => ({
         dataUri: c.dataUri,
         width: c.width,
         height: c.height,
-        scopeKey: roomScopeKey(typeId),
+        scopeKey: scope,
+        fieldName: undefined,
       })),
     ];
     onRoomPhotosChange(typeId, next);
-    e.target.value = "";
   }
 
   function renderDefaultField(field: RoomFieldDef, scope: string) {
@@ -166,59 +180,35 @@ export function RoomAuditSection({
 
         {onRoomPhotosChange && (
           <div style={{ marginTop: 12 }}>
-            <label htmlFor={`photos-${typeId}`} style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>
-              {t("ui.roomPhotos")}
+            <label htmlFor={`photos-${typeId}`} style={{ fontSize: 13, fontWeight: 600 }}>
+              {t("ui.auditStepPhotos")}
             </label>
-            {typePhotos.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                {typePhotos.map((photo, index) => (
-                  <div key={index} style={{ position: "relative" }}>
-                    <img
-                      src={photo.dataUri}
-                      alt=""
-                      style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8 }}
-                    />
-                    <button
-                      type="button"
-                      aria-label={t("ui.removePhoto")}
-                      onClick={() =>
-                        onRoomPhotosChange(
-                          typeId,
-                          typePhotos.filter((_, i) => i !== index)
-                        )
-                      }
-                      style={{
-                        position: "absolute",
-                        top: -6,
-                        right: -6,
-                        width: 22,
-                        height: 22,
-                        borderRadius: "50%",
-                        border: "none",
-                        background: "var(--wt-danger)",
-                        color: "#fff",
-                        fontSize: 14,
-                        cursor: "pointer",
-                        lineHeight: 1,
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {totalPhotoCount < MAX_AUDIT_PHOTOS && (
-              <input
-                id={`photos-${typeId}`}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={(e) => handlePhotoAdd(typeId, e)}
-                style={{ marginTop: 8 }}
-              />
-            )}
+            <p className="existing-data-panel-hint" style={{ marginTop: 4 }}>
+              {t("ui.auditStepPhotosHint")}
+            </p>
+            <AuditPhotoGallery
+              photos={typePhotos}
+              onChange={(photos) =>
+                onRoomPhotosChange(
+                  typeId,
+                  photos.map((p) => ({
+                    ...p,
+                    fieldName: undefined,
+                    scopeKey: roomScopeKey(typeId),
+                  }))
+                )
+              }
+              photoLabel={photoLabel ?? t("ui.auditStepPhotos")}
+              removePhotoLabel={removePhotoLabel ?? t("ui.removePhoto")}
+              closePhotoLabel={closePhotoLabel ?? t("ui.closePhoto")}
+              prevPhotoLabel={prevPhotoLabel ?? t("ui.photoPrev")}
+              nextPhotoLabel={nextPhotoLabel ?? t("ui.photoNext")}
+              maxPhotos={MAX_AUDIT_PHOTOS}
+              totalPhotoCount={totalPhotoCount}
+              onAddFiles={(files) => handlePhotoAdd(typeId, files)}
+              inputId={`photos-${typeId}`}
+              showFileInput
+            />
           </div>
         )}
       </div>
@@ -251,6 +241,11 @@ export function RoomAuditSection({
       {onAccessibleRoomCountChange && accessibleRoomCountLabel && (
         <div style={{ marginTop: 16 }}>
           <label htmlFor="accessible-room-count">{accessibleRoomCountLabel}</label>
+          {accessibleRoomCountHint ? (
+            <p className="existing-data-panel-hint" style={{ marginTop: 4, marginBottom: 6 }}>
+              {accessibleRoomCountHint}
+            </p>
+          ) : null}
           <input
             id="accessible-room-count"
             type="number"

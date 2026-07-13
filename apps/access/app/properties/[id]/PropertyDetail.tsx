@@ -23,6 +23,7 @@ import { cachePropertyDetail, readCachedPropertyDetail } from "../../lib/offline
 import {
   groupFactsBySection,
   photosForFact,
+  photosForSection,
   unassignedPhotos,
   type DisplayFact,
 } from "../../lib/propertyFacts";
@@ -224,6 +225,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
 
   const sections = groupFactsBySection(displayFacts);
   const orphanPhotos = unassignedPhotos(allPhotos, displayFacts);
+  const shownStepScopes = new Set<string>();
 
   return (
     <div className="fk-shell">
@@ -391,7 +393,16 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
               </div>
             ) : (
               <div className="fk-property-sections">
-                {sections.map((section) => (
+                {sections.map((section) => {
+                  const sectionPhotosRaw = photosForSection(allPhotos, section);
+                  const sectionPhotos = sectionPhotosRaw.filter((p) => {
+                    if (section.id === "room") return true;
+                    const stepKey = p.groupKey ?? section.id;
+                    if (shownStepScopes.has(stepKey)) return false;
+                    shownStepScopes.add(stepKey);
+                    return true;
+                  });
+                  return (
                   <section key={section.id} className="fk-property-section">
                     <h2 className="fk-property-section-title">{t(section.labelKey)}</h2>
                     <ul className="fk-property-facts">
@@ -442,8 +453,12 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                         );
                       })}
                     </ul>
+                    {sectionPhotos.length > 0 && (
+                      <PhotoStrip photos={sectionPhotos} label={t(section.labelKey)} />
+                    )}
                   </section>
-                ))}
+                  );
+                })}
                 <div className="fk-property-report-row">
                   <p className="fk-property-report-prompt">{t("ui.signalReportPrompt")}</p>
                   <button
