@@ -16,7 +16,7 @@
 
 - [ ] `pnpm test`
 - [ ] `pnpm build`
-- [ ] CI jobs: `lint`, `test`, `build`, `prisma` (see `.github/workflows/ci.yml`)
+- [ ] CI jobs: `changelog`, `lint`, `test`, `build`, `prisma` (see `.github/workflows/ci.yml`)
 - [ ] `pnpm test:a11y` (if UI changed)
 - [ ] Gossip lab (if federation changed)
 
@@ -31,4 +31,4 @@
 ## Checklist
 
 - [ ] Follows [CONTRIBUTING.md](CONTRIBUTING.md)
-- [ ] CHANGELOG [Unreleased] updated (if maintainer-requested or user-visible)
+- [ ] CHANGELOG [Unreleased] updated for user/operator-visible changes (required; `skip-changelog` label only when none)

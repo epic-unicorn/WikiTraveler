@@ -10,6 +10,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changelog:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require CHANGELOG for user-facing diffs
+        env:
+          SKIP_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') && '1' || '' }}
+        run: node scripts/check-changelog.mjs "origin/${{ github.base_ref }}"
+
   lint:
     runs-on: ubuntu-latest
     steps:

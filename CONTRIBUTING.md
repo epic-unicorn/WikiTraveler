@@ -82,6 +82,12 @@ Maintainer release branches (maintainers only): `release/v0.3.x`
 
 CI runs accessibility workflows on PRs; keep them green.
 
+### Changelog
+
+User- or operator-visible changes must update `CHANGELOG.md` → `## [Unreleased]` in the same PR (Keep a Changelog sections: Added / Changed / Fixed / Removed).
+
+CI enforces this when product paths change (`scripts/check-changelog.mjs`). Rare escape hatch: PR label `skip-changelog` (explain why in the PR). Agent/coding guidance: [AGENTS.md](AGENTS.md).
+
 ---
 
 ## Commit messages
@@ -94,7 +100,7 @@ fix(gossip): tolerate missing metadataOverrides on ingest
 docs: add operator upgrade runbook for Docker
 ```
 
-For user-facing releases, maintainers consolidate notes in [CHANGELOG.md](CHANGELOG.md).
+Ship-facing notes land in [CHANGELOG.md](CHANGELOG.md) on the PR; maintainers move `[Unreleased]` into a version section at tag time.
 
 ---
 
