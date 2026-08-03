@@ -23,7 +23,7 @@ WikiTraveler is a federated truth layer for accessibility data — a mesh of ind
                                      ?
 +--------------------------------------------------------------+
 ¦                    WikiTraveler Node                         ¦
-¦                (Next.js 14 App Router)                       ¦
+¦                (Next.js 16 App Router)                       ¦
 ¦                                                              ¦
 ¦  /api/properties   /api/gossip/*   /api/cron/*               ¦
 ¦  /api/auth         /api/inbox      /api/nodes                ¦
@@ -44,7 +44,7 @@ WikiTraveler is a federated truth layer for accessibility data — a mesh of ind
 
 ### `apps/node`
 
-The canonical deployment unit. A Next.js 14 App Router app serving:
+The canonical deployment unit. A Next.js 16 App Router app serving:
 - **REST API** under `/api/` — used by all clients and the SDK
 - **Dashboard** at `/` — property map (with "Audited only" filter) + search; requires login (AUDITOR/ADMIN only)
 - **Property page** at `/properties/[id]` — audit form + fact history; token pre-filled from cookie on load

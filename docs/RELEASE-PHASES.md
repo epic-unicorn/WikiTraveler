@@ -169,4 +169,4 @@ Add these to the **Protect main** ruleset once workflows have run once:
 
 ## Next step
 
-**Phase 6 — community scale** (npm SDK, Lens store, public roadmap).
+**Phase 6 — community scale** (npm SDK, Lens store, release cadence, RFC template). Broader product directions: [ROADMAP.md](./ROADMAP.md).
