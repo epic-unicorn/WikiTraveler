@@ -33,7 +33,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [UPGRADE.md](./UPGRADE.md) | Version upgrades, migrations, rollback, gossip compatibility |
 | [RELEASES.md](./RELEASES.md) | Versioning model, release cadence, artifacts, federation policy |
 | [RELEASE-PHASES.md](./RELEASE-PHASES.md) | Phased execution plan (CI, Docker, federation) |
-| [ROADMAP.md](./ROADMAP.md) | Planned work (Next 15 migration, Phase 6) |
+| [ROADMAP.md](./ROADMAP.md) | Public priorities (Phase 6, features, quality, community, strategy, performance) |
 | [COMPATIBILITY.md](./COMPATIBILITY.md) | N/N-1 mesh and protocol compatibility matrix |
 
 ### For developers (build & test)
