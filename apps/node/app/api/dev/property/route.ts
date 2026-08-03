@@ -13,7 +13,7 @@ import {
 import { pushMetadataOverridesToPeers } from "@/lib/push";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * Dev-only property CRUD for the gossip lab (no auth, GOSSIP_DEV gated).
  *

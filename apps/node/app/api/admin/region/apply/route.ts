@@ -5,7 +5,7 @@ import { saveRegionBbox } from "@/lib/regionSave";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/admin/region/apply
  * Body: { bbox, presetId?, exportConfirmed? }

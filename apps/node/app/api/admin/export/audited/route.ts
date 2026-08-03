@@ -6,7 +6,7 @@ import { getNodeRegionLabel } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/admin/export/audited
  * JSON export of auditor-sourced facts, submissions, and related properties.

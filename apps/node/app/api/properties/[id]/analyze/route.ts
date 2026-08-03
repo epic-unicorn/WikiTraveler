@@ -5,7 +5,7 @@ import { runAiAnalysis } from "@/lib/aiAnalyze";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/properties/:id/analyze
  *
@@ -21,10 +21,12 @@ export { dynamic } from "@/lib/apiRoute";
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
+
+  const { id } = await params;
 
   if (!process.env.AI_API_KEY && !process.env.OPENAI_API_KEY) {
     return NextResponse.json(
@@ -34,7 +36,7 @@ export async function POST(
   }
 
   const property = await prisma.property.findUnique({
-    where: { id: params.id },
+    where: { id },
   });
   if (!property) {
     return NextResponse.json({ message: "Property not found" }, { status: 404 });
@@ -52,7 +54,7 @@ export async function POST(
   if (photos.length === 0) {
     const latestWithPhotos = await prisma.auditSubmission.findFirst({
       where: {
-        propertyId: params.id,
+        propertyId: id,
         NOT: { photoUrls: { equals: [] } },
       },
       orderBy: { createdAt: "desc" },
@@ -64,7 +66,7 @@ export async function POST(
 
   try {
     const summary = await runAiAnalysis({
-      propertyId: params.id,
+      propertyId: id,
       propertyName: property.name,
       location: property.location,
       photos,
@@ -72,7 +74,7 @@ export async function POST(
     });
 
     return NextResponse.json({
-      propertyId: params.id,
+      propertyId: id,
       ...summary,
       message: `AI analysis complete. ${summary.visionFactsAdded} vision facts, ${summary.gapFactsAdded} gap-fill facts added.`,
     });

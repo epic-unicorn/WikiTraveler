@@ -17,14 +17,15 @@ const TIER_RANK: Record<string, number> = {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
+  const { id } = await params;
   const property = await prisma.property.findFirst({
     where: {
       OR: [
-        { id: params.id },
-        { canonicalId: params.id },
-        { osmId: params.id },
+        { id },
+        { canonicalId: id },
+        { osmId: id },
       ],
     },
     select: { name: true },
@@ -37,14 +38,15 @@ export async function generateMetadata({
 export default async function PropertyPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const property = await prisma.property.findFirst({
     where: {
       OR: [
-        { id: params.id },
-        { canonicalId: params.id },
-        { osmId: params.id },
+        { id },
+        { canonicalId: id },
+        { osmId: id },
       ],
     },
     include: { facts: { orderBy: { timestamp: "desc" } } },

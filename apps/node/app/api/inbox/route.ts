@@ -18,7 +18,7 @@ import { validateGossipDeltaProtocol } from "@/lib/gossipProtocol";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/inbox
  *

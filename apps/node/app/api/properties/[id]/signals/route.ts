@@ -12,7 +12,7 @@ import {
 import type { SignalType } from "@prisma/client";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const VALID_TYPES = new Set<SignalType>([
   "MISSING",
   "INCORRECT",
@@ -24,10 +24,12 @@ const VALID_TYPES = new Set<SignalType>([
 // GET /api/properties/:id/signals
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAuth(req);
   if (authError) return authError;
+
+  const { id } = await params;
 
   const authUser = await getAuthUser(req);
   if (!authUser) {
@@ -35,7 +37,7 @@ export async function GET(
   }
 
   const property = await prisma.property.findFirst({
-    where: { OR: [{ id: params.id }, { canonicalId: params.id }] },
+    where: { OR: [{ id }, { canonicalId: id }] },
     select: { id: true },
   });
   if (!property) {
@@ -67,10 +69,12 @@ export async function GET(
 // POST /api/properties/:id/signals
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAuth(req);
   if (authError) return authError;
+
+  const { id } = await params;
 
   const authUser = await getAuthUser(req);
   if (!authUser) {
@@ -90,7 +94,7 @@ export async function POST(
   }
 
   const property = await prisma.property.findFirst({
-    where: { OR: [{ id: params.id }, { canonicalId: params.id }] },
+    where: { OR: [{ id }, { canonicalId: id }] },
     select: { id: true },
   });
   if (!property) {

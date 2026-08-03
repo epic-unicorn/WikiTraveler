@@ -4,7 +4,7 @@ import { syncPropertyFromWheeelmap } from "@/lib/wheelmap";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/wheelmap-sync
  *

@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/admin/users
  * List all users with their roles. Admin only.

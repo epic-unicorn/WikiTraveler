@@ -4,7 +4,7 @@ import { verifyToken } from "@/lib/auth";
 import type { JwtPayload } from "jsonwebtoken";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/auth/me
  * Returns the authenticated user's identity.

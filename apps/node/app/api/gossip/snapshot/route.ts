@@ -8,7 +8,7 @@ import { loadOverridesChangedSince } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 // GET /api/gossip/snapshot?since=<ISO>
 export async function GET(req: NextRequest) {
   const authError = await requireNodeAuth(req);

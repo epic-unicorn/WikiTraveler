@@ -5,7 +5,7 @@ import { listRegionPresets } from "@/lib/regionPresets";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /** GET /api/admin/region — current region settings + presets catalog */
 export async function GET(req: NextRequest) {
   const authError = await requireRole(req, "ADMIN");

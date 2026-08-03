@@ -5,17 +5,19 @@ import { NODE_ID } from "@/lib/nodeInfo";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 // PATCH /api/admin/fields/:fieldName
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { fieldName: string } }
+  { params }: { params: Promise<{ fieldName: string }> }
 ) {
   const authError = await requireRole(req, "ADMIN");
   if (authError) return authError;
 
+  const { fieldName } = await params;
+
   const field = await prisma.fieldDefinition.findUnique({
-    where: { fieldName: params.fieldName },
+    where: { fieldName },
   });
   if (!field || field.nodeId !== NODE_ID) {
     return NextResponse.json({ message: "Custom field not found" }, { status: 404 });
@@ -35,7 +37,7 @@ export async function PATCH(
   }
 
   const updated = await prisma.fieldDefinition.update({
-    where: { fieldName: params.fieldName },
+    where: { fieldName },
     data: {
       labels: body.labels ?? undefined,
       active: body.active ?? undefined,
@@ -51,20 +53,22 @@ export async function PATCH(
 // DELETE /api/admin/fields/:fieldName — soft-delete
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { fieldName: string } }
+  { params }: { params: Promise<{ fieldName: string }> }
 ) {
   const authError = await requireRole(req, "ADMIN");
   if (authError) return authError;
 
+  const { fieldName } = await params;
+
   const field = await prisma.fieldDefinition.findUnique({
-    where: { fieldName: params.fieldName },
+    where: { fieldName },
   });
   if (!field || field.nodeId !== NODE_ID) {
     return NextResponse.json({ message: "Custom field not found" }, { status: 404 });
   }
 
   await prisma.fieldDefinition.update({
-    where: { fieldName: params.fieldName },
+    where: { fieldName },
     data: { active: false },
   });
 

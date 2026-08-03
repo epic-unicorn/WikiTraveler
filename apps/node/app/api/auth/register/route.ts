@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getOpenRegistration } from "@/lib/nodeSettings";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /** GET /api/auth/register — public registration status */
 export async function GET() {
   const openRegistration = await getOpenRegistration();

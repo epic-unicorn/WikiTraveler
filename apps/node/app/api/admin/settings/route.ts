@@ -4,7 +4,7 @@ import { getNodeSettings, updateNodeSettings } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /** GET /api/admin/settings — node settings (registration, etc.) */
 export async function GET(req: NextRequest) {
   const authError = await requireRole(req, "ADMIN");

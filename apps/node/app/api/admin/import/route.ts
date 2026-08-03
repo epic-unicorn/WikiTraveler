@@ -7,7 +7,7 @@ import { recordIngestComplete } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const gunzipAsync = promisify(gunzip);
 
 /**

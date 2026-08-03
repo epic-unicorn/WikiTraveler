@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { signToken } from "@/lib/auth";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/setup
  * Returns { needed: true } when no admin account exists yet, { needed: false } otherwise.

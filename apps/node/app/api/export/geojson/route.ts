@@ -5,7 +5,7 @@ import { resolveEffectiveProperties } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/export/geojson
  * Mappable properties as GeoJSON FeatureCollection (ADMIN or CRON_SECRET).

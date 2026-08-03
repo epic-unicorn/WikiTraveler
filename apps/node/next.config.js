@@ -11,16 +11,12 @@ const nextConfig = {
   transpilePackages: ["@wikitraveler/ui"],
   // Required for Docker standalone output — copies only what's needed to run
   output: "standalone",
-  // Enable the instrumentation hook (runs bootstrapPeers on startup)
-  experimental: {
-    instrumentationHook: true,
-    // pnpm stores Prisma engines outside the default trace path
-    outputFileTracingIncludes: {
-      "/*": [
-        "./node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**",
-        "../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**",
-      ],
-    },
+  // pnpm stores Prisma engines outside the default trace path
+  outputFileTracingIncludes: {
+    "/*": [
+      "./node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**",
+      "../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**",
+    ],
   },
   // Allow cross-origin requests from the browser-side SDK
   async headers() {

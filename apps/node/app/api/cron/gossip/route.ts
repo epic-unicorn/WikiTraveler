@@ -11,7 +11,7 @@ import { isSelfPeer } from "@/lib/linkPeer";
 import { fetchPeerPath, PEER_FETCH_PATHS } from "@/lib/peerUrl";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/gossip
  *
