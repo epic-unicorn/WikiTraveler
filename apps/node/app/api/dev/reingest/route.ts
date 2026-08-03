@@ -9,7 +9,7 @@ import { fetchOverpassData, ingestOverpassResult } from "@/lib/overpass";
 import { getNodeBbox, recordIngestComplete } from "@/lib/nodeSettings";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/dev/reingest   (GOSSIP_DEV gated, no auth)
  *

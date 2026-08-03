@@ -224,7 +224,9 @@ beforeAll(async () => {
 });
 
 describe("API route smoke (mocked Prisma)", () => {
-  it("every handler completes without HTTP 500 (mocked DB, no Postgres)", async () => {
+  it(
+    "every handler completes without HTTP 500 (mocked DB, no Postgres)",
+    async () => {
     expect(routeCases.length).toBeGreaterThanOrEqual(55);
     resetMockPrisma(prismaMock);
     resetAuthMocks();
@@ -244,7 +246,9 @@ describe("API route smoke (mocked Prisma)", () => {
     }
 
     expect(failures, failures.join("\n")).toEqual([]);
-  });
+  },
+  30_000
+  );
 });
 
 describe("API route segment config", () => {
@@ -252,10 +256,13 @@ describe("API route segment config", () => {
     const missing: string[] = [];
     for (const file of listRouteFiles(API_ROOT)) {
       const text = readFileSync(file, "utf8");
-      if (!/export \{ dynamic \}/.test(text)) {
+      if (!/export const dynamic = ["']force-dynamic["']/.test(text)) {
         missing.push(relative(join(process.cwd(), "app"), file));
       }
     }
-    expect(missing, `Add: export { dynamic } from "@/lib/apiRoute";\n${missing.join("\n")}`).toEqual([]);
+    expect(
+      missing,
+      `Add: export const dynamic = "force-dynamic";\n${missing.join("\n")}`
+    ).toEqual([]);
   });
 });

@@ -5,7 +5,7 @@ import { syncPropertyFromWheeelmap, findWheelmapNode } from "@/lib/wheelmap";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * PATCH /api/properties/:id/external-ids
  *
@@ -28,10 +28,12 @@ export { dynamic } from "@/lib/apiRoute";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   const property = await prisma.property.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, osmId: true, wheelmapId: true },
   });
   if (!property) {
@@ -42,10 +44,12 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
+
+  const { id } = await params;
 
   let body: { osmId?: string; wheelmapId?: string; syncNow?: boolean };
   try {
@@ -62,14 +66,14 @@ export async function PATCH(
   }
 
   const property = await prisma.property.findUnique({
-    where: { id: params.id },
+    where: { id },
   });
   if (!property) {
     return NextResponse.json({ message: "Property not found" }, { status: 404 });
   }
 
   const updated = await prisma.property.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       ...(body.osmId !== undefined ? { osmId: body.osmId } : {}),
       ...(body.wheelmapId !== undefined ? { wheelmapId: body.wheelmapId } : {}),
@@ -86,7 +90,7 @@ export async function PATCH(
       });
     }
     try {
-      syncResult = await syncPropertyFromWheeelmap(params.id, updated.wheelmapId);
+      syncResult = await syncPropertyFromWheeelmap(id, updated.wheelmapId);
     } catch (err) {
       syncResult = { ok: false, error: String(err) };
     }
@@ -110,10 +114,12 @@ export async function PATCH(
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAuth(req);
   if (authError) return authError;
+
+  const { id } = await params;
 
   if (!process.env.WHEELMAP_API_KEY) {
     return NextResponse.json(
@@ -134,7 +140,7 @@ export async function POST(
   }
 
   const property = await prisma.property.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, name: true },
   });
   if (!property) {
@@ -156,7 +162,7 @@ export async function POST(
     }
 
     const updated = await prisma.property.update({
-      where: { id: params.id },
+      where: { id },
       data: { wheelmapId, osmId: wheelmapId },
       select: { id: true, name: true, osmId: true, wheelmapId: true },
     });

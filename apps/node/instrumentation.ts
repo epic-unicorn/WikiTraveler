@@ -1,7 +1,7 @@
 /**
  * instrumentation.ts
  *
- * Next.js 14 instrumentation hook — runs once when the server boots,
+ * Next.js instrumentation hook — runs once when the server boots,
  * before any requests are handled.
  *
  * Docs: https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation

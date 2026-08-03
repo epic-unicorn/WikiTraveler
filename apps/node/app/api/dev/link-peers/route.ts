@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { linkPeerUrl } from "@/lib/linkPeer";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/dev/link-peers
  * Body: { peerUrl: string }

@@ -3,7 +3,7 @@ import { signToken } from "@/lib/auth";
 import { NODE_ID } from "@/lib/nodeInfo";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/auth/token
  * @deprecated Use POST /api/auth/login instead.

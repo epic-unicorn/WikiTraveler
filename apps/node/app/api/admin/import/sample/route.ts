@@ -9,7 +9,7 @@ import { commitNodeBbox, recordIngestComplete } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const gunzipAsync = promisify(gunzip);
 
 const EINDHOVEN_BBOX: [number, number, number, number] = [51.39, 5.42, 51.49, 5.52];

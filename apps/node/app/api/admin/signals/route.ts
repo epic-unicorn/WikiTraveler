@@ -5,7 +5,7 @@ import { listSignalsForAdmin } from "@/lib/communitySignals";
 import type { SignalStatus } from "@prisma/client";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const VALID_STATUS = new Set<SignalStatus>([
   "OPEN",
   "IN_PROGRESS",

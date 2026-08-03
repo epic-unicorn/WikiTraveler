@@ -5,7 +5,7 @@ import { resolveAiScanLimit } from "@/lib/aiScanLimit";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/ai-scan
  *

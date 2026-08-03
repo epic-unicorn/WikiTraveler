@@ -5,8 +5,8 @@ import { decodeAuthCookie, readNodeUrlCookie } from "../../lib/authStorage";
 
 const ENV_NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:3000";
 
-function resolveTargetNodeUrl(searchParams: { node?: string }) {
-  const cookieStore = cookies();
+async function resolveTargetNodeUrl(searchParams: { node?: string }) {
+  const cookieStore = await cookies();
   const configuredNodeUrl =
     readNodeUrlCookie(cookieStore.get("wt_node_url")?.value) ?? ENV_NODE_URL;
   return searchParams.node ?? configuredNodeUrl;
@@ -16,14 +16,15 @@ export async function generateMetadata({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams: { node?: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ node?: string }>;
 }): Promise<Metadata> {
-  const targetNodeUrl = resolveTargetNodeUrl(searchParams);
+  const [{ id }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+  const targetNodeUrl = await resolveTargetNodeUrl(resolvedSearchParams);
   let name = "Property";
   try {
     const res = await fetch(
-      `${targetNodeUrl}/api/properties/${encodeURIComponent(params.id)}/accessibility`,
+      `${targetNodeUrl}/api/properties/${encodeURIComponent(id)}/accessibility`,
       { cache: "no-store" }
     );
     if (res.ok) {
@@ -37,11 +38,18 @@ export async function generateMetadata({
 }
 
 // Fetch property metadata server-side so the form receives it as props
-export default async function AuditPage({ params, searchParams }: { params: { id: string }; searchParams: { node?: string } }) {
-  const targetNodeUrl = resolveTargetNodeUrl(searchParams);
+export default async function AuditPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ node?: string }>;
+}) {
+  const [{ id }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+  const targetNodeUrl = await resolveTargetNodeUrl(resolvedSearchParams);
 
   // Pass the auth cookie so the authenticated API endpoint accepts the request
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const rawToken = cookieStore.get("wt_token")?.value;
   const token = decodeAuthCookie(rawToken);
   const authHeaders: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
@@ -63,7 +71,7 @@ export default async function AuditPage({ params, searchParams }: { params: { id
 
   try {
     const res = await fetch(
-      `${targetNodeUrl}/api/properties/${encodeURIComponent(params.id)}/accessibility`,
+      `${targetNodeUrl}/api/properties/${encodeURIComponent(id)}/accessibility`,
       { cache: "no-store", headers: authHeaders }
     );
     if (res.ok) {
@@ -94,13 +102,13 @@ export default async function AuditPage({ params, searchParams }: { params: { id
 
   return (
     <FieldAuditForm
-      propertyId={params.id}
+      propertyId={id}
       propertyName={property?.name ?? "Unknown Property"}
       location={property?.location ?? "Unknown Location"}
       existingFacts={existingFacts}
       auditPhotos={auditPhotos}
       hasAiGuess={hasAiGuess}
-      targetNodeUrl={searchParams.node}
+      targetNodeUrl={resolvedSearchParams.node}
     />
   );
 }

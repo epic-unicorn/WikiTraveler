@@ -5,7 +5,7 @@ import { getAuthUser, requireRole, auditorId } from "@/lib/auth";
 import type { SignalStatus } from "@prisma/client";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const VALID_STATUS = new Set<SignalStatus>([
   "OPEN",
   "IN_PROGRESS",
@@ -16,10 +16,12 @@ const VALID_STATUS = new Set<SignalStatus>([
 // PATCH /api/admin/signals/:id
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
+
+  const { id } = await params;
 
   const authUser = await getAuthUser(req);
   if (!authUser) {
@@ -39,7 +41,7 @@ export async function PATCH(
   }
 
   const existing = await prisma.communitySignal.findUnique({
-    where: { id: params.id },
+    where: { id },
   });
   if (!existing) {
     return NextResponse.json({ message: "Signal not found" }, { status: 404 });
@@ -47,7 +49,7 @@ export async function PATCH(
 
   const resolver = auditorId(authUser);
   const updated = await prisma.communitySignal.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       status,
       resolution: body.resolution?.trim() || null,

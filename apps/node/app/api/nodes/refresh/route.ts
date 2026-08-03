@@ -5,7 +5,7 @@ import { fetchRemoteNodeInfo, peerVersionFields } from "@/lib/remoteNodeInfo";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/nodes/refresh
  * Re-fetches /api/nodeinfo for every active peer and updates the local record.

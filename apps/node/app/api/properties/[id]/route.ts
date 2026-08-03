@@ -15,8 +15,8 @@ import { pushMetadataOverridesToPeers } from "@/lib/push";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
-type RouteParams = { params: { id: string } };
+export const dynamic = "force-dynamic";
+type RouteParams = { params: Promise<{ id: string }> };
 
 function usernameFromReq(req: NextRequest): string | null {
   try {
@@ -36,8 +36,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const authError = await requireRole(req, "ADMIN");
   if (authError) return authError;
 
+  const { id } = await params;
+
   const property = await prisma.property.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: {
       id: true,
       name: true,
@@ -80,6 +82,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const authError = await requireRole(req, "ADMIN");
   if (authError) return authError;
 
+  const { id } = await params;
+
   let body: {
     name?: string;
     location?: string;
@@ -94,7 +98,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
   }
 
-  const existing = await prisma.property.findUnique({ where: { id: params.id } });
+  const existing = await prisma.property.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ message: "Property not found" }, { status: 404 });
   }
@@ -193,8 +197,10 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   const authError = await requireRole(req, "ADMIN");
   if (authError) return authError;
 
+  const { id } = await params;
+
   const existing = await prisma.property.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, name: true, osmId: true, dataSource: true },
   });
 
@@ -202,7 +208,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ message: "Property not found" }, { status: 404 });
   }
 
-  await prisma.property.delete({ where: { id: params.id } });
+  await prisma.property.delete({ where: { id } });
 
   return NextResponse.json({ ok: true, deleted: existing });
 }

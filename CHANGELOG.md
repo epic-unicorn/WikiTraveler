@@ -17,12 +17,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Security:** `pnpm.overrides` pin patched transitive deps — `glob` (GHSA-5j98-mcp5-4vw2), `picomatch` (GHSA-c2c7-rcm5-vvqj), `tmp` (GHSA-ph9p-34f9-6g65), `form-data` (GHSA-hmw2-7cc7-3qxx). Next.js 14 high advisories remain until the planned 15.x migration ([docs/ROADMAP.md](docs/ROADMAP.md)).
-- API routes export `force-dynamic` so `pnpm build` does not require a running Postgres
+- **Security:** `pnpm.overrides` pin patched transitive deps — `glob` (GHSA-5j98-mcp5-4vw2), `picomatch` (GHSA-c2c7-rcm5-vvqj), `tmp` (GHSA-ph9p-34f9-6g65), `form-data` (GHSA-hmw2-7cc7-3qxx)
+- API routes export inline `force-dynamic` so `pnpm build` does not require a running Postgres (re-exports are rejected by Next.js 16)
 - `gossip-compat` retries post-sync fetches (dev servers can be briefly unavailable after cron gossip)
 
 ### Changed
 
+- **Next.js 16 + React 19** on `apps/node` and `apps/access` (from 14.2.35): async `params`/`searchParams`/`cookies()`, ESLint CLI instead of `next lint`, stabilized `outputFileTracingIncludes` in node `next.config.js`. Closes the deferred Next security-migration item in [ROADMAP.md](docs/ROADMAP.md).
 - [RELEASES.md](docs/RELEASES.md): maintainer pre-tag command sequence (`pnpm install`, `prisma generate`, test, build, tag); Unreleased kept current on each ship-facing PR
 - Access: “Accessible rooms” fact renamed to “Number of accessible guest rooms” with clearer hint copy
 

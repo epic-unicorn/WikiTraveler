@@ -5,7 +5,7 @@ import { setAuditedReimportPending } from "@/lib/nodeSettings";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 interface AuditedImport {
   version?: number;
   type?: string;

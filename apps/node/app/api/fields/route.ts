@@ -4,7 +4,7 @@ import { resolveLocale, DEFAULT_LOCALE } from "@wikitraveler/i18n";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 // GET /api/fields?locale=nl
 export async function GET(req: NextRequest) {
   const locale = resolveLocale({

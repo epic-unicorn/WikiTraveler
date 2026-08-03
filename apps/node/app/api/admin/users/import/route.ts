@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const VALID_ROLES = ["USER", "AUDITOR", "ADMIN"] as const;
 
 interface UsersImport {

@@ -7,7 +7,7 @@ import { requireAuth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/peers/resolve?lat=<lat>&lon=<lon>
  *

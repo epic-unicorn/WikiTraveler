@@ -17,7 +17,7 @@ import type { NextRequest } from "next/server";
 import type { Tier, SourceType } from "@wikitraveler/core";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 type FactInput = { fieldName: string; value: string; scopeKey?: string; confirm?: boolean };
 
 type PhotoInput = {
@@ -50,14 +50,16 @@ function photoOriginNode(url: string): string | null {
 // GET /api/properties/:id/accessibility
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAuth(req);
   if (authError) return authError;
 
+  const { id } = await params;
+
   const property = await prisma.property.findFirst({
     where: {
-      OR: [{ id: params.id }, { canonicalId: params.id }],
+      OR: [{ id }, { canonicalId: id }],
     },
   });
   if (!property) {
@@ -197,7 +199,7 @@ export async function GET(
   );
 
   return NextResponse.json({
-    propertyId: params.id,
+    propertyId: id,
     property: propertyDetail,
     facts: enrichedFacts,
     auditPhotos,
@@ -209,10 +211,12 @@ export async function GET(
 // POST /api/properties/:id/accessibility
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireRole(req, "AUDITOR");
   if (authError) return authError;
+
+  const { id } = await params;
 
   const authUser = await getAuthUser(req);
   const submitter = authUser ? auditorId(authUser) : null;
@@ -235,7 +239,7 @@ export async function POST(
 
   const property = await prisma.property.findFirst({
     where: {
-      OR: [{ id: params.id }, { canonicalId: params.id }],
+      OR: [{ id }, { canonicalId: id }],
     },
   });
   if (!property) {
@@ -496,7 +500,7 @@ export async function POST(
 
   return NextResponse.json({
     message: "Audit accepted",
-    propertyId: params.id,
+    propertyId: id,
     submissionId: submission.id,
   });
 }

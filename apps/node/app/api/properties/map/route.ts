@@ -6,7 +6,7 @@ import { resolveEffectiveProperties } from "@/lib/propertyMetadata";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 // GET /api/properties/map — returns geo-tagged properties with key facts + audited flag
 export async function GET(req: NextRequest) {
   if (process.env.GOSSIP_DEV !== "true") {

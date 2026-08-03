@@ -8,7 +8,7 @@ import {
   MIN_SUPPORTED_GOSSIP_PROTOCOL,
 } from "@wikitraveler/core";
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/nodeinfo

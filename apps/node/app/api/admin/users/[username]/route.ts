@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const VALID_ROLES = ["USER", "AUDITOR", "ADMIN"] as const;
 type Role = typeof VALID_ROLES[number];
 
@@ -15,10 +15,12 @@ type Role = typeof VALID_ROLES[number];
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { username: string } }
+  { params }: { params: Promise<{ username: string }> }
 ) {
   const authError = await requireRole(req, "ADMIN");
   if (authError) return authError;
+
+  const { username } = await params;
 
   let body: { role?: string; password?: string };
   try {
@@ -59,13 +61,13 @@ export async function PATCH(
     data.passwordHash = await hash(body.password, 12);
   }
 
-  const user = await prisma.user.findUnique({ where: { username: params.username } });
+  const user = await prisma.user.findUnique({ where: { username } });
   if (!user) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
   const updated = await prisma.user.update({
-    where: { username: params.username },
+    where: { username },
     data,
     select: { username: true, role: true },
   });
@@ -83,16 +85,18 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { username: string } }
+  { params }: { params: Promise<{ username: string }> }
 ) {
   const authError = await requireRole(req, "ADMIN");
   if (authError) return authError;
 
-  const user = await prisma.user.findUnique({ where: { username: params.username } });
+  const { username } = await params;
+
+  const user = await prisma.user.findUnique({ where: { username } });
   if (!user) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
-  await prisma.user.delete({ where: { username: params.username } });
+  await prisma.user.delete({ where: { username } });
   return NextResponse.json({ ok: true });
 }

@@ -15,7 +15,7 @@ import {
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 // POST /api/gossip/ingest
 export async function POST(req: Request) {
   const authError = await requireNodeAuth(req as import("next/server").NextRequest);

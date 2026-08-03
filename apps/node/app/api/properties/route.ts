@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 // GET /api/properties?q=&feature=&audited=&location=&ids=
 export async function GET(req: NextRequest) {
   const authError = await requireAuth(req);

@@ -6,33 +6,13 @@ Public priorities for WikiTraveler beyond the current release. Detailed phase hi
 
 ## Planned
 
-### Next.js 15 migration (node + Access)
+### Next.js major upgrades (node + Access)
 
-**Status:** Deferred — tracked intentionally, not forgotten.
+**Status:** Done for the 14 → 16 jump (see [CHANGELOG.md](../CHANGELOG.md) Unreleased). Prefer coordinated app upgrades over Dependabot major bumps alone.
 
-**Current:** Next.js **14.2.35** on `apps/node` and `apps/access` (latest 14.2.x patch).
+**Current:** Next.js **16.2.x** + React **19** on `apps/node` and `apps/access`.
 
-**Target:** Next.js **15.x** (e.g. 15.5 LTS line) in both apps together, with lockfile and CI green.
-
-**Why not now:** Next 15 is a **major** upgrade. Dependabot security PRs that jump 14 → 15 (e.g. PR #29) fail CI without a dedicated migration:
-
-- Async `params` / `searchParams` on App Router handlers and pages
-- `next.config.js` changes (`instrumentationHook`, `outputFileTracingIncludes`)
-- `eslint-config-next` must match `next` in **both** apps
-- Full `pnpm test`, `pnpm build`, `pnpm test:a11y`, gossip-compat
-
-**Why eventually:** Some Next.js security advisories are fixed only on the 15.x line (no backport to 14.2.35). Until migration, accept interim exposure on 14.x or dismiss alerts with this roadmap linked.
-
-**Scope checklist (when scheduled):**
-
-- [ ] Bump `next` + `eslint-config-next` in `apps/node` and `apps/access`
-- [ ] Regenerate `pnpm-lock.yaml`
-- [ ] Update dynamic API routes and pages for async route context
-- [ ] Fix `apps/node/next.config.js` and `apps/access/next.config.js` for Next 15
-- [ ] Run full CI + manual smoke on node, Access, Lens proxy paths
-- [ ] Document operator impact in [CHANGELOG.md](../CHANGELOG.md) and [UPGRADE.md](./UPGRADE.md)
-
-**Dependabot:** Close major-version Next PRs with `@dependabot ignore this major version` on the PR. Security-update PRs within 14.x are still welcome when patches exist.
+**Dependabot:** Close incomplete major-version Next PRs that only bump `package.json` without migration. Prefer a single PR that updates both apps, the lockfile, and App Router breaking changes together. Patch/minor Next updates within 16.x are welcome when CI stays green.
 
 ---
 

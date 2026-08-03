@@ -20,16 +20,16 @@
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom --external @wikitraveler/i18n"
   },
   "peerDependencies": {
-    "react": "^18",
-    "react-dom": "^18"
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
   },
   "dependencies": {
     "@wikitraveler/core": "workspace:*",
     "@wikitraveler/i18n": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0"
   }

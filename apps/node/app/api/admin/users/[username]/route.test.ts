@@ -46,7 +46,7 @@ describe("PATCH /api/admin/users/:username", () => {
   });
 
   it("updates role", async () => {
-    const res = await PATCH(patchReq("alice", { role: "AUDITOR" }), { params: { username: "alice" } });
+    const res = await PATCH(patchReq("alice", { role: "AUDITOR" }), { params: Promise.resolve({ username: "alice" }) });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toMatchObject({
       ok: true,
@@ -60,7 +60,7 @@ describe("PATCH /api/admin/users/:username", () => {
 
   it("sets a new password", async () => {
     prismaMock.user.update.mockResolvedValue({ username: "alice", role: "USER" });
-    const res = await PATCH(patchReq("alice", { password: "newpassword1" }), { params: { username: "alice" } });
+    const res = await PATCH(patchReq("alice", { password: "newpassword1" }), { params: Promise.resolve({ username: "alice" }) });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toMatchObject({ passwordUpdated: true });
     expect(hashMock).toHaveBeenCalledWith("newpassword1", 12);
@@ -73,19 +73,19 @@ describe("PATCH /api/admin/users/:username", () => {
   });
 
   it("rejects short passwords", async () => {
-    const res = await PATCH(patchReq("alice", { password: "short" }), { params: { username: "alice" } });
+    const res = await PATCH(patchReq("alice", { password: "short" }), { params: Promise.resolve({ username: "alice" }) });
     expect(res.status).toBe(422);
     expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 
   it("requires role or password", async () => {
-    const res = await PATCH(patchReq("alice", {}), { params: { username: "alice" } });
+    const res = await PATCH(patchReq("alice", {}), { params: Promise.resolve({ username: "alice" }) });
     expect(res.status).toBe(422);
   });
 
   it("returns 404 for unknown user", async () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
-    const res = await PATCH(patchReq("missing", { role: "USER" }), { params: { username: "missing" } });
+    const res = await PATCH(patchReq("missing", { role: "USER" }), { params: Promise.resolve({ username: "missing" }) });
     expect(res.status).toBe(404);
   });
 });
@@ -101,7 +101,7 @@ describe("DELETE /api/admin/users/:username", () => {
   it("deletes an existing user", async () => {
     const res = await DELETE(
       new NextRequest("http://localhost/api/admin/users/alice", { method: "DELETE" }),
-      { params: { username: "alice" } }
+      { params: Promise.resolve({ username: "alice" }) }
     );
     expect(res.status).toBe(200);
     expect(prismaMock.user.delete).toHaveBeenCalledWith({ where: { username: "alice" } });

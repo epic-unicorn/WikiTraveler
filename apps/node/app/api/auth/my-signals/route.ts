@@ -6,7 +6,7 @@ import { reporterId } from "@/lib/communitySignals";
 import { prisma } from "@/lib/prisma";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 // GET /api/auth/my-signals
 export async function GET(req: NextRequest) {
   const authError = await requireAuth(req);

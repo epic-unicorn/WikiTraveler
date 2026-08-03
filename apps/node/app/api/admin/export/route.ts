@@ -6,7 +6,7 @@ import { buildExportPayload } from "@/lib/nodeDataTransfer";
 import type { NextRequest } from "next/server";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 const gzipAsync = promisify(gzip);
 
 /**

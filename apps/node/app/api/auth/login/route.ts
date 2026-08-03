@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { signToken } from "@/lib/auth";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * POST /api/auth/login
  * Exchange username + password for a 30-day RS256 JWT.

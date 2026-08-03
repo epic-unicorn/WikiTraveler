@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NODE_ID } from "@/lib/nodeInfo";
 
 
-export { dynamic } from "@/lib/apiRoute";
+export const dynamic = "force-dynamic";
 /**
  * GET /api/dev/gossip-stats
  * Public property/fact/peer counts for gossip-lab smoke checks (no auth).
