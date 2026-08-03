@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Security:** `pnpm.overrides` pin patched transitive deps — `glob` (GHSA-5j98-mcp5-4vw2), `picomatch` (GHSA-c2c7-rcm5-vvqj), `tmp` (GHSA-ph9p-34f9-6g65), `form-data` (GHSA-hmw2-7cc7-3qxx)
+- **Security:** `pnpm.overrides` pin patched transitive deps — `glob`, `picomatch`, `tmp`, `form-data`, plus `brace-expansion@1` (1.1.18), `postcss` (8.5.25), `js-yaml@3` (≥3.15.0), `sharp` (≥0.35.0) after Dependabot could not resolve them within parent ranges
 - API routes export inline `force-dynamic` so `pnpm build` does not require a running Postgres (re-exports are rejected by Next.js 16)
 - `gossip-compat` retries post-sync fetches (dev servers can be briefly unavailable after cron gossip)
 
