@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Gossip ingest applies peer exchange even when a delta has no in-bbox facts (organic discovery no longer depends on regional audits)
 - **Security:** `pnpm.overrides` pin patched transitive deps — `glob`, `picomatch`, `tmp`, `form-data`, plus `brace-expansion@1` (1.1.18), `brace-expansion@5` (≥5.0.9), `postcss` (8.5.25), `js-yaml@3` (≥3.15.0), `sharp` (≥0.35.0), `ip-address` (≥10.3.1), `uuid` (≥11.1.1), `cookie` (≥0.7.0)
 - **Security:** Agency demo and Access harden node URLs (http/https only) and same-origin `next` redirects; clears CodeQL XSS / open-redirect findings
+- **Security:** CI and Accessibility workflows set explicit `permissions: contents: read` (CodeQL `actions/missing-workflow-permissions`)
 - API routes export inline `force-dynamic` so `pnpm build` does not require a running Postgres (re-exports are rejected by Next.js 16)
 - `gossip-compat` retries post-sync fetches (dev servers can be briefly unavailable after cron gossip)
 
