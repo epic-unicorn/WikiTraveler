@@ -21,7 +21,7 @@ Not required (docs/tests/chore alone):
 
 - Keep a Changelog style: short, past tense or noun phrase, specific
 - Prefer `### Added` / `### Changed` / `### Fixed` / `### Removed`
-- Link a doc when helpful: `[PHOTO-FACT-LINKING.md](docs/PHOTO-FACT-LINKING.md)`
+- Link a doc when helpful: `[ARCHITECTURE.md](docs/ARCHITECTURE.md)` (or the role-specific guide from [docs/README.md](docs/README.md))
 - Skip fluffy marketing; operators need impact
 
 Example:
@@ -29,7 +29,7 @@ Example:
 ```md
 ### Changed
 
-- Access audit photos attach to wizard steps / room types instead of per-fact tags ([PHOTO-FACT-LINKING.md](docs/PHOTO-FACT-LINKING.md))
+- Access audit photos attach to wizard steps / room types instead of per-fact tags ([ARCHITECTURE.md](docs/ARCHITECTURE.md))
 ```
 
 CI enforces this for product paths on pull requests (`scripts/check-changelog.mjs`). Escape hatch: PR label `skip-changelog` (rare — explain in the PR).

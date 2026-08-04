@@ -202,7 +202,7 @@ Maintainers announce the intended minor window in the changelog or an issue when
 | Dependabot security updates | Same | **Enabled** — CVE PRs only |
 | Dependabot version updates | `.github/dependabot.yml` | **Off** — no scheduled bump PRs |
 
-See [RELEASE-PHASES.md](./RELEASE-PHASES.md) for the full execution plan.
+See [RELEASE-PHASES.md](./RELEASE-PHASES.md) for the archived phase 0–6 ledger and remaining publish todos.
 
 Contributors implementing automation should follow this doc and update the table when workflows land.
 

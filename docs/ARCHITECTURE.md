@@ -58,7 +58,22 @@ Mobile-optimised Next.js app for travelers and auditors. Connects to any node vi
 
 **Auth:** All authenticated roles (`USER`, `AUDITOR`, `ADMIN`) may use the app. Middleware redirects unauthenticated requests to `/login`. `USER` accounts can browse, save places, and submit community signals; only `AUDITOR`/`ADMIN` may open the audit wizard (enforced in middleware and API).
 
-Flow: login → search / nearby / map → property detail (read-first) → optional report issue (community signal) or field audit (auditors). GPS resolves the nearest regional node via `/api/peers/resolve`. Cross-node JWT verification uses `/.well-known/pubkey` — no re-login when auditing on a peer node.
+Flow: login → search / nearby / map → property detail (read-first) → optional report issue (community signal) or field audit (auditors). GPS resolves the nearest regional node via `/api/peers/resolve`. Cross-node JWT verification uses `/.well-known/pubkey` — no re-login when auditing on a peer node. Operator checklist: [FEDERATED-AUTH.md](./FEDERATED-AUTH.md).
+
+#### Audit photo evidence (step-level)
+
+Photos attach to the **audit step** (or room type) where they were captured — not to individual fact rows. Auditors do not pick a per-fact “Photo shows” tag.
+
+| Scope key | Meaning |
+|-----------|---------|
+| `step:building_access` | Photos added on Building access |
+| `step:shared_facilities` | Photos added on Shared facilities |
+| `room-type:<id>` | Photos for a selected room type |
+| (none / general) | Legacy or unscoped photos |
+
+**Display:** Property detail and the existing-data panel show step/room photos once under the matching section. Per-fact strips only when a photo has an explicit `fieldName` (legacy / rare).
+
+**Code:** `apps/access/app/audit/[id]/AuditWizard.tsx`, `apps/access/app/lib/propertyFacts.ts`. Object storage (R2 / Supabase) for production: [LOCAL.md](./LOCAL.md) · [DOCKER.md](./DOCKER.md).
 
 ### `apps/lens`
 
@@ -296,7 +311,7 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 | Gossip | HTTP pull + signed push | Cron safety net + real-time push after each audit |
 | Push signing | RSA-SHA256 (HTTP Signatures) | Stateless, no PKI authority; keys via `/.well-known/pubkey` |
 | AI provider | OpenAI GPT-4o | Best-in-class vision + JSON mode; swappable via ai-agent |
-| Photo storage | base64 in DB (demo) / R2 or Supabase (prod) | Object storage recommended for production — [PHOTO-FACT-LINKING.md](./PHOTO-FACT-LINKING.md) |
+| Photo storage | base64 in DB (demo) / R2 or Supabase (prod) | Object storage recommended for production — [LOCAL.md](./LOCAL.md) · [DOCKER.md](./DOCKER.md) |
 | Extension | Chrome MV3 vanilla JS | No build step; load unpacked or Release zip — [LENS.md](./LENS.md) |
 | SDK bundling | tsup (esbuild) | Fast, dual CJS+ESM+UMD from one config; npm on tag when enabled |
 | Monorepo | pnpm workspaces | Fast installs, strict isolation |

@@ -11,7 +11,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | **Understand the system** | [Architecture](./ARCHITECTURE.md) |
 | **Run a node in production** | [Operators guide](./OPERATORS.md) → [Docker](./DOCKER.md) or [Vercel](./VERCEL.md) |
 | **Upgrade an existing deployment** | [Upgrade runbook](./UPGRADE.md) |
-| **Release phases** | [Release phases](./RELEASE-PHASES.md) · [Roadmap](./ROADMAP.md) · [Compatibility](./COMPATIBILITY.md) |
+| **Release archive** | [Release phases](./RELEASE-PHASES.md) · [Roadmap](./ROADMAP.md) · [Compatibility](./COMPATIBILITY.md) |
 | **Develop features locally** | [Development guide](./DEVELOPMENT.md) → [Local setup](./LOCAL.md) |
 | **Join as a contributor** | [Community](./COMMUNITY.md) → [Contributing](../CONTRIBUTING.md) |
 | **Ship or consume a release** | [Releases](./RELEASES.md) → [Changelog](../CHANGELOG.md) |
@@ -32,7 +32,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [VERCEL.md](./VERCEL.md) | Serverless node + Access on Vercel |
 | [UPGRADE.md](./UPGRADE.md) | Version upgrades, migrations, rollback, gossip compatibility |
 | [RELEASES.md](./RELEASES.md) | Versioning model, release cadence, artifacts, federation policy |
-| [RELEASE-PHASES.md](./RELEASE-PHASES.md) | Phased execution plan (CI, Docker, federation) |
+| [RELEASE-PHASES.md](./RELEASE-PHASES.md) | Archived phase 0–6 ledger + remaining maintainer publish todos |
 | [ROADMAP.md](./ROADMAP.md) | Public priorities (Phase 6, features, quality, community, strategy, performance) |
 | [COMPATIBILITY.md](./COMPATIBILITY.md) | N/N-1 mesh and protocol compatibility matrix |
 
@@ -47,7 +47,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Voluntary bootstrap peer directory |
 | [LENS.md](./LENS.md) | Chrome extension distribution (Release zip / Store) |
 | [apps/README.md](../apps/README.md) | End-to-end flow walkthroughs (SDK, Access, Lens) |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, API surface, gossip, auth |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, API surface, gossip, auth, audit photo scopes |
 | [rfcs/](./rfcs/README.md) | RFC process for gossip / auth / schema changes |
 
 ### For the community
@@ -67,7 +67,6 @@ Single entry point for the project. Pick the path that matches your role — eac
 | Doc | Purpose |
 |-----|---------|
 | [ACCESSIBILITY.md](./ACCESSIBILITY.md) | WCAG developer checklist |
-| [PHOTO-FACT-LINKING.md](./PHOTO-FACT-LINKING.md) | Audit photo evidence (step-level) |
 | [CONFORMANCE.md](./CONFORMANCE.md) | Formal accessibility conformance statement |
 
 ---
