@@ -79,8 +79,8 @@ jobs:
         if: always()
         run: $GOSSIP_COMPOSE_SAME down -v
 
+  # Job id + default check name must stay `gossip-compat` — required by Protect main ruleset.
   gossip-compat:
-    name: N ↔ N-1 federation compat
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
