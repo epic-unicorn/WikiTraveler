@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Phase 6 community scale: RFC process ([docs/rfcs/](docs/rfcs/README.md)), voluntary [public peers directory](docs/PUBLIC-PEERS.md), [federated auth](docs/FEDERATED-AUTH.md) guide, [Lens distribution](docs/LENS.md) checklist, monthly release cadence in [RELEASES.md](docs/RELEASES.md)
 - `pnpm gossip:discovery` end-to-end multi-node bootstrap discovery + gossip sync (CI job alongside N↔N-1 compat)
 - npm publish path for `@wikitraveler/sdk` on tag (`NPM_PUBLISH` + `NPM_TOKEN`) — package bundles `@wikitraveler/core` / `@wikitraveler/i18n`
-- Access audit photos attach to wizard steps and room types (not per-fact tags); property detail shows evidence by step ([PHOTO-FACT-LINKING.md](docs/PHOTO-FACT-LINKING.md))
+- Access audit photos attach to wizard steps and room types (not per-fact tags); property detail shows evidence by step ([ARCHITECTURE.md](docs/ARCHITECTURE.md#audit-photo-evidence-step-level))
 - Changelog gate: PRs that touch product paths must update `CHANGELOG.md` (`scripts/check-changelog.mjs`, CI job `changelog`); agent rule in [AGENTS.md](AGENTS.md)
 
 ### Fixed

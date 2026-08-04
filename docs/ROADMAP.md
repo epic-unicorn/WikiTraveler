@@ -1,6 +1,6 @@
 # Roadmap
 
-Public priorities for WikiTraveler beyond the current release. Detailed phase history: [RELEASE-PHASES.md](./RELEASE-PHASES.md). Compatibility and mesh policy: [COMPATIBILITY.md](./COMPATIBILITY.md) · [RELEASES.md](./RELEASES.md).
+Public priorities for WikiTraveler beyond the current release. Completed phase ledger: [RELEASE-PHASES.md](./RELEASE-PHASES.md). Compatibility and mesh policy: [COMPATIBILITY.md](./COMPATIBILITY.md) · [RELEASES.md](./RELEASES.md).
 
 This document is **directional**, not a commitment calendar. Items move up when operators, auditors, or travelers feel the gap.
 
@@ -20,7 +20,7 @@ Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (as
 
 ## Near-term: Phase 6 — community scale
 
-**Status:** Largely delivered on `main` — see [RELEASE-PHASES.md](./RELEASE-PHASES.md#phase-6--community-scale). Remaining maintainer actions: enable npm publish secrets, Chrome Web Store upload, first public peer entries.
+**Status:** Delivered on `main` — see [RELEASE-PHASES.md](./RELEASE-PHASES.md). Remaining maintainer actions: enable npm publish secrets, Chrome Web Store upload, first public peer entries.
 
 | Theme | Status |
 |-------|--------|
@@ -46,7 +46,7 @@ Access is marketed as a mobile PWA, but offline today is a small `localStorage` 
 
 ### Photo storage as the default path
 
-Object storage adapters (R2 / Supabase) and `pnpm db:migrate-photos` exist, but base64-in-Postgres remains the easy local default and will hurt backups as audits grow ([PHOTO-FACT-LINKING.md](./PHOTO-FACT-LINKING.md), [`apps/node/lib/photoStorage.ts`](../apps/node/lib/photoStorage.ts)).
+Object storage adapters (R2 / Supabase) and `pnpm db:migrate-photos` exist, but base64-in-Postgres remains the easy local default and will hurt backups as audits grow ([LOCAL.md](./LOCAL.md), [`apps/node/lib/photoStorage.ts`](../apps/node/lib/photoStorage.ts)).
 
 **Direction:** Make external storage the recommended production path in operator docs and Admin settings; keep DB blobs only for tiny demos; improve migrate/doctor messaging when photos still live in Postgres.
 
@@ -164,11 +164,11 @@ WikiTraveler is a federated **truth layer**, not a booking engine.
 
 **Direction:** Keep SDK/Lens read-first for travelers; deepen auditor tools without turning Access into an ops console; measure success by corroborated facts and regional coverage, not pageviews alone.
 
-### Documentation accuracy after Next 16
+### Documentation accuracy after major stack bumps
 
-**Status:** Architecture / security / release docs updated for Next 16 and protocol 2.
+**Status:** Architecture / security / release docs updated for Next 16 and protocol 2; feature notes like photo evidence folded into [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-**Direction:** Sweep version references and operator screenshots after each major stack bump so new operators trust the docs.
+**Direction:** Sweep version references and operator screenshots after each major stack bump so new operators trust the docs. Prefer folding one-off feature notes into ARCHITECTURE / OPERATORS rather than new top-level docs.
 
 ---
 
