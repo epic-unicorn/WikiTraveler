@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { WikiTravelerLogo, useLocale } from "@wikitraveler/ui";
 import { DISPLAY_ENV_NODE_URL, toClientNodeUrl } from "../lib/accessApi";
+import { normalizeNodeBaseUrl } from "../lib/safeHttpUrl";
 
 const ENV_NODE_URL = DISPLAY_ENV_NODE_URL;
 
@@ -52,8 +53,8 @@ function RegisterForm() {
     setError("");
     if (password !== confirm) { setError("Passwords do not match"); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
-    const cleanUrl = nodeUrl.trim().replace(/\/$/, "");
-    try { new URL(cleanUrl); } catch { setError("Invalid node URL"); return; }
+    const cleanUrl = normalizeNodeBaseUrl(nodeUrl);
+    if (!cleanUrl) { setError("Invalid node URL — use an http or https address."); return; }
 
     setLoading(true);
     try {

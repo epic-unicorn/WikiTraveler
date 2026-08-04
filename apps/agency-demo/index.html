@@ -365,9 +365,23 @@
     CONFIRMED: "wt-tier-confirmed",
   };
 
+  const DEFAULT_NODE_URL = "http://localhost:3000";
+
+  /** Accept only http(s) node URLs — blocks javascript: / data: link injection. */
+  function normalizeNodeUrl(raw) {
+    try {
+      const u = new URL(String(raw ?? "").trim());
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      if (u.username || u.password) return null;
+      return `${u.protocol}//${u.host}`;
+    } catch {
+      return null;
+    }
+  }
+
   const urlParams = new URLSearchParams(location.search);
   let PROPERTY_ID = urlParams.get("id") || "";
-  let currentNodeUrl = (urlParams.get("node") || "http://localhost:3000").replace(/\/$/, "");
+  let currentNodeUrl = normalizeNodeUrl(urlParams.get("node") || DEFAULT_NODE_URL) || DEFAULT_NODE_URL;
   document.getElementById("node-url-input").value = currentNodeUrl;
   syncNavNodeLink();
 
@@ -383,7 +397,13 @@
 
   function syncNavNodeLink() {
     const link = document.getElementById("nav-node-link");
-    if (link) link.href = currentNodeUrl;
+    if (!link) return;
+    const safe = normalizeNodeUrl(currentNodeUrl);
+    if (safe) {
+      link.href = safe;
+    } else {
+      link.removeAttribute("href");
+    }
   }
 
   function setSearchEnabled(on) {
@@ -663,8 +683,14 @@
   }
 
   function applyNodeUrl() {
-    const val = document.getElementById("node-url-input").value.trim().replace(/\/$/, "");
-    if (!val) return;
+    const raw = document.getElementById("node-url-input").value;
+    const val = normalizeNodeUrl(raw);
+    if (!val) {
+      document.getElementById("node-status").textContent =
+        "Invalid node URL — use an http or https address.";
+      return;
+    }
+    document.getElementById("node-url-input").value = val;
     currentNodeUrl = val;
     syncNavNodeLink();
     document.getElementById("node-status").textContent = authToken

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { WikiTravelerLogo } from "@wikitraveler/ui";
 import { persistAuth } from "../lib/authStorage";
 import { DISPLAY_ENV_NODE_URL, toClientNodeUrl } from "../lib/accessApi";
+import { normalizeNodeBaseUrl } from "../lib/safeHttpUrl";
 
 const ENV_NODE_URL = DISPLAY_ENV_NODE_URL;
 
@@ -50,8 +51,11 @@ function LoginForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    const cleanUrl = nodeUrl.trim().replace(/\/$/, "");
-    try { new URL(cleanUrl); } catch { setError("Invalid node URL"); return; }
+    const cleanUrl = normalizeNodeBaseUrl(nodeUrl);
+    if (!cleanUrl) {
+      setError("Invalid node URL — use an http or https address.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -75,7 +79,9 @@ function LoginForm() {
       persistAuth(data.token, data.username ?? username.trim().toLowerCase(), cleanUrl);
 
       const next = searchParams.get("next") ?? "/";
-      window.location.assign(next);
+      // Same-origin relative paths only — blocks open redirects.
+      const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+      window.location.assign(safeNext);
     } catch {
       setError(`Could not reach node at ${cleanUrl}. Is it running? Check the Node URL above.`);
     } finally {

@@ -90,7 +90,9 @@ function LoginForm() {
       const maxAge = 30 * 24 * 60 * 60;
       document.cookie = `wt_token=${encodeURIComponent(data.token!)}; path=/; max-age=${maxAge}; SameSite=Lax`;
       sessionStorage.setItem("wt_node_token", data.token!);
-      router.replace(searchParams.get("next") ?? "/");
+      const next = searchParams.get("next") ?? "/";
+      const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+      router.replace(safeNext);
     } catch {
       setError(t("ui.authServerUnreachable"));
     } finally {
