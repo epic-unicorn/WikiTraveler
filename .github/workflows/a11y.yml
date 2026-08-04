@@ -9,6 +9,9 @@ concurrency:
   group: a11y-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   axe:
     runs-on: ubuntu-latest
