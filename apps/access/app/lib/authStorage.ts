@@ -1,3 +1,6 @@
+import { ENV_NODE_URL } from "./accessApi";
+import { normalizeNodeBaseUrl } from "./safeHttpUrl";
+
 const AUTH_COOKIE = "wt_token";
 const NODE_URL_COOKIE = "wt_node_url";
 const AUTH_SESSION_KEY = "wt_auth_token";
@@ -7,7 +10,9 @@ const MAX_AGE_SEC = 30 * 24 * 60 * 60;
 
 /** Mirror configured node URL into a cookie so SSR audit pages hit the right node. */
 export function persistNodeUrlCookie(nodeUrl: string) {
-  document.cookie = `${NODE_URL_COOKIE}=${encodeURIComponent(nodeUrl)}; path=/; max-age=${MAX_AGE_SEC}; SameSite=Lax`;
+  const safe = normalizeNodeBaseUrl(nodeUrl);
+  if (!safe) return;
+  document.cookie = `${NODE_URL_COOKIE}=${encodeURIComponent(safe)}; path=/; max-age=${MAX_AGE_SEC}; SameSite=Lax`;
 }
 
 export function readNodeUrlCookie(raw?: string | null): string | null {
@@ -38,10 +43,11 @@ export function canAccessApp(role?: string | null): boolean {
 
 /** JWT may contain `=`; always URL-encode when writing document.cookie. */
 export function persistAuth(token: string, username: string, nodeUrl: string) {
+  const safeNodeUrl = normalizeNodeBaseUrl(nodeUrl) ?? ENV_NODE_URL;
   document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${MAX_AGE_SEC}; SameSite=Lax`;
-  persistNodeUrlCookie(nodeUrl);
+  persistNodeUrlCookie(safeNodeUrl);
   sessionStorage.setItem(AUTH_SESSION_KEY, token);
-  localStorage.setItem(NODE_URL_KEY, nodeUrl);
+  localStorage.setItem(NODE_URL_KEY, safeNodeUrl);
   localStorage.setItem(USERNAME_KEY, username);
 }
 
