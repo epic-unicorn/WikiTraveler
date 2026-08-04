@@ -1,0 +1,24 @@
+{
+  "$comment": "Informal schema for docs/public-peers.json — not enforced in CI yet",
+  "type": "object",
+  "required": ["updatedAt", "peers"],
+  "properties": {
+    "updatedAt": { "type": "string" },
+    "description": { "type": "string" },
+    "peers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["nodeId", "url", "region"],
+        "properties": {
+          "nodeId": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "region": { "type": "string" },
+          "accessUrl": { "type": "string", "format": "uri" },
+          "notes": { "type": "string" },
+          "operatorContact": { "type": "string" }
+        }
+      }
+    }
+  }
+}

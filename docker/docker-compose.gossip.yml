@@ -2,7 +2,8 @@
 #
 # Usage:
 #   pnpm dev:gossip-lab          # start (foreground)
-#   pnpm gossip:link-peers       # after both nodes are up (~30s)
+#   pnpm gossip:discovery        # organic BOOTSTRAP_PEERS discovery + sync E2E
+#   pnpm gossip:link-peers       # optional if bootstrap has not linked yet
 #   pnpm gossip:sync             # pull gossip deltas on both nodes
 #   pnpm gossip:check            # verify peer registration
 #

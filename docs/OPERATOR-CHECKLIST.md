@@ -30,7 +30,7 @@ curl -s "$NODE_URL/api/nodeinfo" | jq .
 | `version` | Matches your deployed tag (e.g. `0.2.0`) |
 | `nodeId` | Stable value from `NODE_ID` |
 | `publicKeyPem` | Present in production |
-| `gossipProtocol` | Integer (currently `1`) |
+| `gossipProtocol` | Integer (currently `2`; min supported `1`) |
 | `exportSchema` | Integer (currently `2`) |
 
 ### Admin UI

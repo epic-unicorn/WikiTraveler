@@ -55,7 +55,7 @@ describe("GET /api/nodes", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.localVersion).toBe("0.2.0");
-    expect(body.localGossipProtocol).toBe(1);
+    expect(body.localGossipProtocol).toBe(2);
     expect(body.peers).toHaveLength(1);
     expect(body.peers[0]).toMatchObject({
       url: "https://peer.example.com",

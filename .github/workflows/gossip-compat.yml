@@ -13,14 +13,74 @@ permissions:
   contents: read
 
 env:
-  GOSSIP_COMPOSE: >-
+  GOSSIP_COMPOSE_MIXED: >-
     docker compose
     -f docker/docker-compose.gossip.yml
     -f docker/docker-compose.gossip-compat.yml
     -f docker/docker-compose.gossip-ci.yml
+  GOSSIP_COMPOSE_SAME: >-
+    docker compose
+    -f docker/docker-compose.gossip.yml
+    -f docker/docker-compose.gossip-ci.yml
 
 jobs:
+  gossip-discovery:
+    name: Multi-node discovery E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install and pre-build (shared with containers via bind mount)
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec prisma generate
+          pnpm --filter @wikitraveler/core build
+          pnpm --filter @wikitraveler/i18n build
+          pnpm --filter @wikitraveler/ui build
+
+      - name: Start gossip lab (same-version, BOOTSTRAP_PEERS)
+        run: $GOSSIP_COMPOSE_SAME up -d --build
+
+      - name: Wait for gossip lab nodes
+        run: |
+          set -e
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:3000/api/health >/dev/null \
+              && curl -sf http://localhost:3010/api/health >/dev/null; then
+              echo "Both nodes ready (attempt $i, ~$((i * 5))s)"
+              exit 0
+            fi
+            if [ "$((i % 12))" -eq 0 ]; then
+              echo "--- progress: node-a logs (tail 20) ---"
+              $GOSSIP_COMPOSE_SAME logs --tail 20 node-a || true
+            fi
+            echo "Waiting for nodes ($i/120)…"
+            sleep 5
+          done
+          echo "Gossip lab failed to become ready — container logs:"
+          $GOSSIP_COMPOSE_SAME logs --tail 80 node-a node-b || true
+          exit 1
+
+      - name: Discovery + federation E2E (no forced link-peers)
+        env:
+          GOSSIP_DISCOVERY_RETRIES: "40"
+          GOSSIP_DISCOVERY_RETRY_MS: "5000"
+        run: pnpm gossip:discovery
+
+      - name: Stop gossip lab
+        if: always()
+        run: $GOSSIP_COMPOSE_SAME down -v
+
   gossip-compat:
+    name: N ↔ N-1 federation compat
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -42,7 +102,7 @@ jobs:
           pnpm --filter @wikitraveler/ui build
 
       - name: Start gossip lab (N ↔ N-1)
-        run: $GOSSIP_COMPOSE up -d --build
+        run: $GOSSIP_COMPOSE_MIXED up -d --build
 
       - name: Wait for gossip lab nodes
         run: |
@@ -55,13 +115,13 @@ jobs:
             fi
             if [ "$((i % 12))" -eq 0 ]; then
               echo "--- progress: node-a logs (tail 20) ---"
-              $GOSSIP_COMPOSE logs --tail 20 node-a || true
+              $GOSSIP_COMPOSE_MIXED logs --tail 20 node-a || true
             fi
             echo "Waiting for nodes ($i/120)…"
             sleep 5
           done
           echo "Gossip lab failed to become ready — container logs:"
-          $GOSSIP_COMPOSE logs --tail 80 node-a node-b || true
+          $GOSSIP_COMPOSE_MIXED logs --tail 80 node-a node-b || true
           exit 1
 
       - name: Federation compat check
@@ -73,4 +133,4 @@ jobs:
 
       - name: Stop gossip lab
         if: always()
-        run: $GOSSIP_COMPOSE down -v
+        run: $GOSSIP_COMPOSE_MIXED down -v

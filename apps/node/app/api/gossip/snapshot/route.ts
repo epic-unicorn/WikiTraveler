@@ -52,7 +52,14 @@ export async function GET(req: NextRequest) {
     getNodeRegionLabel(),
     prisma.nodePeer.findMany({
       where: { isActive: true },
-      select: { url: true, nodeId: true, region: true, bbox: true },
+      select: {
+        url: true,
+        nodeId: true,
+        region: true,
+        bbox: true,
+        gossipProtocol: true,
+        lastKnownVersion: true,
+      },
     }),
   ]);
   const peers = peerRows.map((p) => ({
@@ -60,6 +67,8 @@ export async function GET(req: NextRequest) {
     url: p.url,
     region: p.region ?? selfRegion ?? null,
     bbox: p.bbox ?? selfBbox ?? null,
+    gossipProtocol: p.gossipProtocol ?? null,
+    version: p.lastKnownVersion ?? null,
   }));
 
   // Photo URL references for federated display (v2 gossip — no binary sync)

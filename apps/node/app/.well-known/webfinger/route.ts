@@ -4,11 +4,9 @@ import { NODE_URL, NODE_ID, NODE_VERSION } from "@/lib/nodeInfo";
 /**
  * GET /.well-known/webfinger
  *
- * Standard WebFinger-style discovery endpoint. Any peer node (or tool) can hit
- * this URL to learn this node's identity and public key without prior configuration.
- *
- * Follows the pattern used by ActivityPub/Mastodon servers, adapted for the
- * WikiTraveler structured-data use case.
+ * Discovery helper for node identity, inbox, and public key PEM.
+ * Cross-node JWT verification uses `GET /.well-known/pubkey` (see FEDERATED-AUTH.md);
+ * this endpoint remains for ActivityPub-style tooling and peer bootstrap helpers.
  */
 export async function GET() {
   return NextResponse.json(

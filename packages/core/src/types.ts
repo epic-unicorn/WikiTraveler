@@ -152,6 +152,10 @@ export interface PeerInfo {
   url: string;
   region?: string;
   bbox?: string | null;
+  /** Peer’s last-known gossip protocol (protocol ≥2 peer exchange). Older peers omit. */
+  gossipProtocol?: number | null;
+  /** Peer’s last-known node runtime version string. Older peers omit. */
+  version?: string | null;
 }
 
 export interface PeerNode {

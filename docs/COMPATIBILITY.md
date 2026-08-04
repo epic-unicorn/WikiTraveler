@@ -2,7 +2,7 @@
 
 Cross-version behaviour for WikiTraveler nodes in a federated mesh.
 
-**Related:** [Releases](./RELEASES.md) · [Upgrade](./UPGRADE.md) · [versions.json](../versions.json)
+**Related:** [Releases](./RELEASES.md) · [Upgrade](./UPGRADE.md) · [versions.json](../versions.json) · [RFC-0001](./rfcs/0001-gossip-protocol-2.md)
 
 ---
 
@@ -16,7 +16,7 @@ Cross-version behaviour for WikiTraveler nodes in a federated mesh.
 | Access **N** → Node **N** or **N-1** | Yes | Client checks `/api/health` version |
 | Lens / SDK → Node **N** or **N-1** | Yes | REST API backward compatible |
 
-Maintainers test **N ↔ N-1** in CI (gossip compat workflow — Phase 4).
+Maintainers test **same-version discovery** and **N ↔ N-1** in CI ([gossip-compat](../.github/workflows/gossip-compat.yml)).
 
 ---
 
@@ -24,7 +24,8 @@ Maintainers test **N ↔ N-1** in CI (gossip compat workflow — Phase 4).
 
 | Constant | Current | Breaking bump when |
 |----------|---------|------------------|
-| `gossipProtocol` | `1` | Gossip delta JSON incompatible |
+| `gossipProtocol` | `2` | Gossip delta JSON incompatible |
+| `minGossipProtocol` | `1` | Dropping support for older deltas |
 | `exportSchema` | `2` | Admin backup gzip shape incompatible |
 | Node runtime (`version`) | See [versions.json](../versions.json) | Independent of gossip protocol |
 
@@ -32,8 +33,8 @@ Exposed on `GET /api/nodeinfo`:
 
 ```json
 {
-  "version": "0.2.0",
-  "gossipProtocol": 1,
+  "version": "0.2.1",
+  "gossipProtocol": 2,
   "minGossipProtocol": 1,
   "exportSchema": 2
 }
@@ -53,7 +54,9 @@ Update this table on every minor/major release.
 
 ---
 
-## Gossip field compatibility (protocol 1)
+## Gossip field compatibility
+
+### Protocol 1 (accepted; default when `protocolVersion` omitted)
 
 | Field | Required? | Introduced | Older peers |
 |-------|-----------|------------|-------------|
@@ -64,6 +67,16 @@ Update this table on every minor/major release.
 | `peers[]` | No | v0.2 | Ignored if absent |
 | `photoRefs` | No | v0.2+ | Ignored if absent |
 | `protocolVersion` | No | v0.2+ (Phase 4) | Defaults to `1` when absent |
+
+### Protocol 2 (current emit — [RFC-0001](./rfcs/0001-gossip-protocol-2.md))
+
+| Field | Required? | Notes |
+|-------|-----------|-------|
+| `protocolVersion` | Emitted as `2` | Still optional on the wire; receivers accept `1`…`2` |
+| `peers[].gossipProtocol` | No | Capability hint for discovery |
+| `peers[].version` | No | Runtime version hint |
+
+No production public mesh existed at the protocol 2 cut — future breaks may raise `minGossipProtocol` with a short sunset when maintainers agree (still document via RFC + CHANGELOG).
 
 ---
 

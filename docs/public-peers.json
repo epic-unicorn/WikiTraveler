@@ -1,0 +1,6 @@
+{
+  "$schema": "./public-peers.schema.json",
+  "updatedAt": "2026-08-04",
+  "description": "Voluntary directory of public WikiTraveler nodes. Operators opt in by PR. Clients and operators may use these URLs as BOOTSTRAP_PEERS seeds.",
+  "peers": []
+}

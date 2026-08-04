@@ -88,6 +88,9 @@ Open http://localhost:3000 → complete `/setup` → configure region in Admin.
 | Self-hosted Docker | [docs/DOCKER.md](docs/DOCKER.md) |
 | Vercel + Postgres | [docs/VERCEL.md](docs/VERCEL.md) |
 | Releases & phases | [docs/RELEASES.md](docs/RELEASES.md) · [docs/RELEASE-PHASES.md](docs/RELEASE-PHASES.md) |
+| Federated login | [docs/FEDERATED-AUTH.md](docs/FEDERATED-AUTH.md) |
+| Bootstrap peers | [docs/PUBLIC-PEERS.md](docs/PUBLIC-PEERS.md) |
+| Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
 | Current versions | [versions.json](versions.json) |
 
 Operators upgrade on their own schedule; the mesh tolerates mixed node versions within policy. See [Releases](docs/RELEASES.md).

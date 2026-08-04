@@ -290,13 +290,13 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 
 | Concern | Choice | Rationale |
 |---------|--------|-----------|
-| Framework | Next.js 14 App Router | API routes + SSR in one deployment unit |
+| Framework | Next.js 16 App Router | API routes + SSR in one deployment unit (node + Access) |
 | ORM | Prisma 5 | Type-safe, migration-first, works with Vercel Postgres |
-| Auth | JWT (jsonwebtoken) | Stateless, no session store |
+| Auth | JWT (RS256 preferred; HS256 local-only) | Stateless; federated verify via `/.well-known/pubkey` — [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) |
 | Gossip | HTTP pull + signed push | Cron safety net + real-time push after each audit |
-| Push signing | RSA-SHA256 (HTTP Signatures) | Stateless, no PKI authority; keys via WebFinger |
+| Push signing | RSA-SHA256 (HTTP Signatures) | Stateless, no PKI authority; keys via `/.well-known/pubkey` |
 | AI provider | OpenAI GPT-4o | Best-in-class vision + JSON mode; swappable via ai-agent |
-| Photo storage | base64 in DB | No object-storage dependency for MVP |
-| Extension | Chrome MV3 vanilla JS | No build step; load unpacked |
-| SDK bundling | tsup (esbuild) | Fast, dual CJS+ESM+UMD from one config |
+| Photo storage | base64 in DB (demo) / R2 or Supabase (prod) | Object storage recommended for production — [PHOTO-FACT-LINKING.md](./PHOTO-FACT-LINKING.md) |
+| Extension | Chrome MV3 vanilla JS | No build step; load unpacked or Release zip — [LENS.md](./LENS.md) |
+| SDK bundling | tsup (esbuild) | Fast, dual CJS+ESM+UMD from one config; npm on tag when enabled |
 | Monorepo | pnpm workspaces | Fast installs, strict isolation |

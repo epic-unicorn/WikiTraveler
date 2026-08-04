@@ -1,0 +1,69 @@
+name: RFC
+description: Propose a gossip, auth, or schema change that needs design discussion before implementation
+title: "RFC: "
+labels: ["rfc"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for **federation-impacting** changes. Smaller features can use the feature-request template.
+        Process: [docs/rfcs/README.md](https://github.com/ingmarstruijs/WikiTraveler/blob/main/docs/rfcs/README.md)
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Gossip / protocol
+        - Auth / JWT / node signatures
+        - Prisma / migrations
+        - Peer discovery / bootstrap
+        - Access / Lens / SDK federation UX
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One paragraph — what changes and why
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Problem for operators, auditors, travelers, or maintainers
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Wire format, API, or schema sketch (bullet list or JSON example)
+    validations:
+      required: true
+  - type: textarea
+    id: compat
+    attributes:
+      label: Compatibility
+      description: Impact on N↔N-1 mesh, MIN_SUPPORTED_GOSSIP_PROTOCOL, migrations, Access/Lens
+      value: |
+        - Gossip protocol bump? (current / min)
+        - Requires DB migrate before deploy?
+        - Old clients still work?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional but helpful
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I read docs/rfcs/README.md and COMPATIBILITY.md
+          required: true
+        - label: I will update CHANGELOG + versions.json if protocol/schema numbers change
+          required: true
