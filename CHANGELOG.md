@@ -10,6 +10,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.3.0] - 2026-08-04
+
+### Operator notes
+
+- **Recommended first deploy tag** — Next.js 16 + React 19, Phase 6 federation, security pins, Access step-level photo evidence.
+- No new Prisma migrations since `0.2.1`. Redeploy app images (or rebuild from tag) only.
+- Node reports `gossipProtocol: 2` (min supported still `1`); mesh with `0.2.x` peers remains supported.
+- Redeploy **Access** with this tag so client and node versions align; rebuild if `NEXT_PUBLIC_NODE_API_URL` changed.
+- Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.3.0`, `wikitraveler-access:0.3.0`.
+- GitHub Release attaches `manifest.json`, Lens zip, and SDK dist. npm `@wikitraveler/sdk` publishes only when `NPM_PUBLISH` + `NPM_TOKEN` are set.
+
 ### Added
 
 - Phase 6 community scale: RFC process ([docs/rfcs/](docs/rfcs/README.md)), voluntary [public peers directory](docs/PUBLIC-PEERS.md), [federated auth](docs/FEDERATED-AUTH.md) guide, [Lens distribution](docs/LENS.md) checklist, monthly release cadence in [RELEASES.md](docs/RELEASES.md)
@@ -17,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - npm publish path for `@wikitraveler/sdk` on tag (`NPM_PUBLISH` + `NPM_TOKEN`) — package bundles `@wikitraveler/core` / `@wikitraveler/i18n`
 - Access audit photos attach to wizard steps and room types (not per-fact tags); property detail shows evidence by step ([ARCHITECTURE.md](docs/ARCHITECTURE.md#audit-photo-evidence-step-level))
 - Changelog gate: PRs that touch product paths must update `CHANGELOG.md` (`scripts/check-changelog.mjs`, CI job `changelog`); agent rule in [AGENTS.md](AGENTS.md)
+- Docker node + Access compose stack (`pnpm docker:stack`)
 
 ### Fixed
 
@@ -30,7 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Gossip protocol emit **`2`** (min supported still `1`) with optional `peers[].gossipProtocol` / `peers[].version` — [RFC-0001](docs/rfcs/0001-gossip-protocol-2.md) · [COMPATIBILITY.md](docs/COMPATIBILITY.md)
-- **Next.js 16 + React 19** on `apps/node` and `apps/access` (from 14.2.35): async `params`/`searchParams`/`cookies()`, ESLint CLI instead of `next lint`, stabilized `outputFileTracingIncludes` in node `next.config.js`. Closes the deferred Next security-migration item in [ROADMAP.md](docs/ROADMAP.md).
+- **Next.js 16 + React 19** on `apps/node` and `apps/access` (from 14.2.35): async `params`/`searchParams`/`cookies()`, ESLint CLI instead of `next lint`, stabilized `outputFileTracingIncludes` in node `next.config.js`
 - [RELEASES.md](docs/RELEASES.md): maintainer pre-tag command sequence (`pnpm install`, `prisma generate`, test, build, tag); Unreleased kept current on each ship-facing PR
 - Access: “Accessible rooms” fact renamed to “Number of accessible guest rooms” with clearer hint copy
 
@@ -40,7 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Operator notes
 
-- **Recommended first deploy tag** — includes Phase 5 operator tooling (`pnpm doctor`, release manifest, upgrade advisories).
+- Includes Phase 5 operator tooling (`pnpm doctor`, release manifest, upgrade advisories). Prefer **`0.3.0`** for new deploys.
 - No new Prisma migrations since `0.2.0`. Redeploy app images only.
 - GitHub Release attaches `manifest.json` alongside Lens zip and SDK dist.
 - Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.2.1`, `wikitraveler-access:0.2.1`.
@@ -89,6 +103,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - All workspace packages aligned to version `0.2.0`
 - CodeQL via GitHub default setup (no custom `codeql.yml`)
 
-[Unreleased]: https://github.com/ingmarstruijs/WikiTraveler/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/ingmarstruijs/WikiTraveler/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.3.0
 [0.2.1]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.2.1
 [0.2.0]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.2.0

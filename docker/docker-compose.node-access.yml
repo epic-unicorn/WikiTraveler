@@ -32,12 +32,12 @@ services:
       retries: 10
 
   node:
-    image: ghcr.io/ingmarstruijs/wikitraveler-node:${WIKITRAVELER_VERSION:-0.2.1}
+    image: ghcr.io/ingmarstruijs/wikitraveler-node:${WIKITRAVELER_VERSION:-0.3.0}
     build:
       context: ..
       dockerfile: docker/Dockerfile
       args:
-        WIKITRAVELER_VERSION: ${WIKITRAVELER_VERSION:-0.2.1}
+        WIKITRAVELER_VERSION: ${WIKITRAVELER_VERSION:-0.3.0}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -53,13 +53,13 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001,http://localhost:3000}
 
   access:
-    image: ghcr.io/ingmarstruijs/wikitraveler-access:${WIKITRAVELER_VERSION:-0.2.1}
+    image: ghcr.io/ingmarstruijs/wikitraveler-access:${WIKITRAVELER_VERSION:-0.3.0}
     build:
       context: ..
       dockerfile: docker/Dockerfile.access
       args:
         NEXT_PUBLIC_NODE_API_URL: ${NEXT_PUBLIC_NODE_API_URL:-http://localhost:3000}
-        WIKITRAVELER_VERSION: ${WIKITRAVELER_VERSION:-0.2.1}
+        WIKITRAVELER_VERSION: ${WIKITRAVELER_VERSION:-0.3.0}
     restart: unless-stopped
     depends_on:
       node:

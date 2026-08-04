@@ -33,7 +33,7 @@ Exposed on `GET /api/nodeinfo`:
 
 ```json
 {
-  "version": "0.2.1",
+  "version": "0.3.0",
   "gossipProtocol": 2,
   "minGossipProtocol": 1,
   "exportSchema": 2
