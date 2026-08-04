@@ -87,12 +87,49 @@ export async function POST(req: Request) {
     metadataOverridesApplied = await applyIncomingMetadataOverrides(allowedOverrides);
   }
 
+  // Peer exchange must run even when the delta has no in-bbox facts — otherwise
+  // organic discovery stalls after bootstrap until someone audits in-region.
+  async function upsertRemotePeers() {
+    if (!Array.isArray(delta.peers) || delta.peers.length === 0) return 0;
+    const remotePeers = delta.peers.filter((peer) => !isSelfPeer(peer.url, peer.nodeId));
+    await Promise.all(
+      remotePeers.map((peer) =>
+        prisma.nodePeer.upsert({
+          where: { url: peer.url },
+          update: {
+            nodeId: peer.nodeId ?? undefined,
+            region: peer.region ?? undefined,
+            bbox: peer.bbox ?? undefined,
+            ...(typeof peer.gossipProtocol === "number"
+              ? { gossipProtocol: peer.gossipProtocol }
+              : {}),
+            ...(peer.version ? { lastKnownVersion: peer.version } : {}),
+            lastSeen: new Date(),
+            isActive: true,
+          },
+          create: {
+            url: peer.url,
+            nodeId: peer.nodeId,
+            region: peer.region,
+            bbox: peer.bbox,
+            gossipProtocol: typeof peer.gossipProtocol === "number" ? peer.gossipProtocol : null,
+            lastKnownVersion: peer.version ?? null,
+            isActive: true,
+          },
+        })
+      )
+    );
+    return remotePeers.length;
+  }
+
   if (allowedFacts.length === 0 && metadataOverridesApplied === 0) {
+    const peersUpserted = await upsertRemotePeers();
     return NextResponse.json({
       ok: true,
       propertiesUpserted: allowedProperties.length,
       ingested: 0,
       metadataOverridesApplied: 0,
+      peersUpserted,
     });
   }
 
@@ -169,24 +206,13 @@ export async function POST(req: Request) {
     });
   }
 
-  // Upsert any peers that arrived in the delta (peer exchange) — never register self
-  if (Array.isArray(delta.peers) && delta.peers.length > 0) {
-    const remotePeers = delta.peers.filter((peer) => !isSelfPeer(peer.url, peer.nodeId));
-    await Promise.all(
-      remotePeers.map((peer) =>
-        prisma.nodePeer.upsert({
-          where: { url: peer.url },
-          update: { nodeId: peer.nodeId ?? undefined, region: peer.region ?? undefined, bbox: peer.bbox ?? undefined, lastSeen: new Date(), isActive: true },
-          create: { url: peer.url, nodeId: peer.nodeId, region: peer.region, bbox: peer.bbox, isActive: true },
-        })
-      )
-    );
-  }
+  const peersUpserted = await upsertRemotePeers();
 
   return NextResponse.json({
     ok: true,
     propertiesUpserted: allowedProperties.length,
     ingested: allowedFacts.length,
     metadataOverridesApplied,
+    peersUpserted,
   });
 }

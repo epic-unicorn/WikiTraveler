@@ -24,7 +24,7 @@ How WikiTraveler versions, ships, and stays compatible across a federated mesh o
 |-----------|--------|---------|---------------|
 | **Monorepo release** | Git tag, changelog, Docker tags | `v0.3.0` | Root `package.json`, git tags |
 | **Node runtime** | `/api/nodeinfo`, `/api/health`, admin UI | `0.3.0` | `apps/node/lib/nodeInfo.ts` (should match tag) |
-| **Gossip protocol** | Delta JSON semantics | `1` | Documented here; optional field in future deltas |
+| **Gossip protocol** | Delta JSON semantics | `2` | `@wikitraveler/core` + [COMPATIBILITY.md](./COMPATIBILITY.md) |
 | **Export schema** | Admin backup / gzip transfer | `2` | `apps/node/lib/nodeDataTransfer.ts` |
 | **Access / Lens / SDK** | Client artifacts | Independent | Per-app `package.json` / `manifest.json` |
 
@@ -52,7 +52,7 @@ Each `v*` tag should produce:
 | **Docker images** | Self-hosters | `wikitraveler-node`, `wikitraveler-access` (GHCR) |
 | **Source tree** | Vercel / custom hosts | Git checkout at tag |
 | **Lens zip** | Auditors | Attached to GitHub Release |
-| **SDK bundles** | Agencies | `packages/sdk/dist` on Release (npm in Phase 6) |
+| **SDK bundles** | Agencies | `packages/sdk/dist` on Release + **npm** `@wikitraveler/sdk` when `NPM_TOKEN` + `NPM_PUBLISH` are set |
 | **Release manifest** | Operators | `manifest.json` on GitHub Release + [releases/manifest.json](../releases/manifest.json) on `main` |
 
 Tags and changelog are prepared with `scripts/release.mjs`. Docker GHCR images and GitHub Release assets publish automatically on tag push — see [Release automation](#release-automation-roadmap).
@@ -173,14 +173,29 @@ Full steps: [UPGRADE.md](./UPGRADE.md).
 
 ---
 
+## Release cadence
+
+Aim for a **monthly minor** (`v0.x.0`) when there is ship-facing work in `[Unreleased]`. Patches ship anytime for security or operator-blocking bugs. Skip a month rather than cutting an empty release.
+
+| Cadence | Typical content |
+|---------|-----------------|
+| **Monthly minor** | Features, additive migrations, docs, federation hardening |
+| **Patch as needed** | Security fixes, critical regressions |
+| **Major (rare)** | Breaking gossip/auth/schema with a documented sunset |
+
+Maintainers announce the intended minor window in the changelog or an issue when the queue is large.
+
+---
+
 ## Release automation
 
 | Step | Workflow | Status |
 |------|----------|--------|
 | PR CI (lint, test, build) | `.github/workflows/ci.yml` | **Done** |
-| Gossip N/N-1 compat test | `.github/workflows/gossip-compat.yml` | **Done** |
+| Gossip discovery + N/N-1 compat | `.github/workflows/gossip-compat.yml` | **Done** |
 | Docker publish on tag | `.github/workflows/release-docker.yml` | **Done** |
 | GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
+| npm `@wikitraveler/sdk` on tag | `release.yml` job `npm-publish` | **Ready** — set repo variable `NPM_PUBLISH=true` + secret `NPM_TOKEN` |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
 | CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
 | Dependabot alerts | Settings → Code security | **Enabled** |
@@ -201,11 +216,11 @@ Contributors implementing automation should follow this doc and update the table
 {
   "release": "0.2.1",
   "node": "0.2.1",
-  "gossipProtocol": 1,
+  "gossipProtocol": 2,
   "exportSchema": 2,
   "minSupportedNode": "0.2.0",
   "minRecommendedNode": "0.2.1"
 }
 ```
 
-Future: npm SDK publish and Chrome Web Store remain Phase 6. Nodes optionally fetch a published manifest for upgrade advisories — see [releases/manifest.json](../releases/manifest.json) and [OPERATOR-CHECKLIST.md](./OPERATOR-CHECKLIST.md).
+Chrome Web Store listing for Lens remains a maintainer upload after each tag ([LENS.md](./LENS.md)). Nodes optionally fetch a published manifest for upgrade advisories — see [releases/manifest.json](../releases/manifest.json) and [OPERATOR-CHECKLIST.md](./OPERATOR-CHECKLIST.md).

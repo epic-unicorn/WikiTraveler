@@ -20,16 +20,19 @@ Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (as
 
 ## Near-term: Phase 6 — community scale
 
-Tracked in [RELEASE-PHASES.md](./RELEASE-PHASES.md#phase-6--community-scale):
+**Status:** Largely delivered on `main` — see [RELEASE-PHASES.md](./RELEASE-PHASES.md#phase-6--community-scale). Remaining maintainer actions: enable npm publish secrets, Chrome Web Store upload, first public peer entries.
 
-| Theme | Intent |
+| Theme | Status |
 |-------|--------|
-| **npm SDK** | Publish `@wikitraveler/sdk` on tag (today: GitHub Release zip + workspace packages) |
-| **Lens distribution** | Chrome Web Store or a signed update channel (today: load-unpacked) |
-| **Release cadence** | Document and practice a monthly minor rhythm |
-| **RFC template** | Lightweight template for gossip / auth / schema changes before merge |
+| **npm SDK** | Workflow ready; enable `NPM_PUBLISH` + `NPM_TOKEN` |
+| **Lens distribution** | Release zip + [LENS.md](./LENS.md) checklist; Store listing pending |
+| **Release cadence** | Monthly minor documented in [RELEASES.md](./RELEASES.md) |
+| **RFC template** | [docs/rfcs/](./rfcs/README.md) + GitHub issue template |
+| **Peer directory** | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) (empty until operators opt in) |
+| **Discovery E2E** | `pnpm gossip:discovery` in CI |
+| **Gossip protocol 2** | Emit `2` / min `1` — [RFC-0001](./rfcs/0001-gossip-protocol-2.md) |
 
-Ship these so operators and integrators consume **tagged artifacts**, not `main`.
+Ship tagged artifacts so operators and integrators do not clone `main`.
 
 ---
 
@@ -107,9 +110,9 @@ Overrides clear CVEs when Dependabot cannot unlock parent ranges; they are not a
 
 ### Gossip protocol evolution
 
-Still protocol `1` with additive optional fields. Mesh growth will need planned breaks.
+**Status:** Protocol emit **`2`**, min supported **`1`** ([RFC-0001](./rfcs/0001-gossip-protocol-2.md)). Peer exchange carries optional version hints; ingest applies peers even without in-bbox facts.
 
-**Direction:** RFC process (Phase 6) before protocol 2; keep [gossip-compat](../.github/workflows/gossip-compat.yml) green for N↔N-1; document sunset windows in [COMPATIBILITY.md](./COMPATIBILITY.md).
+**Direction:** Further breaks go through the [RFC process](./rfcs/README.md); keep [gossip-compat](../.github/workflows/gossip-compat.yml) green for discovery + N↔N-1; raise `minGossipProtocol` only with CHANGELOG sunset notes.
 
 ---
 
@@ -123,15 +126,15 @@ Operators should pull GHCR tags and Release assets, not clone `main` ([OPERATORS
 
 ### Federation discoverability
 
-Mesh growth is bootstrap peers + gossip peer exchange only — no curated public directory.
+**Status:** Voluntary [public-peers.json](./public-peers.json) + bootstrap + gossip peer exchange (including protocol/version hints).
 
-**Direction:** Voluntary “known public nodes” list (docs or a small static file) that operators can opt into; improve first-run bootstrap guidance so Access GPS resolve has somewhere to start.
+**Direction:** Grow the directory as operators opt in; keep first-run bootstrap guidance current so Access GPS resolve has somewhere to start.
 
 ### Contribution ladders
 
-Good first issues are implied (i18n, docs, tests) but not structured.
+**Status:** Labels documented in [CONTRIBUTING.md](../CONTRIBUTING.md); RFC template for federation-impacting work.
 
-**Direction:** Label `good first issue` / `help wanted`; translator checklist for new locales (beyond en/nl/de/fr); operator help remains the path for non-code participation ([COMMUNITY.md](./COMMUNITY.md)).
+**Direction:** Tag issues `good first issue` / `help wanted` in practice; translator checklist for new locales (beyond en/nl/de/fr); operator help remains the path for non-code participation ([COMMUNITY.md](./COMMUNITY.md)).
 
 ### Lightweight community space
 
@@ -163,7 +166,7 @@ WikiTraveler is a federated **truth layer**, not a booking engine.
 
 ### Documentation accuracy after Next 16
 
-Some diagrams and prose still say “Next.js 14” (e.g. [ARCHITECTURE.md](./ARCHITECTURE.md)).
+**Status:** Architecture / security / release docs updated for Next 16 and protocol 2.
 
 **Direction:** Sweep version references and operator screenshots after each major stack bump so new operators trust the docs.
 

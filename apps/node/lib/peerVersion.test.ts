@@ -19,7 +19,7 @@ describe("assessPeerSkew", () => {
   it("accepts N-1 minor skew", () => {
     const result = assessPeerSkew({
       localVersion: "0.2.0",
-      localGossipProtocol: 1,
+      localGossipProtocol: 2,
       peerVersion: "0.1.0",
       peerGossipProtocol: 1,
     });
@@ -29,7 +29,7 @@ describe("assessPeerSkew", () => {
   it("warns when peer is two minors away", () => {
     const result = assessPeerSkew({
       localVersion: "0.2.0",
-      localGossipProtocol: 1,
+      localGossipProtocol: 2,
       peerVersion: "0.0.5",
       peerGossipProtocol: 1,
     });
@@ -39,7 +39,7 @@ describe("assessPeerSkew", () => {
   it("errors when gossip protocol is below minimum", () => {
     const result = assessPeerSkew({
       localVersion: "0.2.0",
-      localGossipProtocol: 1,
+      localGossipProtocol: 2,
       peerVersion: "0.2.0",
       peerGossipProtocol: 0,
     });

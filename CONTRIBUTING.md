@@ -18,16 +18,29 @@ Thank you for helping build open, federated accessibility data. This document co
 |------|----------------|
 | Bug fix | Issue + PR with repro steps |
 | Feature | Issue for discussion if it touches gossip, auth, or schema |
+| RFC | Federation-impacting design — [docs/rfcs/](docs/rfcs/README.md) + **RFC** issue template |
 | Documentation | `docs/` or README — follow the [docs hub](docs/README.md) structure |
 | Translation | `packages/i18n/src/locales/` |
 | Operator runbooks | `docs/OPERATORS.md`, `UPGRADE.md`, `DOCKER.md`, `VERCEL.md` |
 | Tests | `apps/node`, `apps/access`, or package-level tests |
+| Public peer listing | PR to [docs/public-peers.json](docs/public-peers.json) |
 
-**Discuss before coding:**
+**Discuss before coding (open an RFC when federation is affected):**
 
 - Breaking Prisma migrations
-- Gossip delta shape changes
+- Gossip delta shape / protocol bumps
 - Authentication or trust-tier rule changes
+
+### Issue labels
+
+| Label | Use for |
+|-------|---------|
+| `good first issue` | Small, well-scoped starter tasks (docs, i18n, tests) |
+| `help wanted` | Clear tasks that benefit from outside contributors |
+| `bug` / `enhancement` / `operator` / `documentation` | Template defaults |
+| `rfc` | Design discussion before implementation |
+| `rfc/accepted` / `rfc/declined` | Maintainer decision on an RFC |
+| `skip-changelog` | Rare escape hatch when CI changelog gate should not apply |
 
 ---
 
@@ -77,7 +90,7 @@ Maintainer release branches (maintainers only): `release/v0.3.x`
 |--------|-----|
 | Any code | `pnpm test` · `pnpm build` |
 | UI | `pnpm test:a11y` |
-| Federation | `pnpm dev:gossip-lab` + `pnpm gossip:check` |
+| Federation | `pnpm gossip:discovery` (bootstrap E2E) · `pnpm gossip:compat` (N↔N-1) · `pnpm gossip:check` |
 | Docs only | Verify links resolve |
 
 CI runs accessibility workflows on PRs; keep them green.

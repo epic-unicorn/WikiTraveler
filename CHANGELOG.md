@@ -12,17 +12,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Phase 6 community scale: RFC process ([docs/rfcs/](docs/rfcs/README.md)), voluntary [public peers directory](docs/PUBLIC-PEERS.md), [federated auth](docs/FEDERATED-AUTH.md) guide, [Lens distribution](docs/LENS.md) checklist, monthly release cadence in [RELEASES.md](docs/RELEASES.md)
+- `pnpm gossip:discovery` end-to-end multi-node bootstrap discovery + gossip sync (CI job alongside N↔N-1 compat)
+- npm publish path for `@wikitraveler/sdk` on tag (`NPM_PUBLISH` + `NPM_TOKEN`) — package bundles `@wikitraveler/core` / `@wikitraveler/i18n`
 - Access audit photos attach to wizard steps and room types (not per-fact tags); property detail shows evidence by step ([PHOTO-FACT-LINKING.md](docs/PHOTO-FACT-LINKING.md))
 - Changelog gate: PRs that touch product paths must update `CHANGELOG.md` (`scripts/check-changelog.mjs`, CI job `changelog`); agent rule in [AGENTS.md](AGENTS.md)
 
 ### Fixed
 
+- Gossip ingest applies peer exchange even when a delta has no in-bbox facts (organic discovery no longer depends on regional audits)
 - **Security:** `pnpm.overrides` pin patched transitive deps — `glob`, `picomatch`, `tmp`, `form-data`, plus `brace-expansion@1` (1.1.18), `postcss` (8.5.25), `js-yaml@3` (≥3.15.0), `sharp` (≥0.35.0) after Dependabot could not resolve them within parent ranges
 - API routes export inline `force-dynamic` so `pnpm build` does not require a running Postgres (re-exports are rejected by Next.js 16)
 - `gossip-compat` retries post-sync fetches (dev servers can be briefly unavailable after cron gossip)
 
 ### Changed
 
+- Gossip protocol emit **`2`** (min supported still `1`) with optional `peers[].gossipProtocol` / `peers[].version` — [RFC-0001](docs/rfcs/0001-gossip-protocol-2.md) · [COMPATIBILITY.md](docs/COMPATIBILITY.md)
 - **Next.js 16 + React 19** on `apps/node` and `apps/access` (from 14.2.35): async `params`/`searchParams`/`cookies()`, ESLint CLI instead of `next lint`, stabilized `outputFileTracingIncludes` in node `next.config.js`. Closes the deferred Next security-migration item in [ROADMAP.md](docs/ROADMAP.md).
 - [RELEASES.md](docs/RELEASES.md): maintainer pre-tag command sequence (`pnpm install`, `prisma generate`, test, build, tag); Unreleased kept current on each ship-facing PR
 - Access: “Accessible rooms” fact renamed to “Number of accessible guest rooms” with clearer hint copy

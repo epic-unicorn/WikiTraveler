@@ -21,25 +21,27 @@ No central vendor is required. Operators choose when to deploy; contributors imp
 
 ## How the mesh grows
 
-1. **Bootstrap peers** — New nodes list known peers in `BOOTSTRAP_PEERS`; startup discovery expands the peer table.
-2. **Gossip exchange** — Every sync includes peer lists; the network discovers itself organically.
+1. **Bootstrap peers** — New nodes list known peers in `BOOTSTRAP_PEERS` (seed from [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) when available); startup discovery expands the peer table.
+2. **Gossip exchange** — Every sync includes peer lists (with optional protocol/version hints); the network discovers itself organically.
 3. **Regional resolution** — Clients call `/api/peers/resolve` so travelers reach the right regional node.
-4. **Shared releases** — Tagged repo releases give operators a common baseline without forced remote updates.
+4. **Federated auth** — Register once on a home node; with RS256, browse/audit peers without re-registering ([FEDERATED-AUTH.md](./FEDERATED-AUTH.md)).
+5. **Shared releases** — Tagged repo releases give operators a common baseline without forced remote updates.
 
-Operators are **not** required to run the latest version immediately. The project supports **N and N-1** node versions in the mesh. Breaking changes get a documented sunset window — see [RELEASES.md](./RELEASES.md).
+Operators are **not** required to run the latest version immediately. The project supports **N and N-1** node versions in the mesh. Breaking changes get a documented sunset window — see [RELEASES.md](./RELEASES.md) · [COMPATIBILITY.md](./COMPATIBILITY.md).
 
 ---
 
 ## Contributing code
 
-1. Read [CONTRIBUTING.md](../CONTRIBUTING.md) for branch naming, PR checks, and review expectations.
+1. Read [CONTRIBUTING.md](../CONTRIBUTING.md) for branch naming, PR checks, labels, and review expectations.
 2. Set up locally via [DEVELOPMENT.md](./DEVELOPMENT.md) and [LOCAL.md](./LOCAL.md).
-3. For federation changes, run the gossip lab: [GOSSIP-DEV.md](./GOSSIP-DEV.md).
+3. For federation changes, run the gossip lab: [GOSSIP-DEV.md](./GOSSIP-DEV.md) (`pnpm gossip:discovery`).
 4. For UI changes, run accessibility checks: [ACCESSIBILITY.md](./ACCESSIBILITY.md).
+5. Federation-impacting design: open an **RFC** ([docs/rfcs/](./rfcs/README.md)).
 
-**Good first contributions:** docs fixes, i18n strings (`packages/i18n`), test coverage, operator runbook improvements, sample region presets.
+**Good first contributions:** docs fixes, i18n strings (`packages/i18n`), test coverage, operator runbook improvements, sample region presets. Look for issues labeled `good first issue` or `help wanted`.
 
-**Needs design discussion first:** gossip protocol shape changes, Prisma breaking migrations, auth model changes.
+**Needs design discussion first:** gossip protocol shape changes, Prisma breaking migrations, auth model changes (use the RFC template).
 
 ---
 
@@ -47,10 +49,10 @@ Operators are **not** required to run the latest version immediately. The projec
 
 You do not need to merge code to participate:
 
-- Run a public node and list it as a bootstrap peer (with permission).
+- Run a public node and opt into the [public peers directory](./PUBLIC-PEERS.md).
 - Publish your Access URL for travelers in your region.
 - Share OSM ingest experience and bbox presets.
-- Report federation issues with `pnpm gossip:check` output and peer `/api/nodeinfo` responses.
+- Report federation issues with `pnpm gossip:check` / `pnpm gossip:discovery` output and peer `/api/nodeinfo` responses.
 
 Use the **Operator help** issue template when asking for deployment support.
 
@@ -70,16 +72,15 @@ Use the **Operator help** issue template when asking for deployment support.
 Today the project uses **maintainer-led merge** on `main`:
 
 - `main` is always intended to be deployable.
-- Releases are tagged `vMAJOR.MINOR.PATCH` with notes in [CHANGELOG.md](../CHANGELOG.md).
-- Breaking gossip or database changes require a [RELEASES.md](./RELEASES.md) compatibility note before merge.
+- Releases are tagged `vMAJOR.MINOR.PATCH` with notes in [CHANGELOG.md](../CHANGELOG.md); aim for a [monthly minor](./RELEASES.md#release-cadence) when there is ship-facing work.
+- Breaking gossip or database changes require an [RFC](./rfcs/README.md) and a [RELEASES.md](./RELEASES.md) compatibility note before merge.
 
 As the community grows, maintainers may add:
 
-- A public roadmap (GitHub Projects or `docs/ROADMAP.md`)
 - Operator office hours or Matrix/Discord (linked from README when established)
-- A static release manifest for advisory upgrade banners
+- More structured contribution ladders and translator checklists
 
-None of these replace per-operator deployment control.
+None of these replace per-operator deployment control. Public priorities live in [ROADMAP.md](./ROADMAP.md).
 
 ---
 
@@ -100,5 +101,7 @@ Operators and integrators should attribute WikiTraveler data per CC-BY when repu
 |------|------|
 | Set up dev environment | [DEVELOPMENT.md](./DEVELOPMENT.md) |
 | Deploy a node | [OPERATORS.md](./OPERATORS.md) |
+| Bootstrap peers | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) |
+| Cross-node login | [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) |
 | Understand federation | [ARCHITECTURE.md](./ARCHITECTURE.md) § Federation & Gossip |
 | Release or upgrade | [RELEASES.md](./RELEASES.md) · [UPGRADE.md](./UPGRADE.md) |

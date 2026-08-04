@@ -42,19 +42,25 @@ Single entry point for the project. Pick the path that matches your role — eac
 |-----|---------|
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | Monorepo layout, scripts, PR workflow, quality gates |
 | [LOCAL.md](./LOCAL.md) | Local Postgres, apps, OSM ingest, env vars |
-| [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Two-node gossip lab for federation testing |
+| [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Two-node gossip lab for federation testing (`gossip:discovery`, `gossip:compat`) |
+| [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) | Register on one node; browse/audit peers with RS256 JWT |
+| [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Voluntary bootstrap peer directory |
+| [LENS.md](./LENS.md) | Chrome extension distribution (Release zip / Store) |
 | [apps/README.md](../apps/README.md) | End-to-end flow walkthroughs (SDK, Access, Lens) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, API surface, gossip, auth |
+| [rfcs/](./rfcs/README.md) | RFC process for gossip / auth / schema changes |
 
 ### For the community
 
 | Doc | Purpose |
 |-----|---------|
 | [COMMUNITY.md](./COMMUNITY.md) | Roles, mesh growth, communication norms |
+| [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Opt-in public bootstrap peers |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | How to open issues and PRs |
 | [../CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) | Expected behaviour |
 | [../SECURITY.md](../SECURITY.md) | Reporting vulnerabilities |
 | [../CHANGELOG.md](../CHANGELOG.md) | Release history |
+| [packages/sdk/README.md](../packages/sdk/README.md) | Agency SDK install / embed |
 
 ### Compliance
 
@@ -100,7 +106,7 @@ wikitraveler/
 | Apply migrations | `pnpm db:migrate` / `pnpm db:deploy` (production) |
 | Build everything | `pnpm build` |
 | Tests | `pnpm test` · `pnpm test:a11y` |
-| Gossip lab | `pnpm dev:gossip-lab` |
+| Gossip lab | `pnpm dev:gossip-lab` → `pnpm gossip:discovery` |
 
 Full script reference: [DEVELOPMENT.md](./DEVELOPMENT.md#scripts).
 

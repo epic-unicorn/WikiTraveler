@@ -139,15 +139,28 @@ git push && git push origin v0.2.0
 
 ---
 
-## Phase 6 — Community scale
+## Phase 6 — Community scale ✅ (packaging + federation growth)
 
-**Deliverables**
+**Goal:** Operators and integrators consume tagged artifacts; mesh can grow from bootstrap peers without forced link scripts.
 
-- `@wikitraveler/sdk` on npm (on tag)
-- Chrome Web Store for Lens (or signed release channel)
-- `docs/ROADMAP.md` public priorities
-- Monthly minor release cadence documented
-- RFC template for gossip/auth/schema changes
+**Delivered**
+
+| Item | Detail |
+|------|--------|
+| npm SDK path | `@wikitraveler/sdk` bundles core/i18n; `release.yml` publishes when `NPM_PUBLISH` + `NPM_TOKEN` set |
+| Lens channel | Release zip every tag + [LENS.md](./LENS.md) Web Store / signed CRX checklist |
+| Monthly cadence | Documented in [RELEASES.md](./RELEASES.md) |
+| RFC process | [docs/rfcs/](./rfcs/README.md) + GitHub **RFC** issue template |
+| Public peers directory | [public-peers.json](./public-peers.json) · [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) |
+| Federated auth docs | [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) — register on A, audit/browse on B with RS256 |
+| Gossip protocol 2 | Emit `2`, min still `1` — [RFC-0001](./rfcs/0001-gossip-protocol-2.md) |
+| Discovery E2E | `pnpm gossip:discovery` + CI job (bootstrap without `gossip-link-peers`) |
+
+**Maintainer actions**
+
+- [ ] Set GitHub Actions variable `NPM_PUBLISH=true` and secret `NPM_TOKEN` for first npm publish
+- [ ] Upload Lens zip to Chrome Web Store when listing is ready
+- [ ] Confirm GHCR packages are **public** on first publish
 
 ---
 
@@ -162,6 +175,7 @@ Add these to the **Protect main** ruleset once workflows have run once:
 | `build` | CI | Required |
 | `prisma` | CI | Required |
 | `axe` | Accessibility tests | Required |
+| `gossip-discovery` | Gossip compat | Required (after first run) |
 | `gossip-compat` | Gossip compat | Required (after first run) |
 | Code scanning (default CodeQL) | GitHub Settings | Optional — do not add `codeql.yml` while default is on |
 
@@ -169,4 +183,4 @@ Add these to the **Protect main** ruleset once workflows have run once:
 
 ## Next step
 
-**Phase 6 — community scale** (npm SDK, Lens store, release cadence, RFC template). Broader product directions: [ROADMAP.md](./ROADMAP.md).
+Broader product directions (Access PWA, federated photos, a11y gaps, community channels): [ROADMAP.md](./ROADMAP.md).

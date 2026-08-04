@@ -75,3 +75,43 @@ jobs:
             release-assets/sdk/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  npm-publish:
+    name: Publish @wikitraveler/sdk to npm
+    runs-on: ubuntu-latest
+    needs: release
+    if: ${{ vars.NPM_PUBLISH == 'true' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build SDK (bundled)
+        run: |
+          pnpm --filter @wikitraveler/core build
+          pnpm --filter @wikitraveler/i18n build
+          pnpm --filter @wikitraveler/sdk build
+
+      - name: Publish @wikitraveler/sdk
+        working-directory: packages/sdk
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret not set — skipping npm publish"
+            exit 0
+          fi
+          pnpm publish --access public --no-git-checks

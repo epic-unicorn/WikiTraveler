@@ -218,14 +218,13 @@ importers:
         version: 5.9.3
 
   packages/sdk:
-    dependencies:
+    devDependencies:
       '@wikitraveler/core':
         specifier: workspace:*
         version: link:../core
       '@wikitraveler/i18n':
         specifier: workspace:*
         version: link:../i18n
-    devDependencies:
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(postcss@8.5.25)(tsx@4.21.0)(typescript@5.9.3)

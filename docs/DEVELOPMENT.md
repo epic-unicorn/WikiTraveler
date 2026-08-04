@@ -108,6 +108,8 @@ After pulling schema changes on an existing DB: `pnpm db:migrate` (not `db:setup
 | `pnpm test:a11y` | axe accessibility regression |
 | `pnpm lighthouse:ci` | Lighthouse gate (apps must be running) |
 | `pnpm dev:gossip-lab` | Two-node Docker gossip lab |
+| `pnpm gossip:discovery` | Bootstrap discovery + sync E2E (no forced link-peers) |
+| `pnpm gossip:compat` | N↔N-1 mixed-version federation check |
 | `pnpm gossip:check` | Peer smoke test |
 | `pnpm doctor` | Operator health check (version, migrations, peers, keys) |
 | `pnpm release:prepare` | Bump versions — `node scripts/release.mjs X.Y.Z` (see [RELEASES.md](./RELEASES.md) tag checklist) |
