@@ -108,7 +108,7 @@ Pre-built images are published to GitHub Container Registry on each release tag:
 
 ```bash
 # In .env
-WIKITRAVELER_VERSION=0.2.0
+WIKITRAVELER_VERSION=0.3.0
 
 docker compose -f docker/docker-compose.yml pull node
 docker compose -f docker/docker-compose.yml up -d
