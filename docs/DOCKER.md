@@ -352,6 +352,7 @@ NEXT_PUBLIC_NODE_API_URL=https://wikitraveler.example.com
 
 | Symptom | Fix |
 |---------|-----|
+| `exec /entrypoint.dev.sh: no such file or directory` (Windows) | Almost always **CRLF** shebangs in the image. Rebuild without cache: `docker compose -f docker/docker-compose.dev.yml build --no-cache node` then `up -d`. Ensure `*.sh` stay LF (repo `.gitattributes`). |
 | `pnpm db:setup` → can't reach database at `localhost:5432` after `docker compose -f docker/docker-compose.yml up` | Recreate Postgres so the host port is published: `docker compose -f docker/docker-compose.yml up -d postgres`. `docker ps` should show `127.0.0.1:5432->5432/tcp` on the postgres container. |
 | Port 5432 already in use | Set `POSTGRES_HOST_PORT=5433` in `.env` and `DATABASE_URL=...@localhost:5433/...`, then `docker compose ... up -d postgres`. |
 | Dev + prod compose both need Postgres | Only one stack can bind a host port at a time. Use the same compose file, or different `POSTGRES_HOST_PORT` values. |

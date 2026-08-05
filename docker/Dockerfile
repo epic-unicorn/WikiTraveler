@@ -81,7 +81,8 @@ RUN npm install -g prisma@5.22.0
 
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY docker/osm-import-pbf.sh /usr/local/bin/osm-import-pbf
-RUN chmod +x /entrypoint.sh /usr/local/bin/osm-import-pbf
+RUN sed -i 's/\r$//' /entrypoint.sh /usr/local/bin/osm-import-pbf \
+  && chmod +x /entrypoint.sh /usr/local/bin/osm-import-pbf
 
 EXPOSE 3000
 ENV PORT=3000

@@ -29,6 +29,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Lens options copy: home node = identity; routes to regional data nodes when covered
 - Renamed Next.js `middleware.ts` → `proxy.ts` (Node + Access) for the Next.js 16 file convention
 
+### Fixed
+
+- Docker entrypoints strip CRLF after COPY; `.gitattributes` forces LF on `*.sh` so Windows checkouts do not fail with `exec /entrypoint.dev.sh: no such file or directory`
+
 ---
 
 ## [0.3.0] - 2026-08-04

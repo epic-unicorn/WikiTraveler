@@ -1,0 +1,5 @@
+# Force LF for shell scripts so Docker ENTRYPOINT works on Windows checkouts
+# (CRLF shebangs become "#!/bin/sh\r" → exec: no such file or directory).
+*.sh text eol=lf
+docker/entrypoint*.sh text eol=lf
+docker/osm-import-pbf.sh text eol=lf
