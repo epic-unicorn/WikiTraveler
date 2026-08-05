@@ -31,7 +31,9 @@ interface Settings {
   auditedReimportPending: boolean;
 }
 
-function presetTierLabel(tier: PresetTier, t: (key: string) => string): string {
+type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+function presetTierLabel(tier: PresetTier, t: Translate): string {
   const keys: Record<PresetTier, string> = {
     city: "ui.adminPresetTierCity",
     country: "ui.adminPresetTierCountry",
@@ -41,10 +43,7 @@ function presetTierLabel(tier: PresetTier, t: (key: string) => string): string {
   return t(keys[tier]);
 }
 
-function presetContinentLabel(
-  continent: PresetContinent,
-  t: (key: string) => string
-): string {
+function presetContinentLabel(continent: PresetContinent, t: Translate): string {
   const keys: Record<PresetContinent, string> = {
     europe: "ui.adminPresetContinentEurope",
     "north-america": "ui.adminPresetContinentNorthAmerica",
@@ -60,7 +59,7 @@ function presetContinentLabel(
 function presetOptgroupLabel(
   tier: PresetTier,
   continent: PresetContinent,
-  t: (key: string) => string
+  t: Translate
 ): string {
   return t("ui.adminPresetGroupLabel", {
     tier: presetTierLabel(tier, t),
