@@ -14,8 +14,8 @@
 | **M1** Trusted CORS / client origins | Done | [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50) |
 | **M2** Access home vs data routing + resolve quality | Done | [#52](https://github.com/ingmarstruijs/WikiTraveler/pull/52) |
 | **M3** Viewport / coverage map | Done | [#54](https://github.com/ingmarstruijs/WikiTraveler/pull/54) |
-| **M4** Lens alignment | In review | — |
-| **M5** Docs / release narrative (hub vs node) | In review | — |
+| **M4** Lens alignment | In review | [#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55) |
+| **M5** Docs / release narrative (hub vs node) | In review | [#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55) |
 | **M6** Follow-ons | Later | — |
 
 ## Summary
