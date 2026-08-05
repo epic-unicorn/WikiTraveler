@@ -40,11 +40,11 @@ Ship tagged artifacts so operators and integrators do not clone `main`.
 
 ### Global hub Access & Lens (federation invisible)
 
-**Status:** Draft RFC — [RFC-0002](./rfcs/0002-global-hub-access.md).
+**Status:** Accepted — **M0–M5 shipped** ([RFC-0002](./rfcs/0002-global-hub-access.md); PRs [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50)–[#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55)). Close tracking [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51).
 
-Travelers should use one Access (canonical hub e.g. `access.wikitraveler.org`) and Lens worldwide: home node = identity, regional nodes = data, mesh CORS for **trusted** hub origins only. Map becomes coverage + viewport pins — not home-node inventory.
+Travelers use one Access (canonical hub e.g. `access.wikitraveler.org`) and Lens worldwide: home node = identity, regional nodes = data, mesh CORS for **trusted** hub origins only. Map is coverage + viewport pins — not home-node inventory.
 
-**Direction:** Ship M1 (trusted client origins / CORS) before global routing; treat open CORS, phishing `accessUrl`, coverage UX, hub uptime, and Access↔node skew as highest-impact risks in the RFC. Reject home-node audit proxy and default regional Access redirect as the primary path.
+**Direction:** **M6** follow-ons (multi-node viewport fan-out, Admin peer client-origin UI, shorter JWT TTL, etc.). Keep rejecting home-node audit proxy and default regional Access redirect as the primary path.
 
 ### Access as a field-ready PWA
 
