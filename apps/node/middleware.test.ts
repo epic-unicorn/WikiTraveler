@@ -98,3 +98,49 @@ describe("middleware dashboard role gate", () => {
     expect(res?.status).toBe(200);
   });
 });
+
+describe("middleware API CORS", () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    process.env.CORS_ORIGINS = "https://access.wikitraveler.org";
+    delete process.env.CLIENT_ORIGINS;
+    delete process.env.ACCESS_PUBLIC_URL;
+  });
+
+  it("reflects trusted Origin on API GET", async () => {
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("http://localhost/api/health", {
+      headers: { origin: "https://access.wikitraveler.org" },
+    });
+    const res = await middleware(req);
+    expect(res?.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://access.wikitraveler.org"
+    );
+    expect(res?.headers.get("Vary")).toBe("Origin");
+  });
+
+  it("omits Allow-Origin for untrusted Origin", async () => {
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("http://localhost/api/health", {
+      headers: { origin: "https://evil.example" },
+    });
+    const res = await middleware(req);
+    expect(res?.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
+  it("answers OPTIONS preflight with 204", async () => {
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("http://localhost/api/properties", {
+      method: "OPTIONS",
+      headers: { origin: "https://access.wikitraveler.org" },
+    });
+    const res = await middleware(req);
+    expect(res?.status).toBe(204);
+    expect(res?.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://access.wikitraveler.org"
+    );
+    expect(res?.headers.get("Access-Control-Allow-Methods")).toContain("POST");
+  });
+});

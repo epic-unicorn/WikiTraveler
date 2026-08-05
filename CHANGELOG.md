@@ -10,6 +10,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Trusted browser CORS for `/api/*`: reflect `Origin` when it matches `CORS_ORIGINS` ∪ `CLIENT_ORIGINS` ∪ `ACCESS_PUBLIC_URL` (middleware); OPTIONS preflight; `Vary: Origin`. Gossip `accessUrl` is not auto-trusted ([RFC-0002](docs/rfcs/0002-global-hub-access.md))
+- `GET /api/nodeinfo` may include `accessUrl` and `clientOrigins` for hub/directory advertisement
+
+### Changed
+
+- Node no longer sets a static comma-joined `Access-Control-Allow-Origin` in `next.config.js` (invalid for multi-origin lists); use env allowlists above
+
 ---
 
 ## [0.3.0] - 2026-08-04

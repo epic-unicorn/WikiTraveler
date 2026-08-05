@@ -117,10 +117,10 @@ Regional Access handoff is **optional branding**, not the default global path.
 
 **Security checklist (M1 exit)**
 
-- [ ] Unknown Origin rejected on `/api/*`
-- [ ] Trusted hub `https://access.wikitraveler.org` allowed when configured
-- [ ] Gossip cannot add a CORS origin without operator/bootstrap trust
-- [ ] SECURITY.md updated (CORS / client origins)
+- [x] Unknown Origin rejected on `/api/*` (allowlist mode)
+- [x] Trusted hub `https://access.wikitraveler.org` allowed when configured (`CLIENT_ORIGINS` / `CORS_ORIGINS`)
+- [x] Gossip cannot add a CORS origin without operator/bootstrap trust (env-only trust in M1)
+- [x] SECURITY.md updated (CORS / client origins)
 
 **Exit:** Hub Access audits on a peer that never manually listed the hub beyond bootstrap/trust config.
 
