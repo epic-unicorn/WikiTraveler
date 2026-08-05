@@ -94,7 +94,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
     query.trim().length > 0 ||
     filters.features.length > 0 ||
     filters.audited !== null ||
-    filters.hasAccessibleRoom;
+    filters.hasAccessibleRoom === true;
 
   useEffect(() => {
     if (abortRef.current) abortRef.current.abort();
