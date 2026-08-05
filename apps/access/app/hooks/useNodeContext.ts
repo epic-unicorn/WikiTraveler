@@ -18,10 +18,18 @@ interface NodeInfo {
   version?: string;
 }
 
+/** GPS / map-center resolve outcome for the active data region (RFC-0002 M2). */
+export type DataRegionResolve = {
+  region: string | null;
+  matched: "self" | "peer" | "fallback";
+  url: string;
+};
+
 export function useNodeContext() {
   const [nodeUrl, setNodeUrlState] = useState(ENV_NODE_URL);
-  const [searchNodeUrl, setSearchNodeUrl] = useState(ENV_NODE_URL);
-  const [gpsResolved, setGpsResolved] = useState<{ region: string | null } | null>(null);
+  /** Active data node for search / map / audit routing (may differ from home). */
+  const [dataNodeUrl, setDataNodeUrl] = useState(ENV_NODE_URL);
+  const [dataRegion, setDataRegion] = useState<DataRegionResolve | null>(null);
   const [nodeInfo, setNodeInfo] = useState<NodeInfo | null>(null);
   const [nodeReachable, setNodeReachable] = useState<boolean | null>(null);
 
@@ -51,24 +59,43 @@ export function useNodeContext() {
   }, [nodeUrl]);
 
   useEffect(() => {
-    setSearchNodeUrl(nodeUrl);
-    setGpsResolved(null);
-    if (!navigator.geolocation) return;
+    setDataNodeUrl(nodeUrl);
+    setDataRegion(null);
+    if (!navigator.geolocation) {
+      setDataRegion({ region: null, matched: "self", url: nodeUrl });
+      return;
+    }
 
     let cancelled = false;
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      if (cancelled) return;
-      const data = await resolvePeerNode(
-        nodeUrl,
-        pos.coords.latitude,
-        pos.coords.longitude
-      );
-      if (cancelled) return;
-      if (data && data.url !== nodeUrl) {
-        setSearchNodeUrl(data.url);
-        setGpsResolved({ region: data.region ?? null });
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        if (cancelled) return;
+        const data = await resolvePeerNode(
+          nodeUrl,
+          pos.coords.latitude,
+          pos.coords.longitude
+        );
+        if (cancelled) return;
+        if (!data) {
+          setDataNodeUrl(nodeUrl);
+          setDataRegion({ region: null, matched: "fallback", url: nodeUrl });
+          return;
+        }
+        const clientUrl = toClientNodeUrl(data.url);
+        setDataNodeUrl(clientUrl);
+        setDataRegion({
+          region: data.region,
+          matched: (data.matched as DataRegionResolve["matched"]) || "fallback",
+          url: clientUrl,
+        });
+      },
+      () => {
+        if (cancelled) return;
+        // GPS denied: stay on home as data node
+        setDataNodeUrl(nodeUrl);
+        setDataRegion({ region: null, matched: "self", url: nodeUrl });
       }
-    });
+    );
     return () => {
       cancelled = true;
     };
@@ -88,9 +115,18 @@ export function useNodeContext() {
   }, []);
 
   return {
+    /** Home / identity node (login, resolve, saved signals). */
     nodeUrl,
-    searchNodeUrl,
-    gpsResolved,
+    homeNodeUrl: nodeUrl,
+    /** Data node for search, browse, create, audit routing. */
+    dataNodeUrl,
+    /** @deprecated Use dataNodeUrl — kept for call sites during M2. */
+    searchNodeUrl: dataNodeUrl,
+    dataRegion,
+    /** @deprecated Use dataRegion */
+    gpsResolved: dataRegion
+      ? { region: dataRegion.region, matched: dataRegion.matched }
+      : null,
     nodeInfo,
     nodeReachable,
     setNodeUrl,

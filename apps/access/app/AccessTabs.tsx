@@ -65,8 +65,8 @@ export function AccessTabs() {
   const [role, setRole] = useState(() => roleFromToken(readAuthToken()));
   const {
     nodeUrl,
-    searchNodeUrl,
-    gpsResolved,
+    dataNodeUrl,
+    dataRegion,
     nodeInfo,
     nodeReachable,
     setNodeUrl,
@@ -153,15 +153,15 @@ export function AccessTabs() {
       >
         <div hidden={activeTab !== "search"}>
           <SearchTab
-            searchNodeUrl={searchNodeUrl}
+            dataNodeUrl={dataNodeUrl}
             homeNodeUrl={nodeUrl}
-            gpsResolved={gpsResolved}
+            dataRegion={dataRegion}
             regionLabel={nodeInfo?.region}
           />
         </div>
         <div hidden={activeTab !== "nearby"}>
           <NearbyTab
-            searchNodeUrl={searchNodeUrl}
+            searchNodeUrl={dataNodeUrl}
             homeNodeUrl={nodeUrl}
             active={activeTab === "nearby"}
           />
