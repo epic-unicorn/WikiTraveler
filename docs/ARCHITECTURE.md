@@ -1,42 +1,50 @@
 # Architecture
 
-**Docs:** [Hub](./README.md) · [Releases](./RELEASES.md) · [Community](./COMMUNITY.md)
+**Docs:** [Hub](./README.md) · [Releases](./RELEASES.md) · [Community](./COMMUNITY.md) · [RFC-0002](./rfcs/0002-global-hub-access.md)
 
-WikiTraveler is a federated truth layer for accessibility data — a mesh of independently operated nodes that share and corroborate facts contributed by field auditors.
+WikiTraveler is a federated truth layer for accessibility data — a mesh of independently operated **nodes** that share and corroborate facts. Travelers use a **hub Access** (and Lens) worldwide: home node = identity, regional data nodes = facts. Federation stays invisible except for honest coverage messaging.
 
 ---
 
 ## System Overview
 
+```mermaid
+flowchart TB
+  subgraph clients["Clients (no mesh truth)"]
+    Hub["Hub Access<br/>access.wikitraveler.org"]
+    Brand["Branded Access<br/>optional"]
+    Lens["Lens<br/>Chrome MV3"]
+    SDK["Agency SDK"]
+  end
+
+  subgraph mesh["Node mesh (holds truth)"]
+    Home["Home node<br/>JWT · register · resolve"]
+    DataA["Data node A<br/>regional bbox"]
+    DataB["Data node B<br/>regional bbox"]
+  end
+
+  Hub -->|"login / resolve"| Home
+  Brand -->|"login / resolve"| Home
+  Hub -->|"search · map · audit<br/>trusted Origin"| DataA
+  Hub -->|"trusted Origin"| DataB
+  Brand -->|"trusted Origin"| DataA
+  Lens -->|"NODE_FETCH via SW<br/>home + resolve"| Home
+  Lens -->|"facts on listing"| DataA
+  SDK --> DataA
+
+  Home <-->|"gossip pull + signed push"| DataA
+  DataA <-->|"gossip"| DataB
+  Home <-->|"gossip"| DataB
 ```
-+--------------------------------------------------------------+
-¦                       Browser / Mobile                       ¦
-¦                                                              ¦
-¦  +--------------+  +----------------+  +------------------+  ¦
-¦  ¦  Lens        ¦  ¦  WikiTraveler Access     ¦  ¦  Agency Website  ¦  ¦
-¦  ¦  (Chrome MV3)¦  ¦  (Mobile PWA)  ¦  ¦  + SDK           ¦  ¦
-¦  +--------------+  +----------------+  +------------------+  ¦
-+---------+------------------+--------------------+------------+
-          ¦ REST             ¦ REST               ¦ REST
-          +---------------------------------------+
-                                     ¦
-                                     ?
-+--------------------------------------------------------------+
-¦                    WikiTraveler Node                         ¦
-¦                (Next.js 16 App Router)                       ¦
-¦                                                              ¦
-¦  /api/properties   /api/gossip/*   /api/cron/*               ¦
-¦  /api/auth         /api/inbox      /api/nodes                ¦
-¦                                                              ¦
-¦  Prisma ORM ? PostgreSQL                                     ¦
-¦  @wikitraveler/ai-agent ? OpenAI GPT-4o (optional)           ¦
-+--------------------------------------------------------------+
-                              ¦ Gossip (pull + push)
-                              ?
-              +---------------------------+
-              ¦  Other WikiTraveler Nodes ¦
-              +---------------------------+
-```
+
+| Role | What it is |
+|------|------------|
+| **Home node** | Where the traveler registers; issues RS256 JWT; answers `/api/peers/resolve` |
+| **Data node** | Authoritative properties/facts for a geographic bbox |
+| **Hub Access** | Canonical global PWA client — not a required per-node deploy |
+| **Trusted origins** | Nodes allowlist hub Access / Lens / SDK via `CLIENT_ORIGINS` ∪ `CORS_ORIGINS` ∪ `ACCESS_PUBLIC_URL` — never open `*` or auto-trust gossip `accessUrl` |
+
+Map browse: **coverage** at low zoom; **viewport-scoped** pins (`map?bbox=`) on the resolved data node — never an unscoped home-node pin dump. Details: [OPERATORS.md](./OPERATORS.md) · [FEDERATED-AUTH.md](./FEDERATED-AUTH.md).
 
 ---
 
@@ -48,9 +56,10 @@ The canonical deployment unit. A Next.js 16 App Router app serving:
 - **REST API** under `/api/` — used by all clients and the SDK
 - **Dashboard** at `/` — property map (with "Audited only" filter) + search; requires login (AUDITOR/ADMIN only)
 - **Property page** at `/properties/[id]` — audit form + fact history; token pre-filled from cookie on load
-- **Admin panel** at `/stats` ? Users tab — role management (ADMIN only)
+- **Admin panel** at `/stats` — Users tab — role management (ADMIN only)
 - **Gossip cron** at `/api/cron/gossip` — polls peers, ingests deltas, self-announces
 - **Auth pages**: `/login` (blocks USER role), `/register` (creates account, shows close-tab success for Lens flow)
+- **CORS middleware** — reflects a single trusted `Origin` when it matches the client allowlist ([RFC-0002](./rfcs/0002-global-hub-access.md) M1)
 
 ### `apps/access`
 
@@ -58,7 +67,7 @@ Mobile-optimised Next.js app for travelers and auditors. **Hub operators** run t
 
 **Auth:** All authenticated roles (`USER`, `AUDITOR`, `ADMIN`) may use the app. Middleware redirects unauthenticated requests to `/login`. `USER` accounts can browse, save places, and submit community signals; only `AUDITOR`/`ADMIN` may open the audit wizard (enforced in middleware and API).
 
-Flow: login → search / nearby / map → property detail (read-first) → optional report issue (community signal) or field audit (auditors). GPS resolves the nearest regional node via `/api/peers/resolve`. Cross-node JWT verification uses `/.well-known/pubkey` — no re-login when auditing on a peer node. Operator checklist: [FEDERATED-AUTH.md](./FEDERATED-AUTH.md).
+Flow: login on **home** → search / nearby / map on the resolved **data** node → property detail (read-first) → optional report issue (community signal) or field audit (auditors). Uncovered areas show “This area isn’t covered yet.” Cross-node JWT verification uses `/.well-known/pubkey` — no re-login when auditing on a peer. Operator checklist: [FEDERATED-AUTH.md](./FEDERATED-AUTH.md).
 
 #### Audit photo evidence (step-level)
 
@@ -81,7 +90,7 @@ Chrome MV3 extension. Injects hover tooltips on listing pages and shows accessib
 
 **Auth:** The popup shows a login form when no token is stored. On successful login the RS256 JWT is saved to `chrome.storage.sync`. A register link opens the home node's `/register` page in a new browser tab — after account creation (and admin approval to AUDITOR), the user returns to the popup to sign in.
 
-- Listing pages: hover tooltips (350 ms delay) with the top 8 accessibility facts per hotel card; coverage warning when resolve falls back.
+- Listing pages: hover tooltips (350 ms delay) with the top 8 accessibility facts per hotel card; coverage warning when resolve falls back (“No WikiTraveler coverage here.”).
 - Detail pages: click the Lens icon to open the popup with all facts; falls back to name-search + coordinate scoring when only a slug-style ID is available.
 - `background.js`: resolves the best regional node via `/api/peers/resolve` and **proxies all Node API fetches** (`NODE_FETCH`) so content scripts are not subject to OTA page CORS. Optional HTTPS host permissions cover production mesh peers. See [LENS.md](./LENS.md).
 
@@ -100,7 +109,7 @@ Framework-agnostic logic shared by every other package. No browser or Node runti
 | `TIER_RANK / TIER_LABEL / TIER_COLOR` | Rank, label, and CSS colour maps |
 | `ACCESSIBILITY_FIELDS` | Array of 12 field names |
 | `collapseFacts()` | Keeps the highest-tier fact per field |
-| `evaluateConfirmed()` | Promotes to `CONFIRMED` when = 3 distinct auditors agree |
+| `evaluateConfirmed()` | Promotes to `CONFIRMED` when ≥ 3 distinct auditors agree |
 | `mergeGossipDelta()` | Applies an incoming delta to a local fact set |
 
 ### `packages/sdk`
@@ -132,26 +141,26 @@ AI facts are tagged `AI_GUESS` and are always overwritten by human audits. The e
 
 ```
 Property
-  canonicalId  string UNIQUE   ? Wikidata Q-identifier or local:* for created properties
+  canonicalId  string UNIQUE   — Wikidata Q-identifier or local:* for created properties
   name         string
   location     string
-  osmId        string?          ? linked OpenStreetMap node
-  wheelmapId   string?          ? linked Wheelmap node
+  osmId        string?          — linked OpenStreetMap node
+  wheelmapId   string?          — linked Wheelmap node
 
 AccessibilityFact
-  propertyId   FK ? Property
+  propertyId   FK → Property
   fieldName    string
   value        string
   tier         OFFICIAL | AI_GUESS | VERIFIED | CONFIRMED
   sourceType   WIKIDATA | WHEELMAP | WHEEL_THE_WORLD | AUDITOR
-  sourceNodeId string           ? originating node
-  submittedBy  string?          ? auditor identifier (used for CONFIRMED promotion)
+  sourceNodeId string           — originating node
+  submittedBy  string?          — auditor identifier (used for CONFIRMED promotion)
   UNIQUE (propertyId, fieldName, sourceNodeId)
 
-AuditSubmission   ? raw submitted facts + photos (base64)
-NodePeer          ? peers with cached publicKey, bbox, region
-GossipSnapshot    ? dedup log with SHA-256 hash of each applied delta
-User              ? local user accounts (username + bcrypt hash + role: USER|AUDITOR|ADMIN)
+AuditSubmission   — raw submitted facts + photos (base64 or object-storage URLs)
+NodePeer          — peers with cached publicKey, bbox, region
+GossipSnapshot    — dedup log with SHA-256 hash of each applied delta
+User              — local user accounts (username + bcrypt hash + role: USER|AUDITOR|ADMIN)
 ```
 
 ---
@@ -164,7 +173,7 @@ Every fact carries a tier. Merge logic always keeps the highest-ranking fact per
 CONFIRMED (3) > VERIFIED (2) > AI_GUESS (1) > OFFICIAL (0)
 ```
 
-**CONFIRMED promotion:** `evaluateConfirmed()` promotes a fact when = 3 **distinct** human auditors (`submittedBy`) independently submit the same `(property, field, value)`. Counting auditors — not nodes — prevents gossip replication from auto-promoting a single person's fact.
+**CONFIRMED promotion:** `evaluateConfirmed()` promotes a fact when ≥ 3 **distinct** human auditors (`submittedBy`) independently submit the same `(property, field, value)`. Counting auditors — not nodes — prevents gossip replication from auto-promoting a single person's fact.
 
 ---
 
@@ -174,13 +183,30 @@ Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/
 
 Any node accepting the JWT decodes `homeNodeUrl`, fetches the issuer's public key from `GET homeNodeUrl/.well-known/pubkey`, and verifies the signature locally. No shared secrets needed — user identity is `username@homeNodeUrl` and is globally unique across the mesh.
 
-See **Authentication & Roles** section below for the full role hierarchy and first-run `/setup`.
+See **Authentication & Roles** below for the full role hierarchy and first-run `/setup`. Operator guide: [FEDERATED-AUTH.md](./FEDERATED-AUTH.md).
 
 ---
 
 ## Federation & Gossip
 
-Two complementary propagation paths:
+### Client routing (home vs data)
+
+```mermaid
+sequenceDiagram
+  participant Acc as Hub Access / Lens
+  participant Home as Home node
+  participant Data as Data node
+
+  Acc->>Home: login → JWT homeNodeUrl
+  Acc->>Home: GET /api/peers/resolve?lat&lon
+  Home-->>Acc: data node URL (or fallback / coverage miss)
+  Acc->>Data: search / map?bbox= / audit (Bearer JWT)
+  Data->>Home: GET /.well-known/pubkey
+  Home-->>Data: publicKeyPem
+  Data-->>Acc: facts / audit OK
+```
+
+Resolve prefers the **smallest containing** peer bbox when several overlap. Oversized map viewports return `BBOX_TOO_LARGE`; Admin dashboard uses `map?region=1` for the node’s configured bbox.
 
 ### Fast path — real-time push
 
@@ -188,9 +214,9 @@ After every successful field audit, the receiving node pushes the new facts to a
 
 ```
 POST /api/properties/[id]/accessibility
-  ? saves VERIFIED facts
-  ? pushFactsToPeers() (fire-and-forget, parallel)
-       ? POST peer/api/inbox  { fromNodeId, properties[], facts[] }
+  → saves VERIFIED facts
+  → pushFactsToPeers() (fire-and-forget, parallel)
+       → POST peer/api/inbox  { fromNodeId, properties[], facts[] }
             X-WikiTraveler-Signature: keyId="...", signature="..."
 ```
 
@@ -202,10 +228,10 @@ Catches any facts missed during unreachable push windows:
 
 ```
 GET /api/cron/gossip
-  ? reads active peers from local NodePeer table
-  ? for each peer: GET peer/api/gossip/snapshot?since=<lastSeen>
-       ? POST /api/gossip/ingest (applies delta + upserts incoming peers)
-  ? upserts peer into local NodePeer table
+  → reads active peers from local NodePeer table
+  → for each peer: GET peer/api/gossip/snapshot?since=<lastSeen>
+       → POST /api/gossip/ingest (applies delta + upserts incoming peers)
+  → upserts peer into local NodePeer table
 ```
 
 ### Peer discovery
@@ -217,12 +243,15 @@ Nodes discover each other organically — no central registry needed:
 3. **Peer resolution** — `GET /api/peers/resolve?lat=&lon=` returns the best-matching peer for a coordinate based on stored `bbox` fields. Clients use this for automatic regional routing.
 
 Identity endpoints exposed by every node:
+
 ```
-GET /api/nodeinfo           ? { nodeId, url, version, region, bbox, publicKeyPem, peers[] }
-GET /.well-known/pubkey     ? { publicKeyPem }
-GET /api/peers              ? { peers[] }
-GET /api/peers/resolve      ? { nodeId, url, region, bbox, matched }
+GET /api/nodeinfo           → { nodeId, url, version, region, bbox, publicKeyPem, peers[], accessUrl?, clientOrigins? }
+GET /.well-known/pubkey     → { publicKeyPem }
+GET /api/peers              → { peers[] }
+GET /api/peers/resolve      → { nodeId, url, region, bbox, matched }
 ```
+
+`accessUrl` / `clientOrigins` on `nodeinfo` are **directory / hub advertisement only** — not automatic CORS trust.
 
 ---
 
@@ -242,7 +271,7 @@ Users register per-node (`POST /api/auth/register`) and log in (`POST /api/auth/
 
 Any node accepting the JWT decodes `homeNodeUrl`, fetches the issuer's public key from `GET homeNodeUrl/.well-known/pubkey`, and verifies the signature locally. No shared secrets needed — user identity is `username@homeNodeUrl` and is globally unique across the mesh.
 
-This means a user registered on Node A can submit audits to Node B (e.g. while travelling) without creating a second account.
+This means a user registered on Node A can submit audits to Node B (e.g. while travelling) without creating a second account — hub Access stays on one origin while calling the data node.
 
 ### Role Hierarchy
 
@@ -252,7 +281,7 @@ This means a user registered on Node A can submit audits to Node B (e.g. while t
 | `AUDITOR` | All USER permissions + submit field audits, import properties, trigger AI analysis |
 | `ADMIN` | All AUDITOR permissions + manage users, backup/restore, view admin panel |
 
-New registrations default to `USER`. An admin promotes users via the Stats page ? Users panel or `PATCH /api/admin/users/:username`.
+New registrations default to `USER`. An admin promotes users via the Stats page → Users panel or `PATCH /api/admin/users/:username`.
 
 The **first admin** is created via the web UI at `/setup` on first run (or `POST /api/setup`). Legacy `ADMIN_USERNAME` / `ADMIN_PASSWORD` env vars are no longer used.
 
@@ -272,16 +301,16 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/health` | — | Node status + fact/peer counts |
-| GET | `/api/nodeinfo` | — | Node identity, public key, bbox, peers |
+| GET | `/api/nodeinfo` | — | Node identity, public key, bbox, peers; optional `accessUrl` / `clientOrigins` |
 | GET | `/.well-known/pubkey` | — | RS256 public key PEM for remote JWT verification |
 | POST | `/api/auth/register` | — | Create user account (role: USER, pending approval) |
 | POST | `/api/auth/login` | — | Login; returns RS256 JWT with `role` claim |
 | GET | `/api/auth/me` | USER | Current user info |
 | GET | `/api/peers` | — | List active peers |
-| GET | `/api/peers/resolve?lat=&lon=` | USER | Best-matching peer for a coordinate |
+| GET | `/api/peers/resolve?lat=&lon=` | USER | Best-matching peer for a coordinate (smallest containing bbox) |
 | GET | `/api/properties?q=` | USER | Search properties |
 | POST | `/api/properties` | AUDITOR | Create property |
-| GET | `/api/properties/map` | USER | All geo-tagged pins with key facts + `audited` flag |
+| GET | `/api/properties/map?bbox=` | USER | Viewport pins; requires `bbox=` (or Admin `region=1`); may return `BBOX_TOO_LARGE` |
 | GET | `/api/properties/[id]/accessibility` | USER | Collapsed facts with tier |
 | POST | `/api/properties/[id]/accessibility` | AUDITOR | Submit audit (saves facts, triggers push + vision) |
 | POST | `/api/properties/[id]/analyze` | AUDITOR | On-demand AI analysis |
@@ -308,10 +337,11 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 | Framework | Next.js 16 App Router | API routes + SSR in one deployment unit (node + Access) |
 | ORM | Prisma 5 | Type-safe, migration-first, works with Vercel Postgres |
 | Auth | JWT (RS256 preferred; HS256 local-only) | Stateless; federated verify via `/.well-known/pubkey` — [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) |
+| Client CORS | Trusted origin reflection | Hub Access / Lens / SDK; no gossip auto-trust — [RFC-0002](./rfcs/0002-global-hub-access.md) |
 | Gossip | HTTP pull + signed push | Cron safety net + real-time push after each audit |
 | Push signing | RSA-SHA256 (HTTP Signatures) | Stateless, no PKI authority; keys via `/.well-known/pubkey` |
 | AI provider | OpenAI GPT-4o | Best-in-class vision + JSON mode; swappable via ai-agent |
 | Photo storage | base64 in DB (demo) / R2 or Supabase (prod) | Object storage recommended for production — [LOCAL.md](./LOCAL.md) · [DOCKER.md](./DOCKER.md) |
-| Extension | Chrome MV3 vanilla JS | No build step; load unpacked or Release zip — [LENS.md](./LENS.md) |
+| Extension | Chrome MV3 vanilla JS | Background `NODE_FETCH`; load unpacked or Release zip — [LENS.md](./LENS.md) |
 | SDK bundling | tsup (esbuild) | Fast, dual CJS+ESM+UMD from one config; npm on tag when enabled |
 | Monorepo | pnpm workspaces | Fast installs, strict isolation |
