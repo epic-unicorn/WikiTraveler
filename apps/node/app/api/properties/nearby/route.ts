@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { nearbyPrefilterDegrees } from "@/lib/mapQuery";
 import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 
@@ -44,6 +45,12 @@ export async function GET(req: NextRequest) {
     { lat: { not: null } },
     { lon: { not: null } },
   ];
+
+  const { dLat, dLon } = nearbyPrefilterDegrees(lat, radiusKm);
+  andFilters.push({
+    lat: { gte: lat - dLat, lte: lat + dLat },
+    lon: { gte: lon - dLon, lte: lon + dLon },
+  });
 
   for (const feature of features) {
     andFilters.push({

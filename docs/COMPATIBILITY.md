@@ -15,6 +15,7 @@ Cross-version behaviour for WikiTraveler nodes in a federated mesh.
 | Node **N** ↔ Node **N-2** or older | Best effort | Not tested; upgrade recommended |
 | Access **N** → Node **N** or **N-1** | Yes | Client checks `/api/health` version |
 | Lens / SDK → Node **N** or **N-1** | Yes | REST API backward compatible |
+| Access with viewport map (RFC-0002 M3) → Node without `map?bbox=` | No | Redeploy **Node + Access** together; unscoped `/api/properties/map` is rejected |
 
 Maintainers test **same-version discovery** and **N ↔ N-1** in CI ([gossip-compat](../.github/workflows/gossip-compat.yml)).
 

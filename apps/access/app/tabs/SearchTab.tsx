@@ -9,8 +9,8 @@ import {
   type SearchFeature,
   type PropertySummary,
 } from "@wikitraveler/ui";
-import { searchProperties, fetchMapPins, fetchSearchFields, type MapPin } from "../lib/accessApi";
-import { PropertyDiscoveryView, mapPinsToSummaries } from "../components/PropertyDiscoveryView";
+import { searchProperties, fetchSearchFields } from "../lib/accessApi";
+import { PropertyDiscoveryView } from "../components/PropertyDiscoveryView";
 import {
   filtersFromSearchParams,
   parseDiscoveryView,
@@ -31,7 +31,7 @@ interface Props {
   regionLabel?: string | null;
 }
 
-export function SearchTab({ dataNodeUrl, homeNodeUrl, dataRegion }: Props) {
+export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
   const { locale, t } = useLocale();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
@@ -44,14 +44,10 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, dataRegion }: Props) {
   });
   const [searchFeatures, setSearchFeatures] = useState<SearchFeature[]>([]);
   const [results, setResults] = useState<PropertySummary[] | null>(null);
-  const [browsePins, setBrowsePins] = useState<MapPin[]>([]);
-  const [browseLoading, setBrowseLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [mapDataNodeUrl, setMapDataNodeUrl] = useState(dataNodeUrl);
   const abortRef = useRef<AbortController | null>(null);
-
-  const uncovered = dataRegion?.matched === "fallback";
-  const regionReady = dataRegion !== null;
 
   // Restore search state when returning via back navigation (URL carries state).
   useEffect(() => {
@@ -90,38 +86,15 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, dataRegion }: Props) {
     return () => controller.abort();
   }, [locale, dataNodeUrl]);
 
+  useEffect(() => {
+    setMapDataNodeUrl(dataNodeUrl);
+  }, [dataNodeUrl]);
+
   const hasActiveSearch =
     query.trim().length > 0 ||
     filters.features.length > 0 ||
     filters.audited !== null ||
     filters.hasAccessibleRoom;
-
-  // Browse map: data-node pins only (never home dump as "the world"). Skip when uncovered.
-  useEffect(() => {
-    if (hasActiveSearch) return;
-    if (!regionReady || uncovered) {
-      setBrowsePins([]);
-      setBrowseLoading(!regionReady);
-      return;
-    }
-    let cancelled = false;
-    const controller = new AbortController();
-    setBrowseLoading(true);
-    fetchMapPins(dataNodeUrl, controller.signal)
-      .then((pins) => {
-        if (!cancelled) setBrowsePins(pins);
-      })
-      .catch(() => {
-        if (!cancelled) setBrowsePins([]);
-      })
-      .finally(() => {
-        if (!cancelled) setBrowseLoading(false);
-      });
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [hasActiveSearch, dataNodeUrl, regionReady, uncovered]);
 
   useEffect(() => {
     if (abortRef.current) abortRef.current.abort();
@@ -138,15 +111,8 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, dataRegion }: Props) {
       setLoading(true);
       setSearchError("");
       try {
-        if (uncovered) {
-          if (!controller.signal.aborted) {
-            setSearchError(t("ui.regionNotCovered"));
-            setResults([]);
-          }
-          return;
-        }
         const properties = await searchProperties(
-          dataNodeUrl,
+          mapDataNodeUrl,
           query,
           filters,
           controller.signal
@@ -154,7 +120,6 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, dataRegion }: Props) {
         if (controller.signal.aborted) return;
         setResults(properties);
       } catch (e) {
-        // A superseded (aborted) request must never clobber the newer one.
         if (controller.signal.aborted || (e as Error).name === "AbortError") return;
         setSearchError(t("ui.regionUnreachable"));
         setResults(null);
@@ -167,44 +132,30 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, dataRegion }: Props) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, filters, dataNodeUrl, hasActiveSearch, uncovered, t]);
+  }, [query, filters, mapDataNodeUrl, hasActiveSearch, t]);
 
-  const browseProperties = useMemo(() => mapPinsToSummaries(browsePins), [browsePins]);
-  const displayProperties: PropertySummary[] = hasActiveSearch ? (results ?? []) : browseProperties;
-
-  const displayLoading = hasActiveSearch ? loading : browseLoading;
-  const displayError = hasActiveSearch ? searchError : "";
+  const displayProperties: PropertySummary[] = hasActiveSearch ? (results ?? []) : [];
 
   const emptyState = hasActiveSearch ? (
     results !== null && results.length === 0 && !loading ? (
       <div className="fk-empty">
         <span className="fk-empty-icon">🔍</span>
-        <p className="fk-empty-title">
-          {uncovered ? t("ui.regionNotCovered") : t("ui.searchNoResults")}
-        </p>
+        <p className="fk-empty-title">{t("ui.searchNoResults")}</p>
         <p className="fk-empty-body">
-          {uncovered
-            ? t("ui.regionNotCoveredHint")
-            : query.trim()
-              ? t("ui.searchNoMatch", { query: query.trim() })
-              : t("ui.searchTryDifferent")}{" "}
-          {!uncovered ? t("ui.searchTapPlus") : null}
+          {query.trim()
+            ? t("ui.searchNoMatch", { query: query.trim() })
+            : t("ui.searchTryDifferent")}{" "}
+          {t("ui.searchTapPlus")}
         </p>
       </div>
     ) : null
-  ) : uncovered ? (
+  ) : (
     <div className="fk-empty">
       <span className="fk-empty-icon">🗺️</span>
-      <p className="fk-empty-title">{t("ui.regionNotCovered")}</p>
-      <p className="fk-empty-body">{t("ui.regionNotCoveredHint")}</p>
-    </div>
-  ) : browsePins.length === 0 && !browseLoading && regionReady ? (
-    <div className="fk-empty">
-      <span className="fk-empty-icon">🗺️</span>
-      <p className="fk-empty-title">{t("ui.regionEmptyMap")}</p>
+      <p className="fk-empty-title">{t("ui.mapZoomToSeePlaces")}</p>
       <p className="fk-empty-body">{t("ui.discoveryBrowseHint")}</p>
     </div>
-  ) : null;
+  );
 
   return (
     <div className="tab-content fk-search-tab">
@@ -228,16 +179,18 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, dataRegion }: Props) {
 
       <PropertyDiscoveryView
         properties={displayProperties}
-        loading={displayLoading}
-        error={displayError}
+        loading={hasActiveSearch ? loading : false}
+        error={hasActiveSearch ? searchError : ""}
         homeNodeUrl={homeNodeUrl}
-        propertyNodeUrl={dataNodeUrl}
+        propertyNodeUrl={hasActiveSearch ? mapDataNodeUrl : mapDataNodeUrl}
         active
         emptyState={emptyState}
-        mapAutoFit
+        mapAutoFit={hasActiveSearch}
         returnState={returnState}
         onViewModeChange={setDiscoveryView}
         initialViewMode={parseDiscoveryView(searchParams.get("view"))}
+        viewportBrowse={!hasActiveSearch}
+        onDataNodeUrlChange={setMapDataNodeUrl}
       />
     </div>
   );
