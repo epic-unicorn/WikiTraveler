@@ -29,6 +29,6 @@ As of the Phase 6 cut there are **no known public production nodes**. Protocol b
 | RFC | Title | Status |
 |-----|-------|--------|
 | [0001](./0001-gossip-protocol-2.md) | Gossip protocol version 2 | Accepted |
-| [0002](./0002-global-hub-access.md) | Global hub Access & Lens (federation invisible) | Draft |
+| [0002](./0002-global-hub-access.md) | Global hub Access & Lens (federation invisible) | Accepted ([#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51)) |
 
 Accepted RFCs live as `docs/rfcs/NNNN-slug.md` after acceptance.
