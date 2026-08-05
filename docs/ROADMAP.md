@@ -38,6 +38,14 @@ Ship tagged artifacts so operators and integrators do not clone `main`.
 
 ## Features
 
+### Global hub Access & Lens (federation invisible)
+
+**Status:** Draft RFC — [RFC-0002](./rfcs/0002-global-hub-access.md).
+
+Travelers should use one Access (canonical hub e.g. `access.wikitraveler.org`) and Lens worldwide: home node = identity, regional nodes = data, mesh CORS for **trusted** hub origins only. Map becomes coverage + viewport pins — not home-node inventory.
+
+**Direction:** Ship M1 (trusted client origins / CORS) before global routing; treat open CORS, phishing `accessUrl`, coverage UX, hub uptime, and Access↔node skew as highest-impact risks in the RFC. Reject home-node audit proxy and default regional Access redirect as the primary path.
+
 ### Access as a field-ready PWA
 
 Access is marketed as a mobile PWA, but offline today is a small `localStorage` property cache ([`apps/access/app/lib/offlineCache.ts`](../apps/access/app/lib/offlineCache.ts)) — no installable web app manifest / service worker / queued mutations.
@@ -178,7 +186,7 @@ WikiTraveler is a federated **truth layer**, not a booking engine.
 
 `/api/properties/map` and Leaflet views load large pin sets; big Geofabrik / country presets will hurt Admin and Access maps.
 
-**Direction:** Viewport or tile-aware queries; clustering; payload budgets for map endpoints; keep “audited only” filters cheap.
+**Direction:** Viewport or tile-aware queries; clustering; payload budgets for map endpoints; keep “audited only” filters cheap. Global Access browse must not dump home-node pins — see [RFC-0002](./rfcs/0002-global-hub-access.md) Phase 3.
 
 ### Access first load on mobile
 

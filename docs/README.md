@@ -35,6 +35,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [RELEASE-PHASES.md](./RELEASE-PHASES.md) | Archived phase 0–6 ledger + remaining maintainer publish todos |
 | [ROADMAP.md](./ROADMAP.md) | Public priorities (Phase 6, features, quality, community, strategy, performance) |
 | [COMPATIBILITY.md](./COMPATIBILITY.md) | N/N-1 mesh and protocol compatibility matrix |
+| [rfcs/](./rfcs/README.md) | RFC process; [RFC-0002](./rfcs/0002-global-hub-access.md) global hub Access (draft) |
 
 ### For developers (build & test)
 
@@ -44,6 +45,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [LOCAL.md](./LOCAL.md) | Local Postgres, apps, OSM ingest, env vars |
 | [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Two-node gossip lab for federation testing (`gossip:discovery`, `gossip:compat`) |
 | [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) | Register on one node; browse/audit peers with RS256 JWT |
+| [RFC-0002](./rfcs/0002-global-hub-access.md) | Draft: global hub Access/Lens, mesh CORS trust, viewport map |
 | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Voluntary bootstrap peer directory |
 | [LENS.md](./LENS.md) | Chrome extension distribution (Release zip / Store) |
 | [apps/README.md](../apps/README.md) | End-to-end flow walkthroughs (SDK, Access, Lens) |

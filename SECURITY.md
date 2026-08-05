@@ -33,13 +33,14 @@ Pay extra attention when reviewing changes touching:
 | `apps/node/app/api/cron/` | Unauthenticated cron if `CRON_SECRET` misconfigured |
 | `POST /api/auth/*` | Account takeover, brute force |
 | Admin backup/restore | Data exfiltration or destructive restore |
+| CORS / client origins (`CORS_ORIGINS`, future mesh hub allowlists) | Browser clients (Access, Lens, SDK) calling node APIs; over-broad allowlists or `*` in production expand blast radius of stolen JWTs — see [RFC-0002](docs/rfcs/0002-global-hub-access.md) |
 
 ## Operator responsibilities
 
 Node operators are responsible for:
 
 - Keeping `NODE_PRIVATE_KEY`, `CRON_SECRET`, and `DATABASE_URL` secret
-- Configuring `CORS_ORIGINS` appropriately (not `*` in production unless intentional)
+- Configuring `CORS_ORIGINS` / trusted **client origins** appropriately (not `*` in production unless intentional). Do not auto-trust Access URLs from arbitrary gossip peers — see [RFC-0002](docs/rfcs/0002-global-hub-access.md)
 - Applying security patches per [docs/RELEASES.md](docs/RELEASES.md)
 - Rate limiting (Upstash) on public nodes — see [docs/VERCEL.md](docs/VERCEL.md)
 
