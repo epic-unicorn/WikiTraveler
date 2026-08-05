@@ -1,9 +1,9 @@
 # RFC-0002: Global hub Access & Lens (federation invisible)
 
-**Status:** Accepted (`rfc/accepted` on [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51))  
+**Status:** Accepted — **M0–M5 shipped** (`rfc/accepted` on [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51); close that issue)  
 **Area:** Auth trust / Access·Lens peer resolve / operator CORS / map API  
 **Canonical hub (intended):** `https://access.wikitraveler.org` (domain owned by project)  
-**Tracking issue:** [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) — keep open until M1–M5 land; then close with PR links  
+**Tracking issue:** [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) — M1–M5 landed ([#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50)–[#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55)); close with those PR links. **M6** is follow-on only.  
 **Related:** [FEDERATED-AUTH.md](../FEDERATED-AUTH.md) · [PUBLIC-PEERS.md](../PUBLIC-PEERS.md) · [SECURITY.md](../../SECURITY.md) · [ROADMAP.md](../ROADMAP.md)
 
 ## Implementation progress
@@ -14,8 +14,8 @@
 | **M1** Trusted CORS / client origins | Done | [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50) |
 | **M2** Access home vs data routing + resolve quality | Done | [#52](https://github.com/ingmarstruijs/WikiTraveler/pull/52) |
 | **M3** Viewport / coverage map | Done | [#54](https://github.com/ingmarstruijs/WikiTraveler/pull/54) |
-| **M4** Lens alignment | In review | [#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55) |
-| **M5** Docs / release narrative (hub vs node) | In review | [#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55) |
+| **M4** Lens alignment | Done | [#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55) |
+| **M5** Docs / release narrative (hub vs node) | Done | [#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55) |
 | **M6** Follow-ons | Later | — |
 
 ## Summary
