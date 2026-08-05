@@ -7,7 +7,7 @@ import { contributorRouteRedirect } from "./lib/contributorRoutes";
 const SKIP_PREFIXES = ["/_next/", "/node-api/"];
 const SKIP_EXACT = new Set(["/login", "/register", "/favicon.ico"]);
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (SKIP_EXACT.has(pathname) || SKIP_PREFIXES.some((p) => pathname.startsWith(p))) {

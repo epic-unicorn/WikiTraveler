@@ -18,7 +18,7 @@ vi.mock("@upstash/redis", () => ({
   Redis: { fromEnv: vi.fn() },
 }));
 
-describe("middleware rate limiting", () => {
+describe("proxy rate limiting", () => {
   beforeEach(async () => {
     vi.resetModules();
     limitMock.mockReset();
@@ -29,11 +29,11 @@ describe("middleware rate limiting", () => {
 
   it("returns 429 when auth route is rate limited", async () => {
     limitMock.mockResolvedValueOnce({ success: false, reset: Date.now() + 30_000 });
-    const { middleware } = await import("./middleware");
+    const { proxy } = await import("./proxy");
     const req = new NextRequest("http://localhost/api/auth/login", {
       method: "POST",
     });
-    const res = await middleware(req);
+    const res = await proxy(req);
     expect(res?.status).toBe(429);
     await expect(res?.json()).resolves.toMatchObject({
       message: expect.stringContaining("Too many requests"),
@@ -45,17 +45,17 @@ describe("middleware rate limiting", () => {
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
     vi.resetModules();
-    const { middleware } = await import("./middleware");
+    const { proxy } = await import("./proxy");
     const req = new NextRequest("http://localhost/api/auth/login", {
       method: "POST",
     });
-    const res = await middleware(req);
+    const res = await proxy(req);
     expect(res?.status).not.toBe(429);
     expect(limitMock).not.toHaveBeenCalled();
   });
 });
 
-describe("middleware dashboard role gate", () => {
+describe("proxy dashboard role gate", () => {
   const setupFetch = vi.fn(async (input: RequestInfo | URL) => {
     if (String(input).includes("/api/setup")) {
       return new Response(JSON.stringify({ needed: false }), { status: 200 });
@@ -76,30 +76,30 @@ describe("middleware dashboard role gate", () => {
   }
 
   it("redirects unauthenticated users to login", async () => {
-    const { middleware } = await import("./middleware");
-    const res = await middleware(dashboardRequest("/properties/p1"));
+    const { proxy } = await import("./proxy");
+    const res = await proxy(dashboardRequest("/properties/p1"));
     expect(res?.headers.get("location")).toContain("/login");
   });
 
   it("clears USER tokens and redirects to login", async () => {
     const { fakeJwt } = await import("./test/jwtTestUtils");
-    const { middleware } = await import("./middleware");
+    const { proxy } = await import("./proxy");
     const token = fakeJwt({ sub: "traveler", role: "USER" });
-    const res = await middleware(dashboardRequest("/properties/p1", token));
+    const res = await proxy(dashboardRequest("/properties/p1", token));
     expect(res?.headers.get("location")).toContain("/login");
     expect(res?.cookies.get("wt_token")?.value).toBe("");
   });
 
   it("allows auditors on dashboard routes", async () => {
     const { fakeJwt } = await import("./test/jwtTestUtils");
-    const { middleware } = await import("./middleware");
+    const { proxy } = await import("./proxy");
     const token = fakeJwt({ sub: "auditor", role: "AUDITOR" });
-    const res = await middleware(dashboardRequest("/properties/p1", token));
+    const res = await proxy(dashboardRequest("/properties/p1", token));
     expect(res?.status).toBe(200);
   });
 });
 
-describe("middleware API CORS", () => {
+describe("proxy API CORS", () => {
   beforeEach(async () => {
     vi.resetModules();
     delete process.env.UPSTASH_REDIS_REST_URL;
@@ -110,11 +110,11 @@ describe("middleware API CORS", () => {
   });
 
   it("reflects trusted Origin on API GET", async () => {
-    const { middleware } = await import("./middleware");
+    const { proxy } = await import("./proxy");
     const req = new NextRequest("http://localhost/api/health", {
       headers: { origin: "https://access.wikitraveler.org" },
     });
-    const res = await middleware(req);
+    const res = await proxy(req);
     expect(res?.headers.get("Access-Control-Allow-Origin")).toBe(
       "https://access.wikitraveler.org"
     );
@@ -122,21 +122,21 @@ describe("middleware API CORS", () => {
   });
 
   it("omits Allow-Origin for untrusted Origin", async () => {
-    const { middleware } = await import("./middleware");
+    const { proxy } = await import("./proxy");
     const req = new NextRequest("http://localhost/api/health", {
       headers: { origin: "https://evil.example" },
     });
-    const res = await middleware(req);
+    const res = await proxy(req);
     expect(res?.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
   it("answers OPTIONS preflight with 204", async () => {
-    const { middleware } = await import("./middleware");
+    const { proxy } = await import("./proxy");
     const req = new NextRequest("http://localhost/api/properties", {
       method: "OPTIONS",
       headers: { origin: "https://access.wikitraveler.org" },
     });
-    const res = await middleware(req);
+    const res = await proxy(req);
     expect(res?.status).toBe(204);
     expect(res?.headers.get("Access-Control-Allow-Origin")).toBe(
       "https://access.wikitraveler.org"

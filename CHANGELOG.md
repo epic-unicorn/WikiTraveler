@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Trusted browser CORS for `/api/*`: reflect `Origin` when it matches `CORS_ORIGINS` ∪ `CLIENT_ORIGINS` ∪ `ACCESS_PUBLIC_URL` (middleware); OPTIONS preflight; `Vary: Origin`. Gossip `accessUrl` is not auto-trusted ([RFC-0002](docs/rfcs/0002-global-hub-access.md))
+- Trusted browser CORS for `/api/*`: reflect `Origin` when it matches `CORS_ORIGINS` ∪ `CLIENT_ORIGINS` ∪ `ACCESS_PUBLIC_URL` (`proxy.ts`); OPTIONS preflight; `Vary: Origin`. Gossip `accessUrl` is not auto-trusted ([RFC-0002](docs/rfcs/0002-global-hub-access.md))
 - `GET /api/nodeinfo` may include `accessUrl` and `clientOrigins` for hub/directory advertisement
 - Access treats **home node** as identity and **data node** (GPS resolve) for search/browse/nearby; uncovered locations show “This area isn’t covered yet” instead of dumping home-node map pins ([RFC-0002](docs/rfcs/0002-global-hub-access.md) M2)
 - Peer resolve picks the **smallest containing** peer bbox (then nearest center) when multiple peers overlap
@@ -27,6 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Admin dashboard map uses `?region=1` (node configured bbox) instead of an unscoped pin dump
 - Operator / release docs distinguish **hub Access** vs **node** mesh; backup Access dual-origin allowlisting (**H4**); Access↔node map redeploy pair (**H5**) ([OPERATORS.md](docs/OPERATORS.md), [RELEASES.md](docs/RELEASES.md), [RFC-0002](docs/rfcs/0002-global-hub-access.md) M5)
 - Lens options copy: home node = identity; routes to regional data nodes when covered
+- Renamed Next.js `middleware.ts` → `proxy.ts` (Node + Access) for the Next.js 16 file convention
+
 ---
 
 ## [0.3.0] - 2026-08-04

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/setup
  * Returns { needed: true } when no admin account exists yet, { needed: false } otherwise.
- * Used by the middleware and the setup page to decide whether to show the setup flow.
+ * Used by the request proxy and the setup page to decide whether to show the setup flow.
  */
 export async function GET() {
   const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
