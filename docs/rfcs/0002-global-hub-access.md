@@ -1,9 +1,22 @@
 # RFC-0002: Global hub Access & Lens (federation invisible)
 
-**Status:** Draft  
+**Status:** Accepted (`rfc/accepted` on [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51))  
 **Area:** Auth trust / Access·Lens peer resolve / operator CORS / map API  
 **Canonical hub (intended):** `https://access.wikitraveler.org` (domain owned by project)  
+**Tracking issue:** [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) — keep open until M1–M5 land; then close with PR links  
 **Related:** [FEDERATED-AUTH.md](../FEDERATED-AUTH.md) · [PUBLIC-PEERS.md](../PUBLIC-PEERS.md) · [SECURITY.md](../../SECURITY.md) · [ROADMAP.md](../ROADMAP.md)
+
+## Implementation progress
+
+| Milestone | Status | PR |
+|-----------|--------|-----|
+| **M0** RFC accept | Done | [#49](https://github.com/ingmarstruijs/WikiTraveler/pull/49) docs · [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) |
+| **M1** Trusted CORS / client origins | Done | [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50) |
+| **M2** Access home vs data routing + resolve quality | In review | [#52](https://github.com/ingmarstruijs/WikiTraveler/pull/52) |
+| **M3** Viewport / coverage map | Not started | — |
+| **M4** Lens alignment | Not started | — |
+| **M5** Docs / release narrative (hub vs node) | Not started | — |
+| **M6** Follow-ons | Later | — |
 
 ## Summary
 
@@ -135,14 +148,6 @@ Regional Access handoff is **optional branding**, not the default global path.
 5. Resolve quality (**H3**): deterministic peer pick (e.g. smallest containing bbox, then nearest center) — replace unsorted `findMany` first hit.
 
 **Exit:** Benelux home → foreign data node search/audit on one Access session.
-
-**M2 checklist**
-
-- [x] Internal home vs data node routing in Access
-- [x] Auth / signals stay on home; search / nearby / browse use data node
-- [x] Idle browse no longer loads home `/api/properties/map` as the world
-- [x] Human coverage / unreachable copy (no CORS/peer jargon)
-- [x] Resolve: smallest containing peer, then nearest center
 
 ---
 
