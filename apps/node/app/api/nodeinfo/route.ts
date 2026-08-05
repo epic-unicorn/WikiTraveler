@@ -3,6 +3,10 @@ import { NODE_ID, NODE_URL, NODE_VERSION } from "@/lib/nodeInfo";
 import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
 import { prisma } from "@/lib/prisma";
 import {
+  getAdvertisedAccessUrl,
+  getAdvertisedClientOrigins,
+} from "@/lib/corsOrigins";
+import {
   EXPORT_SCHEMA_VERSION,
   GOSSIP_PROTOCOL_VERSION,
   MIN_SUPPORTED_GOSSIP_PROTOCOL,
@@ -15,6 +19,8 @@ export const dynamic = "force-dynamic";
  *
  * Returns this node's public identity, public key, and known peers.
  * Clients/peers cache the public key here for RS256 JWT verification.
+ * Optional accessUrl / clientOrigins are advertisements for hubs/directory
+ * (RFC-0002) — peers must not treat them as automatic CORS trust.
  */
 export async function GET() {
   const [bbox, region, peerRows] = await Promise.all([
@@ -30,6 +36,9 @@ export async function GET() {
     .filter((p) => p.nodeId !== NODE_ID)
     .map((p) => ({ nodeId: p.nodeId ?? null, url: p.url, region: p.region ?? null, bbox: p.bbox ?? null }));
 
+  const accessUrl = getAdvertisedAccessUrl();
+  const clientOrigins = getAdvertisedClientOrigins();
+
   return NextResponse.json({
     nodeId: NODE_ID,
     nodeUrl: NODE_URL,
@@ -40,6 +49,8 @@ export async function GET() {
     region,
     bbox,
     publicKeyPem: process.env.NODE_PUBLIC_KEY ?? null,
+    accessUrl,
+    clientOrigins,
     peers,
     features: {
       communitySignals: true,

@@ -38,7 +38,8 @@ Each node is **sovereign**: your `NODE_ID`, keys, region bbox, database, and upg
 - [ ] Stable `NODE_ID` and public `NODE_URL`
 - [ ] RS256 keypair (`NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY`)
 - [ ] `CRON_SECRET` for cron routes (Vercel required; recommended for Docker)
-- [ ] `CORS_ORIGINS` includes your Access URL and any SDK embed origins
+- [ ] `CORS_ORIGINS` / `CLIENT_ORIGINS` allow your hub Access URL (e.g. `https://access.wikitraveler.org`), Lens `chrome-extension://…`, and any SDK embed origins — see [RFC-0002](./rfcs/0002-global-hub-access.md)
+- [ ] Optional `ACCESS_PUBLIC_URL` if this node advertises an Access hub on `/api/nodeinfo`
 - [ ] Rate limiting via Upstash (recommended for public nodes) — see [VERCEL.md](./VERCEL.md)
 
 **Never in production:**

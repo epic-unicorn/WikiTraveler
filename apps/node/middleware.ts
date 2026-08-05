@@ -5,6 +5,7 @@ import { Redis } from "@upstash/redis";
 import { getClientIp, getRateLimitProfile } from "@/lib/rateLimitRoutes";
 import { decodeAuthCookie, looksLikeJwt } from "@/lib/authCookie";
 import { canAccessDashboard, roleFromToken } from "@/lib/userRole";
+import { applyCorsHeaders } from "@/lib/corsOrigins";
 
 // Paths that don't require a login cookie
 const SKIP_PREFIXES = ["/_next/", "/api/", "/.well-known/"];
@@ -48,9 +49,24 @@ function getLimiters(): {
   return { auth: authLimiter, audit: auditLimiter!, signal: signalLimiter! };
 }
 
+function withApiCors(req: NextRequest, res: NextResponse): NextResponse {
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    applyCorsHeaders(res.headers, req.headers.get("origin"));
+  }
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const method = req.method;
+  const isApi = pathname.startsWith("/api/");
+
+  // ── CORS preflight (browser clients: Access, Lens, SDK) ───────────────────
+  if (isApi && method === "OPTIONS") {
+    const res = new NextResponse(null, { status: 204 });
+    applyCorsHeaders(res.headers, req.headers.get("origin"));
+    return res;
+  }
 
   // ── Rate limiting ─────────────────────────────────────────────────────────
   // Only applies when UPSTASH_REDIS_REST_URL / _TOKEN are set.
@@ -70,7 +86,7 @@ export async function middleware(req: NextRequest) {
       const { success, reset } = await limiter.limit(ip);
       if (!success) {
         const retryAfter = Math.ceil((reset - Date.now()) / 1000);
-        return NextResponse.json(
+        const res = NextResponse.json(
           { message: "Too many requests. Please try again later." },
           {
             status: 429,
@@ -80,6 +96,7 @@ export async function middleware(req: NextRequest) {
             },
           }
         );
+        return withApiCors(req, res);
       }
     }
   }
@@ -88,7 +105,7 @@ export async function middleware(req: NextRequest) {
     SKIP_EXACT.has(pathname) ||
     SKIP_PREFIXES.some((p) => pathname.startsWith(p))
   ) {
-    return NextResponse.next();
+    return withApiCors(req, NextResponse.next());
   }
 
   // ── Setup gate: redirect to /setup when no admin exists yet ──────────────

@@ -18,23 +18,8 @@ const nextConfig = {
       "../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**",
     ],
   },
-  // Allow cross-origin requests from the browser-side SDK
-  async headers() {
-    const corsOrigins = process.env.CORS_ORIGINS ?? "*";
-    return [
-      {
-        source: "/api/:path*",
-        headers: [
-          { key: "Access-Control-Allow-Origin", value: corsOrigins },
-          { key: "Access-Control-Allow-Methods", value: "GET,POST,OPTIONS" },
-          {
-            key: "Access-Control-Allow-Headers",
-            value: "Content-Type, Authorization",
-          },
-        ],
-      },
-    ];
-  },
+  // CORS for /api/* is applied dynamically in middleware (trusted Origin reflection).
+  // See apps/node/lib/corsOrigins.ts and RFC-0002.
 };
 
 module.exports = nextConfig;
