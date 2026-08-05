@@ -136,6 +136,14 @@ Regional Access handoff is **optional branding**, not the default global path.
 
 **Exit:** Benelux home → foreign data node search/audit on one Access session.
 
+**M2 checklist**
+
+- [x] Internal home vs data node routing in Access
+- [x] Auth / signals stay on home; search / nearby / browse use data node
+- [x] Idle browse no longer loads home `/api/properties/map` as the world
+- [x] Human coverage / unreachable copy (no CORS/peer jargon)
+- [x] Resolve: smallest containing peer, then nearest center
+
 ---
 
 ### Phase 3 — Global map without world dump (M3) — **H3, H5**

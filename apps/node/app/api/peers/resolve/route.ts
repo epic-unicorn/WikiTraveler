@@ -3,17 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { getNodeBbox, getNodeRegionLabel } from "@/lib/nodeSettings";
 import { containsPoint, parseBbox } from "@/lib/bbox";
+import { pickBestContainingPeer } from "@/lib/peerResolve";
 import { requireAuth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
-
 export const dynamic = "force-dynamic";
+
 /**
  * GET /api/peers/resolve?lat=<lat>&lon=<lon>
  *
  * Returns the best peer for a given coordinate.
- * First checks active NodePeers with a bbox that contains the point.
- * Falls back to this node if no peer matches.
+ * Self bbox wins when it contains the point; else smallest containing peer
+ * (then nearest center). Falls back to this node if nothing matches.
  */
 export async function GET(req: NextRequest) {
   const authError = await requireAuth(req);
@@ -44,17 +45,25 @@ export async function GET(req: NextRequest) {
     select: { url: true, nodeId: true, region: true, bbox: true },
   });
 
-  for (const peer of peers) {
-    const pb = parseBbox(peer.bbox);
-    if (pb && containsPoint(pb, lat, lon)) {
-      return NextResponse.json({
-        nodeId: peer.nodeId ?? null,
-        url: peer.url,
-        region: peer.region ?? null,
-        bbox: peer.bbox,
-        matched: "peer",
-      });
-    }
+  const best = pickBestContainingPeer(
+    lat,
+    lon,
+    peers.map((p) => ({
+      url: p.url,
+      nodeId: p.nodeId ?? null,
+      region: p.region ?? null,
+      bbox: p.bbox,
+    }))
+  );
+
+  if (best) {
+    return NextResponse.json({
+      nodeId: best.nodeId,
+      url: best.url,
+      region: best.region,
+      bbox: best.bbox,
+      matched: "peer",
+    });
   }
 
   return NextResponse.json({

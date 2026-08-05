@@ -46,6 +46,12 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
       let node = homeNodeUrl;
       const peer = await resolvePeerNode(homeNodeUrl, coords.lat, coords.lon);
       if (signal?.aborted) return;
+      if (peer?.matched === "fallback") {
+        setNodeForSearch(homeNodeUrl);
+        setResults([]);
+        setError(t("ui.regionNotCovered"));
+        return;
+      }
       if (peer?.url) node = peer.url;
       setNodeForSearch(node);
       const properties = await fetchNearbyProperties(node, coords.lat, coords.lon, radiusKm, signal);
@@ -53,7 +59,7 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
       setResults(properties);
     } catch {
       if (signal?.aborted) return;
-      setError(t("ui.searchNodeUnreachable"));
+      setError(t("ui.regionUnreachable"));
       setResults(null);
     } finally {
       if (!signal?.aborted) setLoading(false);
