@@ -16,11 +16,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `GET /api/nodeinfo` may include `accessUrl` and `clientOrigins` for hub/directory advertisement
 - Access treats **home node** as identity and **data node** (GPS resolve) for search/browse/nearby; uncovered locations show “This area isn’t covered yet” instead of dumping home-node map pins ([RFC-0002](docs/rfcs/0002-global-hub-access.md) M2)
 - Peer resolve picks the **smallest containing** peer bbox (then nearest center) when multiple peers overlap
+- Viewport map API: `GET /api/properties/map` requires `bbox=` (or Admin `region=1`); oversized viewports return `BBOX_TOO_LARGE`; Access shows coverage at low zoom and loads pins per viewport ([RFC-0002](docs/rfcs/0002-global-hub-access.md) M3)
 
 ### Changed
 
 - Node no longer sets a static comma-joined `Access-Control-Allow-Origin` in `next.config.js` (invalid for multi-origin lists); use env allowlists above
 - Access browse map loads pins from the resolved **data** node, not always the home node
+- Nearby queries prefilter by a rough lat/lon window before haversine
+- Admin dashboard map uses `?region=1` (node configured bbox) instead of an unscoped pin dump
 
 ---
 

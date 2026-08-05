@@ -141,6 +141,8 @@
     "searchTryDifferent": "Probeer een andere zoekopdracht of filter",
     "searchTapPlus": "Tik op + in de kop om een nieuwe locatie toe te voegen.",
     "searchNodeUnreachable": "Deze regio is niet bereikbaar. Probeer het later opnieuw.",
+    "mapZoomToSeePlaces": "Zoom in om plaatsen te zien",
+    "mapCoverageLegend": "Gearceerde gebieden = node-dekking",
     "regionNotCovered": "Dit gebied is nog niet gedekt.",
     "regionNotCoveredHint": "Er is hier nog geen WikiTraveler-node. Gebruik Dichtbij wanneer je in een gedekt gebied bent, of zoek als je in bereik bent.",
     "regionUnreachable": "Deze regio is niet bereikbaar. Probeer het later opnieuw.",

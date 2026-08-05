@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTheme, useLocale } from "@wikitraveler/ui";
-import { fetchMapPins, type MapPin } from "../lib/accessApi";
+import {
+  fetchCoverageRegions,
+  fetchMapPins,
+  MapPinsError,
+  resolvePeerNode,
+  toClientNodeUrl,
+  type CoverageRegion,
+  type MapPin,
+} from "../lib/accessApi";
 import { buildAccessMapPopup, buildAccessMapTooltip } from "../lib/mapPopup";
 import { readAuthToken } from "../lib/authStorage";
 import { canContribute, roleFromToken } from "../lib/userRole";
+
+/** Below this zoom, show coverage rectangles only (no property pins). */
+export const MAP_PIN_MIN_ZOOM = 10;
 
 interface UserLocation {
   lat: number;
@@ -16,7 +27,7 @@ interface Props {
   nodeUrl: string;
   homeNodeUrl: string;
   active: boolean;
-  /** External pins — when set, internal fetch is skipped. */
+  /** External pins — when set, internal/viewport fetch is skipped. */
   pins?: MapPin[];
   loading?: boolean;
   error?: string;
@@ -28,6 +39,10 @@ interface Props {
   interactionMode?: "popup" | "select";
   autoFit?: boolean;
   className?: string;
+  /** RFC-0002 M3: fetch pins for the visible bbox; coverage at low zoom. */
+  viewportBrowse?: boolean;
+  /** Notify parent when viewport resolve picks a data node (for list links). */
+  onDataNodeUrlChange?: (url: string) => void;
 }
 
 function isDarkMode() {
@@ -48,11 +63,6 @@ function getTileConfig() {
   };
 }
 
-/**
- * Scale the dot radius with the zoom level so that, when zoomed out, dots are
- * small enough to keep every property visible (less overlap), while staying
- * large enough to remain tappable. Selected dots get a small bump.
- */
 function radiusForZoom(zoom: number, selected: boolean): number {
   let base: number;
   if (zoom <= 6) base = 5;
@@ -85,7 +95,6 @@ function pinMarkerStyle(
   };
   const style = pin.audited ? baseAudited : baseNotAudited;
   if (saved) {
-    // Saved properties get an amber ring to stand out on the map.
     return {
       radius: radiusForZoom(zoom, selected) + 1,
       ...style,
@@ -101,6 +110,18 @@ function pinMarkerStyle(
 
 function pinStackOrder(pin: MapPin): number {
   return pin.audited ? 2 : 1;
+}
+
+function parseBboxClient(raw: string): [number, number, number, number] | null {
+  const parts = raw.split(",").map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return null;
+  const [minLat, minLon, maxLat, maxLon] = parts as [number, number, number, number];
+  if (minLat >= maxLat || minLon >= maxLon) return null;
+  return [minLat, minLon, maxLat, maxLon];
+}
+
+function formatBoundsBbox(b: import("leaflet").LatLngBounds): string {
+  return `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
 }
 
 function safeFitToPins(
@@ -133,6 +154,7 @@ function destroyMap(
   mapRef: React.MutableRefObject<import("leaflet").Map | null>,
   layerGroupRef: React.MutableRefObject<import("leaflet").FeatureGroup | null>,
   userLayerRef: React.MutableRefObject<import("leaflet").LayerGroup | null>,
+  coverageLayerRef: React.MutableRefObject<import("leaflet").LayerGroup | null>,
   tileLayerRef: React.MutableRefObject<import("leaflet").TileLayer | null>,
   leafletRef: React.MutableRefObject<typeof import("leaflet") | null>,
   containerRef: React.RefObject<HTMLDivElement | null>
@@ -143,6 +165,7 @@ function destroyMap(
   }
   layerGroupRef.current = null;
   userLayerRef.current = null;
+  coverageLayerRef.current = null;
   tileLayerRef.current = null;
   leafletRef.current = null;
   if (containerRef.current) {
@@ -165,6 +188,8 @@ export function RegionMap({
   interactionMode = "select",
   autoFit = true,
   className,
+  viewportBrowse = false,
+  onDataNodeUrlChange,
 }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
@@ -173,19 +198,23 @@ export function RegionMap({
   const [internalError, setInternalError] = useState("");
   const [mapReady, setMapReady] = useState(false);
   const [contributor, setContributor] = useState(false);
+  const [zoomHint, setZoomHint] = useState(false);
+  const [coverageHint, setCoverageHint] = useState(false);
 
   const nodeUrlRef = useRef(nodeUrl);
   const homeNodeUrlRef = useRef(homeNodeUrl);
+  const dataNodeUrlRef = useRef(nodeUrl);
   nodeUrlRef.current = nodeUrl;
   homeNodeUrlRef.current = homeNodeUrl;
+  dataNodeUrlRef.current = nodeUrl;
 
   useEffect(() => {
     const token = readAuthToken();
     setContributor(canContribute(roleFromToken(token)));
   }, []);
 
-  const useExternal = externalPins !== undefined;
-  const pins = useExternal ? externalPins : internalPins;
+  const useExternal = externalPins !== undefined && !viewportBrowse;
+  const pins = useExternal ? (externalPins ?? []) : internalPins;
   const loading = useExternal ? (externalLoading ?? false) : internalLoading;
   const error = useExternal ? (externalError ?? "") : internalError;
 
@@ -193,6 +222,7 @@ export function RegionMap({
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layerGroupRef = useRef<import("leaflet").FeatureGroup | null>(null);
   const userLayerRef = useRef<import("leaflet").LayerGroup | null>(null);
+  const coverageLayerRef = useRef<import("leaflet").LayerGroup | null>(null);
   const tileLayerRef = useRef<import("leaflet").TileLayer | null>(null);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
   const markerByIdRef = useRef<Map<string, import("leaflet").CircleMarker>>(new Map());
@@ -201,42 +231,129 @@ export function RegionMap({
   const savedIdsRef = useRef<Set<string>>(new Set());
   const lastFitSignatureRef = useRef<string | null>(null);
   const updateRadiiRef = useRef<(() => void) | null>(null);
+  const viewportFetchRef = useRef(0);
 
   pinsRef.current = pins;
   selectedIdRef.current = selectedPropertyId;
   savedIdsRef.current = savedIds ?? new Set();
 
-  useEffect(() => {
-    if (useExternal || !active) return;
-    let cancelled = false;
-    const controller = new AbortController();
+  const showCoverage = useCallback((regions: CoverageRegion[]) => {
+    const L = leafletRef.current;
+    const coverage = coverageLayerRef.current;
+    if (!L || !coverage) return;
+    coverage.clearLayers();
+    for (const r of regions) {
+      const bb = parseBboxClient(r.bbox);
+      if (!bb) continue;
+      const [minLat, minLon, maxLat, maxLon] = bb;
+      const rect = L.rectangle(
+        [
+          [minLat, minLon],
+          [maxLat, maxLon],
+        ],
+        {
+          color: r.self ? "#0f766e" : "#1d4ed8",
+          weight: 1.5,
+          fillOpacity: 0.12,
+          dashArray: r.self ? undefined : "4 4",
+        }
+      );
+      const label = r.region || r.nodeId || r.url;
+      rect.bindTooltip(label, { sticky: true });
+      rect.addTo(coverage);
+    }
+  }, []);
+
+  const refreshViewport = useCallback(async () => {
+    if (!viewportBrowse || useExternal) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    const zoom = map.getZoom();
+    if (zoom < MAP_PIN_MIN_ZOOM) {
+      setZoomHint(true);
+      setCoverageHint(false);
+      setInternalPins([]);
+      setInternalError("");
+      setInternalLoading(false);
+      try {
+        const regions = await fetchCoverageRegions(homeNodeUrlRef.current);
+        showCoverage(regions);
+      } catch {
+        showCoverage([]);
+      }
+      return;
+    }
+
+    setZoomHint(false);
+    const bounds = map.getBounds();
+    const bbox = formatBoundsBbox(bounds);
+    const center = map.getCenter();
+    const fetchId = ++viewportFetchRef.current;
     setInternalLoading(true);
     setInternalError("");
 
-    fetchMapPins(nodeUrl, controller.signal)
-      .then((data) => {
-        if (cancelled) return;
-        setInternalPins(data);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setInternalError(t("ui.searchNodeUnreachable"));
-          setInternalPins([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setInternalLoading(false);
-      });
+    try {
+      const peer = await resolvePeerNode(homeNodeUrlRef.current, center.lat, center.lng);
+      if (fetchId !== viewportFetchRef.current) return;
 
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [active, nodeUrl, t, useExternal]);
+      if (!peer || peer.matched === "fallback") {
+        setCoverageHint(true);
+        setInternalPins([]);
+        coverageLayerRef.current?.clearLayers();
+        try {
+          const regions = await fetchCoverageRegions(homeNodeUrlRef.current);
+          showCoverage(regions);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      setCoverageHint(false);
+      coverageLayerRef.current?.clearLayers();
+      const dataUrl = toClientNodeUrl(peer.url);
+      dataNodeUrlRef.current = dataUrl;
+      onDataNodeUrlChange?.(dataUrl);
+
+      const nextPins = await fetchMapPins(dataUrl, { bbox, signal: AbortSignal.timeout(12_000) });
+      if (fetchId !== viewportFetchRef.current) return;
+      setInternalPins(nextPins);
+    } catch (e) {
+      if (fetchId !== viewportFetchRef.current) return;
+      if (e instanceof MapPinsError && e.code === "BBOX_TOO_LARGE") {
+        setZoomHint(true);
+        setInternalPins([]);
+        setInternalError("");
+      } else {
+        setInternalError(t("ui.regionUnreachable"));
+        setInternalPins([]);
+      }
+    } finally {
+      if (fetchId === viewportFetchRef.current) setInternalLoading(false);
+    }
+  }, [viewportBrowse, useExternal, showCoverage, onDataNodeUrlChange, t]);
+
+  // Legacy internal fetch (non-viewport): load region=1 style not available on peers —
+  // callers should pass external pins or use viewportBrowse.
+  useEffect(() => {
+    if (useExternal || viewportBrowse || !active) return;
+    setInternalPins([]);
+    setInternalError(t("ui.mapZoomToSeePlaces"));
+    setInternalLoading(false);
+  }, [active, useExternal, viewportBrowse, t]);
 
   useEffect(() => {
     if (!active) {
-      destroyMap(mapRef, layerGroupRef, userLayerRef, tileLayerRef, leafletRef, containerRef);
+      destroyMap(
+        mapRef,
+        layerGroupRef,
+        userLayerRef,
+        coverageLayerRef,
+        tileLayerRef,
+        leafletRef,
+        containerRef
+      );
       lastFitSignatureRef.current = null;
       setMapReady(false);
       return;
@@ -252,7 +369,7 @@ export function RegionMap({
       const initialCenter: [number, number] = userLocation
         ? [userLocation.lat, userLocation.lon]
         : [52.3, 5.3];
-      const initialZoom = userLocation ? 14 : 7;
+      const initialZoom = userLocation ? 12 : viewportBrowse ? 6 : 7;
       const map = L.map(containerRef.current, { preferCanvas: true }).setView(
         initialCenter,
         initialZoom
@@ -264,6 +381,7 @@ export function RegionMap({
 
       layerGroupRef.current = L.featureGroup().addTo(map);
       userLayerRef.current = L.layerGroup().addTo(map);
+      coverageLayerRef.current = L.layerGroup().addTo(map);
 
       map.on("zoomend", () => updateRadiiRef.current?.());
 
@@ -277,11 +395,43 @@ export function RegionMap({
 
     return () => {
       cancelled = true;
-      destroyMap(mapRef, layerGroupRef, userLayerRef, tileLayerRef, leafletRef, containerRef);
+      destroyMap(
+        mapRef,
+        layerGroupRef,
+        userLayerRef,
+        coverageLayerRef,
+        tileLayerRef,
+        leafletRef,
+        containerRef
+      );
       lastFitSignatureRef.current = null;
       setMapReady(false);
     };
-  }, [active, userLocation]);
+  }, [active, userLocation, viewportBrowse]);
+
+  useEffect(() => {
+    if (!mapReady || !viewportBrowse || useExternal) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void refreshViewport();
+      }, 280);
+    };
+
+    map.on("moveend", schedule);
+    map.on("zoomend", schedule);
+    schedule();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      map.off("moveend", schedule);
+      map.off("zoomend", schedule);
+    };
+  }, [mapReady, viewportBrowse, useExternal, refreshViewport]);
 
   function ensurePopup(marker: import("leaflet").CircleMarker, pin: MapPin) {
     if (marker.getPopup()) return;
@@ -289,7 +439,7 @@ export function RegionMap({
       buildAccessMapPopup(
         pin,
         homeNodeUrlRef.current,
-        nodeUrlRef.current,
+        dataNodeUrlRef.current || nodeUrlRef.current,
         {
           view: t("ui.mapViewProperty"),
           audit: t("ui.mapViewAudit"),
@@ -376,8 +526,6 @@ export function RegionMap({
       }
     }
 
-    // If a property is selected (e.g. opened from the list "show on map"
-    // button), zoom to it and open its popup instead of fitting all pins.
     const selectedMarker = selectedIdRef.current
       ? markerByIdRef.current.get(selectedIdRef.current)
       : undefined;
@@ -393,11 +541,13 @@ export function RegionMap({
           });
           selectedMarker.openPopup();
         } catch {
-          // Map container may be hidden or mid-teardown.
+          // ignore
         }
       });
       return;
     }
+
+    if (viewportBrowse) return;
 
     const fitSignature = `${sorted.map((p) => p.id).join(",")}|${userLocation ? `${userLocation.lat},${userLocation.lon}` : ""}|${radiusKm ?? ""}`;
     if (autoFit && fitSignature !== lastFitSignatureRef.current) {
@@ -412,7 +562,7 @@ export function RegionMap({
   useEffect(() => {
     renderMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pins, mode, selectedPropertyId, userLocation, radiusKm, savedIds, onSelectProperty, autoFit, mapReady, contributor, t]);
+  }, [pins, mode, selectedPropertyId, userLocation, radiusKm, savedIds, onSelectProperty, autoFit, mapReady, contributor, t, viewportBrowse]);
 
   useEffect(() => {
     const L = leafletRef.current;
@@ -446,62 +596,74 @@ export function RegionMap({
     }
   }, [selectedPropertyId, mapReady]);
 
+  const showMapShell = viewportBrowse || pins.length > 0 || useExternal;
+
   return (
     <div className={className ? `fk-map-tab ${className}` : "fk-map-tab"}>
-      {loading && pins.length === 0 && (
+      {loading && pins.length === 0 && !viewportBrowse && (
         <div className="fk-discovery-skeleton fk-discovery-skeleton--map" aria-hidden="true" />
       )}
 
       {error && <p className="status-err">{error}</p>}
 
-      {!loading && !error && pins.length === 0 && (
+      {zoomHint && viewportBrowse && (
+        <p className="status-muted" role="status">
+          {t("ui.mapZoomToSeePlaces")}
+        </p>
+      )}
+
+      {coverageHint && viewportBrowse && !zoomHint && (
+        <p className="status-muted" role="status">
+          {t("ui.regionNotCovered")} — {t("ui.regionNotCoveredHint")}
+        </p>
+      )}
+
+      {!loading && !error && !viewportBrowse && pins.length === 0 && (
         <div className="fk-empty" style={{ paddingTop: 32 }}>
           <span className="fk-empty-icon">🗺️</span>
           <p className="fk-empty-title">{t("ui.regionEmptyMap")}</p>
         </div>
       )}
 
-      {/* Keep the map container mounted whenever pins exist — even while a new
-          search is loading — so the Leaflet instance is never torn away from its
-          DOM node (which would leave a blank map on the next render). */}
-      {pins.length > 0 && (
-        <>
-          <div className="wt-map-frame fk-map-frame">
-            {loading && (
-              <div className="fk-map-loading-overlay" aria-hidden="true">
-                <span className="fk-map-loading-spinner" />
-              </div>
-            )}
-            <div
-              ref={containerRef}
-              role="application"
-              aria-label={t("ui.mapViewProperty")}
-              className="wt-map-container fk-map-container"
-            />
-            <div className="wt-map-legend" aria-hidden="true">
-              <span className="wt-map-legend-item">
-                <span className="wt-map-legend-swatch wt-map-legend-swatch--audited" />
-                {t("ui.mapAudited")}
-              </span>
-              <span className="wt-map-legend-item">
-                <span className="wt-map-legend-swatch wt-map-legend-swatch--not-audited" />
-                {t("ui.mapNotAudited")}
-              </span>
-              {savedIds && savedIds.size > 0 && (
-                <span className="wt-map-legend-item">
-                  <span className="wt-map-legend-swatch wt-map-legend-swatch--saved" />
-                  {t("ui.discoverySaved")}
-                </span>
-              )}
-              {userLocation && (
-                <span className="wt-map-legend-item">
-                  <span className="wt-map-legend-swatch wt-map-legend-swatch--user" />
-                  {t("ui.discoveryYouAreHere")}
-                </span>
-              )}
+      {showMapShell && (
+        <div className="wt-map-frame fk-map-frame">
+          {loading && (
+            <div className="fk-map-loading-overlay" aria-hidden="true">
+              <span className="fk-map-loading-spinner" />
             </div>
+          )}
+          <div
+            ref={containerRef}
+            role="application"
+            aria-label={t("ui.mapViewProperty")}
+            className="wt-map-container fk-map-container"
+          />
+          <div className="wt-map-legend" aria-hidden="true">
+            <span className="wt-map-legend-item">
+              <span className="wt-map-legend-swatch wt-map-legend-swatch--audited" />
+              {t("ui.mapAudited")}
+            </span>
+            <span className="wt-map-legend-item">
+              <span className="wt-map-legend-swatch wt-map-legend-swatch--not-audited" />
+              {t("ui.mapNotAudited")}
+            </span>
+            {viewportBrowse && (
+              <span className="wt-map-legend-item">{t("ui.mapCoverageLegend")}</span>
+            )}
+            {savedIds && savedIds.size > 0 && (
+              <span className="wt-map-legend-item">
+                <span className="wt-map-legend-swatch wt-map-legend-swatch--saved" />
+                {t("ui.discoverySaved")}
+              </span>
+            )}
+            {userLocation && (
+              <span className="wt-map-legend-item">
+                <span className="wt-map-legend-swatch wt-map-legend-swatch--user" />
+                {t("ui.discoveryYouAreHere")}
+              </span>
+            )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

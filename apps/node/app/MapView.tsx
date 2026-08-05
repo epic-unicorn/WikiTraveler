@@ -62,7 +62,13 @@ export function MapView({ focusPins, auditedOnly }: Props) {
 
     Promise.all([
       import("leaflet"),
-      fetch("/api/properties/map", { headers }).then((r) => r.json() as Promise<{ pins: MapPin[] }>),
+      fetch("/api/properties/map?region=1", { headers }).then(async (r) => {
+        if (!r.ok) {
+          const err = (await r.json().catch(() => ({}))) as { message?: string; code?: string };
+          return { pins: [] as MapPin[], error: err.message ?? err.code ?? "map failed" };
+        }
+        return r.json() as Promise<{ pins: MapPin[] }>;
+      }),
     ]).then(([L, data]) => {
       if (cancelled || !containerRef.current || mapRef.current) return;
 

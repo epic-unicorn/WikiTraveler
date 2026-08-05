@@ -71,6 +71,9 @@ interface Props {
   returnState?: AccessReturnState;
   onViewModeChange?: (mode: DiscoveryViewMode) => void;
   initialViewMode?: DiscoveryViewMode | null;
+  /** Browse without a search query: viewport-scoped pins + coverage (RFC-0002 M3). */
+  viewportBrowse?: boolean;
+  onDataNodeUrlChange?: (url: string) => void;
 }
 
 export function PropertyDiscoveryView({
@@ -89,6 +92,8 @@ export function PropertyDiscoveryView({
   returnState,
   onViewModeChange,
   initialViewMode = null,
+  viewportBrowse = false,
+  onDataNodeUrlChange,
 }: Props) {
   const { t, getTierLabel } = useLocale();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -106,7 +111,7 @@ export function PropertyDiscoveryView({
   }, [initialViewMode]);
 
   const pins: MapPin[] = useMemo(() => pinsFromSummaries(properties), [properties]);
-  const hasMap = pins.length > 0 || userLocation != null;
+  const hasMap = pins.length > 0 || userLocation != null || viewportBrowse;
 
   // Reset the lazy-render window whenever the result set changes.
   useEffect(() => {
@@ -184,7 +189,7 @@ export function PropertyDiscoveryView({
               nodeUrl={propertyNodeUrl}
               homeNodeUrl={homeNodeUrl}
               active={active}
-              pins={pins}
+              pins={viewportBrowse ? undefined : pins}
               loading={loading}
               error={error}
               selectedPropertyId={selectedId}
@@ -194,6 +199,8 @@ export function PropertyDiscoveryView({
               savedIds={savedIds}
               interactionMode="select"
               autoFit={mapAutoFit}
+              viewportBrowse={viewportBrowse}
+              onDataNodeUrlChange={onDataNodeUrlChange}
             />
           ) : (
             !loading &&

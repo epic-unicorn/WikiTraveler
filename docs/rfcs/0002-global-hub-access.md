@@ -13,7 +13,7 @@
 | **M0** RFC accept | Done | [#49](https://github.com/ingmarstruijs/WikiTraveler/pull/49) docs · [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) |
 | **M1** Trusted CORS / client origins | Done | [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50) |
 | **M2** Access home vs data routing + resolve quality | Done | [#52](https://github.com/ingmarstruijs/WikiTraveler/pull/52) |
-| **M3** Viewport / coverage map | Not started | — |
+| **M3** Viewport / coverage map | In review | [#54](https://github.com/ingmarstruijs/WikiTraveler/pull/54) |
 | **M4** Lens alignment | Not started | — |
 | **M5** Docs / release narrative (hub vs node) | Not started | — |
 | **M6** Follow-ons | Later | — |
@@ -174,6 +174,14 @@ Regional Access handoff is **optional branding**, not the default global path.
 **H5:** Document Access ≥ X needs Node ≥ Y for bbox map; old clients get clear empty/error state.
 
 **Exit:** Cannot load unscoped home pin set from Access; zoom-in messaging works.
+
+**M3 checklist**
+
+- [x] `GET /api/properties/map` requires `bbox=` (Admin: `region=1`)
+- [x] `BBOX_TOO_LARGE` when viewport exceeds `MAP_VIEWPORT_MAX_AREA_KM2`
+- [x] Access low zoom = coverage; high zoom = viewport pins + resolve by map center
+- [x] Nearby lat/lon prefilter before haversine
+- [x] H5 noted in COMPATIBILITY / CHANGELOG (Access + Node redeploy together)
 
 ---
 

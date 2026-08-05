@@ -141,6 +141,8 @@
     "searchTryDifferent": "Essayez une autre recherche ou un autre filtre",
     "searchTapPlus": "Appuyez sur + dans l'en-tête pour ajouter un établissement.",
     "searchNodeUnreachable": "Impossible d'atteindre cette région. Réessayez plus tard.",
+    "mapZoomToSeePlaces": "Zoomez pour voir les lieux",
+    "mapCoverageLegend": "Zones ombrées = couverture des nœuds",
     "regionNotCovered": "Cette zone n'est pas encore couverte.",
     "regionNotCoveredHint": "Il n'y a pas encore de nœud WikiTraveler ici. Utilisez À proximité lorsque vous êtes dans une zone couverte.",
     "regionUnreachable": "Impossible d'atteindre cette région. Réessayez plus tard.",

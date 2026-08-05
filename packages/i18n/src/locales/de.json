@@ -141,6 +141,8 @@
     "searchTryDifferent": "Versuchen Sie eine andere Suche oder Filter",
     "searchTapPlus": "Tippen Sie + in der Kopfzeile, um eine neue Unterkunft hinzuzufügen.",
     "searchNodeUnreachable": "Diese Region ist nicht erreichbar. Bitte später erneut versuchen.",
+    "mapZoomToSeePlaces": "Hineinzoomen, um Orte zu sehen",
+    "mapCoverageLegend": "Schattierte Bereiche = Node-Abdeckung",
     "regionNotCovered": "Dieses Gebiet ist noch nicht abgedeckt.",
     "regionNotCoveredHint": "Für Ihren Standort gibt es noch keinen WikiTraveler-Knoten. Nutzen Sie In der Nähe, wenn Sie in einem abgedeckten Gebiet sind.",
     "regionUnreachable": "Diese Region ist nicht erreichbar. Bitte später erneut versuchen.",

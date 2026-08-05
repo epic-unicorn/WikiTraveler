@@ -125,25 +125,103 @@ export interface MapPin {
   facts?: Record<string, { value: string; tier: string }>;
 }
 
-/** Drop the cached map pins so the next fetch reflects new/edited properties. */
+/** Drop cached map pins so the next fetch reflects new/edited properties. */
 export function invalidateMapPins(nodeUrl?: string): void {
   invalidateClientCache(nodeUrl ? `map-pins:${nodeUrl}` : "map-pins:");
 }
 
+export type MapPinsQuery = {
+  bbox: string;
+  limit?: number;
+  signal?: AbortSignal;
+};
+
+export class MapPinsError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 export async function fetchMapPins(
   nodeUrl: string,
-  signal?: AbortSignal
+  query: MapPinsQuery
 ): Promise<MapPin[]> {
+  const { bbox, limit, signal } = query;
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-  return dedupedFetch(`map-pins:${nodeUrl}`, async () => {
-    const res = await fetch(`${nodeUrl}/api/properties/map`, {
+  const params = new URLSearchParams({ bbox });
+  if (limit != null) params.set("limit", String(limit));
+  const cacheKey = `map-pins:${nodeUrl}:${bbox}:${limit ?? ""}`;
+  return dedupedFetch(cacheKey, async () => {
+    const res = await fetch(`${nodeUrl}/api/properties/map?${params}`, {
       headers: getAuthHeaders(),
+      signal,
     });
-    if (!res.ok) throw new Error("map failed");
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { message?: string; code?: string };
+      throw new MapPinsError(body.message ?? "map failed", body.code);
+    }
     const data = (await res.json()) as { pins?: MapPin[] };
     return (data.pins ?? []).filter(
       (p) => p.lat != null && p.lon != null && p.lat !== 0 && p.lon !== 0
     );
+  });
+}
+
+export type CoverageRegion = {
+  nodeId: string | null;
+  url: string;
+  region: string | null;
+  bbox: string;
+  self?: boolean;
+};
+
+/** Peer + self bboxes for low-zoom coverage (from home node). */
+export async function fetchCoverageRegions(
+  homeNodeUrl: string,
+  signal?: AbortSignal
+): Promise<CoverageRegion[]> {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  return dedupedFetch(`coverage:${homeNodeUrl}`, async () => {
+    const [peersRes, infoRes] = await Promise.all([
+      fetch(`${homeNodeUrl}/api/peers`, { headers: getAuthHeaders(), signal }),
+      fetch(`${homeNodeUrl}/api/nodeinfo`, { signal }),
+    ]);
+    const out: CoverageRegion[] = [];
+    if (infoRes.ok) {
+      const info = (await infoRes.json()) as {
+        nodeId?: string;
+        nodeUrl?: string;
+        region?: string | null;
+        bbox?: string | null;
+      };
+      if (info.bbox) {
+        out.push({
+          nodeId: info.nodeId ?? null,
+          url: info.nodeUrl ?? homeNodeUrl,
+          region: info.region ?? null,
+          bbox: info.bbox,
+          self: true,
+        });
+      }
+    }
+    if (peersRes.ok) {
+      const data = (await peersRes.json()) as {
+        peers?: { nodeId?: string | null; url: string; region?: string | null; bbox?: string | null }[];
+      };
+      for (const p of data.peers ?? []) {
+        if (!p.bbox) continue;
+        out.push({
+          nodeId: p.nodeId ?? null,
+          url: p.url,
+          region: p.region ?? null,
+          bbox: p.bbox,
+          self: false,
+        });
+      }
+    }
+    return out;
   });
 }
 
