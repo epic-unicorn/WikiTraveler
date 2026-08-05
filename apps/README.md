@@ -11,7 +11,7 @@ pnpm db:setup
 
 `.env` must have `DATABASE_URL` and (optionally) `NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY` set (copy `.env.example` to get started).
 
-**Region ingest:** configure bbox and OSM data in Admin (`/stats` → **Region & OSM ingest**). Large regions (e.g. Benelux, ~128 tiles) need 1–2 hours — keep `pnpm dev` running. See [docs/LOCAL.md](../docs/LOCAL.md#osm-ingest-local).
+**Region ingest:** configure bbox and OSM data in Admin (`/stats` → **Region & data**). The preset catalog is global (cities and Geofabrik extracts on every continent). Large Overpass regions (e.g. Benelux, ~128 tiles) need 1–2 hours — keep `pnpm dev` running. See [docs/LOCAL.md](../docs/LOCAL.md#region-presets-global-catalog).
 
 ---
 

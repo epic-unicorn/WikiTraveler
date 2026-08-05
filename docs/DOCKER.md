@@ -196,7 +196,7 @@ Docker runs OSM ingest as a **one-shot CLI process** (not in Admin). Best for fi
 | Method | Supported | Notes |
 |--------|-----------|-------|
 | **Tiled Overpass** (`node:ingest overpass`) | Yes | Any region size; Benelux ~128 tiles |
-| **Geofabrik PBF** (`node:ingest pbf` / `osm-import-pbf`) | Yes | Netherlands, France, Germany, and other large countries |
+| **Geofabrik PBF** (`node:ingest pbf` / `osm-import-pbf`) | Yes | Large countries/states worldwide (Netherlands, Japan, California, Brazil, …) |
 | **GeoJSON file** (`node:ingest geojson`) | Yes | Pre-processed geojsonseq from osmium |
 | **Bundled sample** (`pnpm db:seed`) | Yes | Eindhoven fixture / gzip sample |
 
