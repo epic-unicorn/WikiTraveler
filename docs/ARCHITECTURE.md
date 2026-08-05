@@ -59,13 +59,13 @@ The canonical deployment unit. A Next.js 16 App Router app serving:
 - **Admin panel** at `/stats` — Users tab — role management (ADMIN only)
 - **Gossip cron** at `/api/cron/gossip` — polls peers, ingests deltas, self-announces
 - **Auth pages**: `/login` (blocks USER role), `/register` (creates account, shows close-tab success for Lens flow)
-- **CORS middleware** — reflects a single trusted `Origin` when it matches the client allowlist ([RFC-0002](./rfcs/0002-global-hub-access.md) M1)
+- **CORS proxy** — reflects a single trusted `Origin` when it matches the client allowlist (`apps/node/proxy.ts`; [RFC-0002](./rfcs/0002-global-hub-access.md) M1)
 
 ### `apps/access`
 
 Mobile-optimised Next.js app for travelers and auditors. **Hub operators** run the canonical client (`https://access.wikitraveler.org`); node operators may run a branded copy. Connects to a default home node via `NEXT_PUBLIC_NODE_API_URL` and to **data nodes** via GPS resolve — nodes must allow the Access origin in `CLIENT_ORIGINS` / `CORS_ORIGINS` ([RFC-0002](./rfcs/0002-global-hub-access.md)).
 
-**Auth:** All authenticated roles (`USER`, `AUDITOR`, `ADMIN`) may use the app. Middleware redirects unauthenticated requests to `/login`. `USER` accounts can browse, save places, and submit community signals; only `AUDITOR`/`ADMIN` may open the audit wizard (enforced in middleware and API).
+**Auth:** All authenticated roles (`USER`, `AUDITOR`, `ADMIN`) may use the app. The Access `proxy.ts` redirects unauthenticated requests to `/login`. `USER` accounts can browse, save places, and submit community signals; only `AUDITOR`/`ADMIN` may open the audit wizard (enforced in proxy and API).
 
 Flow: login on **home** → search / nearby / map on the resolved **data** node → property detail (read-first) → optional report issue (community signal) or field audit (auditors). Uncovered areas show “This area isn’t covered yet.” Cross-node JWT verification uses `/.well-known/pubkey` — no re-login when auditing on a peer. Operator checklist: [FEDERATED-AUTH.md](./FEDERATED-AUTH.md).
 

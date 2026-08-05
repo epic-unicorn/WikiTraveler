@@ -18,7 +18,7 @@ const nextConfig = {
       "../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**",
     ],
   },
-  // CORS for /api/* is applied dynamically in middleware (trusted Origin reflection).
+  // CORS for /api/* is applied dynamically in proxy.ts (trusted Origin reflection).
   // See apps/node/lib/corsOrigins.ts and RFC-0002.
 };
 

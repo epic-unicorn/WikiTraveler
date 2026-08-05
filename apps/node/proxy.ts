@@ -56,7 +56,7 @@ function withApiCors(req: NextRequest, res: NextResponse): NextResponse {
   return res;
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const method = req.method;
   const isApi = pathname.startsWith("/api/");
@@ -109,8 +109,8 @@ export async function middleware(req: NextRequest) {
   }
 
   // ── Setup gate: redirect to /setup when no admin exists yet ──────────────
-  // We call the local /api/setup endpoint so the check runs in the Edge
-  // runtime without a direct Prisma connection.
+  // Call the local /api/setup endpoint so the check avoids a direct Prisma
+  // connection from the proxy layer.
   try {
     const setupUrl = new URL("/api/setup", req.url);
     const setupRes = await fetch(setupUrl, { method: "GET" });
