@@ -178,12 +178,13 @@ OSM_FIXTURE_PATH=/abs/path/to/scripts/fixtures/netherlands-osm.json
 
 1. Chrome → `chrome://extensions` → enable **Developer mode**
 2. **Load unpacked** → select `apps/lens/`
-3. Extension options → set Node URL to `http://localhost:3000`, sign in
+3. Extension options → set **home** Node URL to `http://localhost:3000`, allow host access if prompted, sign in
 4. Register at http://localhost:3000/register if needed; promote to `AUDITOR` in Admin
+5. On booking sites, Lens resolves a regional data node; uncovered areas show “No WikiTraveler coverage here.” See [LENS.md](./LENS.md).
 
 ### WikiTraveler Access
 
-Runs on http://localhost:3001. Set node URL on the login screen (defaults to `NEXT_PUBLIC_NODE_API_URL` from `.env`). In local dev, Access proxies API calls to the node via `/node-api/` so cookies and CORS stay on one origin.
+Runs on http://localhost:3001 (local stand-in for hub Access). Set home node URL on the login screen (defaults to `NEXT_PUBLIC_NODE_API_URL` from `.env`). In local dev, Access proxies API calls to the node via `/node-api/` so cookies and CORS stay on one origin.
 
 **Audit wizard fields:** `pnpm db:setup` seeds `FieldDefinition` rows via `scripts/seed-fields.ts`. If the audit wizard shows no fields after a manual migration, run `pnpm exec tsx scripts/seed-fields.ts`.
 

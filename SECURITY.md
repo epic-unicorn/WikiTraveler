@@ -40,9 +40,11 @@ Pay extra attention when reviewing changes touching:
 Node operators are responsible for:
 
 - Keeping `NODE_PRIVATE_KEY`, `CRON_SECRET`, and `DATABASE_URL` secret
-- Configuring `CORS_ORIGINS` / trusted **client origins** appropriately (not `*` in production unless intentional). Do not auto-trust Access URLs from arbitrary gossip peers — see [RFC-0002](docs/rfcs/0002-global-hub-access.md)
+- Configuring `CORS_ORIGINS` / `CLIENT_ORIGINS` for the **canonical hub**, backup Access, Lens extension ID, and SDK embeds (not `*` in production unless intentional). Do not auto-trust Access URLs from arbitrary gossip peers — see [RFC-0002](docs/rfcs/0002-global-hub-access.md) and [docs/OPERATORS.md](docs/OPERATORS.md#audiences)
 - Applying security patches per [docs/RELEASES.md](docs/RELEASES.md)
 - Rate limiting (Upstash) on public nodes — see [docs/VERCEL.md](docs/VERCEL.md)
+
+Hub Access operators are responsible for uptime of traveler-facing Access (and documenting a backup URL). Access holds no mesh truth; stolen hub JWTs still work on allowlisted data nodes until expiry — prefer short sessions and HTTPS only.
 
 ## Disclosure
 

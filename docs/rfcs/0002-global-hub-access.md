@@ -13,9 +13,9 @@
 | **M0** RFC accept | Done | [#49](https://github.com/ingmarstruijs/WikiTraveler/pull/49) docs · [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) |
 | **M1** Trusted CORS / client origins | Done | [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50) |
 | **M2** Access home vs data routing + resolve quality | Done | [#52](https://github.com/ingmarstruijs/WikiTraveler/pull/52) |
-| **M3** Viewport / coverage map | In review | [#54](https://github.com/ingmarstruijs/WikiTraveler/pull/54) |
-| **M4** Lens alignment | Not started | — |
-| **M5** Docs / release narrative (hub vs node) | Not started | — |
+| **M3** Viewport / coverage map | Done | [#54](https://github.com/ingmarstruijs/WikiTraveler/pull/54) |
+| **M4** Lens alignment | In review | — |
+| **M5** Docs / release narrative (hub vs node) | In review | — |
 | **M6** Follow-ons | Later | — |
 
 ## Summary
@@ -193,6 +193,13 @@ Regional Access handoff is **optional branding**, not the default global path.
 - Options copy: home = identity entry, not “only this country.”
 - `regionMissing` → “No WikiTraveler coverage here.”
 
+**Progress**
+
+- [x] `NODE_FETCH` via service worker (`nodeApi.js` + `background.js`)
+- [x] `optional_host_permissions` for HTTPS/HTTP nodes; requested on Save / Sign in
+- [x] Options / coverage copy aligned with Access (“No WikiTraveler coverage here.”)
+- [x] [LENS.md](../LENS.md) documents CORS vs background fetch
+
 **Exit:** Lens foreign-region match + coverage messaging aligned with Access.
 
 ---
@@ -209,6 +216,13 @@ Access remains a **separate artifact** (image, Vercel project, `versions.json` k
 **Doc/script touch list:** OPERATORS, COMMUNITY, VERCEL, DOCKER, LOCAL, RELEASES, COMPATIBILITY, UPGRADE, FEDERATED-AUTH, PUBLIC-PEERS, ARCHITECTURE, SECURITY, `.env.example`, release-docker comments, `versions.json` capability / min-node fields as needed.
 
 **H4:** Document backup Access URL and dual-origin allowlisting so hub outage is survivable.
+
+**Progress**
+
+- [x] OPERATORS / RELEASES / VERCEL / COMMUNITY describe hub Access vs node mesh
+- [x] H4 backup Access + dual-origin allowlisting documented
+- [x] H5 Access↔node map skew called out in COMPATIBILITY / `.env.example` / VERCEL
+- [x] LENS, FEDERATED-AUTH, PUBLIC-PEERS, ARCHITECTURE, SECURITY, DOCKER, LOCAL updated
 
 **Exit:** New operators do not think “deploy Access only for my node’s travelers” is the main mesh story.
 

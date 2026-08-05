@@ -1,8 +1,8 @@
 # Releases
 
-How WikiTraveler versions, ships, and stays compatible across a federated mesh of independently operated nodes.
+How WikiTraveler versions, ships, and stays compatible across a federated mesh of independently operated nodes — plus **hub Access** clients that stay separate artifacts.
 
-**Related:** [Upgrade runbook](./UPGRADE.md) · [Changelog](../CHANGELOG.md) · [versions.json](../versions.json)
+**Related:** [Upgrade runbook](./UPGRADE.md) · [Changelog](../CHANGELOG.md) · [versions.json](../versions.json) · [RFC-0002](./rfcs/0002-global-hub-access.md)
 
 ---
 
@@ -11,7 +11,8 @@ How WikiTraveler versions, ships, and stays compatible across a federated mesh o
 | Principle | Meaning |
 |-----------|---------|
 | **Sovereign operators** | Each node owner chooses when to deploy. No remote force-update. |
-| **Loose coupling** | Node, Access, Lens, and SDK versions are related but not lockstep. |
+| **Hub ≠ node** | Access (canonical hub or branded) is a **client artifact**; nodes hold truth. Hub outage does not stop gossip (**H4** — keep a backup Access origin allowlisted). |
+| **Loose coupling** | Node, Access, Lens, and SDK versions are related but not lockstep — except when a client API contract breaks (redeploy pair; **H5**). |
 | **Gossip tolerance** | The mesh supports **current and previous minor** node releases unless a breaking change is announced. |
 | **Migrations first** | Database schema must be migrated **before** deploying code that depends on new columns. |
 | **Documented breaking windows** | Protocol or schema breaks get a sunset date in the changelog before enforcement. |
@@ -63,13 +64,14 @@ Tags and changelog are prepared with `scripts/release.mjs`. Docker GHCR images a
 
 | Target | Who updates | Trigger |
 |--------|-------------|---------|
-| **Docker node** | Operator | Pull image or rebuild from tag; restart compose |
-| **Vercel node** | Operator | Deploy tag (Git integration or CLI) |
-| **Docker Access** | Operator | Rebuild when `NEXT_PUBLIC_NODE_API_URL` or client changes |
-| **Vercel Access** | Operator | Separate Vercel project redeploy |
+| **Docker node** | Node operator | Pull image or rebuild from tag; restart compose |
+| **Vercel node** | Node operator | Deploy tag (Git integration or CLI) |
+| **Docker / Vercel Access** | Hub operator (canonical/backup) or node operator (branded) | Rebuild when `NEXT_PUBLIC_NODE_API_URL` or client changes; allowlist origin on mesh nodes |
 | **Lens** | End user / IT | Chrome Web Store or manual unpacked update |
 
 Details: [OPERATORS.md](./OPERATORS.md) · [UPGRADE.md](./UPGRADE.md)
+
+**Do not** treat “ship Access only for my node’s travelers” as the default release narrative — prefer the hub Access + trusted CORS mesh ([OPERATORS.md](./OPERATORS.md#audiences)).
 
 ---
 

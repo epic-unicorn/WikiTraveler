@@ -38,6 +38,7 @@ curl -s "$NODE_URL/api/nodeinfo" | jq .
 - [ ] Sign in as admin → complete **Region & data** (bbox or sample load)
 - [ ] **Statistics** loads without errors
 - [ ] **Peers** — add a bootstrap peer or confirm `BOOTSTRAP_PEERS` linked on startup
+- [ ] **Client origins** — `CLIENT_ORIGINS` / `CORS_ORIGINS` include canonical hub Access (and backup) so travelers can reach this region
 - [ ] Upgrade banner (if enabled) — advisory only; no action required when current
 
 ### Database
@@ -55,7 +56,8 @@ curl -s "$NODE_URL/api/nodeinfo" | jq .
 4. Run `pnpm db:deploy` if the release includes Prisma migrations.
 5. Re-run `pnpm doctor` against production `NODE_URL`.
 6. Confirm Admin **Peers** show expected versions (Phase 4 skew warnings should be green for N ↔ N-1 mesh).
-7. If you run Access: rebuild with matching `WIKITRAVELER_VERSION` and check **Settings** — node and client versions should align.
+7. If you run **hub or branded Access**: rebuild with matching tag; redeploy **Node + Access** together when map/API contracts change (**H5**); check **Settings** — node and client versions should align.
+8. Confirm backup Access origin (if any) remains on the node allowlist (**H4**).
 
 ---
 

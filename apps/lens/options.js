@@ -117,6 +117,13 @@ saveBtn.addEventListener("click", async () => {
     return;
   }
 
+  const allowed = await ensureNodeHostAccess(url);
+  if (!allowed) {
+    setStatus(wtT("ui.lensHostPermissionDenied", currentLocale), "#dc2626");
+    clearStatusSoon(5000);
+    return;
+  }
+
   chrome.storage.sync.set({ nodeUrl: url }, async () => {
     const result = await refreshNodeStatus(url);
     if (result.state === "online") {
@@ -132,6 +139,12 @@ async function doAuth(mode) {
   const nodeUrl = getNodeUrl() || "http://localhost:3000";
   if (!validateNodeUrl(nodeUrl)) {
     refreshNodeStatus(nodeUrl);
+    return;
+  }
+
+  const allowed = await ensureNodeHostAccess(nodeUrl);
+  if (!allowed) {
+    setStatus(wtT("ui.lensHostPermissionDenied", currentLocale), "#dc2626");
     return;
   }
 
@@ -153,7 +166,7 @@ async function doAuth(mode) {
 
   try {
     if (mode === "register") {
-      const regRes = await fetch(`${nodeUrl}/api/auth/register`, {
+      const regRes = await nodeFetch(`${nodeUrl}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -165,7 +178,7 @@ async function doAuth(mode) {
       }
     }
 
-    const res = await fetch(`${nodeUrl}/api/auth/login`, {
+    const res = await nodeFetch(`${nodeUrl}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),

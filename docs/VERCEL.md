@@ -2,14 +2,15 @@
 
 **Docs:** [Hub](./README.md) · [Operators](./OPERATORS.md) · [Upgrade](./UPGRADE.md) · [Docker](./DOCKER.md)
 
-Deploy the **node** (API + dashboard) and **WikiTraveler Access** (mobile audit UI) as two separate Vercel projects. The node needs hosted PostgreSQL; WikiTraveler Access is a frontend that calls the node over HTTPS.
+Deploy the **node** (API + dashboard) and optionally **WikiTraveler Access** as separate Vercel projects. The node needs hosted PostgreSQL. Access is a frontend client — the **canonical hub** is `https://access.wikitraveler.org`; regional/branded Access is optional ([RFC-0002](./rfcs/0002-global-hub-access.md)).
 
 ```
-https://node.example.com      → Node (API + dashboard)
-https://audit.example.com     → WikiTraveler Access
+https://node.example.com              → Node (API + dashboard) — regional truth
+https://access.wikitraveler.org       → Canonical hub Access (project / hub operators)
+https://audit.example.com             → Optional branded Access (same app, different origin)
 ```
 
-Lens and the agency SDK call the node URL directly.
+Lens and the agency SDK call **node** URLs directly (Lens via extension background fetch). Hub Access calls home + data nodes over HTTPS; every public data node must allow the hub origin(s) in `CLIENT_ORIGINS` / `CORS_ORIGINS`.
 
 ---
 
@@ -17,7 +18,7 @@ Lens and the agency SDK call the node URL directly.
 
 - Serverless hosting without managing a VPS
 - Low-ops production with automatic cron jobs (gossip, AI scan, Wheelmap sync)
-- WikiTraveler Access as a separate mobile-friendly URL
+- Hub or branded Access as a separate mobile-friendly URL
 
 **Not ideal for:** the **first** large OSM ingest (countries, Benelux). Do that on [local dev](./LOCAL.md) or [Docker](./DOCKER.md) first, then deploy.
 
@@ -82,7 +83,9 @@ The repo-root `vercel.json` configures cron jobs when deployed from root.
 | `NODE_PRIVATE_KEY` | **Recommended** | RSA private key PEM |
 | `NODE_PUBLIC_KEY` | **Recommended** | RSA public key PEM |
 | `CRON_SECRET` | **Yes** | Random string; all cron routes require `Authorization: Bearer <value>` |
-| `CORS_ORIGINS` | **Yes** | Comma-separated origins (WikiTraveler Access URL, agency domains, `chrome-extension://<lens-id>`) |
+| `CORS_ORIGINS` | Strongly recommended | Comma-separated browser origins (legacy / additional). Prefer also setting `CLIENT_ORIGINS` |
+| `CLIENT_ORIGINS` | Strongly recommended | Trusted hub Access + Lens + SDK origins — e.g. `https://access.wikitraveler.org`, backup Access, `chrome-extension://<lens-id>` ([RFC-0002](./rfcs/0002-global-hub-access.md)) |
+| `ACCESS_PUBLIC_URL` | No | Access URL advertised on `/api/nodeinfo` (directory only — not auto CORS from gossip) |
 | `BOOTSTRAP_PEERS` | No | Comma-separated peer node URLs |
 | `OPENAI_API_KEY` / `AI_*` | No | AI features — see [LOCAL.md § AI provider](./LOCAL.md#ai-provider-optional) |
 
@@ -183,11 +186,11 @@ Admin → **Region & data** → **Load sample data** (Eindhoven bundle). Useful 
 
 Configure region bbox in Admin → **Region & data** (save only). Property CRUD lives under the **Properties** tab.
 
-### 5. Deploy WikiTraveler Access
+### 5. Deploy WikiTraveler Access (hub or branded)
 
-WikiTraveler Access is a **separate** Vercel project — no database, no cron.
+Access is a **separate** Vercel project — no database, no cron. **Hub operators** deploy the canonical (and optional backup) Access. **Node operators** usually skip this and point travelers at `https://access.wikitraveler.org`.
 
-1. Import the same repo again (second project), e.g. `wikitraveler-access`.
+1. Import the same repo again (second project), e.g. `wikitraveler-access` or `wikitraveler-access-backup`.
 2. **Root Directory:** `apps/access` (or repo root with output `apps/access/.next`).
 3. Build:
 
@@ -197,28 +200,33 @@ WikiTraveler Access is a **separate** Vercel project — no database, no cron.
 | **Build Command** | `pnpm --filter @wikitraveler/access build` |
 | **Output Directory** | `apps/access/.next` |
 
-4. Environment variable — points WikiTraveler Access at your node (only needed when running WikiTraveler Access separately):
+4. Environment variable — default **home** node for registration/login (GPS resolve still reaches peers):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_NODE_API_URL` | **Yes** | Node URL, e.g. `https://node.example.com` (no trailing slash) |
+| `NEXT_PUBLIC_NODE_API_URL` | **Yes** | Home node URL, e.g. `https://node.example.com` (no trailing slash) |
 
-Baked in at build time — redeploy WikiTraveler Access after changing the node URL.
+Baked in at build time — redeploy Access after changing the home node URL.
 
-5. Add the WikiTraveler Access origin to the node's `CORS_ORIGINS`:
+**H5:** Redeploy **Node + Access** together when map/API contracts change (e.g. `map?bbox=`). See [COMPATIBILITY.md](./COMPATIBILITY.md).
+
+5. Allow this Access origin on **every public data node** travelers will hit (including yours):
 
 ```env
-CORS_ORIGINS=https://audit.example.com,https://node.example.com
+CLIENT_ORIGINS=https://access.wikitraveler.org,https://access-backup.example.org,https://audit.example.com
+# or merge into CORS_ORIGINS — both feed the middleware allowlist
 ```
 
-6. Verify: open WikiTraveler Access → `/login` → sign in → submit a test audit → confirm on node dashboard.
+**H4:** Keep a second Access project as backup; list both origins on nodes before you need them.
+
+6. Verify: open Access → `/login` → sign in → search/audit outside the home region when peers allow the hub origin → confirm on the **data** node dashboard.
 
 ### 6. Connect other clients
 
 | Client | Configuration |
 |--------|---------------|
-| **Lens** | Load unpacked from `apps/lens/` → extension options → node URL |
-| **Agency SDK** | Widget at node URL; add agency origin to `CORS_ORIGINS` |
+| **Lens** | Load unpacked / Release zip from `apps/lens/` → options → **home** node URL; grant optional HTTPS host access on Save; prefer `chrome-extension://<id>` in `CLIENT_ORIGINS` on nodes ([LENS.md](./LENS.md)) |
+| **Agency SDK** | Widget at node URL; add agency origin to `CLIENT_ORIGINS` / `CORS_ORIGINS` |
 
 ---
 

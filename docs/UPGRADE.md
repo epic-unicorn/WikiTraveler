@@ -1,6 +1,6 @@
 # Upgrade runbook
 
-Upgrade a **production node** or **WikiTraveler Access** deployment to a new WikiTraveler release.
+Upgrade a **production node** and, if you operate one, a **hub or branded Access** deployment to a new WikiTraveler release. Access is a separate client artifact ([OPERATORS.md](./OPERATORS.md#audiences)).
 
 **Before you start:** read the target version in [CHANGELOG.md](../CHANGELOG.md) and [RELEASES.md](./RELEASES.md).
 
@@ -10,8 +10,9 @@ Upgrade a **production node** or **WikiTraveler Access** deployment to a new Wik
 
 1. **Backup first** — Admin gzip export or database snapshot.
 2. **Migrate before code** — If the release includes Prisma migrations, run `pnpm db:deploy` before starting the new app version.
-3. **Verify after** — `GET /api/health`, peer gossip, Access login.
-4. **Rollback = previous image/tag + restore backup** — Prisma production rollbacks are not `migrate reset`.
+3. **Verify after** — `GET /api/health`, peer gossip, hub Access login (and a foreign-region resolve if you mesh).
+4. **Node + Access pair when contracts break** — Viewport map and similar client/API changes need both redeployed (**H5** / [COMPATIBILITY.md](./COMPATIBILITY.md)).
+5. **Rollback = previous image/tag + restore backup** — Prisma production rollbacks are not `migrate reset`.
 
 ---
 
@@ -113,11 +114,12 @@ Confirm `CRON_SECRET` unchanged and cron routes still authorized. See [VERCEL.md
 
 ### 5. WikiTraveler Access (Vercel)
 
-Separate project — redeploy if:
+Separate project (hub, backup, or branded) — redeploy if:
 
-- `NEXT_PUBLIC_NODE_API_URL` changed, or
-- Release notes mention Access API changes.
+- `NEXT_PUBLIC_NODE_API_URL` (default home node) changed, or
+- Release notes mention Access API / map contract changes (**H5** — redeploy node too).
 
+Keep backup Access origins on node `CLIENT_ORIGINS` through the upgrade (**H4**).
 ---
 
 ## Hybrid (ingest local, API on Vercel)

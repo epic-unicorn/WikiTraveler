@@ -52,10 +52,10 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
   for (let len = words.length; len >= 2; len--) {
     const q = words.slice(0, len).join(" ");
     try {
-      const res = await fetch(
-        `${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`,
-        { signal: AbortSignal.timeout(6000), headers }
-      );
+      const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
+        headers,
+        timeoutMs: 6000,
+      });
       if (!res.ok) continue;
       const data = await res.json();
       const results = data.properties ?? [];
@@ -356,10 +356,10 @@ function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
 
     searchTimer = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`,
-          { signal: AbortSignal.timeout(6000), headers: authHeaders }
-        );
+        const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
+          headers: authHeaders,
+          timeoutMs: 6000,
+        });
         if (!res.ok) return;
         const data = await res.json();
         const properties = data.properties ?? [];
@@ -486,11 +486,11 @@ function showLoginForm(content, locale, nodeUrl = "http://localhost:3000", nodeH
       btn.textContent = wtT("ui.authSigningIn", locale);
 
       try {
-        const res = await fetch(`${items.nodeUrl}/api/auth/login`, {
+        const res = await nodeFetch(`${items.nodeUrl}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
-          signal: AbortSignal.timeout(8000),
+          timeoutMs: 8000,
         });
         const data = await res.json();
         if (!res.ok) {
@@ -533,9 +533,9 @@ function showLoading(content, locale, message) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHeaders, locale, tab) {
-  const res = await fetch(
+  const res = await nodeFetch(
     `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
-    { signal: AbortSignal.timeout(6000), headers: authHeaders }
+    { headers: authHeaders, timeoutMs: 6000 }
   );
 
   if (res.status === 401 || res.status === 403) {

@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Access treats **home node** as identity and **data node** (GPS resolve) for search/browse/nearby; uncovered locations show “This area isn’t covered yet” instead of dumping home-node map pins ([RFC-0002](docs/rfcs/0002-global-hub-access.md) M2)
 - Peer resolve picks the **smallest containing** peer bbox (then nearest center) when multiple peers overlap
 - Viewport map API: `GET /api/properties/map` requires `bbox=` (or Admin `region=1`); oversized viewports return `BBOX_TOO_LARGE`; Access shows coverage at low zoom and loads pins per viewport ([RFC-0002](docs/rfcs/0002-global-hub-access.md) M3)
+- Lens proxies Node API calls through the extension service worker (`NODE_FETCH`); optional HTTPS host permissions for production mesh peers; coverage copy “No WikiTraveler coverage here.” ([RFC-0002](docs/rfcs/0002-global-hub-access.md) M4)
 
 ### Changed
 
@@ -24,7 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Access browse map loads pins from the resolved **data** node, not always the home node
 - Nearby queries prefilter by a rough lat/lon window before haversine
 - Admin dashboard map uses `?region=1` (node configured bbox) instead of an unscoped pin dump
-
+- Operator / release docs distinguish **hub Access** vs **node** mesh; backup Access dual-origin allowlisting (**H4**); Access↔node map redeploy pair (**H5**) ([OPERATORS.md](docs/OPERATORS.md), [RELEASES.md](docs/RELEASES.md), [RFC-0002](docs/rfcs/0002-global-hub-access.md) M5)
+- Lens options copy: home node = identity; routes to regional data nodes when covered
 ---
 
 ## [0.3.0] - 2026-08-04
