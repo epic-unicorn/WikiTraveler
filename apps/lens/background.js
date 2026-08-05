@@ -63,6 +63,56 @@ async function setExtensionIcon() {
 chrome.runtime.onInstalled.addListener(setExtensionIcon);
 chrome.runtime.onStartup.addListener(setExtensionIcon);
 
+// ── Node API fetch (service worker — host_permissions, not page CORS) ─────────
+
+function isAllowedNodeUrl(raw) {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+async function handleNodeFetch(msg) {
+  if (!msg.url || !isAllowedNodeUrl(msg.url)) {
+    return { error: "Invalid node URL" };
+  }
+  const method = (msg.method ?? "GET").toUpperCase();
+  const timeoutMs = typeof msg.timeoutMs === "number" ? msg.timeoutMs : 8000;
+  try {
+    const init = {
+      method,
+      headers: msg.headers ?? {},
+      signal: AbortSignal.timeout(timeoutMs),
+    };
+    if (msg.body != null && method !== "GET" && method !== "HEAD") {
+      init.body = msg.body;
+    }
+    const res = await fetch(msg.url, init);
+    const contentType = res.headers.get("content-type") ?? "";
+    const body = await res.text();
+    let json = undefined;
+    if (contentType.includes("application/json") || contentType.includes("+json")) {
+      try {
+        json = JSON.parse(body);
+      } catch {
+        json = undefined;
+      }
+    }
+    return {
+      ok: res.ok,
+      status: res.status,
+      statusText: res.statusText,
+      headers: { "content-type": contentType },
+      body,
+      ...(json !== undefined ? { json } : {}),
+    };
+  } catch (err) {
+    return { error: err?.message ?? "Node fetch failed" };
+  }
+}
+
 // ── Message handling ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -71,6 +121,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       sendResponse({ nodeUrl: items.nodeUrl });
     });
     return true; // keep channel open for async response
+  }
+
+  if (msg.type === "NODE_FETCH") {
+    handleNodeFetch(msg).then(sendResponse);
+    return true;
   }
 
   if (msg.type === "RESOLVE_NODE") {
@@ -84,13 +139,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
       const headers = wtToken ? { Authorization: `Bearer ${wtToken}` } : {};
       try {
-        const res = await fetch(
-          `${nodeUrl}/api/peers/resolve?lat=${encodeURIComponent(msg.lat)}&lon=${encodeURIComponent(msg.lon)}`,
-          { signal: AbortSignal.timeout(4000), headers }
-        );
-        if (res.ok) {
-          const data = await res.json();
+        const result = await handleNodeFetch({
+          url: `${nodeUrl}/api/peers/resolve?lat=${encodeURIComponent(msg.lat)}&lon=${encodeURIComponent(msg.lon)}`,
+          method: "GET",
+          headers,
+          timeoutMs: 4000,
+        });
+        if (result.ok && result.json) {
+          const data = result.json;
           sendResponse({ nodeUrl: data.url ?? nodeUrl, regionMissing: data.matched === "fallback" });
+        } else if (result.ok && result.body) {
+          try {
+            const data = JSON.parse(result.body);
+            sendResponse({ nodeUrl: data.url ?? nodeUrl, regionMissing: data.matched === "fallback" });
+          } catch {
+            sendResponse({ nodeUrl, regionMissing: false });
+          }
         } else {
           sendResponse({ nodeUrl, regionMissing: false });
         }

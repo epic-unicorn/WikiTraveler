@@ -4,7 +4,7 @@
 
 Self-host a WikiTraveler node with Docker Compose. Postgres and the node run in containers — no Vercel required.
 
-**WikiTraveler Access** can run in the same stack — see [Node + Access stack](#node--access-stack) below, or use local dev / [Vercel](./VERCEL.md#5-deploy-wikitraveler-access) instead.
+**WikiTraveler Access** can run in the same stack for local/branded testing — see [Node + Access stack](#node--access-stack) below, or use local dev / [Vercel](./VERCEL.md#5-deploy-wikitraveler-access-hub-or-branded). Production travelers usually use the **canonical hub** (`access.wikitraveler.org`); co-locating Access is optional ([OPERATORS.md](./OPERATORS.md#audiences)).
 
 ---
 
@@ -13,7 +13,7 @@ Self-host a WikiTraveler node with Docker Compose. Postgres and the node run in 
 Run **Postgres, node, and WikiTraveler Access** together (no compose profile):
 
 ```bash
-cp .env.example .env   # set keys, NODE_URL, etc.
+cp .env.example .env   # set keys, NODE_URL, CLIENT_ORIGINS / CORS_ORIGINS, etc.
 pnpm docker:stack      # or: docker compose -f docker/docker-compose.node-access.yml up -d
 ```
 
@@ -33,7 +33,7 @@ pnpm docker:stack:build
 docker compose -f docker/docker-compose.node-access.yml up --build -d access
 ```
 
-Include the Access origin in `CORS_ORIGINS` (the stack defaults to `http://localhost:3001,http://localhost:3000` when unset).
+Include the Access origin in `CORS_ORIGINS` / `CLIENT_ORIGINS` (the stack defaults to `http://localhost:3001,http://localhost:3000` when unset). For a public node, also allow the canonical hub (and backup) origins.
 
 Stop / reset:
 

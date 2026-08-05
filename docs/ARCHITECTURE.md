@@ -54,7 +54,7 @@ The canonical deployment unit. A Next.js 16 App Router app serving:
 
 ### `apps/access`
 
-Mobile-optimised Next.js app for travelers and auditors. Connects to any node via `NEXT_PUBLIC_NODE_API_URL`.
+Mobile-optimised Next.js app for travelers and auditors. **Hub operators** run the canonical client (`https://access.wikitraveler.org`); node operators may run a branded copy. Connects to a default home node via `NEXT_PUBLIC_NODE_API_URL` and to **data nodes** via GPS resolve — nodes must allow the Access origin in `CLIENT_ORIGINS` / `CORS_ORIGINS` ([RFC-0002](./rfcs/0002-global-hub-access.md)).
 
 **Auth:** All authenticated roles (`USER`, `AUDITOR`, `ADMIN`) may use the app. Middleware redirects unauthenticated requests to `/login`. `USER` accounts can browse, save places, and submit community signals; only `AUDITOR`/`ADMIN` may open the audit wizard (enforced in middleware and API).
 
@@ -79,11 +79,11 @@ Photos attach to the **audit step** (or room type) where they were captured — 
 
 Chrome MV3 extension. Injects hover tooltips on listing pages and shows accessibility data in the toolbar popup on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step.
 
-**Auth:** The popup shows a login form when no token is stored. On successful login the RS256 JWT is saved to `chrome.storage.sync`. A register link opens the node's `/register` page in a new browser tab — after account creation (and admin approval to AUDITOR), the user returns to the popup to sign in.
+**Auth:** The popup shows a login form when no token is stored. On successful login the RS256 JWT is saved to `chrome.storage.sync`. A register link opens the home node's `/register` page in a new browser tab — after account creation (and admin approval to AUDITOR), the user returns to the popup to sign in.
 
-- Listing pages: hover tooltips (350 ms delay) with the top 8 accessibility facts per hotel card.
+- Listing pages: hover tooltips (350 ms delay) with the top 8 accessibility facts per hotel card; coverage warning when resolve falls back.
 - Detail pages: click the Lens icon to open the popup with all facts; falls back to name-search + coordinate scoring when only a slug-style ID is available.
-- `background.js`: resolves the best regional node via `/api/peers/resolve` (auth token included).
+- `background.js`: resolves the best regional node via `/api/peers/resolve` and **proxies all Node API fetches** (`NODE_FETCH`) so content scripts are not subject to OTA page CORS. Optional HTTPS host permissions cover production mesh peers. See [LENS.md](./LENS.md).
 
 ### `apps/agency-demo`
 

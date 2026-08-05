@@ -8,14 +8,15 @@ WikiTraveler is built for a **federated mesh** — independent operators, shared
 
 | Role | What you do | Primary docs |
 |------|-------------|--------------|
-| **Traveler** | Browse accessibility facts via Access or agency widgets | Use a public Access URL from your regional operator |
+| **Traveler** | Browse accessibility facts via **hub Access** (canonical `access.wikitraveler.org`) or agency widgets | Prefer the public hub; regional Access is optional branding |
 | **Auditor** | Submit on-site verified audits | [apps/README.md](../apps/README.md) Flow 2 |
-| **Node operator** | Run a sovereign regional node (API + data) | [OPERATORS.md](./OPERATORS.md) |
-| **Client maintainer** | Deploy or customize Access, Lens, SDK integrations | [DEVELOPMENT.md](./DEVELOPMENT.md) |
+| **Node operator** | Run a sovereign regional node (API + data); allow trusted hub origins | [OPERATORS.md](./OPERATORS.md) |
+| **Hub operator** | Run canonical / backup / branded Access; uptime for travelers | [OPERATORS.md](./OPERATORS.md#audiences) · [VERCEL.md](./VERCEL.md) |
+| **Client maintainer** | Customize Access, Lens, SDK integrations | [DEVELOPMENT.md](./DEVELOPMENT.md) · [LENS.md](./LENS.md) |
 | **Core contributor** | Protocol, gossip, merge logic, shared packages | [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | **Maintainer** | Releases, migrations, federation compatibility | [RELEASES.md](./RELEASES.md) |
 
-No central vendor is required. Operators choose when to deploy; contributors improve the open toolkit everyone shares.
+No central vendor is required. Operators choose when to deploy; contributors improve the open toolkit everyone shares. Nodes hold truth; Access is a client.
 
 ---
 
@@ -50,7 +51,8 @@ Operators are **not** required to run the latest version immediately. The projec
 You do not need to merge code to participate:
 
 - Run a public node and opt into the [public peers directory](./PUBLIC-PEERS.md).
-- Publish your Access URL for travelers in your region.
+- Allow the **canonical hub** (and backup) origins on your node so travelers stay on one Access worldwide ([RFC-0002](./rfcs/0002-global-hub-access.md)).
+- Optionally publish a branded Access URL for your region — not required for mesh participation.
 - Share OSM ingest experience and bbox presets.
 - Report federation issues with `pnpm gossip:check` / `pnpm gossip:discovery` output and peer `/api/nodeinfo` responses.
 

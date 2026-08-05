@@ -1,8 +1,29 @@
 # Operators guide
 
-Run a **WikiTraveler node** in production: API, dashboard, gossip, and cron. WikiTraveler Access is an optional client you deploy separately.
+Run a **WikiTraveler node** in production: API, dashboard, gossip, and cron. Travelers typically use a **hub Access** (canonical `https://access.wikitraveler.org`); deploying Access next to your node is optional branding, not the main mesh story ([RFC-0002](./rfcs/0002-global-hub-access.md)).
 
 **Related:** [Docker](./DOCKER.md) · [Vercel](./VERCEL.md) · [Upgrade](./UPGRADE.md) · [Releases](./RELEASES.md)
+
+---
+
+## Audiences
+
+| Audience | You run | Expectation |
+|----------|---------|-------------|
+| **Node operators** | Regional Node + OSM + gossip | Allow **trusted hub origins** (`CLIENT_ORIGINS` / `CORS_ORIGINS`); Access optional |
+| **Hub operators** | Access PWA (canonical or branded) | Point `NEXT_PUBLIC_NODE_API_URL` at a default home node; keep uptime; list a **backup Access** origin on nodes (**H4**) |
+
+Canonical hub for travelers: **`https://access.wikitraveler.org`**. Additional branded hubs are allowed; each origin must be on every data node’s trusted client allowlist to reach that region.
+
+### Hub outage (H4)
+
+If the canonical hub is down, nodes and gossip still work. Mitigations:
+
+1. Publish a **backup Access** URL (second Vercel/Docker deploy of `apps/access`).
+2. Add **both** origins to every public node’s `CLIENT_ORIGINS` (e.g. `https://access.wikitraveler.org,https://access-backup.example.org`).
+3. Point travelers at the backup in status pages / COMMUNITY links until the canonical hub recovers.
+
+Access is a client — redeploying it does not require node DB migrations.
 
 ---
 
@@ -10,10 +31,12 @@ Run a **WikiTraveler node** in production: API, dashboard, gossip, and cron. Wik
 
 | Component | Required? | Role |
 |-----------|-----------|------|
-| **Node** (`apps/node`) | **Yes** | PostgreSQL-backed API, admin, gossip, crons |
-| **WikiTraveler Access** (`apps/access`) | No | Mobile PWA for travelers and auditors |
-| **Lens** | No | Chrome extension; calls your node URL |
+| **Node** (`apps/node`) | **Yes** | PostgreSQL-backed API, admin, gossip, crons — holds truth |
+| **WikiTraveler Access** (`apps/access`) | No* | Mobile PWA; hub operators run the global door; node operators may run a branded regional Access |
+| **Lens** | No | Chrome extension; home node = identity; background fetch to regional data nodes |
 | **SDK** | No | Embedded by agencies; calls your node URL |
+
+\*Most travelers use the **canonical hub**, not a per-node Access. Do not assume “deploy Access only for my node’s travelers” is the primary path.
 
 Each node is **sovereign**: your `NODE_ID`, keys, region bbox, database, and upgrade schedule.
 
@@ -38,14 +61,15 @@ Each node is **sovereign**: your `NODE_ID`, keys, region bbox, database, and upg
 - [ ] Stable `NODE_ID` and public `NODE_URL`
 - [ ] RS256 keypair (`NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY`)
 - [ ] `CRON_SECRET` for cron routes (Vercel required; recommended for Docker)
-- [ ] `CORS_ORIGINS` / `CLIENT_ORIGINS` allow your hub Access URL (e.g. `https://access.wikitraveler.org`), Lens `chrome-extension://…`, and any SDK embed origins — see [RFC-0002](./rfcs/0002-global-hub-access.md)
-- [ ] Optional `ACCESS_PUBLIC_URL` if this node advertises an Access hub on `/api/nodeinfo`
+- [ ] `CORS_ORIGINS` / `CLIENT_ORIGINS` allow the **canonical hub** (`https://access.wikitraveler.org`), any **backup / branded** Access origins, Lens `chrome-extension://…` (when you know the Store/extension ID), and SDK embed origins — see [RFC-0002](./rfcs/0002-global-hub-access.md)
+- [ ] Optional `ACCESS_PUBLIC_URL` if this node advertises a preferred Access on `/api/nodeinfo` (hubs/directory only — **not** automatic CORS trust from gossip)
 - [ ] Rate limiting via Upstash (recommended for public nodes) — see [VERCEL.md](./VERCEL.md)
 
 **Never in production:**
 
 - [ ] Do **not** deploy without `NODE_PRIVATE_KEY` / `NODE_PUBLIC_KEY` (HS256 fallback is dev-only)
 - [ ] Do **not** leave `CORS_ORIGINS=*` unless intentional
+- [ ] Do **not** auto-trust gossiped `accessUrl` values for CORS
 - [ ] Do **not** commit `.env` or paste secrets into issues
 
 Report vulnerabilities: [SECURITY.md](../SECURITY.md) (private reporting, not public issues).
@@ -69,12 +93,17 @@ Report vulnerabilities: [SECURITY.md](../SECURITY.md) (private reporting, not pu
 - [ ] Peers can reach your `NODE_URL` over HTTPS
 - [ ] Verify: `GET /api/nodeinfo` returns `publicKeyPem` and peers
 
-### 5. WikiTraveler Access (optional)
+### 5. WikiTraveler Access (optional for node ops; required for hub ops)
 
-- [ ] Separate deploy with `NEXT_PUBLIC_NODE_API_URL` = your node URL
+**Node operators:** prefer pointing travelers to the canonical hub. If you run a branded Access:
+
+- [ ] Separate deploy with `NEXT_PUBLIC_NODE_API_URL` = your node URL (default home)
 - [ ] Rebuild Access whenever that URL changes (build-time env)
+- [ ] Ensure **your** Access origin is on **peer** nodes’ `CLIENT_ORIGINS` if users leave your region
 - [ ] Docker (both apps): `pnpm docker:stack` — see [DOCKER.md](./DOCKER.md#node--access-stack)
 - [ ] Docker (Access profile on node-only compose): `pnpm docker:access`
+
+**Hub operators:** deploy Access separately; keep a backup URL; document both in COMMUNITY / status.
 
 ### 6. Verify
 

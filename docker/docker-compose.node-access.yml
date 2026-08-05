@@ -1,4 +1,6 @@
 # Node + WikiTraveler Access + Postgres — one command, no compose profile.
+# Local / branded Access testing. Production travelers typically use the
+# canonical hub (access.wikitraveler.org); see docs/OPERATORS.md#audiences.
 #
 # Usage:
 #   docker compose -f docker/docker-compose.node-access.yml up -d

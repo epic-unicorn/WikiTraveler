@@ -108,6 +108,11 @@ function getAuthHeaders() {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "sync") return;
   if ("wtToken" in changes) _authHeadersPromise = null;
+  if ("nodeUrl" in changes) {
+    _nodeUrl = null;
+    _regionMissing = false;
+    _cardCache.clear();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -134,10 +139,10 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
   for (let len = words.length; len >= 2; len--) {
     const q = words.slice(0, len).join(" ");
     try {
-      const res = await fetch(
-        `${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`,
-        { signal: AbortSignal.timeout(6000), headers }
-      );
+      const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
+        headers,
+        timeoutMs: 6000,
+      });
       if (!res.ok) continue;
       const data = await res.json();
       const results = data.properties ?? [];
@@ -336,6 +341,14 @@ function showTooltip(anchorEl, facts, propertyName, interactive = false) {
   hdr.appendChild(hdrText);
   _tooltip.appendChild(hdr);
 
+  if (_regionMissing) {
+    const warn = document.createElement("div");
+    warn.style.cssText =
+      "padding:6px 12px;background:#fffbeb;color:#92400e;font-size:11px;border-bottom:1px solid #fde68a";
+    warn.textContent = wtT("ui.lensRegionalWarning", _locale);
+    _tooltip.appendChild(warn);
+  }
+
   const bodyEl = document.createElement("div");
   bodyEl.style.cssText = "padding:8px 12px;max-height:200px;overflow-y:auto";
 
@@ -472,9 +485,9 @@ async function handleCardEnter(card, fromKeyboard = false) {
     }
 
     try {
-      const res = await fetch(
+      const res = await nodeFetch(
         `${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/accessibility`,
-        { signal: AbortSignal.timeout(6000), headers }
+        { headers, timeoutMs: 6000 }
       );
 
       if (res.status === 401 || res.status === 403) {
@@ -489,9 +502,9 @@ async function handleCardEnter(card, fromKeyboard = false) {
         if (headingName) {
           const { match } = await searchForProperty(headingName, nodeUrl, null, headers);
           if (match) {
-            const res2 = await fetch(
+            const res2 = await nodeFetch(
               `${nodeUrl}/api/properties/${encodeURIComponent(match.id)}/accessibility`,
-              { signal: AbortSignal.timeout(6000), headers }
+              { headers, timeoutMs: 6000 }
             );
             if (res2.ok) {
               const data2 = await res2.json();

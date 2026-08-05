@@ -14,6 +14,10 @@
     "*://localhost/*",
     "*://127.0.0.1/*"
   ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -30,6 +34,7 @@
       "js": [
         "i18n.js",
         "locale.js",
+        "nodeApi.js",
         "content.js"
       ],
       "run_at": "document_end"

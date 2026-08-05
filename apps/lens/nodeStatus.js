@@ -4,7 +4,7 @@ async function fetchNodeInfo(nodeUrl) {
   const url = (nodeUrl ?? "").trim().replace(/\/$/, "");
   if (!url) return null;
   try {
-    const res = await fetch(`${url}/api/nodeinfo`, { signal: AbortSignal.timeout(5000) });
+    const res = await nodeFetch(`${url}/api/nodeinfo`, { timeoutMs: 5000 });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -39,7 +39,7 @@ async function checkNodeHealth(nodeUrl, locale = "en") {
   }
 
   try {
-    const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(5000) });
+    const res = await nodeFetch(`${url}/api/health`, { timeoutMs: 5000 });
     if (!res.ok) {
       return {
         state: "offline",
