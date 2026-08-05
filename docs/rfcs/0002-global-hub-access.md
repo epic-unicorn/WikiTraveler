@@ -13,7 +13,7 @@
 | **M0** RFC accept | Done | [#49](https://github.com/ingmarstruijs/WikiTraveler/pull/49) docs · [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) |
 | **M1** Trusted CORS / client origins | Done | [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50) |
 | **M2** Access home vs data routing + resolve quality | Done | [#52](https://github.com/ingmarstruijs/WikiTraveler/pull/52) |
-| **M3** Viewport / coverage map | In review | this PR |
+| **M3** Viewport / coverage map | In review | [#54](https://github.com/ingmarstruijs/WikiTraveler/pull/54) |
 | **M4** Lens alignment | Not started | — |
 | **M5** Docs / release narrative (hub vs node) | Not started | — |
 | **M6** Follow-ons | Later | — |
