@@ -11,13 +11,16 @@ Two-node setup for testing inbox push and gossip pull without production infrast
 ```bash
 pnpm dev:gossip-lab     # foreground — Node A :3000, Node B :3010
 pnpm gossip:discovery   # E2E: organic BOOTSTRAP_PEERS discovery + sync (no link-peers)
+pnpm gossip:hardening   # Tier A: dual-path push/pull, auth negatives, bbox, crud, reingest
 pnpm gossip:check       # verify peer registration + property/override counts
 pnpm gossip:link-peers  # only if bootstrap has not linked yet
 pnpm gossip:sync        # manual gossip pull on both nodes
-pnpm gossip:crud        # demo: property CRUD + metadata-override propagation
+pnpm gossip:crud        # property CRUD + metadata-override propagation (asserted)
 pnpm gossip:reingest    # re-run OSM ingest; confirm overrides survive
 pnpm gossip:compat      # N↔N-1 mixed lab (needs compat compose overlays)
 ```
+
+Advanced suite plan and upcoming tiers: [FEDERATION-E2E.md](./FEDERATION-E2E.md).
 
 **Prerequisites:** Docker Desktop. First start runs `pnpm install` inside the container (empty `node_modules` volume) and may take several minutes.
 

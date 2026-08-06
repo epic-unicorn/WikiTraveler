@@ -30,6 +30,7 @@ Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (as
 | **RFC template** | [docs/rfcs/](./rfcs/README.md) + GitHub issue template |
 | **Peer directory** | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) (empty until operators opt in) |
 | **Discovery E2E** | `pnpm gossip:discovery` in CI |
+| **Federation hardening E2E** | `pnpm gossip:hardening` in CI (push/pull, auth, bbox, crud, reingest) — [FEDERATION-E2E.md](./FEDERATION-E2E.md) |
 | **Gossip protocol 2** | Emit `2` / min `1` — [RFC-0001](./rfcs/0001-gossip-protocol-2.md) |
 
 Ship tagged artifacts so operators and integrators do not clone `main`.
@@ -106,9 +107,9 @@ Conformance is still **partially conformant** with known issues (Leaflet keyboar
 
 ### End-to-end traveler / auditor journeys
 
-Vitest covers libs and API smoke well; there is no Playwright/Cypress CI path for full flows.
+Vitest covers libs and API smoke well; gossip lab CI covers mesh discovery + Tier A hardening ([FEDERATION-E2E.md](./FEDERATION-E2E.md)). There is no Playwright/Cypress CI path for full Access/Lens flows yet.
 
-**Direction:** A few CI journeys — login → nearby → property → signal/audit → Admin triage; optional Lens popup smoke — so regressions show up before operators do.
+**Direction:** Hub Access Playwright (login home → resolve data → audit); optional Lens popup smoke; Tier B/C suites in [FEDERATION-E2E.md](./FEDERATION-E2E.md).
 
 ### Dependency security without override debt
 

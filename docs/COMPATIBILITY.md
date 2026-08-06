@@ -18,7 +18,7 @@ Cross-version behaviour for WikiTraveler nodes in a federated mesh.
 | Access with viewport map (RFC-0002 M3) → Node without `map?bbox=` | No | Redeploy **Node + Access** together (**H5**); unscoped `/api/properties/map` is rejected |
 | Lens with background `NODE_FETCH` (M4) → older nodes | Yes | Same REST; needs host permission / reachability to home + data nodes |
 
-Maintainers test **same-version discovery** and **N ↔ N-1** in CI ([gossip-compat](../.github/workflows/gossip-compat.yml)).
+Maintainers test **same-version discovery**, **Tier A hardening** (push/pull, auth, bbox, crud, reingest), and **N ↔ N-1** in CI ([gossip-compat](../.github/workflows/gossip-compat.yml), [FEDERATION-E2E.md](./FEDERATION-E2E.md)).
 
 ---
 

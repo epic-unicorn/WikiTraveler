@@ -75,6 +75,12 @@ jobs:
           GOSSIP_DISCOVERY_RETRY_MS: "5000"
         run: pnpm gossip:discovery
 
+      - name: Federation hardening E2E (push/pull, auth, bbox, crud, reingest)
+        env:
+          GOSSIP_LAB_RETRIES: "40"
+          GOSSIP_LAB_RETRY_MS: "5000"
+        run: pnpm gossip:hardening
+
       - name: Stop gossip lab
         if: always()
         run: $GOSSIP_COMPOSE_SAME down -v
