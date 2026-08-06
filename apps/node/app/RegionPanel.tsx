@@ -3,11 +3,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@wikitraveler/ui";
 
+type PresetTier = "city" | "country" | "region" | "geofabrik";
+type PresetContinent =
+  | "europe"
+  | "north-america"
+  | "south-america"
+  | "asia"
+  | "africa"
+  | "oceania";
+
 interface Preset {
   id: string;
   label: string;
   bbox: string;
-  tier: "city" | "country" | "region" | "geofabrik";
+  tier: PresetTier;
+  /** Present on current catalog; optional for older API payloads. */
+  continent?: PresetContinent;
 }
 
 interface Settings {
@@ -20,11 +31,10 @@ interface Settings {
   auditedReimportPending: boolean;
 }
 
-function presetTierLabel(
-  tier: Preset["tier"],
-  t: (key: string) => string
-): string {
-  const keys: Record<Preset["tier"], string> = {
+type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+function presetTierLabel(tier: PresetTier, t: Translate): string {
+  const keys: Record<PresetTier, string> = {
     city: "ui.adminPresetTierCity",
     country: "ui.adminPresetTierCountry",
     region: "ui.adminPresetTierRegion",
@@ -33,7 +43,39 @@ function presetTierLabel(
   return t(keys[tier]);
 }
 
-const PRESET_TIER_ORDER: Preset["tier"][] = ["city", "country", "region", "geofabrik"];
+function presetContinentLabel(continent: PresetContinent, t: Translate): string {
+  const keys: Record<PresetContinent, string> = {
+    europe: "ui.adminPresetContinentEurope",
+    "north-america": "ui.adminPresetContinentNorthAmerica",
+    "south-america": "ui.adminPresetContinentSouthAmerica",
+    asia: "ui.adminPresetContinentAsia",
+    africa: "ui.adminPresetContinentAfrica",
+    oceania: "ui.adminPresetContinentOceania",
+  };
+  return t(keys[continent]);
+}
+
+/** HTML <select> only supports one optgroup level — combine tier × continent. */
+function presetOptgroupLabel(
+  tier: PresetTier,
+  continent: PresetContinent,
+  t: Translate
+): string {
+  return t("ui.adminPresetGroupLabel", {
+    tier: presetTierLabel(tier, t),
+    continent: presetContinentLabel(continent, t),
+  });
+}
+
+const PRESET_TIER_ORDER: PresetTier[] = ["city", "country", "region", "geofabrik"];
+const PRESET_CONTINENT_ORDER: PresetContinent[] = [
+  "europe",
+  "north-america",
+  "south-america",
+  "asia",
+  "africa",
+  "oceania",
+];
 
 export function RegionPanel({ token }: { token: string }) {
   const { t, locale } = useLocale();
@@ -236,17 +278,21 @@ export function RegionPanel({ token }: { token: string }) {
       <label className="wt-admin-label">{t("ui.adminPresetOptional")}</label>
       <select value={presetId} onChange={(e) => handlePresetChange(e.target.value)} className="wt-admin-select">
         <option value="">{t("ui.adminPresetCustom")}</option>
-        {PRESET_TIER_ORDER.map((tier) => {
-          const tierPresets = presets.filter((p) => p.tier === tier);
-          if (tierPresets.length === 0) return null;
-          return (
-            <optgroup key={tier} label={presetTierLabel(tier, t)}>
-              {tierPresets.map((p) => (
-                <option key={p.id} value={p.id}>{p.label}</option>
-              ))}
-            </optgroup>
-          );
-        })}
+        {PRESET_TIER_ORDER.flatMap((tier) =>
+          PRESET_CONTINENT_ORDER.map((continent) => {
+            const group = presets.filter(
+              (p) => p.tier === tier && (p.continent ?? "europe") === continent
+            );
+            if (group.length === 0) return null;
+            return (
+              <optgroup key={`${tier}:${continent}`} label={presetOptgroupLabel(tier, continent, t)}>
+                {group.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </optgroup>
+            );
+          })
+        )}
       </select>
 
       <label className="wt-admin-label">{t("ui.adminBboxField")}</label>

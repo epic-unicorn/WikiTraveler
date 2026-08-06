@@ -40,7 +40,7 @@ Operators are **not** required to run the latest version immediately. The projec
 4. For UI changes, run accessibility checks: [ACCESSIBILITY.md](./ACCESSIBILITY.md).
 5. Federation-impacting design: open an **RFC** ([docs/rfcs/](./rfcs/README.md)).
 
-**Good first contributions:** docs fixes, i18n strings (`packages/i18n`), test coverage, operator runbook improvements, sample region presets. Look for issues labeled `good first issue` or `help wanted`.
+**Good first contributions:** docs fixes, i18n strings (`packages/i18n`), test coverage, operator runbook improvements, **global region presets** (cities/countries outside the current catalog — see [LOCAL.md](./LOCAL.md#region-presets-global-catalog)). Look for issues labeled `good first issue` or `help wanted`.
 
 **Needs design discussion first:** gossip protocol shape changes, Prisma breaking migrations, auth model changes (use the RFC template).
 
@@ -53,7 +53,7 @@ You do not need to merge code to participate:
 - Run a public node and opt into the [public peers directory](./PUBLIC-PEERS.md).
 - Allow the **canonical hub** (and backup) origins on your node so travelers stay on one Access worldwide ([RFC-0002](./rfcs/0002-global-hub-access.md)).
 - Optionally publish a branded Access URL for your region — not required for mesh participation.
-- Share OSM ingest experience and bbox presets.
+- Share OSM ingest experience and propose bbox presets for underserved continents/cities.
 - Report federation issues with `pnpm gossip:check` / `pnpm gossip:discovery` output and peer `/api/nodeinfo` responses.
 
 Use the **Operator help** issue template when asking for deployment support.

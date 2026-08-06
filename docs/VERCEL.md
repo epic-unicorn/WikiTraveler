@@ -172,7 +172,7 @@ Vercel **serves and imports** property data only — it does not run OSM ingesti
 **Option A — shared database (recommended for large regions)**
 
 1. On local/Docker, point `DATABASE_URL` at your hosted Postgres.
-2. Run `pnpm node:region --preset netherlands` and `pnpm node:ingest pbf --region netherlands` (or Overpass for smaller areas).
+2. Run `pnpm node:region --preset <id>` and ingest — e.g. `netherlands`, `japan`, `us-california`, or a city preset such as `tokyo` / `eindhoven` (Overpass for cities; PBF for Geofabrik ids). See [LOCAL.md](./LOCAL.md#region-presets-global-catalog).
 3. Deploy to Vercel with the same `DATABASE_URL` — data is already in Postgres.
 
 **Option B — gzip JSON export/import**

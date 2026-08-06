@@ -109,14 +109,44 @@ OSM ingestion runs **offline only** — not in Admin and not on Vercel. Use the 
 | Method | When to use |
 |--------|-------------|
 | **Tiled Overpass** (`pnpm node:ingest overpass`) | Cities and medium regions (any size; Benelux ~128 tiles) |
-| **Geofabrik PBF** (`pnpm node:ingest pbf`) | Large countries (Netherlands, France, Germany, …) |
+| **Geofabrik PBF** (`pnpm node:ingest pbf`) | Large countries / US states worldwide (Japan, Brazil, California, …) |
 | **GeoJSON file** (`pnpm node:ingest geojson`) | You prepared an extract offline with osmium |
 | **Bundled sample** (`pnpm db:seed` or Admin → Load sample data) | Zero-setup Eindhoven demo data |
+
+### Region presets (global catalog)
+
+The Admin **Quick preset** dropdown and CLI `--preset` share one curated catalog in [`apps/node/lib/regionPresets.ts`](../apps/node/lib/regionPresets.ts), grouped by:
+
+| Field | Meaning |
+|-------|---------|
+| `tier` | Ingest class: `city` / `country` / `region` (Overpass) or `geofabrik` (PBF) |
+| `continent` | World region for UI optgroups: Europe, North/South America, Asia, Africa, Oceania |
+
+Every continent has major **cities** (fast Overpass start) plus larger **country / Geofabrik** extracts so operators can stand up a node anywhere in the mesh — not only in Europe. Geofabrik download metadata lives in [`apps/node/lib/geofabrik.ts`](../apps/node/lib/geofabrik.ts) (paths under `europe/`, `north-america/`, `asia/`, …).
+
+**Examples** (city Overpass → national/state PBF):
+
+```bash
+pnpm node:region --preset tokyo          # Asia city
+pnpm node:region --preset sao-paulo      # South America city
+pnpm node:region --preset cape-town      # Africa city
+pnpm node:region --preset us-california  # Geofabrik state extract
+pnpm node:region --preset japan          # Geofabrik country extract
+```
+
+**Adding a preset (contributors):**
+
+1. Choose `tier` + `continent` and a tight `bbox` (`minLat,minLon,maxLat,maxLon`).
+2. For Overpass tiers, keep the bbox under the tile cap (`OSM_TILE_MAX`, default 150) — `listRegionPresets()` drops oversized entries.
+3. For large extracts, add a matching row in `geofabrik.ts` (correct Geofabrik path + size estimate) and set `geofabrikId` on the preset.
+4. Extend `regionPresets.test.ts` if you introduce a new continent or ingest path convention.
+5. Prefer English geographic labels in the catalog (Admin i18n covers tier/continent group headings).
 
 ### 1. Set region
 
 ```bash
 pnpm node:region --preset eindhoven
+pnpm node:region --preset tokyo
 pnpm node:region --preset netherlands
 pnpm node:region --bbox "50.75,3.36,53.55,7.23" --label "Netherlands"
 ```
@@ -129,14 +159,16 @@ This writes bbox/label to `NodeSettings` (same as Admin → **Save region**).
 
 ```bash
 pnpm node:ingest overpass --preset eindhoven
+pnpm node:ingest overpass --preset tokyo
 pnpm node:ingest overpass --preset benelux
 ```
 
-**Geofabrik PBF** (large countries):
+**Geofabrik PBF** (large countries / states):
 
 ```bash
 pnpm node:ingest pbf --region netherlands
-pnpm node:ingest pbf --region france
+pnpm node:ingest pbf --region japan
+pnpm node:ingest pbf --region us-california
 ```
 
 Requires `osmium-tool`. On Windows use Docker: `pnpm osm:import-pbf:docker -- --region netherlands`.

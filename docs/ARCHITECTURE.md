@@ -60,6 +60,7 @@ The canonical deployment unit. A Next.js 16 App Router app serving:
 - **Gossip cron** at `/api/cron/gossip` — polls peers, ingests deltas, self-announces
 - **Auth pages**: `/login` (blocks USER role), `/register` (creates account, shows close-tab success for Lens flow)
 - **CORS proxy** — reflects a single trusted `Origin` when it matches the client allowlist (`apps/node/proxy.ts`; [RFC-0002](./rfcs/0002-global-hub-access.md) M1)
+- **Region presets** — curated global bbox catalog (`apps/node/lib/regionPresets.ts`) keyed by ingest `tier` and world `continent`; large extracts use Geofabrik URLs in `apps/node/lib/geofabrik.ts` (all continents). Admin groups presets as `{tier} · {continent}`. How to add presets: [LOCAL.md](./LOCAL.md#region-presets-global-catalog).
 
 ### `apps/access`
 
