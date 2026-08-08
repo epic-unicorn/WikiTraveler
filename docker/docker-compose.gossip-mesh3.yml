@@ -10,6 +10,8 @@
 #
 # CORS is locked to a trusted hub origin so H2 (gossiped accessUrl ≠ CORS) can be asserted.
 # Node C advertises an evil ACCESS_PUBLIC_URL that must not become trusted on A/B.
+# NODE_URL uses docker DNS (node-*:3000) so data nodes can fetch home /.well-known/pubkey (Tier C).
+# CLIENT_ORIGINS allowlists the lab Lens extension origin for Tier C lens-smoke.
 
 services:
   postgres-c:
@@ -32,12 +34,17 @@ services:
   node-a:
     environment:
       CORS_ORIGINS: "https://access.lab.example"
+      CLIENT_ORIGINS: "chrome-extension://wikitraveler-lab-lens"
+      # Docker-reachable home URL for federated JWT pubkey fetch (Tier C)
+      NODE_URL: http://node-a:3000
       # Keep A ↔ B only (no direct bootstrap to C)
       BOOTSTRAP_PEERS: http://node-b:3000
 
   node-b:
     environment:
       CORS_ORIGINS: "https://access.lab.example"
+      CLIENT_ORIGINS: "chrome-extension://wikitraveler-lab-lens"
+      NODE_URL: http://node-b:3000
       BOOTSTRAP_PEERS: http://node-a:3000,http://node-c:3000
 
   node-c:
@@ -66,11 +73,12 @@ services:
     environment:
       DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres-c:5432/wikitraveler
       NODE_ID: node-c
-      NODE_URL: http://localhost:3020
+      NODE_URL: http://node-c:3000
       BOOTSTRAP_PEERS: http://node-b:3000
       GOSSIP_DEV: "true"
       GOSSIP_KEY_DIR: /run/gossip-keys
       CORS_ORIGINS: "https://access.lab.example"
+      CLIENT_ORIGINS: "chrome-extension://wikitraveler-lab-lens"
       # Advertised hub URL — must NOT auto-trust for CORS on peers (RFC-0002 H2)
       ACCESS_PUBLIC_URL: "https://evil-access.example"
       PORT: "3000"

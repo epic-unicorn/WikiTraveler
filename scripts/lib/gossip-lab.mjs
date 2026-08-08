@@ -32,6 +32,14 @@ export const LAB_EVIL_ORIGIN = process.env.GOSSIP_LAB_EVIL_ORIGIN ?? "https://ev
 export const LAB_ADMIN_USER = process.env.GOSSIP_LAB_ADMIN_USER ?? "labadmin";
 export const LAB_ADMIN_PASS = process.env.GOSSIP_LAB_ADMIN_PASS ?? "labadmin-password";
 
+/** Lens lab extension origin — must be listed in CLIENT_ORIGINS on mesh-3 nodes. */
+export const LAB_LENS_ORIGIN =
+  process.env.GOSSIP_LAB_LENS_ORIGIN ?? "chrome-extension://wikitraveler-lab-lens";
+
+/** 1×1 PNG data URI for audit photo evidence E2E. */
+export const LAB_TINY_PNG_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
 export function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -277,4 +285,130 @@ export function dbUrlForNode(node) {
       ?? "postgresql://wikitraveler:wikitraveler@localhost:5435/wikitraveler";
   }
   throw new Error(`Unknown node ${node}`);
+}
+
+/** Assert CORS allow/deny for a browser Origin (RFC-0002 H1/H2). */
+export async function assertCors(base, origin, { expectAllow }) {
+  const { res } = await jsonFetch(`${base}/api/peers`, {
+    headers: { Origin: origin },
+    expectOk: true,
+  });
+  const acao = res.headers.get("access-control-allow-origin");
+  if (expectAllow) {
+    if (acao !== origin && acao !== "*") {
+      throw new Error(`${base}: trusted Origin ${origin} not allowed (got ${acao ?? "none"})`);
+    }
+    console.log(`✓ ${base} allows Origin ${origin} (ACAO=${acao})`);
+  } else {
+    if (acao === origin || acao === "*") {
+      throw new Error(`${base}: untrusted Origin ${origin} incorrectly allowed (ACAO=${acao})`);
+    }
+    console.log(`✓ ${base} rejects Origin ${origin} (ACAO=${acao ?? "none"})`);
+  }
+}
+
+export async function registerUser(base, { username, password }) {
+  const { res, data } = await jsonFetch(`${base}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+    expectOk: false,
+  });
+  if (res.status === 409) return { ok: true, existed: true };
+  if (!res.ok) throw new Error(`register ${username} → ${res.status}: ${data.message}`);
+  return { ok: true, existed: false };
+}
+
+export async function loginUser(base, { username, password }) {
+  const { data } = await jsonFetch(`${base}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!data.token) throw new Error(`${base}: login did not return a token`);
+  return data;
+}
+
+export async function promoteUser(base, adminToken, username, role = "AUDITOR") {
+  const { data } = await jsonFetch(`${base}/api/admin/users/${encodeURIComponent(username)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify({ role }),
+  });
+  return data;
+}
+
+/** Seed FieldDefinition catalogue into a lab DB (required for audit POST validation). */
+export async function seedFieldDefinitions(databaseUrl) {
+  const { spawnSync } = await import("child_process");
+  const { fileURLToPath } = await import("url");
+  const { dirname, join } = await import("path");
+  const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+  const result = spawnSync(
+    "pnpm",
+    ["exec", "tsx", "scripts/seed-fields.ts"],
+    {
+      cwd: root,
+      stdio: "inherit",
+      shell: false,
+      env: { ...process.env, DATABASE_URL: databaseUrl },
+    }
+  );
+  if (result.status !== 0) {
+    throw new Error(`seed-fields failed for ${databaseUrl.replace(/:[^:@/]+@/, ":****@")}`);
+  }
+}
+
+export async function fetchSnapshot(base, { since = "1970-01-01T00:00:00.000Z" } = {}) {
+  const headers = snapshotAuthHeaders(base);
+  const { data } = await jsonFetch(
+    `${base}/api/gossip/snapshot?since=${encodeURIComponent(since)}`,
+    { headers, timeoutMs: 60_000 }
+  );
+  return data;
+}
+
+/**
+ * Map docker-internal peer URLs (node-*:3000) to host-published lab URLs.
+ * Resolve / nodeinfo advertise container hostnames; scripts run on the host.
+ */
+export function hostUrlForPeer(peerUrl) {
+  if (!peerUrl) return peerUrl;
+  const u = String(peerUrl).replace(/\/$/, "");
+  if (u === PEER_A || /^https?:\/\/node-a(?::\d+)?$/i.test(u)) return NODE_A;
+  if (u === PEER_B || /^https?:\/\/node-b(?::\d+)?$/i.test(u)) return NODE_B;
+  if (u === PEER_C || /^https?:\/\/node-c(?::\d+)?$/i.test(u)) return NODE_C;
+  return u;
+}
+
+/** Register (or reuse) a user, optionally promote, return fresh login JWT. */
+export async function ensureLabAuditor(homeBase, {
+  username,
+  password = "lab-auditor-password",
+  adminToken,
+  role = "AUDITOR",
+} = {}) {
+  if (!username) throw new Error("ensureLabAuditor requires username");
+  const admin = adminToken ?? (await ensureAdminToken(homeBase));
+  await registerUser(homeBase, { username, password });
+  await promoteUser(homeBase, admin, username, role);
+  const login = await loginUser(homeBase, { username, password });
+  return { token: login.token, username, password, adminToken: admin };
+}
+
+export async function postAudit(base, propertyId, token, body, { origin } = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+  if (origin) headers.Origin = origin;
+  return jsonFetch(`${base}/api/properties/${encodeURIComponent(propertyId)}/accessibility`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    expectOk: false,
+  });
 }

@@ -147,9 +147,9 @@ jobs:
         run: $GOSSIP_COMPOSE_MIXED down -v
 
   gossip-tier-b:
-    name: Federation Tier B E2E
+    name: Federation Tier B+C E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -201,6 +201,13 @@ jobs:
           GOSSIP_LAB_RETRY_MS: "5000"
           GOSSIP_MESH3: "1"
         run: pnpm gossip:tier-b
+
+      - name: Tier C E2E (hub journey, photos, Lens Origin)
+        env:
+          GOSSIP_LAB_RETRIES: "40"
+          GOSSIP_LAB_RETRY_MS: "5000"
+          GOSSIP_MESH3: "1"
+        run: pnpm gossip:tier-c
 
       - name: Stop mesh-3 gossip lab
         if: always()

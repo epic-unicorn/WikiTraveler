@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Federation Tier C E2E on mesh-3 CI: hub Access journey (home JWT → data node map/audit), `photoRefs` gossip ignore, Lens `CLIENT_ORIGINS` smoke (`pnpm gossip:tier-c`) ([FEDERATION-E2E.md](docs/FEDERATION-E2E.md))
 - Global region preset catalog (all continents): Admin/CLI presets for major cities plus Geofabrik extracts across Europe, North/South America, Asia, Africa, and Oceania; UI groups as `{tier} · {continent}` ([LOCAL.md](docs/LOCAL.md#region-presets-global-catalog), [ARCHITECTURE.md](docs/ARCHITECTURE.md))
 - Trusted browser CORS for `/api/*`: reflect `Origin` when it matches `CORS_ORIGINS` ∪ `CLIENT_ORIGINS` ∪ `ACCESS_PUBLIC_URL` (`proxy.ts`); OPTIONS preflight; `Vary: Origin`. Gossip `accessUrl` is not auto-trusted ([RFC-0002](docs/rfcs/0002-global-hub-access.md))
 - `GET /api/nodeinfo` may include `accessUrl` and `clientOrigins` for hub/directory advertisement

@@ -108,9 +108,9 @@ Conformance is still **partially conformant** with known issues (Leaflet keyboar
 
 ### End-to-end traveler / auditor journeys
 
-Vitest covers libs and API smoke well; gossip lab CI covers mesh discovery, Tier A hardening, and Tier B topology ([FEDERATION-E2E.md](./FEDERATION-E2E.md)). There is no Playwright/Cypress CI path for full Access/Lens flows yet.
+Vitest covers libs and API smoke well; gossip lab CI covers mesh discovery, Tier A hardening, Tier B topology, and Tier C client-federation API suites ([FEDERATION-E2E.md](./FEDERATION-E2E.md)). Full Access/Lens Playwright UI is still optional.
 
-**Direction:** Hub Access Playwright (login home → resolve data → audit); optional Lens popup smoke; Tier C/D suites in [FEDERATION-E2E.md](./FEDERATION-E2E.md).
+**Direction:** Optional Access Playwright UI on top of Tier C API coverage; Tier D feature gates as M6 items land ([FEDERATION-E2E.md](./FEDERATION-E2E.md)).
 
 ### Dependency security without override debt
 

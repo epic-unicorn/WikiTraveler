@@ -14,8 +14,9 @@ Advanced E2E coverage so federation and gossip keep working as hub Access, photo
 | N↔N-1 compat | `pnpm gossip:compat` | `gossip-compat` | Mixed runtime version strings + sync |
 | **Hardening (Tier A)** | `pnpm gossip:hardening` | `gossip-discovery` (after discovery) | Push + pull dual-path, auth negatives, override CRUD, OSM re-ingest survival, bbox filter |
 | **Topology (Tier B)** | `pnpm gossip:tier-b` | `gossip-tier-b` | 3-node transitive discovery + H2 CORS, CONFIRMED honesty, peer resolve quality |
+| **Client federation (Tier C)** | `pnpm gossip:tier-c` | `gossip-tier-b` (after Tier B) | Hub journey (home JWT → data node), `photoRefs` ingest ignore, Lens Origin allowlist |
 
-Harness: Docker Compose gossip lab ([GOSSIP-DEV.md](./GOSSIP-DEV.md), `.github/workflows/gossip-compat.yml`). Tier B uses the mesh-3 overlay (`docker-compose.gossip-mesh3.yml`).
+Harness: Docker Compose gossip lab ([GOSSIP-DEV.md](./GOSSIP-DEV.md), `.github/workflows/gossip-compat.yml`). Tier B/C use the mesh-3 overlay (`docker-compose.gossip-mesh3.yml`).
 
 ---
 
@@ -45,11 +46,15 @@ Orchestrator: `pnpm gossip:tier-b`. Lab: `pnpm dev:gossip-lab-mesh3`.
 
 ### Tier C — Client federation / RFC-0002 (before M6 ships)
 
-| Suite | Goal |
-|-------|------|
-| Access Playwright hub journey *(planned)* | Login home → resolve data node → `map?bbox=` → audit with home JWT → fact on data node; untrusted Origin blocked (**H1**); Access↔node map skew (**H5**) |
-| `gossip:photos` *(planned)* | `photoRefs` in deltas; fetchable evidence URLs; N↔N-1 ignores unknown photo fields |
-| Lens background fetch smoke *(planned)* | Home auth/resolve + data facts with allowlisted extension origin |
+API-scripted on mesh-3 (Playwright Access UI still optional later). Mesh-3 sets `NODE_URL=http://node-*:3000` so data nodes can fetch home `/.well-known/pubkey`, and `CLIENT_ORIGINS` for the lab Lens origin.
+
+| Script | Asserts |
+|--------|---------|
+| `gossip:hub-journey` | Home A (non-covering) → JWT → resolve data B → `map?bbox=` + audit with home JWT; **H1** untrusted Origin blocked; **H5** `BBOX_REQUIRED` without bbox |
+| `gossip:photos` | Audit + photo → snapshot `photoRefs`; cron pull peer tolerates / ignores photo fields |
+| `gossip:lens-smoke` | Home login/resolve + data map/facts with `chrome-extension://wikitraveler-lab-lens` Origin |
+
+Orchestrator: `pnpm gossip:tier-c`.
 
 ### Tier D — Feature-gated hardening
 
@@ -73,12 +78,14 @@ pnpm dev:gossip-lab
 pnpm gossip:discovery
 pnpm gossip:hardening
 
-# Tier B (3-node line topology)
+# Tier B + C (3-node line topology)
 pnpm dev:gossip-lab-mesh3
 pnpm gossip:tier-b
+pnpm gossip:tier-c
 ```
 
-Individual Tier B scripts: `gossip:mesh-3`, `gossip:confirmed`, `gossip:resolve`.
+Individual Tier B scripts: `gossip:mesh-3`, `gossip:confirmed`, `gossip:resolve`.  
+Individual Tier C scripts: `gossip:hub-journey`, `gossip:photos`, `gossip:lens-smoke`.
 
 ---
 
@@ -94,6 +101,6 @@ Prefer Vitest failures for merge/auth kernels; keep E2E for the live mesh:
 ## Priority
 
 1. Tier A in CI — done  
-2. Tier B in CI — done (this doc)  
-3. Hub Access Playwright — locks RFC-0002 before M6  
-4. Photos + true binary N-1 image when those features / upgrades matter  
+2. Tier B in CI — done  
+3. Tier C API suites in CI — done (this doc); optional Access Playwright UI later  
+4. Tier D per-feature gates as M6 items land  
