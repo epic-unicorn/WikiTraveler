@@ -10,9 +10,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.4.0] - 2026-08-08
+
+### Operator notes
+
+- **Recommended first deploy tag** — RFC-0002 hub Access architecture (M1–M5): trusted CORS, home vs data-node routing, viewport map, Lens background fetch, hub operator docs. Prefer this over `0.3.0` for new nodes and Access.
+- No new Prisma migrations since `0.3.0`. Redeploy app images (or rebuild from tag) only.
+- **Node + Access pair (H5):** redeploy both — map API now requires `bbox=` (or Admin `region=1`); unscoped map dumps are rejected.
+- Set trusted client origins on every public data node: `CORS_ORIGINS` and/or `CLIENT_ORIGINS` (and optional `ACCESS_PUBLIC_URL`) for your hub Access origin(s). Do **not** leave `CORS_ORIGINS=*` in production; gossip `accessUrl` is not auto-trusted ([RFC-0002](docs/rfcs/0002-global-hub-access.md)).
+- Node reports `gossipProtocol: 2` (min supported still `1`); mesh with `0.3.x` / `0.2.x` peers remains supported.
+- Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.4.0`, `wikitraveler-access:0.4.0`.
+- GitHub Release attaches `manifest.json`, Lens zip, and SDK dist. npm `@wikitraveler/sdk` publishes only when `NPM_PUBLISH` + `NPM_TOKEN` are set.
+- M6 follow-ons (viewport fan-out, shorter JWT TTL, Admin peer-origin UI, etc.) remain later — not required for this deploy.
+
 ### Added
 
-- Federation Tier C E2E on mesh-3 CI: hub Access journey (home JWT → data node map/audit), `photoRefs` gossip ignore, Lens `CLIENT_ORIGINS` smoke (`pnpm gossip:tier-c`) ([FEDERATION-E2E.md](docs/FEDERATION-E2E.md))
+- Federation Tier A–C E2E in CI: mesh hardening, mesh-3 topology (CONFIRMED, resolve), hub journey / `photoRefs` / Lens Origin (`pnpm gossip:hardening`, `gossip:tier-b`, `gossip:tier-c`) ([FEDERATION-E2E.md](docs/FEDERATION-E2E.md))
 - Gossip lab rewrites host-mapped `localhost:3000/3010/3020` peer URLs to docker DNS for federated JWT pubkey fetch, inbox upsert, and peer ingest (`GOSSIP_DEV`)
 - Global region preset catalog (all continents): Admin/CLI presets for major cities plus Geofabrik extracts across Europe, North/South America, Asia, Africa, and Oceania; UI groups as `{tier} · {continent}` ([LOCAL.md](docs/LOCAL.md#region-presets-global-catalog), [ARCHITECTURE.md](docs/ARCHITECTURE.md))
 - Trusted browser CORS for `/api/*`: reflect `Origin` when it matches `CORS_ORIGINS` ∪ `CLIENT_ORIGINS` ∪ `ACCESS_PUBLIC_URL` (`proxy.ts`); OPTIONS preflight; `Vary: Origin`. Gossip `accessUrl` is not auto-trusted ([RFC-0002](docs/rfcs/0002-global-hub-access.md))
@@ -45,7 +60,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Operator notes
 
-- **Recommended first deploy tag** — Next.js 16 + React 19, Phase 6 federation, security pins, Access step-level photo evidence.
+- Superseded for new deploys by **`0.4.0`** (hub Access architecture). Still valid for Next.js 16 + React 19, Phase 6 federation scaffolding, security pins, Access step-level photo evidence.
 - No new Prisma migrations since `0.2.1`. Redeploy app images (or rebuild from tag) only.
 - Node reports `gossipProtocol: 2` (min supported still `1`); mesh with `0.2.x` peers remains supported.
 - Redeploy **Access** with this tag so client and node versions align; rebuild if `NEXT_PUBLIC_NODE_API_URL` changed.
@@ -83,7 +98,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Operator notes
 
-- Includes Phase 5 operator tooling (`pnpm doctor`, release manifest, upgrade advisories). Prefer **`0.3.0`** for new deploys.
+- Includes Phase 5 operator tooling (`pnpm doctor`, release manifest, upgrade advisories). Prefer **`0.4.0`** for new deploys.
 - No new Prisma migrations since `0.2.0`. Redeploy app images only.
 - GitHub Release attaches `manifest.json` alongside Lens zip and SDK dist.
 - Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.2.1`, `wikitraveler-access:0.2.1`.
@@ -132,7 +147,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - All workspace packages aligned to version `0.2.0`
 - CodeQL via GitHub default setup (no custom `codeql.yml`)
 
-[Unreleased]: https://github.com/ingmarstruijs/WikiTraveler/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ingmarstruijs/WikiTraveler/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.3.0
 [0.2.1]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.2.1
 [0.2.0]: https://github.com/ingmarstruijs/WikiTraveler/releases/tag/v0.2.0

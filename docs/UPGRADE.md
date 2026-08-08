@@ -36,7 +36,7 @@ curl -s https://node.example.com/api/health | jq .version
 **From registry (when published):**
 
 ```bash
-export WIKITRAVELER_VERSION=0.3.0   # target tag
+export WIKITRAVELER_VERSION=0.4.0   # target tag
 docker compose -f docker/docker-compose.yml pull node
 ```
 
@@ -44,7 +44,7 @@ docker compose -f docker/docker-compose.yml pull node
 
 ```bash
 git fetch --tags
-git checkout v0.3.0
+git checkout v0.4.0
 docker compose -f docker/docker-compose.yml build node
 ```
 
@@ -59,7 +59,7 @@ docker compose -f docker/docker-compose.yml run --rm node prisma migrate deploy
 Or from the host (same `DATABASE_URL` as production):
 
 ```bash
-git checkout v0.3.0
+git checkout v0.4.0
 DATABASE_URL="postgresql://..." pnpm db:deploy
 ```
 
@@ -97,7 +97,7 @@ Database provider snapshot or Admin export.
 ### 2. Apply migrations (from your machine)
 
 ```bash
-git checkout v0.3.0
+git checkout v0.4.0
 DATABASE_URL="postgresql://production..." pnpm db:deploy
 ```
 
@@ -105,7 +105,7 @@ Do this **before** promoting the Vercel deployment that expects new schema.
 
 ### 3. Deploy
 
-- **Git integration:** merge or deploy the `v0.3.0` tag (production branch pinned to tags recommended).
+- **Git integration:** merge or deploy the `v0.4.0` tag (production branch pinned to tags recommended).
 - **CLI:** `vercel deploy --prod` from tag checkout.
 
 ### 4. Verify crons
