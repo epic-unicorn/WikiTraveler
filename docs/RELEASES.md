@@ -23,8 +23,8 @@ How WikiTraveler versions, ships, and stays compatible across a federated mesh o
 
 | Namespace | Tracks | Example | Where defined |
 |-----------|--------|---------|---------------|
-| **Monorepo release** | Git tag, changelog, Docker tags | `v0.3.0` | Root `package.json`, git tags |
-| **Node runtime** | `/api/nodeinfo`, `/api/health`, admin UI | `0.3.0` | `apps/node/lib/nodeInfo.ts` (should match tag) |
+| **Monorepo release** | Git tag, changelog, Docker tags | `v0.4.0` | Root `package.json`, git tags |
+| **Node runtime** | `/api/nodeinfo`, `/api/health`, admin UI | `0.4.0` | `apps/node/lib/nodeInfo.ts` (should match tag) |
 | **Gossip protocol** | Delta JSON semantics | `2` | `@wikitraveler/core` + [COMPATIBILITY.md](./COMPATIBILITY.md) |
 | **Export schema** | Admin backup / gzip transfer | `2` | `apps/node/lib/nodeDataTransfer.ts` |
 | **Access / Lens / SDK** | Client artifacts | Independent | Per-app `package.json` / `manifest.json` |
