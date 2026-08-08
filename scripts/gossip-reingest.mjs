@@ -56,7 +56,7 @@ async function main() {
 
   console.log(`\nOverrides preserved — A: ${aOk ? "yes" : "NO"}, B: ${bOk ? "yes" : "NO"}`);
   if (!aOk || !bOk) process.exitCode = 1;
-  console.log("\nTip: run pnpm gossip:crud first to create an override, then re-run this.");
+  console.log("\nTip: run pnpm gossip:crud (or gossip:hardening) first so overrides exist to preserve.");
 }
 
 main().catch((err) => {

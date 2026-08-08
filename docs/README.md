@@ -15,7 +15,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | **Develop features locally** | [Development guide](./DEVELOPMENT.md) → [Local setup](./LOCAL.md) |
 | **Join as a contributor** | [Community](./COMMUNITY.md) → [Contributing](../CONTRIBUTING.md) |
 | **Ship or consume a release** | [Releases](./RELEASES.md) → [Changelog](../CHANGELOG.md) |
-| **Test federation / gossip** | [Gossip dev lab](./GOSSIP-DEV.md) |
+| **Test federation / gossip** | [Gossip dev lab](./GOSSIP-DEV.md) · [Federation E2E plan](./FEDERATION-E2E.md) |
 | **Meet accessibility requirements** | [Accessibility checklist](./ACCESSIBILITY.md) · [Conformance report](./CONFORMANCE.md) |
 
 ---
@@ -43,7 +43,8 @@ Single entry point for the project. Pick the path that matches your role — eac
 |-----|---------|
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | Monorepo layout, scripts, PR workflow, quality gates |
 | [LOCAL.md](./LOCAL.md) | Local Postgres, apps, OSM ingest, env vars |
-| [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Two-node gossip lab for federation testing (`gossip:discovery`, `gossip:compat`) |
+| [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Two-node gossip lab for federation testing (`gossip:discovery`, `gossip:compat`, `gossip:hardening`) |
+| [FEDERATION-E2E.md](./FEDERATION-E2E.md) | Advanced gossip/federation E2E tiers (kernel, topology, hub Access, photos) |
 | [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) | Register on one node; browse/audit peers with RS256 JWT |
 | [RFC-0002](./rfcs/0002-global-hub-access.md) | Draft: global hub Access/Lens, mesh CORS trust, viewport map |
 | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Voluntary bootstrap peer directory |
