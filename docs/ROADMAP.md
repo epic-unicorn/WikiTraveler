@@ -32,6 +32,7 @@ Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (as
 | **Discovery E2E** | `pnpm gossip:discovery` in CI |
 | **Federation hardening E2E** | `pnpm gossip:hardening` in CI (push/pull, auth, bbox, crud, reingest) — [FEDERATION-E2E.md](./FEDERATION-E2E.md) |
 | **Federation Tier B E2E** | `pnpm gossip:tier-b` in CI (mesh-3 + H2 CORS, CONFIRMED, peer resolve) |
+| **Federation Tier C E2E** | `pnpm gossip:tier-c` in CI after Tier B (hub journey, photoRefs, Lens Origin) |
 | **Gossip protocol 2** | Emit `2` / min `1` — [RFC-0001](./rfcs/0001-gossip-protocol-2.md) |
 
 Ship tagged artifacts so operators and integrators do not clone `main`.
