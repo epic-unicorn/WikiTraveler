@@ -12,7 +12,7 @@ This document is **directional**, not a commitment calendar. Items move up when 
 
 **Status:** Done (merged to `main`; see [CHANGELOG.md](../CHANGELOG.md)).
 
-Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (async `params` / `searchParams` / `cookies()`, inline `force-dynamic`, ESLint CLI). High/moderate transitive CVEs that Dependabot could not unlock were pinned via `pnpm.overrides` (`brace-expansion@1`/`@5`, `postcss`, `js-yaml@3`, `sharp`, `ip-address`, `uuid`, `cookie`).
+Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (async `params` / `searchParams` / `cookies()`, inline `force-dynamic`, ESLint CLI). High/moderate transitive CVEs that Dependabot could not unlock were pinned via `pnpm.overrides` (`brace-expansion@1`/`@5`, `postcss`, `js-yaml@3`/`@4`, `sharp`, `ip-address`, `uuid`, `cookie`).
 
 **Ongoing:** Prefer coordinated app upgrades over Dependabot major bumps alone. Patch/minor Next within 16.x is welcome when CI stays green. Prefer retiring overrides by bumping parent packages when possible.
 
