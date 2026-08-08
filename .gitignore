@@ -21,3 +21,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Gossip lab node-c keys are generated locally/CI (not committed — GitGuardian)
+docker/gossip-lab/node-c.private.pem
+docker/gossip-lab/node-c.public.pem

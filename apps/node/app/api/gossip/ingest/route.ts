@@ -41,6 +41,41 @@ export async function POST(req: Request) {
 
   const incomingOverrides = Array.isArray(delta.metadataOverrides) ? delta.metadataOverrides : [];
 
+  // Peer exchange must run even with no region and no in-bbox facts — otherwise
+  // organic discovery stalls until an operator configures a bbox / audits in-region.
+  async function upsertRemotePeers() {
+    if (!Array.isArray(delta.peers) || delta.peers.length === 0) return 0;
+    const remotePeers = delta.peers.filter((peer) => !isSelfPeer(peer.url, peer.nodeId));
+    await Promise.all(
+      remotePeers.map((peer) =>
+        prisma.nodePeer.upsert({
+          where: { url: peer.url },
+          update: {
+            nodeId: peer.nodeId ?? undefined,
+            region: peer.region ?? undefined,
+            bbox: peer.bbox ?? undefined,
+            ...(typeof peer.gossipProtocol === "number"
+              ? { gossipProtocol: peer.gossipProtocol }
+              : {}),
+            ...(peer.version ? { lastKnownVersion: peer.version } : {}),
+            lastSeen: new Date(),
+            isActive: true,
+          },
+          create: {
+            url: peer.url,
+            nodeId: peer.nodeId,
+            region: peer.region,
+            bbox: peer.bbox,
+            gossipProtocol: typeof peer.gossipProtocol === "number" ? peer.gossipProtocol : null,
+            lastKnownVersion: peer.version ?? null,
+            isActive: true,
+          },
+        })
+      )
+    );
+    return remotePeers.length;
+  }
+
   // ------------------------------------------------------------------
   // 1. Upsert any properties that arrived with the delta.
   //    Filter out properties outside this node's bbox to prevent a
@@ -48,11 +83,14 @@ export async function POST(req: Request) {
   // ------------------------------------------------------------------
   const nodeBbox = await getNodeBbox();
   if (!nodeBbox) {
+    const peersUpserted = await upsertRemotePeers();
     return NextResponse.json({
       ok: true,
       propertiesUpserted: 0,
       ingested: 0,
-      message: "No region configured — gossip ingest skipped.",
+      metadataOverridesApplied: 0,
+      peersUpserted,
+      message: "No region configured — fact/override ingest skipped; peers still exchanged.",
     });
   }
   const bboxFilter = makeBboxFilterFromString(nodeBbox)!;
@@ -85,41 +123,6 @@ export async function POST(req: Request) {
       );
     }
     metadataOverridesApplied = await applyIncomingMetadataOverrides(allowedOverrides);
-  }
-
-  // Peer exchange must run even when the delta has no in-bbox facts — otherwise
-  // organic discovery stalls after bootstrap until someone audits in-region.
-  async function upsertRemotePeers() {
-    if (!Array.isArray(delta.peers) || delta.peers.length === 0) return 0;
-    const remotePeers = delta.peers.filter((peer) => !isSelfPeer(peer.url, peer.nodeId));
-    await Promise.all(
-      remotePeers.map((peer) =>
-        prisma.nodePeer.upsert({
-          where: { url: peer.url },
-          update: {
-            nodeId: peer.nodeId ?? undefined,
-            region: peer.region ?? undefined,
-            bbox: peer.bbox ?? undefined,
-            ...(typeof peer.gossipProtocol === "number"
-              ? { gossipProtocol: peer.gossipProtocol }
-              : {}),
-            ...(peer.version ? { lastKnownVersion: peer.version } : {}),
-            lastSeen: new Date(),
-            isActive: true,
-          },
-          create: {
-            url: peer.url,
-            nodeId: peer.nodeId,
-            region: peer.region,
-            bbox: peer.bbox,
-            gossipProtocol: typeof peer.gossipProtocol === "number" ? peer.gossipProtocol : null,
-            lastKnownVersion: peer.version ?? null,
-            isActive: true,
-          },
-        })
-      )
-    );
-    return remotePeers.length;
   }
 
   if (allowedFacts.length === 0 && metadataOverridesApplied === 0) {
