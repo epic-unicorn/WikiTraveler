@@ -44,31 +44,23 @@ export function canonicalizeLabPeerUrl(
   return trimmed;
 }
 
-/** Candidate base URLs for fetching a home node's pubkey (host + docker DNS). */
+/**
+ * Candidate base URLs for fetching a home node's pubkey.
+ * Prefer docker DNS before localhost — inside a container, localhost:3000 is
+ * *this* node, not the host-mapped peer on the CI runner.
+ */
 export function labPubkeyFetchCandidates(
   homeNodeUrl: string,
   env: NodeJS.ProcessEnv = process.env
 ): string[] {
   const primary = homeNodeUrl.trim().replace(/\/$/, "");
   if (!primary) return [];
-  const out = [primary];
-  if (!isGossipLabMode(env)) return out;
+  if (!isGossipLabMode(env)) return [primary];
 
   const canonical = canonicalizeLabPeerUrl(primary, env);
-  if (canonical !== primary) out.push(canonical);
-
-  try {
-    const u = new URL(primary);
-    const host = u.hostname.toLowerCase();
-    const hostPort = LAB_SERVICE_TO_HOST_PORT[host];
-    if (hostPort) {
-      const hostUrl = `http://localhost:${hostPort}`;
-      if (!out.includes(hostUrl)) out.push(hostUrl);
-    }
-  } catch {
-    // ignore
-  }
-
+  const out: string[] = [];
+  if (canonical && canonical !== primary) out.push(canonical);
+  out.push(primary);
   return out;
 }
 

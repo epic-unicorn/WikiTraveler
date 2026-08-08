@@ -32,17 +32,17 @@ describe("gossipLabUrls", () => {
     expect(canonicalizeLabPeerUrl("http://localhost:3010")).toBe("http://localhost:3010");
   });
 
-  it("lists pubkey fetch candidates for host homeNodeUrl", () => {
+  it("prefers docker DNS before localhost for pubkey fetch", () => {
     expect(labPubkeyFetchCandidates("http://localhost:3000")).toEqual([
-      "http://localhost:3000",
       "http://node-a:3000",
+      "http://localhost:3000",
     ]);
   });
 
-  it("lists host alias for docker homeNodeUrl", () => {
-    const c = labPubkeyFetchCandidates("http://node-b:3000");
-    expect(c[0]).toBe("http://node-b:3000");
-    expect(c).toContain("http://localhost:3010");
+  it("keeps docker homeNodeUrl as the only candidate when already canonical", () => {
+    expect(labPubkeyFetchCandidates("http://node-b:3000")).toEqual([
+      "http://node-b:3000",
+    ]);
   });
 
   it("returns lab self aliases for node-b", () => {
