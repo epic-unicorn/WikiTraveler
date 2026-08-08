@@ -15,6 +15,7 @@ import {
   filterMetadataOverridesByBbox,
 } from "@/lib/propertyMetadata";
 import { validateGossipDeltaProtocol } from "@/lib/gossipProtocol";
+import { canonicalizeLabPeerUrl } from "@/lib/gossipLabUrls";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 
@@ -130,12 +131,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Update peer's lastSeen so it stays active
+  // Update peer's lastSeen so it stays active (canonicalize gossip-lab host URLs)
   if (payload.fromNodeUrl) {
+    const peerUrl = canonicalizeLabPeerUrl(payload.fromNodeUrl);
     await prisma.nodePeer.upsert({
-      where: { url: payload.fromNodeUrl },
+      where: { url: peerUrl },
       update: { lastSeen: new Date(), isActive: true },
-      create: { url: payload.fromNodeUrl, publicKey, isActive: true },
+      create: { url: peerUrl, publicKey, isActive: true },
     });
   }
 

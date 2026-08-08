@@ -9,7 +9,7 @@
  *   5. H1 — untrusted Origin not reflected on B
  *   6. H5 — map without bbox → BBOX_REQUIRED
  *
- * Requires mesh-3 lab with docker-internal NODE_URL (see gossip-mesh3.yml).
+ * Requires mesh-3 lab (GOSSIP_DEV rewrites host NODE_URL → docker DNS for JWT pubkey).
  * Usage: pnpm gossip:hub-journey
  */
 
@@ -95,12 +95,15 @@ async function main() {
   const { data: me } = await jsonFetch(`${NODE_A}/api/auth/me`, {
     headers: { Authorization: `Bearer ${homeJwt}` },
   });
-  if (!me?.homeNodeUrl || !/node-a/i.test(String(me.homeNodeUrl))) {
-    throw new Error(
-      `homeNodeUrl must be docker-reachable node-a (mesh3 NODE_URL); got ${me?.homeNodeUrl ?? "?"}`
-    );
+  if (!me?.homeNodeUrl) {
+    throw new Error("homeNodeUrl missing from JWT /auth/me");
   }
-  console.log(`✓ Home JWT for ${username} (homeNodeUrl=${me.homeNodeUrl})`);
+  // Host-facing NODE_URL (localhost:3000) is rewritten to node-a inside Docker for pubkey fetch
+  const home = String(me.homeNodeUrl);
+  if (!/node-a|localhost:3000|127\.0\.0\.1:3000/i.test(home)) {
+    throw new Error(`Unexpected homeNodeUrl for Node A: ${home}`);
+  }
+  console.log(`✓ Home JWT for ${username} (homeNodeUrl=${home})`);
 
   console.log("4. Resolve Eindhoven from home A → data peer…");
   const { data: resolved } = await jsonFetch(
@@ -203,8 +206,6 @@ async function main() {
 
 main().catch((err) => {
   console.error(err instanceof Error ? err.message : err);
-  console.error(
-    "\nRequires mesh-3 lab (NODE_URL=http://node-*:3000 for federated JWT pubkey fetch)."
-  );
+  console.error("\nRequires mesh-3 lab with GOSSIP_DEV peer URL rewrite for federated JWT.");
   process.exit(1);
 });

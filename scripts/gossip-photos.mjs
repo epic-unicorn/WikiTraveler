@@ -102,19 +102,31 @@ async function main() {
   }
   console.log(`✓ photoRefs for ${prop.id}: ${ref.urls.length} url(s), origin=${ref.originNode}`);
 
-  console.log("4. Cron pull A ← B (must tolerate photoRefs)…");
+  console.log("4. Re-link docker peers + cron pull A ← B (must tolerate photoRefs)…");
+  // Audit push may register host-mapped fromNodeUrl; re-link canonical docker URLs.
+  await linkPeer(NODE_A, PEER_B);
+  await linkPeer(NODE_B, PEER_A);
   const cron = await cronGossip(NODE_A);
-  const pullB = (cron.results ?? []).find(
-    (r) => r.url?.includes("node-b") || r.ok !== undefined
-  );
-  for (const r of cron.results ?? []) {
+  const results = cron.results ?? [];
+  for (const r of results) {
     console.log(`    A pull ${r.url}: ${r.ok ? `ingested ${r.ingested ?? 0}` : r.error}`);
-    if (!r.ok) {
-      throw new Error(`Cron pull failed for ${r.url}: ${r.error}`);
-    }
   }
-  if (!pullB && (cron.results ?? []).length === 0) {
-    throw new Error("Cron returned no pull results");
+  const dockerPull = results.find((r) => /node-b/i.test(String(r.url ?? "")));
+  if (!dockerPull?.ok) {
+    const hostFail = results.filter(
+      (r) => !r.ok && /localhost|127\.0\.0\.1/i.test(String(r.url ?? ""))
+    );
+    for (const r of hostFail) {
+      console.log(`  (ignoring host-mapped peer failure ${r.url})`);
+    }
+    throw new Error(
+      `Expected successful cron pull from docker peer node-b; got ${JSON.stringify(results)}`
+    );
+  }
+  for (const r of results) {
+    if (r.ok) continue;
+    if (/localhost|127\.0\.0\.1/i.test(String(r.url ?? ""))) continue;
+    throw new Error(`Cron pull failed for ${r.url}: ${r.error}`);
   }
 
   await pollUntil(

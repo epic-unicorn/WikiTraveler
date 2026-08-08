@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { prisma } from "@/lib/prisma";
 import { fetchPeerJson, PEER_FETCH_PATHS } from "@/lib/peerUrl";
+import { labPubkeyFetchCandidates } from "@/lib/gossipLabUrls";
 
 // Role hierarchy — higher index = more permissions
 const ROLE_RANK: Record<string, number> = { USER: 0, AUDITOR: 1, ADMIN: 2 };
@@ -39,14 +40,24 @@ const remoteKeyCache = new Map<string, string>();
 
 async function fetchRemotePublicKey(homeNodeUrl: string): Promise<string | null> {
   if (remoteKeyCache.has(homeNodeUrl)) return remoteKeyCache.get(homeNodeUrl)!;
-  const data = await fetchPeerJson<{ publicKeyPem?: string }>(
-    homeNodeUrl,
-    PEER_FETCH_PATHS.pubkey,
-    { signal: AbortSignal.timeout(5_000) }
-  );
-  if (!data?.publicKeyPem) return null;
-  remoteKeyCache.set(homeNodeUrl, data.publicKeyPem);
-  return data.publicKeyPem;
+  for (const candidate of labPubkeyFetchCandidates(homeNodeUrl)) {
+    if (remoteKeyCache.has(candidate)) {
+      const cached = remoteKeyCache.get(candidate)!;
+      remoteKeyCache.set(homeNodeUrl, cached);
+      return cached;
+    }
+    const data = await fetchPeerJson<{ publicKeyPem?: string }>(
+      candidate,
+      PEER_FETCH_PATHS.pubkey,
+      { signal: AbortSignal.timeout(5_000) }
+    );
+    if (data?.publicKeyPem) {
+      remoteKeyCache.set(candidate, data.publicKeyPem);
+      remoteKeyCache.set(homeNodeUrl, data.publicKeyPem);
+      return data.publicKeyPem;
+    }
+  }
+  return null;
 }
 
 /**
