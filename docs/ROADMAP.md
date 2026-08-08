@@ -32,6 +32,7 @@ Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (as
 | **Discovery E2E** | `pnpm gossip:discovery` in CI |
 | **Federation hardening E2E** | `pnpm gossip:hardening` in CI (push/pull, auth, bbox, crud, reingest) — [FEDERATION-E2E.md](./FEDERATION-E2E.md) |
 | **Federation Tier B E2E** | `pnpm gossip:tier-b` in CI (mesh-3 + H2 CORS, CONFIRMED, peer resolve) |
+| **Federation Tier C E2E** | `pnpm gossip:tier-c` in CI after Tier B (hub journey, photoRefs, Lens Origin) |
 | **Gossip protocol 2** | Emit `2` / min `1` — [RFC-0001](./rfcs/0001-gossip-protocol-2.md) |
 
 Ship tagged artifacts so operators and integrators do not clone `main`.
@@ -108,9 +109,9 @@ Conformance is still **partially conformant** with known issues (Leaflet keyboar
 
 ### End-to-end traveler / auditor journeys
 
-Vitest covers libs and API smoke well; gossip lab CI covers mesh discovery, Tier A hardening, and Tier B topology ([FEDERATION-E2E.md](./FEDERATION-E2E.md)). There is no Playwright/Cypress CI path for full Access/Lens flows yet.
+Vitest covers libs and API smoke well; gossip lab CI covers mesh discovery, Tier A hardening, Tier B topology, and Tier C client-federation API suites ([FEDERATION-E2E.md](./FEDERATION-E2E.md)). Full Access/Lens Playwright UI is still optional.
 
-**Direction:** Hub Access Playwright (login home → resolve data → audit); optional Lens popup smoke; Tier C/D suites in [FEDERATION-E2E.md](./FEDERATION-E2E.md).
+**Direction:** Optional Access Playwright UI on top of Tier C API coverage; Tier D feature gates as M6 items land ([FEDERATION-E2E.md](./FEDERATION-E2E.md)).
 
 ### Dependency security without override debt
 

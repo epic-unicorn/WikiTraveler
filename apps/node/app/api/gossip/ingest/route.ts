@@ -12,6 +12,7 @@ import {
   applyIncomingMetadataOverrides,
   filterMetadataOverridesByBbox,
 } from "@/lib/propertyMetadata";
+import { canonicalizeLabPeerUrl } from "@/lib/gossipLabUrls";
 import type { GossipDelta, Tier, SourceType } from "@wikitraveler/core";
 
 
@@ -45,7 +46,9 @@ export async function POST(req: Request) {
   // organic discovery stalls until an operator configures a bbox / audits in-region.
   async function upsertRemotePeers() {
     if (!Array.isArray(delta.peers) || delta.peers.length === 0) return 0;
-    const remotePeers = delta.peers.filter((peer) => !isSelfPeer(peer.url, peer.nodeId));
+    const remotePeers = delta.peers
+      .map((peer) => ({ ...peer, url: canonicalizeLabPeerUrl(peer.url) }))
+      .filter((peer) => peer.url && !isSelfPeer(peer.url, peer.nodeId));
     await Promise.all(
       remotePeers.map((peer) =>
         prisma.nodePeer.upsert({

@@ -12,8 +12,9 @@ Two-node setup for testing inbox push and gossip pull without production infrast
 pnpm dev:gossip-lab          # foreground — Node A :3000, Node B :3010
 pnpm gossip:discovery        # E2E: organic BOOTSTRAP_PEERS discovery + sync (no link-peers)
 pnpm gossip:hardening        # Tier A: dual-path push/pull, auth negatives, bbox, crud, reingest
-pnpm dev:gossip-lab-mesh3    # Tier B lab — adds Node C :3020 (A ↔ B ↔ C)
+pnpm dev:gossip-lab-mesh3    # Tier B/C lab — adds Node C :3020 (A ↔ B ↔ C)
 pnpm gossip:tier-b           # Tier B: transitive discovery, CONFIRMED, peer resolve
+pnpm gossip:tier-c           # Tier C: hub journey, photoRefs, Lens Origin
 pnpm gossip:check            # verify peer registration + property/override counts
 pnpm gossip:link-peers       # only if bootstrap has not linked yet
 pnpm gossip:sync             # manual gossip pull on both nodes
