@@ -1,0 +1,36 @@
+# CI overlay for mesh-3 — reuse runner node_modules via bind mount (like gossip-ci.yml).
+#
+# Usage (CI):
+#   docker compose
+#     -f docker/docker-compose.gossip.yml
+#     -f docker/docker-compose.gossip-mesh3.yml
+#     -f docker/docker-compose.gossip-mesh3-ci.yml
+#     up -d --build
+
+services:
+  node-a:
+    volumes:
+      - ..:/app
+      - next_a:/app/apps/node/.next
+      - ./gossip-lab/node-a.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-a.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      GOSSIP_CI: "true"
+
+  node-b:
+    volumes:
+      - ..:/app
+      - next_b:/app/apps/node/.next
+      - ./gossip-lab/node-b.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-b.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      GOSSIP_CI: "true"
+
+  node-c:
+    volumes:
+      - ..:/app
+      - next_c:/app/apps/node/.next
+      - ./gossip-lab/node-c.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-c.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      GOSSIP_CI: "true"

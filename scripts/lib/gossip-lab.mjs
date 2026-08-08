@@ -7,6 +7,12 @@ import { buildNodeAuthHeaders, loadGossipLabPrivateKey } from "../gossip-node-au
 
 export const NODE_A = (process.env.NODE_A_URL ?? "http://localhost:3000").replace(/\/$/, "");
 export const NODE_B = (process.env.NODE_B_URL ?? "http://localhost:3010").replace(/\/$/, "");
+export const NODE_C = (process.env.NODE_C_URL ?? "http://localhost:3020").replace(/\/$/, "");
+
+/** Docker-internal peer URLs (containers listen on :3000). */
+export const PEER_A = (process.env.NODE_A_PEER_URL ?? "http://node-a:3000").replace(/\/$/, "");
+export const PEER_B = (process.env.NODE_B_PEER_URL ?? "http://node-b:3000").replace(/\/$/, "");
+export const PEER_C = (process.env.NODE_C_PEER_URL ?? "http://node-c:3000").replace(/\/$/, "");
 
 export const RETRIES = Number(process.env.GOSSIP_LAB_RETRIES ?? 40);
 export const RETRY_MS = Number(process.env.GOSSIP_LAB_RETRY_MS ?? 5000);
@@ -18,6 +24,13 @@ export const LAB_COORDS = { lat: 51.438, lon: 5.479 };
 
 /** Clearly outside Eindhoven (Amsterdam area) */
 export const OUT_OF_BBOX_COORDS = { lat: 52.3676, lon: 4.9041 };
+
+/** Trusted hub origin used by mesh-3 CORS lock (see docker-compose.gossip-mesh3.yml). */
+export const LAB_TRUSTED_ORIGIN = process.env.GOSSIP_LAB_TRUSTED_ORIGIN ?? "https://access.lab.example";
+export const LAB_EVIL_ORIGIN = process.env.GOSSIP_LAB_EVIL_ORIGIN ?? "https://evil-access.example";
+
+export const LAB_ADMIN_USER = process.env.GOSSIP_LAB_ADMIN_USER ?? "labadmin";
+export const LAB_ADMIN_PASS = process.env.GOSSIP_LAB_ADMIN_PASS ?? "labadmin-password";
 
 export function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -147,10 +160,11 @@ export async function cronGossip(base) {
   return data;
 }
 
-/** Peer signs snapshot pulls (node-b → A, node-a → B). */
+/** Peer signs snapshot pulls (node-b → A, node-a → B, node-b → C). */
 export const SNAPSHOT_SIGNERS = {
   [NODE_A]: "node-b",
   [NODE_B]: "node-a",
+  [NODE_C]: "node-b",
 };
 
 export function snapshotAuthHeaders(base, { timestampMs, nodeId, privateKeyPem } = {}) {
@@ -190,4 +204,77 @@ export async function pollUntil(predicate, { label, retries = RETRIES, retryMs =
     }
   }
   throw new Error(`Timed out waiting for ${label ?? "condition"}`);
+}
+
+/** First-time setup or login — returns Bearer JWT for requireAuth routes. */
+export async function ensureAdminToken(base, { username = LAB_ADMIN_USER, password = LAB_ADMIN_PASS } = {}) {
+  const { data: status } = await jsonFetch(`${base}/api/setup`);
+  if (status.needed) {
+    const { data } = await jsonFetch(`${base}/api/setup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!data.token) throw new Error(`${base}: setup did not return a token`);
+    console.log(`✓ ${base} admin created (${username})`);
+    return data.token;
+  }
+  const { data } = await jsonFetch(`${base}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!data.token) throw new Error(`${base}: login did not return a token`);
+  return data.token;
+}
+
+export async function linkPeer(selfUrl, peerUrl) {
+  const { data } = await jsonFetch(`${selfUrl}/api/dev/link-peers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ peerUrl }),
+  });
+  return data;
+}
+
+export async function setNodeRegion(databaseUrl, { bbox, label, presetId }) {
+  const { spawnSync } = await import("child_process");
+  const { fileURLToPath } = await import("url");
+  const { dirname, join } = await import("path");
+  const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+  // Avoid shell:true — labels with parentheses break /bin/sh parsing.
+  const args = ["node:region"];
+  if (presetId) {
+    args.push("--preset", presetId);
+  } else if (bbox) {
+    args.push("--bbox", bbox);
+    if (label) args.push("--label", label);
+  } else {
+    throw new Error("setNodeRegion requires presetId or bbox");
+  }
+  const result = spawnSync("pnpm", args, {
+    cwd: root,
+    stdio: "inherit",
+    shell: false,
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+  });
+  if (result.status !== 0) {
+    throw new Error(`node:region failed for ${databaseUrl.replace(/:[^:@/]+@/, ":****@")}`);
+  }
+}
+
+export function dbUrlForNode(node) {
+  if (node === "a") {
+    return process.env.NODE_A_DATABASE_URL
+      ?? "postgresql://wikitraveler:wikitraveler@localhost:5433/wikitraveler";
+  }
+  if (node === "b") {
+    return process.env.NODE_B_DATABASE_URL
+      ?? "postgresql://wikitraveler:wikitraveler@localhost:5434/wikitraveler";
+  }
+  if (node === "c") {
+    return process.env.NODE_C_DATABASE_URL
+      ?? "postgresql://wikitraveler:wikitraveler@localhost:5435/wikitraveler";
+  }
+  throw new Error(`Unknown node ${node}`);
 }

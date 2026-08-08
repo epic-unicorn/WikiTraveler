@@ -27,6 +27,16 @@ const NODES = [
   },
 ];
 
+// Optional third lab node (mesh-3 overlay — Postgres on :5435)
+if (process.env.GOSSIP_MESH3 === "1" || process.env.NODE_C_DATABASE_URL) {
+  NODES.push({
+    label: "Node C",
+    databaseUrl: process.env.NODE_C_DATABASE_URL
+      ?? "postgresql://wikitraveler:wikitraveler@localhost:5435/wikitraveler",
+    nodeId: "node-c",
+  });
+}
+
 function seedNode({ label, databaseUrl, nodeId }) {
   console.log(`\n🌱 ${label} (${databaseUrl.replace(/:[^:@/]+@/, ":****@")})`);
   const result = spawnSync(

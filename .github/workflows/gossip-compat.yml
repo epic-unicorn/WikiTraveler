@@ -22,6 +22,11 @@ env:
     docker compose
     -f docker/docker-compose.gossip.yml
     -f docker/docker-compose.gossip-ci.yml
+  GOSSIP_COMPOSE_MESH3: >-
+    docker compose
+    -f docker/docker-compose.gossip.yml
+    -f docker/docker-compose.gossip-mesh3.yml
+    -f docker/docker-compose.gossip-mesh3-ci.yml
 
 jobs:
   gossip-discovery:
@@ -140,3 +145,63 @@ jobs:
       - name: Stop gossip lab
         if: always()
         run: $GOSSIP_COMPOSE_MIXED down -v
+
+  gossip-tier-b:
+    name: Federation Tier B E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install and pre-build (shared with containers via bind mount)
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec prisma generate
+          pnpm --filter @wikitraveler/core build
+          pnpm --filter @wikitraveler/i18n build
+          pnpm --filter @wikitraveler/ui build
+
+      - name: Generate node-c lab keys (not committed)
+        run: pnpm gossip:ensure-lab-keys
+
+      - name: Start mesh-3 gossip lab (A ↔ B ↔ C)
+        run: $GOSSIP_COMPOSE_MESH3 up -d --build
+
+      - name: Wait for mesh-3 nodes
+        run: |
+          set -e
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:3000/api/health >/dev/null \
+              && curl -sf http://localhost:3010/api/health >/dev/null \
+              && curl -sf http://localhost:3020/api/health >/dev/null; then
+              echo "Nodes A/B/C ready (attempt $i, ~$((i * 5))s)"
+              exit 0
+            fi
+            if [ "$((i % 12))" -eq 0 ]; then
+              echo "--- progress: node-a logs (tail 20) ---"
+              $GOSSIP_COMPOSE_MESH3 logs --tail 20 node-a || true
+            fi
+            echo "Waiting for mesh-3 nodes ($i/120)…"
+            sleep 5
+          done
+          echo "Mesh-3 lab failed to become ready — container logs:"
+          $GOSSIP_COMPOSE_MESH3 logs --tail 80 node-a node-b node-c || true
+          exit 1
+
+      - name: Tier B E2E (mesh-3, confirmed, resolve)
+        env:
+          GOSSIP_LAB_RETRIES: "40"
+          GOSSIP_LAB_RETRY_MS: "5000"
+          GOSSIP_MESH3: "1"
+        run: pnpm gossip:tier-b
+
+      - name: Stop mesh-3 gossip lab
+        if: always()
+        run: $GOSSIP_COMPOSE_MESH3 down -v

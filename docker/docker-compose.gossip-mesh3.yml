@@ -1,0 +1,88 @@
+# Tier B mesh-3 overlay — line topology A ↔ B ↔ C (A does not bootstrap C).
+#
+# Usage:
+#   docker compose -f docker/docker-compose.gossip.yml \
+#     -f docker/docker-compose.gossip-mesh3.yml up --build
+#   pnpm gossip:tier-b
+#
+# Node C → http://localhost:3020
+# Postgres C → localhost:5435
+#
+# CORS is locked to a trusted hub origin so H2 (gossiped accessUrl ≠ CORS) can be asserted.
+# Node C advertises an evil ACCESS_PUBLIC_URL that must not become trusted on A/B.
+
+services:
+  postgres-c:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wikitraveler
+      POSTGRES_PASSWORD: wikitraveler
+      POSTGRES_DB: wikitraveler
+    ports:
+      - "5435:5432"
+    volumes:
+      - gossip_pg_c:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikitraveler"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  node-a:
+    environment:
+      CORS_ORIGINS: "https://access.lab.example"
+      # Keep A ↔ B only (no direct bootstrap to C)
+      BOOTSTRAP_PEERS: http://node-b:3000
+
+  node-b:
+    environment:
+      CORS_ORIGINS: "https://access.lab.example"
+      BOOTSTRAP_PEERS: http://node-a:3000,http://node-c:3000
+
+  node-c:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      postgres-c:
+        condition: service_healthy
+      node-b:
+        condition: service_started
+    ports:
+      - "3020:3000"
+    volumes:
+      - ..:/app
+      - next_c:/app/apps/node/.next
+      - node_modules_c:/app/node_modules
+      - node_modules_core_c:/app/packages/core/node_modules
+      - node_modules_ui_c:/app/packages/ui/node_modules
+      - node_modules_ai_agent_c:/app/packages/ai-agent/node_modules
+      - node_modules_sdk_c:/app/packages/sdk/node_modules
+      - node_modules_node_app_c:/app/apps/node/node_modules
+      - ./gossip-lab/node-c.private.pem:/run/gossip-keys/private.pem:ro
+      - ./gossip-lab/node-c.public.pem:/run/gossip-keys/public.pem:ro
+    environment:
+      DATABASE_URL: postgresql://wikitraveler:wikitraveler@postgres-c:5432/wikitraveler
+      NODE_ID: node-c
+      NODE_URL: http://localhost:3020
+      BOOTSTRAP_PEERS: http://node-b:3000
+      GOSSIP_DEV: "true"
+      GOSSIP_KEY_DIR: /run/gossip-keys
+      CORS_ORIGINS: "https://access.lab.example"
+      # Advertised hub URL — must NOT auto-trust for CORS on peers (RFC-0002 H2)
+      ACCESS_PUBLIC_URL: "https://evil-access.example"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NODE_ENV: development
+
+volumes:
+  gossip_pg_c:
+  next_c:
+  node_modules_c:
+  node_modules_core_c:
+  node_modules_ui_c:
+  node_modules_ai_agent_c:
+  node_modules_sdk_c:
+  node_modules_node_app_c:

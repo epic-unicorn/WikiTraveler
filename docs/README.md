@@ -43,8 +43,8 @@ Single entry point for the project. Pick the path that matches your role — eac
 |-----|---------|
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | Monorepo layout, scripts, PR workflow, quality gates |
 | [LOCAL.md](./LOCAL.md) | Local Postgres, apps, OSM ingest, env vars |
-| [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Two-node gossip lab for federation testing (`gossip:discovery`, `gossip:compat`, `gossip:hardening`) |
-| [FEDERATION-E2E.md](./FEDERATION-E2E.md) | Advanced gossip/federation E2E tiers (kernel, topology, hub Access, photos) |
+| [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Gossip lab for federation testing (`gossip:discovery`, `gossip:hardening`, `gossip:tier-b`, `gossip:compat`) |
+| [FEDERATION-E2E.md](./FEDERATION-E2E.md) | Gossip/federation E2E tiers A–D (kernel, topology, hub Access, photos) |
 | [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) | Register on one node; browse/audit peers with RS256 JWT |
 | [RFC-0002](./rfcs/0002-global-hub-access.md) | Draft: global hub Access/Lens, mesh CORS trust, viewport map |
 | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Voluntary bootstrap peer directory |

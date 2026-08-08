@@ -13,8 +13,9 @@ Advanced E2E coverage so federation and gossip keep working as hub Access, photo
 | Discovery | `pnpm gossip:discovery` | `gossip-discovery` | Organic `BOOTSTRAP_PEERS`, pubkey, seed → cron pull, property/fact counts, snapshot protocol |
 | N↔N-1 compat | `pnpm gossip:compat` | `gossip-compat` | Mixed runtime version strings + sync |
 | **Hardening (Tier A)** | `pnpm gossip:hardening` | `gossip-discovery` (after discovery) | Push + pull dual-path, auth negatives, override CRUD, OSM re-ingest survival, bbox filter |
+| **Topology (Tier B)** | `pnpm gossip:tier-b` | `gossip-tier-b` | 3-node transitive discovery + H2 CORS, CONFIRMED honesty, peer resolve quality |
 
-Harness: Docker Compose gossip lab ([GOSSIP-DEV.md](./GOSSIP-DEV.md), `.github/workflows/gossip-compat.yml`).
+Harness: Docker Compose gossip lab ([GOSSIP-DEV.md](./GOSSIP-DEV.md), `.github/workflows/gossip-compat.yml`). Tier B uses the mesh-3 overlay (`docker-compose.gossip-mesh3.yml`).
 
 ---
 
@@ -32,13 +33,15 @@ Harness: Docker Compose gossip lab ([GOSSIP-DEV.md](./GOSSIP-DEV.md), `.github/w
 
 Orchestrator: `pnpm gossip:hardening` (runs the five above in order).
 
-### Tier B — Topology (nightly or protocol/peer PRs)
+### Tier B — Topology (CI job `gossip-tier-b`)
 
-| Suite | Goal |
-|-------|------|
-| `gossip:mesh-3` *(planned)* | A↔B, B↔C → A learns C via `peers[]` without in-bbox facts; gossiped `accessUrl` does not expand CORS (**H2**) |
-| `gossip:resolve` *(planned)* | Nested bboxes → smallest containing; equal area → nearest center; uncovered → no wrong home dump |
-| `gossip:confirmed` *(planned)* | ≥3 distinct `submittedBy` → `CONFIRMED`; same auditor gossiped N times does not inflate |
+| Script | Asserts |
+|--------|---------|
+| `gossip:mesh-3` | Line A↔B↔C; A learns C via gossip `peers[]` without direct bootstrap; C’s evil `accessUrl` does **not** expand CORS on A (**H2**); trusted hub Origin is reflected |
+| `gossip:confirmed` | Inbox with 3 distinct `submittedBy` + `sourceNodeId` → `CONFIRMED`; same auditor ×3 does not promote |
+| `gossip:resolve` | Nested bboxes → smallest peer; equal area → nearer center; uncovered → `matched: "fallback"` home |
+
+Orchestrator: `pnpm gossip:tier-b`. Lab: `pnpm dev:gossip-lab-mesh3`.
 
 ### Tier C — Client federation / RFC-0002 (before M6 ships)
 
@@ -65,13 +68,17 @@ Orchestrator: `pnpm gossip:hardening` (runs the five above in order).
 ## Local usage
 
 ```bash
-pnpm dev:gossip-lab          # Node A :3000, Node B :3010
-# Complete /setup + Eindhoven region on both, or rely on seed (sets bbox)
-pnpm gossip:discovery        # baseline
-pnpm gossip:hardening        # Tier A
+# Tier A (2-node)
+pnpm dev:gossip-lab
+pnpm gossip:discovery
+pnpm gossip:hardening
+
+# Tier B (3-node line topology)
+pnpm dev:gossip-lab-mesh3
+pnpm gossip:tier-b
 ```
 
-Individual scripts: `gossip:dual-path`, `gossip:auth-negative`, `gossip:bbox-identity`, `gossip:crud`, `gossip:reingest`.
+Individual Tier B scripts: `gossip:mesh-3`, `gossip:confirmed`, `gossip:resolve`.
 
 ---
 
@@ -86,7 +93,7 @@ Prefer Vitest failures for merge/auth kernels; keep E2E for the live mesh:
 
 ## Priority
 
-1. Tier A in CI (this doc + scripts) — highest ROI for every future feature  
-2. Hub Access Playwright — locks RFC-0002 before M6  
-3. Mesh-3 + CONFIRMED + photos — before those features ship  
-4. True binary N-1 image in compat (not only version-string overlay) when upgrade skew matters  
+1. Tier A in CI — done  
+2. Tier B in CI — done (this doc)  
+3. Hub Access Playwright — locks RFC-0002 before M6  
+4. Photos + true binary N-1 image when those features / upgrades matter  

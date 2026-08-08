@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Docker entrypoints strip CRLF after COPY; `.gitattributes` forces LF on `*.sh` so Windows checkouts do not fail with `exec /entrypoint.dev.sh: no such file or directory`
 - Pin transitive `js-yaml@4` to `>=4.3.1` via `pnpm.overrides` (Dependabot could not unlock past 4.3.0)
+- Gossip ingest still exchanges `peers[]` when no region bbox is configured (fact/override ingest stays skipped) — unblocks transitive discovery before region setup ([FEDERATION-E2E.md](docs/FEDERATION-E2E.md))
 
 ---
 
