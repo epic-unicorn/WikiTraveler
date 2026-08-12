@@ -19,23 +19,5 @@
       "path": "/api/cron/wheelmap-sync",
       "schedule": "0 3 * * *"
     }
-  ],
-  "env": {
-    "NODE_ID": "@node-id",
-    "NODE_URL": "@node-url",
-    "NEXT_PUBLIC_NODE_API_URL": "@next-public-node-api-url",
-    "NODE_PRIVATE_KEY": "@node-private-key",
-    "NODE_PUBLIC_KEY": "@node-public-key",
-    "DATABASE_URL": "@database-url",
-    "CORS_ORIGINS": "*",
-    "GOSSIP_INTERVAL_HOURS": "@gossip-interval-hours",
-    "CRON_SECRET": "@cron-secret",
-    "OPENAI_API_KEY": "@openai-api-key",
-    "AI_API_KEY": "@ai-api-key",
-    "AI_BASE_URL": "@ai-base-url",
-    "AI_VISION_MODEL": "@ai-vision-model",
-    "AI_TEXT_MODEL": "@ai-text-model",
-    "WHEELMAP_API_KEY": "@wheelmap-api-key",
-    "BOOTSTRAP_PEERS": "@bootstrap-peers"
-  }
+  ]
 }

@@ -3,6 +3,7 @@ node_modules
 dist
 .env
 .env.local
+.vercel-cron-secret.local
 *.tsbuildinfo
 .lighthouse-secrets.json
 .lighthouseci

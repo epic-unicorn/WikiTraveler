@@ -75,19 +75,24 @@ The repo-root `vercel.json` configures cron jobs when deployed from root.
 
 #### Node environment variables
 
+Set these in the **Vercel project → Settings → Environment Variables** (or `vercel env add`). Do **not** put secrets in `vercel.json` — the old `@secret-name` block is removed; crons stay in `vercel.json`, env lives in the project.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | **Yes** | PostgreSQL URL with SSL |
+| `DATABASE_URL` | **Yes** | Neon/Postgres **pooled** URL with SSL (`?sslmode=require`) |
 | `NODE_ID` | **Yes** | Stable unique ID, e.g. `wikitraveler-nl` |
-| `NODE_URL` | **Yes** | Public URL, e.g. `https://node.example.com` |
+| `NODE_URL` | **Yes** | Public URL, e.g. `https://wikitraveler-node.vercel.app` (update after first deploy if needed) |
 | `NODE_PRIVATE_KEY` | **Recommended** | RSA private key PEM |
 | `NODE_PUBLIC_KEY` | **Recommended** | RSA public key PEM |
 | `CRON_SECRET` | **Yes** | Random string; all cron routes require `Authorization: Bearer <value>` |
-| `CORS_ORIGINS` | Strongly recommended | Comma-separated browser origins (legacy / additional). Prefer also setting `CLIENT_ORIGINS` |
-| `CLIENT_ORIGINS` | Strongly recommended | Trusted hub Access + Lens + SDK origins — e.g. `https://access.wikitraveler.org`, backup Access, `chrome-extension://<lens-id>` ([RFC-0002](./rfcs/0002-global-hub-access.md)) |
+| `CLIENT_ORIGINS` | Strongly recommended | Trusted hub Access + Lens + SDK origins — e.g. `https://access.wikitraveler.org` ([RFC-0002](./rfcs/0002-global-hub-access.md)) |
+| `CORS_ORIGINS` | Strongly recommended | Extra browser origins (or same list). Do **not** use `*` on public nodes |
 | `ACCESS_PUBLIC_URL` | No | Access URL advertised on `/api/nodeinfo` (directory only — not auto CORS from gossip) |
 | `BOOTSTRAP_PEERS` | No | Comma-separated peer node URLs |
 | `OPENAI_API_KEY` / `AI_*` | No | AI features — see [LOCAL.md § AI provider](./LOCAL.md#ai-provider-optional) |
+| `WHEELMAP_API_KEY` | No | Wheelmap sync |
+
+`NEXT_PUBLIC_NODE_API_URL` belongs on the **Access** Vercel project, not the node.
 
 Paste PEM keys with literal `\n` for newlines, or use multi-line values in the Vercel dashboard.
 
