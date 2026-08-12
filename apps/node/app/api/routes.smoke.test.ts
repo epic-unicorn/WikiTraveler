@@ -52,6 +52,8 @@ const { nodeSettingsDefaults, statsDefaults, authMocks } = vi.hoisted(() => ({
       "X-Node-Signature": "mock-sig",
     }),
     auditorId: vi.fn((user: { username: string }) => user.username),
+    normalizePem: (raw: string | null | undefined) =>
+      raw ? raw.replace(/\\n/g, "\n") : null,
   },
 }));
 
