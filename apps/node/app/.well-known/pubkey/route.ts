@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizePem } from "@/lib/auth";
 
 /**
  * GET /.well-known/pubkey
@@ -9,7 +10,7 @@ import { NextResponse } from "next/server";
  * The public key is expected in NODE_PUBLIC_KEY env var.
  */
 export async function GET() {
-  const publicKeyPem = process.env.NODE_PUBLIC_KEY ?? null;
+  const publicKeyPem = normalizePem(process.env.NODE_PUBLIC_KEY);
 
   if (!publicKeyPem) {
     return NextResponse.json({ message: "No public key configured" }, { status: 404 });

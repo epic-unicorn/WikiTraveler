@@ -6,6 +6,7 @@ import {
   getAdvertisedAccessUrl,
   getAdvertisedClientOrigins,
 } from "@/lib/corsOrigins";
+import { normalizePem } from "@/lib/auth";
 import {
   EXPORT_SCHEMA_VERSION,
   GOSSIP_PROTOCOL_VERSION,
@@ -48,7 +49,7 @@ export async function GET() {
     exportSchema: EXPORT_SCHEMA_VERSION,
     region,
     bbox,
-    publicKeyPem: process.env.NODE_PUBLIC_KEY ?? null,
+    publicKeyPem: normalizePem(process.env.NODE_PUBLIC_KEY),
     accessUrl,
     clientOrigins,
     peers,
