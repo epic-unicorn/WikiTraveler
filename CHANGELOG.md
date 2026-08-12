@@ -10,6 +10,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Large `node:import` / Admin gzip imports no longer hit Postgres bind-variable limits or per-row upsert timeouts; imports batch with `createMany`, retry transient disconnects, and support `--limit` for smoke tests
+- Vercel node builds prebuild workspace packages (`core` / `i18n` / `ui` / `ai-agent`) before Next so `@wikitraveler/i18n` resolves ([VERCEL.md](docs/VERCEL.md))
+- Gossip lab `postAudit` retries Next.js HTML 404s (turbopack race) during federated hub-journey audits
+- JWT login/sign normalizes PEM env keys with literal `\n` (Vercel) so RS256 no longer crashes with “Could not reach server”
+
+### Changed
+
+- Vercel gossip cron runs daily (`0 1 * * *`) so Hobby plan deploys work; Pro can restore a sub-daily schedule in `vercel.json` ([VERCEL.md](docs/VERCEL.md))
+- Removed legacy `vercel.json` `@secret` env block — set node env vars in the Vercel project (include `CLIENT_ORIGINS`; do not ship `CORS_ORIGINS=*`) ([VERCEL.md](docs/VERCEL.md))
+
 ---
 
 ## [0.4.0] - 2026-08-08

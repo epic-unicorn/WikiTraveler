@@ -14,8 +14,14 @@ export type Role = "USER" | "AUDITOR" | "ADMIN";
 // ---------------------------------------------------------------------------
 // Key material
 // ---------------------------------------------------------------------------
-const PRIVATE_KEY = process.env.NODE_PRIVATE_KEY ?? null;
-const PUBLIC_KEY = process.env.NODE_PUBLIC_KEY ?? null;
+/** Vercel/env PEMs are often stored with literal `\n`; crypto/jwt need real newlines. */
+export function normalizePem(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return raw.replace(/\\n/g, "\n");
+}
+
+const PRIVATE_KEY = normalizePem(process.env.NODE_PRIVATE_KEY);
+const PUBLIC_KEY = normalizePem(process.env.NODE_PUBLIC_KEY);
 // Legacy HS256 secret — still accepted for backward compatibility
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 
@@ -154,9 +160,7 @@ export function auditorId(user: AuthUser): string {
 // ---------------------------------------------------------------------------
 
 function privateKeyPem(): string | null {
-  const raw = process.env.NODE_PRIVATE_KEY;
-  if (!raw) return null;
-  return raw.replace(/\\n/g, "\n");
+  return PRIVATE_KEY;
 }
 
 /**
@@ -200,7 +204,7 @@ export async function requireNodeAuth(req: NextRequest): Promise<NextResponse | 
 
   // Gossip cron signs local ingest with this node's key (not listed as a peer).
   if (nodeId === NODE_ID) {
-    const pubKey = PUBLIC_KEY?.replace(/\\n/g, "\n");
+    const pubKey = PUBLIC_KEY;
     if (!pubKey) {
       return NextResponse.json({ message: "No public key configured" }, { status: 401 });
     }

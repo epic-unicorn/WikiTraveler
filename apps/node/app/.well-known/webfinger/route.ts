@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { NODE_URL, NODE_ID, NODE_VERSION } from "@/lib/nodeInfo";
+import { normalizePem } from "@/lib/auth";
 
 /**
  * GET /.well-known/webfinger
@@ -27,8 +28,7 @@ export async function GET() {
       properties: {
         "https://wikitraveler.org/ns#nodeId": NODE_ID,
         "https://wikitraveler.org/ns#version": NODE_VERSION,
-        "https://wikitraveler.org/ns#publicKey":
-          process.env.NODE_PUBLIC_KEY ?? null,
+        "https://wikitraveler.org/ns#publicKey": normalizePem(process.env.NODE_PUBLIC_KEY),
       },
     },
     {
