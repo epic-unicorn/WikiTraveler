@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm exec next dev",
-    "build": "pnpm -w run vercel-build:packages && pnpm exec next build",
+    "build": "pnpm exec next build",
     "start": "pnpm exec next start",
     "lint": "eslint .",
     "test": "vitest run",

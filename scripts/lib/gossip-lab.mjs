@@ -399,16 +399,30 @@ export async function ensureLabAuditor(homeBase, {
   return { token: login.token, username, password, adminToken: admin };
 }
 
-export async function postAudit(base, propertyId, token, body, { origin } = {}) {
+export async function postAudit(base, propertyId, token, body, { origin, retries = 8, retryMs = 1500 } = {}) {
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   };
   if (origin) headers.Origin = origin;
-  return jsonFetch(`${base}/api/properties/${encodeURIComponent(propertyId)}/accessibility`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    expectOk: false,
-  });
+  const url = `${base}/api/properties/${encodeURIComponent(propertyId)}/accessibility`;
+  let last;
+  for (let i = 1; i <= retries; i++) {
+    last = await jsonFetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      expectOk: false,
+    });
+    // Next.js turbopack in the gossip lab can briefly 404 API routes as HTML not-found.
+    const msg = typeof last.data?.message === "string" ? last.data.message : "";
+    const looksLikeNextHtml404 =
+      last.res.status === 404 && (msg.includes("<!DOCTYPE html>") || msg.includes("This page could not be found"));
+    if (!looksLikeNextHtml404) return last;
+    if (i < retries) {
+      console.log(`  audit route not ready (${last.res.status}), retry ${i}/${retries}…`);
+      await sleep(retryMs);
+    }
+  }
+  return last;
 }

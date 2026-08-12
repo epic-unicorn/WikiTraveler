@@ -71,9 +71,9 @@ If Vercel only allows Root Directory on the app folder, use **Root Directory = `
 | **Install Command** | `cd ../.. && pnpm install` |
 | **Build Command** | `cd ../.. && pnpm run vercel-build` |
 
-Do **not** use a bare `next build` / `@wikitraveler/node` build without building workspace packages first — `@wikitraveler/i18n` and friends resolve from `dist/`.
+Do **not** use a bare `next build` without building workspace packages first — `@wikitraveler/i18n` and friends resolve from `dist/`. Prefer `pnpm run vercel-build` (project Build Command) or prebuild packages in Install/Build.
 
-The repo-root `vercel.json` configures cron jobs when deployed from root. `apps/node`’s `build` script also runs `vercel-build:packages` so the legacy `@vercel/next` builder path stays safe.
+The repo-root `vercel.json` configures cron jobs when deployed from root.
 
 #### Node environment variables
 
