@@ -236,7 +236,7 @@ Defined in [`vercel.json`](../vercel.json):
 
 | Path | Schedule | Purpose |
 |------|----------|---------|
-| `/api/cron/gossip` | Every 6 hours | Peer fact sync |
+| `/api/cron/gossip` | Daily 01:00 UTC (Hobby-compatible; Pro may use a denser schedule) | Peer fact sync |
 | `/api/cron/ai-scan` | Daily 02:00 UTC | AI gap-fill |
 | `/api/cron/wheelmap-sync` | Daily 03:00 UTC | Wheelmap wheelchair data |
 

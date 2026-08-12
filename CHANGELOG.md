@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Large `node:import` / Admin gzip imports no longer hit Postgres bind-variable limits or per-row upsert timeouts; imports batch with `createMany`, retry transient disconnects, and support `--limit` for smoke tests
 
+### Changed
+
+- Vercel gossip cron runs daily (`0 1 * * *`) so Hobby plan deploys work; Pro can restore a sub-daily schedule in `vercel.json` ([VERCEL.md](docs/VERCEL.md))
+
 ---
 
 ## [0.4.0] - 2026-08-08
