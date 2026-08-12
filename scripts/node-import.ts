@@ -3,6 +3,7 @@
  *
  * Usage:
  *   pnpm node:import --file ./wikitraveler-export.json.gz
+ *   pnpm node:import --file ./wikitraveler-export.json.gz --limit 100
  */
 
 import { readFileSync } from "fs";
@@ -23,11 +24,25 @@ async function main() {
   const file = argValue("--file");
   if (!file) throw new Error("Provide --file <path>");
 
+  const limitRaw = argValue("--limit");
+  const limit = limitRaw != null ? Number(limitRaw) : undefined;
+  if (limitRaw != null && (!Number.isFinite(limit) || (limit as number) <= 0)) {
+    throw new Error("--limit must be a positive number");
+  }
+
   const raw = readFileSync(file);
   const json = file.endsWith(".gz") ? gunzipSync(raw) : raw;
   const payload = JSON.parse(json.toString("utf-8")) as ExportPayload;
 
-  const result = await importExportPayload(payload);
+  console.log(
+    `Export contains ${payload.properties.length} properties, ${payload.facts.length} facts` +
+      (limit != null ? ` — importing first ${limit} properties only` : "")
+  );
+
+  const result = await importExportPayload(payload, {
+    limit,
+    onProgress: (msg) => console.log(`  ${msg}`),
+  });
   if (result.propertiesUpserted > 0) {
     await recordIngestComplete(result.propertiesUpserted);
   }

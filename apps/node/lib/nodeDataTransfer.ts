@@ -124,92 +124,235 @@ export interface ImportResult {
   metadataOverridesImported: number;
 }
 
-export async function importExportPayload(payload: ExportPayload): Promise<ImportResult> {
+export interface ImportOptions {
+  /** Only import the first N properties (and their facts). Useful for smoke tests. */
+  limit?: number;
+  onProgress?: (message: string) => void;
+}
+
+const PROPERTY_BATCH = 500;
+const FACT_BATCH = 1000;
+const ID_IN_CHUNK = 20000;
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  if (size <= 0) throw new Error("chunkArray size must be > 0");
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
+
+function isTransientDbError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const code = "code" in err ? String((err as { code?: unknown }).code ?? "") : "";
+  const message = err instanceof Error ? err.message : String(err);
+  return (
+    code === "P1017" ||
+    code === "P1001" ||
+    code === "P1002" ||
+    /closed the connection|Can't reach database|Connection reset|ECONNRESET|ETIMEDOUT/i.test(
+      message
+    )
+  );
+}
+
+async function withDbRetry<T>(label: string, fn: () => Promise<T>, onProgress?: (m: string) => void): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientDbError(err) || attempt === 5) throw err;
+      const waitMs = attempt * 1500;
+      onProgress?.(
+        `${label}: connection error (attempt ${attempt}/5), retrying in ${waitMs}ms…`
+      );
+      await new Promise((r) => setTimeout(r, waitMs));
+      try {
+        await prisma.$connect();
+      } catch {
+        // reconnect best-effort; next attempt will surface the real error
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Slice a full export to the first `limit` properties (and related facts / overrides).
+ * Keeps import smoke tests fast against local Postgres or Neon.
+ */
+export function limitExportPayload(payload: ExportPayload, limit: number): ExportPayload {
+  if (!Number.isFinite(limit) || limit <= 0) return payload;
+  const properties = payload.properties.slice(0, limit);
+  const propertyIds = new Set(properties.map((p) => p.id));
+  const canonicalIds = new Set(properties.map((p) => p.canonicalId));
+  return {
+    ...payload,
+    properties,
+    facts: payload.facts.filter((f) => propertyIds.has(f.propertyId)),
+    metadataOverrides: (payload.metadataOverrides ?? []).filter((o) =>
+      canonicalIds.has(o.canonicalId)
+    ),
+  };
+}
+
+/**
+ * Bulk import for large gzip exports.
+ *
+ * Uses createMany + skipDuplicates (batched) instead of per-row upserts so West-Europe
+ * scale imports finish in minutes rather than hours. Safe to re-run: already-imported
+ * rows are skipped; VERIFIED/CONFIRMED facts are not downgraded.
+ */
+export async function importExportPayload(
+  payload: ExportPayload,
+  options: ImportOptions = {}
+): Promise<ImportResult> {
   if (!Array.isArray(payload.properties) || !Array.isArray(payload.facts)) {
     throw new Error("Invalid export format — missing properties or facts arrays");
   }
 
-  const idMap = new Map<string, string>();
+  const onProgress = options.onProgress ?? (() => {});
+  const working =
+    options.limit != null ? limitExportPayload(payload, options.limit) : payload;
 
-  for (const p of payload.properties) {
-    const local = await prisma.property.upsert({
-      where: { canonicalId: p.canonicalId },
-      update: {
-        name: p.name,
-        location: p.location,
-        lat: p.lat,
-        lon: p.lon,
-        ...(p.osmId ? { osmId: p.osmId } : {}),
-        ...(p.wheelmapId ? { wheelmapId: p.wheelmapId } : {}),
-      },
-      create: {
-        canonicalId: p.canonicalId,
-        name: p.name,
-        location: p.location,
-        lat: p.lat,
-        lon: p.lon,
-        osmId: p.osmId,
-        wheelmapId: p.wheelmapId,
-        dataSource: p.dataSource ?? "IMPORTED_OSM",
-      },
-      select: { id: true },
-    });
-    idMap.set(p.id, local.id);
+  onProgress(
+    `Importing ${working.properties.length} properties, ${working.facts.length} facts` +
+      (options.limit != null ? ` (limit=${options.limit})` : "")
+  );
+
+  // 1) Insert properties in batches (skip rows that already exist by unique key)
+  let propertiesInserted = 0;
+  const propertyChunks = chunkArray(working.properties, PROPERTY_BATCH);
+  for (let i = 0; i < propertyChunks.length; i++) {
+    const chunk = propertyChunks[i]!;
+    const result = await withDbRetry(
+      `properties batch ${i + 1}/${propertyChunks.length}`,
+      () =>
+        prisma.property.createMany({
+          data: chunk.map((p) => ({
+            canonicalId: p.canonicalId,
+            name: p.name,
+            location: p.location,
+            lat: p.lat,
+            lon: p.lon,
+            osmId: p.osmId,
+            wheelmapId: p.wheelmapId,
+            dataSource: p.dataSource ?? "IMPORTED_OSM",
+          })),
+          skipDuplicates: true,
+        }),
+      onProgress
+    );
+    propertiesInserted += result.count;
+    if ((i + 1) % 10 === 0 || i === propertyChunks.length - 1) {
+      onProgress(
+        `Properties: batch ${i + 1}/${propertyChunks.length} (${propertiesInserted} newly inserted)`
+      );
+    }
   }
 
-  let factsImported = 0;
-  let factsProtected = 0;
+  // 2) Map export property ids → local ids via canonicalId
+  const idMap = new Map<string, string>();
+  const exportByCanonical = new Map(working.properties.map((p) => [p.canonicalId, p.id]));
+  const canonicalIds = working.properties.map((p) => p.canonicalId);
+  for (const idChunk of chunkArray(canonicalIds, ID_IN_CHUNK)) {
+    const rows = await withDbRetry(
+      "property id map",
+      () =>
+        prisma.property.findMany({
+          where: { canonicalId: { in: idChunk } },
+          select: { id: true, canonicalId: true },
+        }),
+      onProgress
+    );
+    for (const row of rows) {
+      const exportId = exportByCanonical.get(row.canonicalId);
+      if (exportId) idMap.set(exportId, row.id);
+    }
+  }
+  onProgress(`Mapped ${idMap.size} properties to local ids`);
 
+  // 3) Protect VERIFIED/CONFIRMED facts from downgrade
+  let factsProtected = 0;
   const protectedMap = new Map<string, Set<string>>();
   const localIds = [...idMap.values()];
-  const existingFacts = await prisma.accessibilityFact.findMany({
-    where: {
-      propertyId: { in: localIds },
-      tier: { in: ["VERIFIED", "CONFIRMED"] },
-    },
-    select: { propertyId: true, fieldName: true },
-  });
-  for (const f of existingFacts) {
-    if (!protectedMap.has(f.propertyId)) protectedMap.set(f.propertyId, new Set());
-    protectedMap.get(f.propertyId)!.add(f.fieldName);
+  for (const idChunk of chunkArray(localIds, ID_IN_CHUNK)) {
+    const existingFacts = await withDbRetry(
+      "protected facts lookup",
+      () =>
+        prisma.accessibilityFact.findMany({
+          where: {
+            propertyId: { in: idChunk },
+            tier: { in: ["VERIFIED", "CONFIRMED"] },
+          },
+          select: { propertyId: true, fieldName: true },
+        }),
+      onProgress
+    );
+    for (const f of existingFacts) {
+      if (!protectedMap.has(f.propertyId)) protectedMap.set(f.propertyId, new Set());
+      protectedMap.get(f.propertyId)!.add(f.fieldName);
+    }
   }
 
-  for (const f of payload.facts) {
+  // 4) Insert facts in batches
+  const factsToInsert: Array<{
+    propertyId: string;
+    fieldName: string;
+    value: string;
+    tier: Tier;
+    sourceType: SourceType;
+    sourceNodeId: string;
+    submittedBy: string | null;
+    signatureHash: string | null;
+    timestamp: Date;
+    scopeKey: string;
+  }> = [];
+
+  for (const f of working.facts) {
     const localPropertyId = idMap.get(f.propertyId);
     if (!localPropertyId) continue;
-
     if (protectedMap.get(localPropertyId)?.has(f.fieldName)) {
       factsProtected++;
       continue;
     }
-
-    await prisma.accessibilityFact.upsert({
-      where: {
-        propertyId_fieldName_sourceNodeId_scopeKey: {
-          propertyId: localPropertyId,
-          fieldName: f.fieldName,
-          sourceNodeId: f.sourceNodeId,
-          scopeKey: f.scopeKey ?? "property",
-        },
-      },
-      update: { value: f.value, tier: f.tier as Tier, timestamp: new Date(f.timestamp) },
-      create: {
-        propertyId: localPropertyId,
-        fieldName: f.fieldName,
-        value: f.value,
-        tier: f.tier as Tier,
-        sourceType: f.sourceType as SourceType,
-        sourceNodeId: f.sourceNodeId,
-        submittedBy: f.submittedBy,
-        signatureHash: f.signatureHash,
-        timestamp: new Date(f.timestamp),
-        scopeKey: f.scopeKey ?? "property",
-      },
+    factsToInsert.push({
+      propertyId: localPropertyId,
+      fieldName: f.fieldName,
+      value: f.value,
+      tier: f.tier as Tier,
+      sourceType: f.sourceType as SourceType,
+      sourceNodeId: f.sourceNodeId,
+      submittedBy: f.submittedBy,
+      signatureHash: f.signatureHash,
+      timestamp: new Date(f.timestamp),
+      scopeKey: f.scopeKey ?? "property",
     });
-    factsImported++;
   }
 
-  const incomingOverrides: PropertyMetadataOverride[] = (payload.metadataOverrides ?? []).map(
+  let factsImported = 0;
+  const factChunks = chunkArray(factsToInsert, FACT_BATCH);
+  for (let i = 0; i < factChunks.length; i++) {
+    const chunk = factChunks[i]!;
+    const result = await withDbRetry(
+      `facts batch ${i + 1}/${factChunks.length}`,
+      () =>
+        prisma.accessibilityFact.createMany({
+          data: chunk,
+          skipDuplicates: true,
+        }),
+      onProgress
+    );
+    factsImported += result.count;
+    if ((i + 1) % 20 === 0 || i === factChunks.length - 1) {
+      onProgress(
+        `Facts: batch ${i + 1}/${factChunks.length} (${factsImported} newly inserted)`
+      );
+    }
+  }
+
+  const incomingOverrides: PropertyMetadataOverride[] = (working.metadataOverrides ?? []).map(
     (o) => ({
       canonicalId: o.canonicalId,
       fieldName: o.fieldName as PropertyMetadataOverride["fieldName"],
