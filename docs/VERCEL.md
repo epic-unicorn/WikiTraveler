@@ -60,18 +60,20 @@ DATABASE_URL="postgresql://..." pnpm db:deploy
 | Setting | Value |
 |---------|-------|
 | **Install Command** | `pnpm install` |
-| **Build Command** | `pnpm exec prisma generate && pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/node build` |
+| **Build Command** | `pnpm run vercel-build` (builds `core` / `i18n` / `ui` / `ai-agent`, then Next in `apps/node`) |
 | **Output Directory** | `apps/node/.next` |
-| **Root Directory (app)** | `apps/node` |
+| **Root Directory** | repository root (keeps root `vercel.json` crons) |
 
 If Vercel only allows Root Directory on the app folder, use **Root Directory = `apps/node`**:
 
 | Setting | Value |
 |---------|-------|
 | **Install Command** | `cd ../.. && pnpm install` |
-| **Build Command** | `cd ../.. && pnpm exec prisma generate && pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/node build` |
+| **Build Command** | `cd ../.. && pnpm run vercel-build` |
 
-The repo-root `vercel.json` configures cron jobs when deployed from root.
+Do **not** use a bare `next build` / `@wikitraveler/node` build without building workspace packages first — `@wikitraveler/i18n` and friends resolve from `dist/`.
+
+The repo-root `vercel.json` configures cron jobs when deployed from root. `apps/node`’s `build` script also runs `vercel-build:packages` so the legacy `@vercel/next` builder path stays safe.
 
 #### Node environment variables
 
