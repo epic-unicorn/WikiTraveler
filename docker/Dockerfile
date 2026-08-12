@@ -42,7 +42,8 @@ RUN pnpm --filter @wikitraveler/core build
 RUN pnpm --filter @wikitraveler/i18n build
 RUN pnpm --filter @wikitraveler/ui build
 RUN pnpm --filter @wikitraveler/ai-agent build
-RUN pnpm --filter @wikitraveler/node build
+# Packages already built above — do not use `pnpm --filter node build` (that re-runs vercel-build:packages).
+RUN pnpm --filter @wikitraveler/node exec next build
 
 # Stage Prisma client package + query engine to fixed paths (pnpm store path varies)
 RUN PRISMA_CLIENT="$(find /app/node_modules/.pnpm -path '*/.prisma/client' -type d | head -1)" \
