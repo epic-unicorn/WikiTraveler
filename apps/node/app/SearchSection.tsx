@@ -71,6 +71,8 @@ export function SearchSection({ onResults, onSelectPin }: Props) {
   const [isPending, startTransition] = useTransition();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequest = useRef(createRequestCounter());
+  const onResultsRef = useRef(onResults);
+  onResultsRef.current = onResults;
 
   useEffect(() => {
     let cancelled = false;
@@ -89,46 +91,43 @@ export function SearchSection({ onResults, onSelectPin }: Props) {
     };
   }, [locale]);
 
-  const runSearch = useCallback(
-    (q: string, f: SearchFilters, pageNum: number) => {
-      if (!hasActiveSearch(q, f)) {
-        setResults(null);
-        setTotal(0);
-        onResults?.(null);
-        return;
-      }
+  const runSearch = useCallback((q: string, f: SearchFilters, pageNum: number) => {
+    if (!hasActiveSearch(q, f)) {
+      setResults(null);
+      setTotal(0);
+      onResultsRef.current?.(null);
+      return;
+    }
 
-      startTransition(async () => {
-        const requestId = searchRequest.current.next();
-        const params = buildParams(q, f, pageNum);
-        const res = await fetch(`/api/properties?${params}`, { headers: authHeaders() });
-        if (!searchRequest.current.isLatest(requestId)) return;
-        const data = (await res.json()) as {
-          properties?: PropertySummary[];
-          total?: number;
-          page?: number;
-          pageSize?: number;
-        };
-        const properties = data.properties ?? [];
-        if (!searchRequest.current.isLatest(requestId)) return;
-        setResults(properties);
-        setTotal(typeof data.total === "number" ? data.total : properties.length);
-        onResults?.(
-          properties
-            .filter((p) => p.lat != null && p.lon != null)
-            .map((p) => ({
-              id: p.id,
-              name: p.name,
-              location: p.location,
-              lat: p.lat!,
-              lon: p.lon!,
-              audited: (p.facts ?? []).some((f) => AUDITED_TIERS.has(f.tier)),
-            }))
-        );
-      });
-    },
-    [onResults]
-  );
+    startTransition(async () => {
+      const requestId = searchRequest.current.next();
+      const params = buildParams(q, f, pageNum);
+      const res = await fetch(`/api/properties?${params}`, { headers: authHeaders() });
+      if (!searchRequest.current.isLatest(requestId)) return;
+      const data = (await res.json()) as {
+        properties?: PropertySummary[];
+        total?: number;
+        page?: number;
+        pageSize?: number;
+      };
+      const properties = data.properties ?? [];
+      if (!searchRequest.current.isLatest(requestId)) return;
+      setResults(properties);
+      setTotal(typeof data.total === "number" ? data.total : properties.length);
+      onResultsRef.current?.(
+        properties
+          .filter((p) => p.lat != null && p.lon != null)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            location: p.location,
+            lat: p.lat!,
+            lon: p.lon!,
+            audited: (p.facts ?? []).some((fact) => AUDITED_TIERS.has(fact.tier)),
+          }))
+      );
+    });
+  }, []);
 
   // Debounced search when query/filters change — always page 1.
   useEffect(() => {

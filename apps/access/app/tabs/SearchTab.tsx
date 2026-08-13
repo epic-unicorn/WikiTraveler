@@ -146,7 +146,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, filters, mapDataNodeUrl, hasActiveSearch, page, t]);
+  }, [query, filters, mapDataNodeUrl, hasActiveSearch, page]);
 
   const displayProperties: PropertySummary[] = hasActiveSearch ? (results ?? []) : [];
   const totalPages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
