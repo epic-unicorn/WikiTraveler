@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Vercel node builds prebuild workspace packages (`core` / `i18n` / `ui` / `ai-agent`) before Next so `@wikitraveler/i18n` resolves ([VERCEL.md](docs/VERCEL.md))
 - Gossip lab `postAudit` retries Next.js HTML 404s (turbopack race) during federated hub-journey audits
 - JWT login/sign normalizes PEM env keys with literal `\n` (Vercel) so RS256 no longer crashes with “Could not reach server”
+- Admin dashboard map loads pins per viewport (not a one-shot `region=1` dump capped at 5000 alphabetical rows), so cities like Eindhoven show their full accommodation set when zoomed in
 
 ### Changed
 
