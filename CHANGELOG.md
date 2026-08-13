@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Gossip lab `postAudit` retries Next.js HTML 404s (turbopack race) during federated hub-journey audits
 - JWT login/sign normalizes PEM env keys with literal `\n` (Vercel) so RS256 no longer crashes with “Could not reach server”
 - Admin dashboard map loads pins per viewport (not a one-shot `region=1` dump capped at 5000 alphabetical rows), so cities like Eindhoven show their full accommodation set when zoomed in
+- Admin map search mode shows only search hits on the map and keyboard list (no mixed viewport pins)
+- `PropertyCard` layout no longer squeezes titles/addresses when many audited-field badges wrap
 
 ### Changed
 

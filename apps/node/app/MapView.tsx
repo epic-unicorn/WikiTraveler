@@ -51,14 +51,8 @@ function formatBoundsBbox(b: import("leaflet").LatLngBounds): string {
   return `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
 }
 
-function mergePins(viewport: MapPin[], focus: MapPin[] | null | undefined): MapPin[] {
-  if (!focus || focus.length === 0) return viewport;
-  const byId = new Map(viewport.map((p) => [p.id, p]));
-  for (const p of focus) {
-    if (p.lat === 0 && p.lon === 0) continue;
-    if (!byId.has(p.id)) byId.set(p.id, p);
-  }
-  return [...byId.values()];
+function mappablePins(pins: MapPin[]): MapPin[] {
+  return pins.filter((p) => p.lat !== 0 && p.lon !== 0);
 }
 
 export function MapView({ focusPins, auditedOnly }: Props) {
@@ -79,20 +73,33 @@ export function MapView({ focusPins, auditedOnly }: Props) {
   const tileLayerRef = useRef<import("leaflet").TileLayer | null>(null);
   const fetchIdRef = useRef(0);
   const lastFocusSignatureRef = useRef<string | null>(null);
+  const focusPinsRef = useRef(focusPins);
+  focusPinsRef.current = focusPins;
 
-  const displayPins = useMemo(
-    () => mergePins(allPins, focusPins),
-    [allPins, focusPins]
-  );
+  /** Search mode: map + keyboard list show only search hits (not viewport dump). */
+  const searchMode = Boolean(focusPins && focusPins.length > 0);
+
+  const displayPins = useMemo(() => {
+    if (searchMode && focusPins) return mappablePins(focusPins);
+    return allPins;
+  }, [allPins, focusPins, searchMode]);
 
   const visiblePins = useMemo(
-    () => getVisiblePins(displayPins, focusPins, auditedOnly),
-    [displayPins, focusPins, auditedOnly]
+    () => getVisiblePins(displayPins, searchMode ? null : focusPins, auditedOnly),
+    [displayPins, focusPins, auditedOnly, searchMode]
   );
 
   const refreshViewport = useCallback(async () => {
     const map = mapRef.current;
     if (!map) return;
+
+    // Search results own the map — skip viewport pin fetches.
+    if (focusPinsRef.current && focusPinsRef.current.length > 0) {
+      setZoomHint(false);
+      setTruncated(false);
+      setMapError("");
+      return;
+    }
 
     const zoom = map.getZoom();
     if (zoom < MAP_PIN_MIN_ZOOM) {
@@ -101,8 +108,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       setMapError("");
       allPinsRef.current = [];
       setAllPins([]);
-      const group = layerGroupRef.current;
-      group?.clearLayers();
       return;
     }
 
@@ -124,7 +129,6 @@ export function MapView({ focusPins, auditedOnly }: Props) {
           setMapError("");
           allPinsRef.current = [];
           setAllPins([]);
-          layerGroupRef.current?.clearLayers();
           return;
         }
         setMapError(err.message ?? err.code ?? "map failed");
@@ -134,7 +138,7 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       const data = (await res.json()) as MapApiResponse;
       if (fetchId !== fetchIdRef.current) return;
 
-      const pins = (data.pins ?? []).filter((p) => p.lat !== 0 && p.lon !== 0);
+      const pins = mappablePins(data.pins ?? []);
       allPinsRef.current = pins;
       setAllPins(pins);
       setTruncated(Boolean(data.truncated));
@@ -227,28 +231,17 @@ export function MapView({ focusPins, auditedOnly }: Props) {
     const group = layerGroupRef.current;
     if (!L || !map || !group) return;
 
-    const pinsForLayer = mergePins(allPinsRef.current, focusPins);
+    const pinsForLayer = searchMode && focusPins ? mappablePins(focusPins) : allPinsRef.current;
     group.clearLayers();
 
     const auditDimIds = auditedOnly
       ? new Set(pinsForLayer.filter((p) => !p.audited).map((p) => p.id))
       : null;
 
-    if (!focusPins || focusPins.length === 0) {
-      renderPins(L, group, pinsForLayer, false, undefined, auditDimIds ?? undefined, mode);
-      return;
-    }
+    renderPins(L, group, pinsForLayer, false, undefined, auditDimIds ?? undefined, mode);
+  }, [allPins, focusPins, auditedOnly, mode, searchMode]);
 
-    const focusIds = new Set(focusPins.map((p) => p.id));
-    const dimIds = new Set(
-      pinsForLayer
-        .filter((p) => !focusIds.has(p.id) || (auditDimIds?.has(p.id) ?? false))
-        .map((p) => p.id)
-    );
-    renderPins(L, group, pinsForLayer, true, focusIds, dimIds, mode);
-  }, [allPins, focusPins, auditedOnly, mode]);
-
-  // Fly to search focus once per focus set; moveend then refreshes viewport pins.
+  // Fly to search results once; keep map in search-only pin mode until search clears.
   useEffect(() => {
     const L = leafletRef.current;
     const map = mapRef.current;
@@ -256,21 +249,29 @@ export function MapView({ focusPins, auditedOnly }: Props) {
 
     if (!focusPins || focusPins.length === 0) {
       lastFocusSignatureRef.current = null;
+      // Leaving search → restore viewport pins for current bounds.
+      void refreshViewport();
       return;
     }
+
+    // Drop cached viewport pins so browse mode cannot bleed through.
+    allPinsRef.current = [];
+    setAllPins([]);
+    setZoomHint(false);
+    setTruncated(false);
 
     const signature = focusPins.map((p) => p.id).sort().join(",");
     if (signature === lastFocusSignatureRef.current) return;
     lastFocusSignatureRef.current = signature;
 
-    const validFocus = focusPins.filter((p) => p.lat !== 0 && p.lon !== 0);
+    const validFocus = mappablePins(focusPins);
     if (validFocus.length === 1) {
       map.setView([validFocus[0].lat, validFocus[0].lon], Math.max(map.getZoom(), 14));
     } else if (validFocus.length > 1) {
       const bounds = L.featureGroup(validFocus.map((p) => L.circleMarker([p.lat, p.lon]))).getBounds();
       map.fitBounds(bounds, { padding: [48, 48] });
     }
-  }, [focusPins]);
+  }, [focusPins, refreshViewport]);
 
   return (
     <div>
@@ -281,7 +282,7 @@ export function MapView({ focusPins, auditedOnly }: Props) {
           aria-label="Interactive map of properties with accessibility data. Use the property list below for keyboard access."
           className="wt-map-container"
         />
-        {zoomHint && (
+        {zoomHint && !searchMode && (
           <div
             style={{
               position: "absolute",
@@ -303,7 +304,7 @@ export function MapView({ focusPins, auditedOnly }: Props) {
             {t("ui.mapZoomToSeePlaces")}
           </div>
         )}
-        {truncated && !zoomHint && (
+        {truncated && !zoomHint && !searchMode && (
           <div
             style={{
               position: "absolute",
