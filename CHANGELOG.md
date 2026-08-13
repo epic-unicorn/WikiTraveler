@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Admin dashboard map loads pins per viewport (not a one-shot `region=1` dump capped at 5000 alphabetical rows), so cities like Eindhoven show their full accommodation set when zoomed in
 - Admin map search mode shows only search hits on the map and keyboard list (no mixed viewport pins)
 - `PropertyCard` layout no longer squeezes titles/addresses when many audited-field badges wrap
+- Admin search map pins keep audited (green) styling from VERIFIED/CONFIRMED facts
 
 ### Changed
 

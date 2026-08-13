@@ -13,11 +13,20 @@ import {
   type SearchFeature,
 } from "@wikitraveler/ui";
 
-type MapPin = { id: string; name: string; location: string; lat: number; lon: number };
+type MapPin = {
+  id: string;
+  name: string;
+  location: string;
+  lat: number;
+  lon: number;
+  audited?: boolean;
+};
 
 interface Props {
   onResults?: (pins: MapPin[] | null) => void;
 }
+
+const AUDITED_TIERS = new Set(["VERIFIED", "CONFIRMED"]);
 
 function authHeaders(): HeadersInit {
   const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
@@ -96,6 +105,7 @@ export function SearchSection({ onResults }: Props) {
               location: p.location,
               lat: p.lat!,
               lon: p.lon!,
+              audited: (p.facts ?? []).some((f) => AUDITED_TIERS.has(f.tier)),
             }))
         );
       });
