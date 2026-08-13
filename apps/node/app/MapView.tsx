@@ -13,6 +13,8 @@ export const MAP_PIN_MIN_ZOOM = 10;
 
 interface Props {
   focusPins?: MapPin[] | null;
+  /** Fly/zoom to a single pin without replacing search focus pins. */
+  flyToPin?: MapPin | null;
   auditedOnly?: boolean;
 }
 
@@ -55,7 +57,7 @@ function mappablePins(pins: MapPin[]): MapPin[] {
   return pins.filter((p) => p.lat !== 0 && p.lon !== 0);
 }
 
-export function MapView({ focusPins, auditedOnly }: Props) {
+export function MapView({ focusPins, flyToPin, auditedOnly }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
   const [allPins, setAllPins] = useState<MapPin[]>([]);
@@ -272,6 +274,14 @@ export function MapView({ focusPins, auditedOnly }: Props) {
       map.fitBounds(bounds, { padding: [48, 48] });
     }
   }, [focusPins, refreshViewport]);
+
+  // Zoom to a list selection without changing the search result pin set.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !flyToPin) return;
+    if (flyToPin.lat === 0 && flyToPin.lon === 0) return;
+    map.setView([flyToPin.lat, flyToPin.lon], Math.max(map.getZoom(), 15));
+  }, [flyToPin]);
 
   return (
     <div>

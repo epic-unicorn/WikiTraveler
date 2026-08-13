@@ -153,6 +153,7 @@
     "searchCreateProperty": "Créer \"{name}\"",
     "searchPropertyCount": "{count} établissements",
     "searchShowingRange": "{from}–{to} sur {total}",
+    "searchPaginationNotice": "{total} résultats — {pageSize} par page (page {page} sur {totalPages}). Affinez la recherche ou utilisez la pagination.",
     "searchSingleProperty": "1 établissement",
     "nearbyGpsDenied": "GPS refusé — utilisation du nœud principal",
     "nearbyLocating": "Localisation…",

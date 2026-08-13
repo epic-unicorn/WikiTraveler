@@ -32,6 +32,8 @@ interface Props {
   href?: string;
   actionLabel?: string;
   onActionClick?: () => void;
+  /** Click on the card body (not the action link) — e.g. zoom map to this place. */
+  onSelect?: () => void;
   expandable?: boolean;
 }
 
@@ -40,6 +42,7 @@ export function PropertyCard({
   href,
   actionLabel,
   onActionClick,
+  onSelect,
   expandable = true,
 }: Props) {
   const { getFieldLabel, t } = useLocale();
@@ -70,6 +73,7 @@ export function PropertyCard({
   const action = href ? (
     <a
       href={href}
+      onClick={(e) => e.stopPropagation()}
       style={{
         fontSize: 12,
         color: "var(--wt-primary)",
@@ -85,7 +89,10 @@ export function PropertyCard({
   ) : onActionClick ? (
     <button
       type="button"
-      onClick={onActionClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onActionClick();
+      }}
       style={{
         fontSize: 12,
         color: "var(--wt-primary)",
@@ -104,11 +111,25 @@ export function PropertyCard({
 
   return (
     <div
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onClick={onSelect}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect();
+              }
+            }
+          : undefined
+      }
       style={{
         background: "var(--wt-bg-elevated)",
         borderRadius: "var(--wt-radius-md)",
         border: "1px solid var(--wt-border)",
         overflow: "hidden",
+        cursor: onSelect ? "pointer" : undefined,
       }}
     >
       <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>

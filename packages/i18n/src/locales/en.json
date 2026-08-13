@@ -145,6 +145,7 @@
     "searchCreateProperty": "Create \"{name}\"",
     "searchPropertyCount": "{count} properties",
     "searchShowingRange": "{from}–{to} of {total}",
+    "searchPaginationNotice": "{total} matches — showing {pageSize} per page (page {page} of {totalPages}). Refine your search or use pagination.",
     "searchSingleProperty": "1 property",
     "nearbyGpsDenied": "GPS denied — using home node",
     "nearbyLocating": "Locating…",

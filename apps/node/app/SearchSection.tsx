@@ -24,6 +24,7 @@ type MapPin = {
 
 interface Props {
   onResults?: (pins: MapPin[] | null) => void;
+  onSelectPin?: (pin: MapPin) => void;
 }
 
 const AUDITED_TIERS = new Set(["VERIFIED", "CONFIRMED"]);
@@ -59,7 +60,7 @@ function hasActiveSearch(q: string, f: SearchFilters): boolean {
   );
 }
 
-export function SearchSection({ onResults }: Props) {
+export function SearchSection({ onResults, onSelectPin }: Props) {
   const { locale, t } = useLocale();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
@@ -240,6 +241,28 @@ export function SearchSection({ onResults }: Props) {
 
       {!isPending && results !== null && results.length > 0 && (
         <>
+          {total > SEARCH_PAGE_SIZE && (
+            <div
+              role="status"
+              style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid var(--wt-border)",
+                background: "var(--wt-bg-elevated)",
+                fontSize: 13,
+                lineHeight: 1.45,
+                color: "var(--wt-text)",
+              }}
+            >
+              {t("ui.searchPaginationNotice", {
+                total,
+                pageSize: SEARCH_PAGE_SIZE,
+                page,
+                totalPages,
+              })}
+            </div>
+          )}
           <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 12, marginBottom: 4 }}>
             {total === 1
               ? t("ui.searchSingleProperty")
@@ -247,7 +270,24 @@ export function SearchSection({ onResults }: Props) {
           </p>
           <div className="wt-search-results">
             {results.map((p) => (
-              <PropertyCard key={p.id} property={p} href={`/properties/${p.id}`} />
+              <PropertyCard
+                key={p.id}
+                property={p}
+                href={`/properties/${p.id}`}
+                onSelect={
+                  onSelectPin && p.lat != null && p.lon != null
+                    ? () =>
+                        onSelectPin({
+                          id: p.id,
+                          name: p.name,
+                          location: p.location,
+                          lat: p.lat!,
+                          lon: p.lon!,
+                          audited: (p.facts ?? []).some((f) => AUDITED_TIERS.has(f.tier)),
+                        })
+                    : undefined
+                }
+              />
             ))}
           </div>
           {totalPages > 1 && (

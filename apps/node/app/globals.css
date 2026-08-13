@@ -180,6 +180,15 @@ html.wt-dark .wt-map-legend-swatch--not-audited {
     overflow-y: auto;
     padding-right: 4px;
   }
+
+  /* One scroll container: the search column owns scrolling, not the results grid. */
+  .wt-dashboard-map__search .wt-search-results {
+    max-height: none;
+    overflow: visible;
+    mask-image: none;
+    -webkit-mask-image: none;
+    padding-right: 0;
+  }
 }
 
 .wt-stat-pills {
