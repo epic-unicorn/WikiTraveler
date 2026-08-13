@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Admin map search mode shows only search hits on the map and keyboard list (no mixed viewport pins)
 - `PropertyCard` layout no longer squeezes titles/addresses when many audited-field badges wrap
 - Admin search map pins keep audited (green) styling from VERIFIED/CONFIRMED facts
+- Admin property search paginates at 100 results per page (API `page`/`pageSize`, max 100; Access keeps default 30)
 
 ### Changed
 

@@ -152,6 +152,7 @@
     "searchAdjustFilters": "Pas je filters aan.",
     "searchCreateProperty": "\"{name}\" aanmaken",
     "searchPropertyCount": "{count} locaties",
+    "searchShowingRange": "{from}–{to} van {total}",
     "searchSingleProperty": "1 locatie",
     "nearbyGpsDenied": "GPS geweigerd — thuis-node wordt gebruikt",
     "nearbyLocating": "Locatie bepalen…",

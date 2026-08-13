@@ -152,6 +152,7 @@
     "searchAdjustFilters": "Ajustez vos filtres.",
     "searchCreateProperty": "Créer \"{name}\"",
     "searchPropertyCount": "{count} établissements",
+    "searchShowingRange": "{from}–{to} sur {total}",
     "searchSingleProperty": "1 établissement",
     "nearbyGpsDenied": "GPS refusé — utilisation du nœud principal",
     "nearbyLocating": "Localisation…",

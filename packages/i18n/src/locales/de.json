@@ -152,6 +152,7 @@
     "searchAdjustFilters": "Passen Sie Ihre Filter an.",
     "searchCreateProperty": "\"{name}\" erstellen",
     "searchPropertyCount": "{count} Unterkünfte",
+    "searchShowingRange": "{from}–{to} von {total}",
     "searchSingleProperty": "1 Unterkunft",
     "nearbyGpsDenied": "GPS verweigert — Heim-Node wird verwendet",
     "nearbyLocating": "Standort wird ermittelt…",
