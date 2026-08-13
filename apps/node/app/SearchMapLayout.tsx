@@ -19,13 +19,16 @@ export function SearchMapLayout({ propertyCount, factCount, peerCount, regionCon
   const { t } = useLocale();
   const [focusPins, setFocusPins] = useState<MapPin[] | null>(null);
   const [flyToPin, setFlyToPin] = useState<MapPin | null>(null);
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
 
   const handleResults = useCallback((pins: MapPin[] | null) => {
     setFocusPins(pins);
     setFlyToPin(null);
+    setSelectedPinId(null);
   }, []);
 
   const handleSelectPin = useCallback((pin: MapPin) => {
+    setSelectedPinId(pin.id);
     setFlyToPin(pin);
   }, []);
 
@@ -115,7 +118,7 @@ export function SearchMapLayout({ propertyCount, factCount, peerCount, regionCon
       {propertyCount > 0 ? (
         <div className="wt-dashboard-map">
           <div className="wt-dashboard-map__map">
-            <MapView focusPins={focusPins} flyToPin={flyToPin} />
+            <MapView focusPins={focusPins} flyToPin={flyToPin} selectedPinId={selectedPinId} />
           </div>
           <div className="wt-dashboard-map__search">
             <SearchSection onResults={handleResults} onSelectPin={handleSelectPin} />

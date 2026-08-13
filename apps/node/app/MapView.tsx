@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import Link from "next/link";
 import { useTheme, useLocale } from "@wikitraveler/ui";
 import { buildPopup, type MapPin } from "@/lib/mapPopup";
@@ -15,6 +15,7 @@ interface Props {
   focusPins?: MapPin[] | null;
   /** Fly/zoom to a single pin without replacing search focus pins. */
   flyToPin?: MapPin | null;
+  selectedPinId?: string | null;
   auditedOnly?: boolean;
 }
 
@@ -57,7 +58,24 @@ function mappablePins(pins: MapPin[]): MapPin[] {
   return pins.filter((p) => p.lat !== 0 && p.lon !== 0);
 }
 
-export function MapView({ focusPins, flyToPin, auditedOnly }: Props) {
+function fitSearchPins(
+  L: typeof import("leaflet"),
+  map: import("leaflet").Map,
+  pins: MapPin[],
+  programmaticMoveRef: MutableRefObject<boolean>
+) {
+  const valid = mappablePins(pins);
+  if (valid.length === 0) return;
+  programmaticMoveRef.current = true;
+  if (valid.length === 1) {
+    map.setView([valid[0].lat, valid[0].lon], Math.max(map.getZoom(), 14));
+    return;
+  }
+  const bounds = L.featureGroup(valid.map((p) => L.circleMarker([p.lat, p.lon]))).getBounds();
+  map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
+}
+
+export function MapView({ focusPins, flyToPin, selectedPinId, auditedOnly }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
   const [allPins, setAllPins] = useState<MapPin[]>([]);
@@ -77,6 +95,8 @@ export function MapView({ focusPins, flyToPin, auditedOnly }: Props) {
   const lastFocusSignatureRef = useRef<string | null>(null);
   const focusPinsRef = useRef(focusPins);
   focusPinsRef.current = focusPins;
+  const programmaticMoveRef = useRef(false);
+  const lastZoomRef = useRef<number | null>(null);
 
   /** Search mode: map + keyboard list show only search hits (not viewport dump). */
   const searchMode = Boolean(focusPins && focusPins.length > 0);
@@ -240,8 +260,9 @@ export function MapView({ focusPins, flyToPin, auditedOnly }: Props) {
       ? new Set(pinsForLayer.filter((p) => !p.audited).map((p) => p.id))
       : null;
 
-    renderPins(L, group, pinsForLayer, false, undefined, auditDimIds ?? undefined, mode);
-  }, [allPins, focusPins, auditedOnly, mode, searchMode]);
+    const highlightIds = selectedPinId ? new Set([selectedPinId]) : undefined;
+    renderPins(L, group, pinsForLayer, false, highlightIds, auditDimIds ?? undefined, mode);
+  }, [allPins, focusPins, auditedOnly, mode, searchMode, selectedPinId]);
 
   // Fly to search results once; keep map in search-only pin mode until search clears.
   useEffect(() => {
@@ -267,20 +288,49 @@ export function MapView({ focusPins, flyToPin, auditedOnly }: Props) {
     lastFocusSignatureRef.current = signature;
 
     const validFocus = mappablePins(focusPins);
-    if (validFocus.length === 1) {
-      map.setView([validFocus[0].lat, validFocus[0].lon], Math.max(map.getZoom(), 14));
-    } else if (validFocus.length > 1) {
-      const bounds = L.featureGroup(validFocus.map((p) => L.circleMarker([p.lat, p.lon]))).getBounds();
-      map.fitBounds(bounds, { padding: [48, 48] });
-    }
+    fitSearchPins(L, map, validFocus, programmaticMoveRef);
   }, [focusPins, refreshViewport]);
+
+  // Refit to all search pins when the user zooms out after selecting one.
+  useEffect(() => {
+    if (!mapReady || !searchMode) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    const onZoomEnd = () => {
+      if (programmaticMoveRef.current) {
+        programmaticMoveRef.current = false;
+        lastZoomRef.current = map.getZoom();
+        return;
+      }
+
+      const zoom = map.getZoom();
+      const prev = lastZoomRef.current;
+      lastZoomRef.current = zoom;
+
+      if (prev !== null && zoom < prev - 0.1) {
+        const L = leafletRef.current;
+        const pins = focusPinsRef.current;
+        if (L && pins && pins.length > 0) {
+          fitSearchPins(L, map, pins, programmaticMoveRef);
+        }
+      }
+    };
+
+    lastZoomRef.current = map.getZoom();
+    map.on("zoomend", onZoomEnd);
+    return () => {
+      map.off("zoomend", onZoomEnd);
+    };
+  }, [mapReady, searchMode]);
 
   // Zoom to a list selection without changing the search result pin set.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !flyToPin) return;
     if (flyToPin.lat === 0 && flyToPin.lon === 0) return;
-    map.setView([flyToPin.lat, flyToPin.lon], Math.max(map.getZoom(), 15));
+    programmaticMoveRef.current = true;
+    map.flyTo([flyToPin.lat, flyToPin.lon], Math.max(map.getZoom(), 15), { duration: 0.45 });
   }, [flyToPin]);
 
   return (
@@ -430,7 +480,32 @@ export function MapView({ focusPins, flyToPin, auditedOnly }: Props) {
   );
 }
 
-function pinMarkerStyle(pin: MapPin, dim: boolean, themeMode: string): import("leaflet").CircleMarkerOptions {
+function pinMarkerStyle(
+  pin: MapPin,
+  dim: boolean,
+  themeMode: string,
+  selected = false
+): import("leaflet").CircleMarkerOptions {
+  if (selected && !dim) {
+    const dark = themeMode === "dark";
+    if (pin.audited) {
+      return {
+        radius: 11,
+        color: dark ? "#34d399" : "#047857",
+        fillColor: dark ? "#6ee7b7" : "#34d399",
+        fillOpacity: 1,
+        weight: 3,
+      };
+    }
+    return {
+      radius: 11,
+      color: dark ? "#93c5fd" : "#1d4ed8",
+      fillColor: dark ? "#93c5fd" : "#3b82f6",
+      fillOpacity: 1,
+      weight: 3,
+    };
+  }
+
   if (dim) {
     return {
       radius: 4,
@@ -485,12 +560,13 @@ function renderPins(
 
   for (const pin of sorted) {
     const dim = isDim(pin);
-    const marker = L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(pin, dim, themeMode)).bindPopup(
+    const selected = highlightIds?.has(pin.id) ?? false;
+    const marker = L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(pin, dim, themeMode, selected)).bindPopup(
       buildPopup(pin),
       { maxWidth: 260 }
     );
     marker.addTo(group);
-    if (!dim && pin.audited) {
+    if (selected || (!dim && pin.audited)) {
       marker.bringToFront();
     }
   }

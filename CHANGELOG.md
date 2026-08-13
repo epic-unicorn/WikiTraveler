@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Admin property search paginates at 100 results per page (API `page`/`pageSize`, max 100; Access keeps default 30)
 - Admin search column uses a single scrollbar; list card click zooms the map; pagination notice when results exceed page size
 - Access search uses the same 100/page pagination, range notice, and range count as Admin
+- Admin search map keeps all result pins visible when zooming to a list selection; zooming out refits the view to the full result set
 
 ### Changed
 
