@@ -32,6 +32,8 @@ interface Props {
   href?: string;
   actionLabel?: string;
   onActionClick?: () => void;
+  /** Click on the card body (not the action link) — e.g. zoom map to this place. */
+  onSelect?: () => void;
   expandable?: boolean;
 }
 
@@ -40,6 +42,7 @@ export function PropertyCard({
   href,
   actionLabel,
   onActionClick,
+  onSelect,
   expandable = true,
 }: Props) {
   const { getFieldLabel, t } = useLocale();
@@ -54,6 +57,11 @@ export function PropertyCard({
     }
   }
   const displayFacts = Array.from(best.values());
+  const badgeFacts = displayFacts.filter((f) => f.fieldName !== "notes").slice(0, 3);
+  const noteFact = best.get("notes");
+  const extraFacts = displayFacts
+    .filter((f) => f.fieldName !== "notes")
+    .slice(badgeFacts.length);
 
   const distanceLabel =
     property.distanceM != null
@@ -62,84 +70,133 @@ export function PropertyCard({
         : `${(property.distanceM / 1000).toFixed(1)} km`
       : null;
 
+  const action = href ? (
+    <a
+      href={href}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        fontSize: 12,
+        color: "var(--wt-primary)",
+        textDecoration: "none",
+        fontWeight: 600,
+        flexShrink: 0,
+        alignSelf: "flex-start",
+        paddingTop: 2,
+      }}
+    >
+      {resolvedActionLabel}
+    </a>
+  ) : onActionClick ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onActionClick();
+      }}
+      style={{
+        fontSize: 12,
+        color: "var(--wt-primary)",
+        background: "none",
+        border: "none",
+        fontWeight: 600,
+        cursor: "pointer",
+        flexShrink: 0,
+        alignSelf: "flex-start",
+        paddingTop: 2,
+      }}
+    >
+      {resolvedActionLabel}
+    </button>
+  ) : null;
+
   return (
     <div
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onClick={onSelect}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect();
+              }
+            }
+          : undefined
+      }
       style={{
         background: "var(--wt-bg-elevated)",
         borderRadius: "var(--wt-radius-md)",
         border: "1px solid var(--wt-border)",
         overflow: "hidden",
+        cursor: onSelect ? "pointer" : undefined,
       }}
     >
-      <div
-        style={{
-          padding: "14px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {property.name}
+            </p>
+            <p
+              style={{
+                fontSize: 12,
+                color: "var(--wt-text-muted)",
+                margin: "4px 0 0",
+                lineHeight: 1.4,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {property.location}
+              {distanceLabel && (
+                <span style={{ marginLeft: 8, color: "var(--wt-accent)", whiteSpace: "nowrap" }}>
+                  {distanceLabel}
+                </span>
+              )}
+            </p>
+          </div>
+          {action}
+        </div>
+
+        {badgeFacts.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {badgeFacts.map((fact) => (
+              <TierBadge key={fact.fieldName} tier={fact.tier} label={getFieldLabel(fact.fieldName)} />
+            ))}
+          </div>
+        )}
+
+        {noteFact?.value?.trim() && (
           <p
             style={{
-              fontSize: 15,
-              fontWeight: 600,
               margin: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {property.name}
-          </p>
-          <p style={{ fontSize: 12, color: "var(--wt-text-muted)", margin: "2px 0 0" }}>
-            {property.location}
-            {distanceLabel && (
-              <span style={{ marginLeft: 8, color: "var(--wt-accent)" }}>{distanceLabel}</span>
-            )}
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {displayFacts.slice(0, 3).map((fact) => (
-            <TierBadge key={fact.fieldName} tier={fact.tier} label={getFieldLabel(fact.fieldName)} />
-          ))}
-        </div>
-
-        {href ? (
-          <a
-            href={href}
-            style={{
               fontSize: 12,
-              color: "var(--wt-primary)",
-              textDecoration: "none",
-              fontWeight: 600,
-              flexShrink: 0,
+              lineHeight: 1.45,
+              color: "var(--wt-text-muted)",
+              background: "var(--wt-bg-secondary, var(--wt-bg))",
+              border: "1px solid var(--wt-border)",
+              borderRadius: "var(--wt-radius-sm)",
+              padding: "8px 10px",
             }}
           >
-            {resolvedActionLabel}
-          </a>
-        ) : onActionClick ? (
-          <button
-            type="button"
-            onClick={onActionClick}
-            style={{
-              fontSize: 12,
-              color: "var(--wt-primary)",
-              background: "none",
-              border: "none",
-              fontWeight: 600,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-          >
-            {resolvedActionLabel}
-          </button>
-        ) : null}
+            <span style={{ fontWeight: 600, color: "var(--wt-text)" }}>
+              {getFieldLabel("notes")}:{" "}
+            </span>
+            {noteFact.value.trim()}
+          </p>
+        )}
       </div>
 
-      {expandable && displayFacts.length > 3 && (
+      {expandable && extraFacts.length > 0 && (
         <div
           style={{
             borderTop: "1px solid var(--wt-border)",
@@ -149,11 +206,8 @@ export function PropertyCard({
             gap: 6,
           }}
         >
-          {displayFacts.slice(3).map((fact) => (
-            <span
-              key={fact.fieldName}
-              style={{ fontSize: 11, color: "var(--wt-text-muted)" }}
-            >
+          {extraFacts.map((fact) => (
+            <span key={fact.fieldName} style={{ fontSize: 11, color: "var(--wt-text-muted)" }}>
               {getFieldLabel(fact.fieldName)}: {fact.value}
             </span>
           ))}

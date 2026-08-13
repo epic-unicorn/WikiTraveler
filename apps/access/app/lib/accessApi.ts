@@ -49,20 +49,43 @@ export function buildSearchParams(q: string, filters: SearchFilters): URLSearchP
   return params;
 }
 
+export type PropertySearchPage = {
+  properties: PropertySummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export async function searchProperties(
   nodeUrl: string,
   q: string,
   filters: SearchFilters,
-  signal?: AbortSignal
-): Promise<PropertySummary[]> {
+  signal?: AbortSignal,
+  options?: { page?: number; pageSize?: number }
+): Promise<PropertySearchPage> {
   const params = buildSearchParams(q, filters);
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 30;
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
   const res = await fetch(`${nodeUrl}/api/properties?${params}`, {
     signal,
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("search failed");
-  const data = (await res.json()) as { properties?: PropertySummary[] };
-  return data.properties ?? [];
+  const data = (await res.json()) as {
+    properties?: PropertySummary[];
+    total?: number;
+    page?: number;
+    pageSize?: number;
+  };
+  const properties = data.properties ?? [];
+  return {
+    properties,
+    total: typeof data.total === "number" ? data.total : properties.length,
+    page: typeof data.page === "number" ? data.page : page,
+    pageSize: typeof data.pageSize === "number" ? data.pageSize : pageSize,
+  };
 }
 
 export async function fetchNearbyProperties(

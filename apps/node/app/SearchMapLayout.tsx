@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useLocale } from "@wikitraveler/ui";
 import { MapView, type MapPin } from "./MapView";
 import { SearchSection } from "./SearchSection";
@@ -18,6 +18,19 @@ const MAP_STAT_KEYS = ["properties", "facts", "peers"] as const;
 export function SearchMapLayout({ propertyCount, factCount, peerCount, regionConfigured }: Props) {
   const { t } = useLocale();
   const [focusPins, setFocusPins] = useState<MapPin[] | null>(null);
+  const [flyToPin, setFlyToPin] = useState<MapPin | null>(null);
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+
+  const handleResults = useCallback((pins: MapPin[] | null) => {
+    setFocusPins(pins);
+    setFlyToPin(null);
+    setSelectedPinId(null);
+  }, []);
+
+  const handleSelectPin = useCallback((pin: MapPin) => {
+    setSelectedPinId(pin.id);
+    setFlyToPin(pin);
+  }, []);
 
   const statValues: Record<(typeof MAP_STAT_KEYS)[number], number> = {
     properties: propertyCount,
@@ -105,14 +118,14 @@ export function SearchMapLayout({ propertyCount, factCount, peerCount, regionCon
       {propertyCount > 0 ? (
         <div className="wt-dashboard-map">
           <div className="wt-dashboard-map__map">
-            <MapView focusPins={focusPins} />
+            <MapView focusPins={focusPins} flyToPin={flyToPin} selectedPinId={selectedPinId} />
           </div>
           <div className="wt-dashboard-map__search">
-            <SearchSection onResults={setFocusPins} />
+            <SearchSection onResults={handleResults} onSelectPin={handleSelectPin} />
           </div>
         </div>
       ) : (
-        <SearchSection onResults={setFocusPins} />
+        <SearchSection onResults={handleResults} onSelectPin={handleSelectPin} />
       )}
     </>
   );

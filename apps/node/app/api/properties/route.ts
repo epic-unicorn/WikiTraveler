@@ -23,13 +23,13 @@ export async function GET(req: NextRequest) {
   const ids = idsParam ? idsParam.split(",").map((id) => id.trim()).filter(Boolean) : [];
   const adminList = req.nextUrl.searchParams.get("admin") === "1";
   const pageParam = parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10);
-  const pageSizeParam = parseInt(req.nextUrl.searchParams.get("pageSize") ?? "50", 10);
+  const pageSizeParam = parseInt(req.nextUrl.searchParams.get("pageSize") ?? "", 10);
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  // Admin table: default 50. Dashboard/Access search: default 30, max 100.
   const pageSize = adminList
     ? Math.min(100, Math.max(10, Number.isFinite(pageSizeParam) ? pageSizeParam : 50))
-    : 30;
-  const takeLimit = adminList ? pageSize : 30;
-  const skip = adminList ? (page - 1) * pageSize : 0;
+    : Math.min(100, Math.max(1, Number.isFinite(pageSizeParam) ? pageSizeParam : 30));
+  const skip = (page - 1) * pageSize;
 
   if (adminList) {
     const adminError = await requireRole(req, "ADMIN");
@@ -168,17 +168,21 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const properties = await prisma.property.findMany({
-    where,
-    orderBy: { name: "asc" },
-    take: takeLimit,
-    select: {
-      ...baseSelect,
-      facts: {
-        select: { fieldName: true, value: true, tier: true, sourceType: true },
+  const [properties, total] = await Promise.all([
+    prisma.property.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: pageSize,
+      select: {
+        ...baseSelect,
+        facts: {
+          select: { fieldName: true, value: true, tier: true, sourceType: true },
+        },
       },
-    },
-  });
+    }),
+    prisma.property.count({ where }),
+  ]);
 
   const resolved = await resolveEffectiveProperties(properties);
   return NextResponse.json({
@@ -191,6 +195,9 @@ export async function GET(req: NextRequest) {
       lon: p.effective.lon,
       facts: "facts" in p ? p.facts : undefined,
     })),
+    total,
+    page,
+    pageSize,
   });
 }
 

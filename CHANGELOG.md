@@ -16,6 +16,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Vercel node builds prebuild workspace packages (`core` / `i18n` / `ui` / `ai-agent`) before Next so `@wikitraveler/i18n` resolves ([VERCEL.md](docs/VERCEL.md))
 - Gossip lab `postAudit` retries Next.js HTML 404s (turbopack race) during federated hub-journey audits
 - JWT login/sign normalizes PEM env keys with literal `\n` (Vercel) so RS256 no longer crashes with “Could not reach server”
+- Admin dashboard map loads pins per viewport (not a one-shot `region=1` dump capped at 5000 alphabetical rows), so cities like Eindhoven show their full accommodation set when zoomed in
+- Admin map search mode shows only search hits on the map and keyboard list (no mixed viewport pins)
+- `PropertyCard` layout no longer squeezes titles/addresses when many audited-field badges wrap
+- Admin search map pins keep audited (green) styling from VERIFIED/CONFIRMED facts
+- Admin property search paginates at 100 results per page (API `page`/`pageSize`, max 100; Access keeps default 30)
+- Admin search column uses a single scrollbar; list card click zooms the map; pagination notice when results exceed page size
+- Access search uses the same 100/page pagination, range notice, and range count as Admin
+- Admin search map keeps all result pins visible when zooming to a list selection; zooming out refits the view to the full result set
 
 ### Changed
 

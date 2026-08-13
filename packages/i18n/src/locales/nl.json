@@ -152,6 +152,8 @@
     "searchAdjustFilters": "Pas je filters aan.",
     "searchCreateProperty": "\"{name}\" aanmaken",
     "searchPropertyCount": "{count} locaties",
+    "searchShowingRange": "{from}–{to} van {total}",
+    "searchPaginationNotice": "{total} resultaten — {pageSize} per pagina (pagina {page} van {totalPages}). Verfijn je zoekopdracht of gebruik de paginering.",
     "searchSingleProperty": "1 locatie",
     "nearbyGpsDenied": "GPS geweigerd — thuis-node wordt gebruikt",
     "nearbyLocating": "Locatie bepalen…",

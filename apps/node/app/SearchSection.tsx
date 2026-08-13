@@ -13,11 +13,23 @@ import {
   type SearchFeature,
 } from "@wikitraveler/ui";
 
-type MapPin = { id: string; name: string; location: string; lat: number; lon: number };
+type MapPin = {
+  id: string;
+  name: string;
+  location: string;
+  lat: number;
+  lon: number;
+  audited?: boolean;
+};
 
 interface Props {
   onResults?: (pins: MapPin[] | null) => void;
+  onSelectPin?: (pin: MapPin) => void;
 }
+
+const AUDITED_TIERS = new Set(["VERIFIED", "CONFIRMED"]);
+/** Admin dashboard search page size (API max is 100). Access keeps default 30. */
+const SEARCH_PAGE_SIZE = 100;
 
 function authHeaders(): HeadersInit {
   const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
@@ -25,7 +37,7 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function buildParams(q: string, filters: SearchFilters): URLSearchParams {
+function buildParams(q: string, filters: SearchFilters, page: number): URLSearchParams {
   const params = new URLSearchParams();
   if (q.trim()) params.set("q", q.trim());
   if (filters.features.length) params.set("feature", filters.features.join(","));
@@ -33,18 +45,34 @@ function buildParams(q: string, filters: SearchFilters): URLSearchParams {
   if (filters.audited === false) params.set("audited", "false");
   if (filters.location.trim()) params.set("location", filters.location.trim());
   if (filters.hasAccessibleRoom) params.set("hasAccessibleRoom", "true");
+  params.set("page", String(page));
+  params.set("pageSize", String(SEARCH_PAGE_SIZE));
   return params;
 }
 
-export function SearchSection({ onResults }: Props) {
+function hasActiveSearch(q: string, f: SearchFilters): boolean {
+  return (
+    q.trim().length > 0 ||
+    f.features.length > 0 ||
+    f.audited !== null ||
+    f.hasAccessibleRoom ||
+    f.location.trim().length > 0
+  );
+}
+
+export function SearchSection({ onResults, onSelectPin }: Props) {
   const { locale, t } = useLocale();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [searchFeatures, setSearchFeatures] = useState<SearchFeature[]>([]);
   const [results, setResults] = useState<PropertySummary[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequest = useRef(createRequestCounter());
+  const onResultsRef = useRef(onResults);
+  onResultsRef.current = onResults;
 
   useEffect(() => {
     let cancelled = false;
@@ -63,60 +91,64 @@ export function SearchSection({ onResults }: Props) {
     };
   }, [locale]);
 
-  const search = useCallback(
-    (q: string, f: SearchFilters) => {
-      const hasQuery = q.trim().length > 0;
-      const hasFilters =
-        f.features.length > 0 ||
-        f.audited !== null ||
-        f.hasAccessibleRoom ||
-        f.location.trim().length > 0;
+  const runSearch = useCallback((q: string, f: SearchFilters, pageNum: number) => {
+    if (!hasActiveSearch(q, f)) {
+      setResults(null);
+      setTotal(0);
+      onResultsRef.current?.(null);
+      return;
+    }
 
-      if (!hasQuery && !hasFilters) {
-        setResults(null);
-        onResults?.(null);
-        return;
-      }
+    startTransition(async () => {
+      const requestId = searchRequest.current.next();
+      const params = buildParams(q, f, pageNum);
+      const res = await fetch(`/api/properties?${params}`, { headers: authHeaders() });
+      if (!searchRequest.current.isLatest(requestId)) return;
+      const data = (await res.json()) as {
+        properties?: PropertySummary[];
+        total?: number;
+        page?: number;
+        pageSize?: number;
+      };
+      const properties = data.properties ?? [];
+      if (!searchRequest.current.isLatest(requestId)) return;
+      setResults(properties);
+      setTotal(typeof data.total === "number" ? data.total : properties.length);
+      onResultsRef.current?.(
+        properties
+          .filter((p) => p.lat != null && p.lon != null)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            location: p.location,
+            lat: p.lat!,
+            lon: p.lon!,
+            audited: (p.facts ?? []).some((fact) => AUDITED_TIERS.has(fact.tier)),
+          }))
+      );
+    });
+  }, []);
 
-      startTransition(async () => {
-        const requestId = searchRequest.current.next();
-        const params = buildParams(q, f);
-        const res = await fetch(`/api/properties?${params}`, { headers: authHeaders() });
-        if (!searchRequest.current.isLatest(requestId)) return;
-        const data = (await res.json()) as { properties?: PropertySummary[] };
-        const properties = data.properties ?? [];
-        if (!searchRequest.current.isLatest(requestId)) return;
-        setResults(properties);
-        onResults?.(
-          properties
-            .filter((p) => p.lat != null && p.lon != null)
-            .map((p) => ({
-              id: p.id,
-              name: p.name,
-              location: p.location,
-              lat: p.lat!,
-              lon: p.lon!,
-            }))
-        );
-      });
-    },
-    [onResults]
-  );
-
+  // Debounced search when query/filters change — always page 1.
   useEffect(() => {
+    setPage(1);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => search(query, filters), 300);
+    debounceTimer.current = setTimeout(() => runSearch(query, filters, 1), 300);
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [query, filters, search]);
+  }, [query, filters, runSearch]);
 
-  const hasActiveSearch =
-    query.trim().length > 0 ||
-    filters.features.length > 0 ||
-    filters.audited !== null ||
-    filters.hasAccessibleRoom ||
-    filters.location.trim().length > 0;
+  const totalPages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
+  const rangeFrom = total === 0 ? 0 : (page - 1) * SEARCH_PAGE_SIZE + 1;
+  const rangeTo = Math.min(page * SEARCH_PAGE_SIZE, total);
+  const active = hasActiveSearch(query, filters);
+
+  function goToPage(next: number) {
+    const clamped = Math.min(totalPages, Math.max(1, next));
+    setPage(clamped);
+    runSearch(query, filters, clamped);
+  }
 
   return (
     <div>
@@ -134,14 +166,13 @@ export function SearchSection({ onResults }: Props) {
         }}
       />
 
-      {/* Loading */}
       {isPending && (
         <p style={{ color: "var(--wt-text-muted)", fontSize: 14, marginTop: 12 }}>
           {t("ui.searching")}
         </p>
       )}
 
-      {!isPending && results === null && !hasActiveSearch && (
+      {!isPending && results === null && !active && (
         <div
           style={{
             textAlign: "center",
@@ -209,10 +240,32 @@ export function SearchSection({ onResults }: Props) {
 
       {!isPending && results !== null && results.length > 0 && (
         <>
+          {total > SEARCH_PAGE_SIZE && (
+            <div
+              role="status"
+              style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid var(--wt-border)",
+                background: "var(--wt-bg-elevated)",
+                fontSize: 13,
+                lineHeight: 1.45,
+                color: "var(--wt-text)",
+              }}
+            >
+              {t("ui.searchPaginationNotice", {
+                total,
+                pageSize: SEARCH_PAGE_SIZE,
+                page,
+                totalPages,
+              })}
+            </div>
+          )}
           <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 12, marginBottom: 4 }}>
-            {results.length === 1
+            {total === 1
               ? t("ui.searchSingleProperty")
-              : t("ui.searchPropertyCount", { count: results.length })}
+              : t("ui.searchShowingRange", { from: rangeFrom, to: rangeTo, total })}
           </p>
           <div className="wt-search-results">
             {results.map((p) => (
@@ -220,12 +273,77 @@ export function SearchSection({ onResults }: Props) {
                 key={p.id}
                 property={p}
                 href={`/properties/${p.id}`}
+                onSelect={
+                  onSelectPin && p.lat != null && p.lon != null
+                    ? () =>
+                        onSelectPin({
+                          id: p.id,
+                          name: p.name,
+                          location: p.location,
+                          lat: p.lat!,
+                          lon: p.lon!,
+                          audited: (p.facts ?? []).some((f) => AUDITED_TIERS.has(f.tier)),
+                        })
+                    : undefined
+                }
               />
             ))}
           </div>
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginTop: 12,
+              }}
+            >
+              <button
+                type="button"
+                disabled={page <= 1 || isPending}
+                onClick={() => goToPage(page - 1)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid var(--wt-border)",
+                  background: "var(--wt-bg-elevated)",
+                  color: "var(--wt-text)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: page <= 1 ? "not-allowed" : "pointer",
+                  opacity: page <= 1 ? 0.5 : 1,
+                  fontFamily: "inherit",
+                }}
+              >
+                {t("ui.adminPrevPage")}
+              </button>
+              <span style={{ fontSize: 12, color: "var(--wt-text-muted)" }}>
+                {t("ui.adminPageOf", { page, total: totalPages })}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages || isPending}
+                onClick={() => goToPage(page + 1)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid var(--wt-border)",
+                  background: "var(--wt-bg-elevated)",
+                  color: "var(--wt-text)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: page >= totalPages ? "not-allowed" : "pointer",
+                  opacity: page >= totalPages ? 0.5 : 1,
+                  fontFamily: "inherit",
+                }}
+              >
+                {t("ui.adminNextPage")}
+              </button>
+            </div>
+          )}
         </>
       )}
-
     </div>
   );
 }
