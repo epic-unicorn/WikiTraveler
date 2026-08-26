@@ -8,9 +8,10 @@ body {
   overflow-y: auto !important;
 }
 
-/* Force ion-app to use our design tokens so the app background and base text
-   always follow the active theme, regardless of Ionic's own defaults. */
-ion-app.wt-ion-web {
+/* Force the Access shell to use our design tokens so the app background and base
+   text always follow the active theme, regardless of Ionic's own defaults.
+   `.wt-ion-web` also covers the SSR placeholder `<div>` before IonApp mounts. */
+.wt-ion-web {
   position: relative !important;
   contain: unset !important;
   overflow: visible !important;
@@ -21,7 +22,7 @@ ion-app.wt-ion-web {
   color: var(--wt-text) !important;
 }
 
-ion-app.wt-ion-web ion-page {
+.wt-ion-web ion-page {
   position: relative !important;
   contain: unset !important;
   display: block !important;
@@ -29,13 +30,13 @@ ion-app.wt-ion-web ion-page {
   min-height: unset !important;
 }
 
-ion-app.wt-ion-web ion-content {
+.wt-ion-web ion-content {
   position: relative !important;
   contain: unset !important;
   --overflow: visible;
 }
 
-ion-app.wt-ion-web ion-content::part(scroll) {
+.wt-ion-web ion-content::part(scroll) {
   position: relative !important;
   overflow: visible !important;
 }
