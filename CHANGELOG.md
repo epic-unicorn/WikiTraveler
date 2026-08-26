@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Access map selection no longer re-zooms or reopens the popup after dismissing a pin and zooming out
 - Access map↔list toggle keeps the Leaflet view (zoom/center) by hiding instead of unmounting the map
 - Access pin popup opens again after selection (ignore popupclose during marker rebuild)
+- Access map pin select keeps zoom at street/town level (≥14); only zooms in when farther out, and restores popup after viewport refresh
 - Access PWA `manifest.webmanifest` / icons no longer redirect to `/login` for unauthenticated requests
 - Access Search tab no longer hydrates search state from `sessionStorage` during SSR (fixes hydration mismatch)
 - Access defers `IonApp` until after mount so Ionic’s `md`/`hydrated` classes no longer cause a hydration mismatch

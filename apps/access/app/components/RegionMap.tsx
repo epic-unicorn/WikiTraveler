@@ -58,6 +58,9 @@ function getTileConfig() {
   };
 }
 
+/** Below this zoom, selecting a pin zooms in. At/above (street–town), keep zoom. */
+const SELECT_ZOOM_FLOOR = 14;
+
 function radiusForZoom(zoom: number, selected: boolean): number {
   let base: number;
   if (zoom <= 6) base = 5;
@@ -506,8 +509,7 @@ export function RegionMap({
         sticky: false,
       });
       marker.on("click", () => {
-        ensurePopup(marker, pin);
-        marker.openPopup();
+        // Selection effect opens the popup after marker rebuild; avoid open-then-destroy flicker.
         onSelectProperty?.(pin);
       });
       marker.on("popupclose", () => {
@@ -527,6 +529,21 @@ export function RegionMap({
     }
 
     rebuildingMarkersRef.current = false;
+
+    // Restore popup after rebuild if this pin is still the focused selection (e.g. viewport refresh).
+    const focusedId = selectedIdRef.current;
+    if (focusedId && lastFocusedSelectRef.current === focusedId) {
+      const focusedMarker = markerByIdRef.current.get(focusedId);
+      const focusedPin = pinsRef.current.find((p) => p.id === focusedId);
+      if (focusedMarker && focusedPin) {
+        ensurePopup(focusedMarker, focusedPin);
+        requestAnimationFrame(() => {
+          if (selectedIdRef.current !== focusedId) return;
+          if (lastFocusedSelectRef.current !== focusedId) return;
+          markerByIdRef.current.get(focusedId)?.openPopup();
+        });
+      }
+    }
 
     updateRadiiRef.current = () => {
       const m = mapRef.current;
@@ -589,19 +606,41 @@ export function RegionMap({
     if (!marker || !map) return;
     if (lastFocusedSelectRef.current === selectedPropertyId) return;
     lastFocusedSelectRef.current = selectedPropertyId;
+
+    const openFocusedPopup = () => {
+      const current = markerByIdRef.current.get(selectedPropertyId);
+      if (!current || selectedIdRef.current !== selectedPropertyId) return;
+      const pin = pinsRef.current.find((p) => p.id === selectedPropertyId);
+      if (pin) ensurePopup(current, pin);
+      current.openPopup();
+    };
+
     try {
       const latLng = marker.getLatLng();
       const selectedPin = pinsRef.current.find((pin) => pin.id === selectedPropertyId);
       if (selectedPin) ensurePopup(marker, selectedPin);
-      map.setView(latLng, Math.max(map.getZoom(), 16), { animate: true });
-      // After setView animation, open popup on the current marker instance.
-      requestAnimationFrame(() => {
-        const current = markerByIdRef.current.get(selectedPropertyId);
-        if (!current || selectedIdRef.current !== selectedPropertyId) return;
-        const pin = pinsRef.current.find((p) => p.id === selectedPropertyId);
-        if (pin) ensurePopup(current, pin);
-        current.openPopup();
-      });
+
+      const zoom = map.getZoom();
+      if (zoom < SELECT_ZOOM_FLOOR) {
+        // Zoom in once to neighborhood/street; popup restored after moveend / pin refresh.
+        map.setView(latLng, SELECT_ZOOM_FLOOR, { animate: true });
+        map.once("moveend", () => {
+          if (selectedIdRef.current !== selectedPropertyId) return;
+          openFocusedPopup();
+        });
+      } else {
+        // Already close enough — keep zoom; only pan if the pin sits near/outside the edge.
+        const padded = map.getBounds().pad(-0.12);
+        if (!padded.contains(latLng)) {
+          map.panTo(latLng, { animate: true });
+          map.once("moveend", () => {
+            if (selectedIdRef.current !== selectedPropertyId) return;
+            openFocusedPopup();
+          });
+        } else {
+          openFocusedPopup();
+        }
+      }
     } catch {
       // ignore
     }
