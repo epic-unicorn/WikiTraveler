@@ -1653,6 +1653,10 @@ html.wt-dark .wt-map-legend-swatch--not-audited {
     max-width: none;
     padding: 6px;
   }
+
+  .fk-toolbar-end {
+    gap: 4px;
+  }
 }
 
 .fk-settings-advanced {

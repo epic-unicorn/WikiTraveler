@@ -25,21 +25,31 @@
 
 .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-wordmark {
   flex-wrap: nowrap;
-  overflow: hidden;
+  white-space: nowrap;
 }
 
-/* Narrow Access header: mark + “Access” only — never wrap “WikiTraveler · Access”. */
+/* Keep full “WikiTraveler · Access” on one line; shrink type on narrow viewports. */
 @media (max-width: 560px) {
-  .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-brand {
-    display: none;
+  .wt-toolbar--access {
+    padding-left: 12px;
+    padding-right: 10px;
+    gap: 8px;
   }
 
-  .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-sep {
-    display: none;
+  .wt-toolbar--access .wt-logo--access-toolbar {
+    gap: 7px;
+  }
+
+  .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-brand {
+    font-size: 14px;
   }
 
   .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-product {
-    font-size: 15px;
+    font-size: 13px;
+  }
+
+  .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-sep {
+    font-size: 12px;
   }
 }
 
