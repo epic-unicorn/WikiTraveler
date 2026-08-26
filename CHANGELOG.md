@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Rate limiting accepts Vercel Marketplace Upstash aliases `KV_REST_API_URL` / `KV_REST_API_TOKEN` (same as `UPSTASH_REDIS_REST_*`) ([VERCEL.md](docs/VERCEL.md))
+
 ### Fixed
 
 - Large `node:import` / Admin gzip imports no longer hit Postgres bind-variable limits or per-row upsert timeouts; imports batch with `createMany`, retry transient disconnects, and support `--limit` for smoke tests

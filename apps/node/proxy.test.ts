@@ -15,7 +15,7 @@ vi.mock("@upstash/ratelimit", () => ({
 }));
 
 vi.mock("@upstash/redis", () => ({
-  Redis: { fromEnv: vi.fn() },
+  Redis: vi.fn().mockImplementation(() => ({})),
 }));
 
 describe("proxy rate limiting", () => {
@@ -44,7 +44,8 @@ describe("proxy rate limiting", () => {
   it("skips rate limiting when Upstash is not configured", async () => {
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
-    vi.resetModules();
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
     const { proxy } = await import("./proxy");
     const req = new NextRequest("http://localhost/api/auth/login", {
       method: "POST",
@@ -67,6 +68,8 @@ describe("proxy dashboard role gate", () => {
     vi.resetModules();
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
     vi.stubGlobal("fetch", setupFetch);
   });
 
@@ -104,6 +107,8 @@ describe("proxy API CORS", () => {
     vi.resetModules();
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
     process.env.CORS_ORIGINS = "https://access.wikitraveler.org";
     delete process.env.CLIENT_ORIGINS;
     delete process.env.ACCESS_PUBLIC_URL;

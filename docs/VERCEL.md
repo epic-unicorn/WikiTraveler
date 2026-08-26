@@ -104,8 +104,10 @@ Uses [Upstash Redis](https://upstash.com) (free tier). Without these, rate limit
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `UPSTASH_REDIS_REST_URL` | No | Upstash REST URL |
-| `UPSTASH_REDIS_REST_TOKEN` | No | Upstash REST token |
+| `UPSTASH_REDIS_REST_URL` | No | Upstash REST URL (or use Vercel Marketplace `KV_REST_API_URL`) |
+| `UPSTASH_REDIS_REST_TOKEN` | No | Upstash REST token (or use Marketplace `KV_REST_API_TOKEN`) |
+
+Vercel Storage → Upstash Redis injects `KV_REST_API_URL` / `KV_REST_API_TOKEN`. The node accepts those aliases; you do not need to duplicate them as `UPSTASH_*`.
 
 | Route | Limit |
 |-------|-------|

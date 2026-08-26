@@ -278,6 +278,7 @@ Protects auth and audit routes with sliding-window limits via [Upstash Redis](ht
 ```env
 UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=
+# Or Vercel Marketplace aliases: KV_REST_API_URL / KV_REST_API_TOKEN
 ```
 
 | Route | Limit |

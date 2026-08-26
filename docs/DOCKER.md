@@ -278,6 +278,7 @@ Recommended for public nodes. Uses [Upstash Redis](https://upstash.com) (free ti
 ```env
 UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=
+# Or Vercel Marketplace: KV_REST_API_URL / KV_REST_API_TOKEN
 ```
 
 | Route | Limit |

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
 import { getClientIp, getRateLimitProfile } from "@/lib/rateLimitRoutes";
 import { decodeAuthCookie, looksLikeJwt } from "@/lib/authCookie";
 import { canAccessDashboard, roleFromToken } from "@/lib/userRole";
 import { applyCorsHeaders } from "@/lib/corsOrigins";
+import { createUpstashRedis } from "@/lib/upstashRedis";
 
 // Paths that don't require a login cookie
 const SKIP_PREFIXES = ["/_next/", "/api/", "/.well-known/"];
@@ -13,6 +13,7 @@ const SKIP_EXACT = new Set(["/login", "/register", "/setup", "/accessibility", "
 
 // Rate limiters — created once per cold start; null when Upstash is not configured.
 // Graceful degradation: if env vars are absent, rate limiting is simply skipped.
+// Accepts UPSTASH_REDIS_REST_* or Vercel Marketplace KV_REST_API_*.
 let authLimiter: Ratelimit | null = null;
 let auditLimiter: Ratelimit | null = null;
 let signalLimiter: Ratelimit | null = null;
@@ -22,31 +23,29 @@ function getLimiters(): {
   audit: Ratelimit | null;
   signal: Ratelimit | null;
 } {
-  if (
-    !process.env.UPSTASH_REDIS_REST_URL ||
-    !process.env.UPSTASH_REDIS_REST_TOKEN
-  ) {
+  if (authLimiter && auditLimiter && signalLimiter) {
+    return { auth: authLimiter, audit: auditLimiter, signal: signalLimiter };
+  }
+  const redis = createUpstashRedis();
+  if (!redis) {
     return { auth: null, audit: null, signal: null };
   }
-  if (!authLimiter) {
-    const redis = Redis.fromEnv();
-    authLimiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(10, "60 s"),
-      prefix: "wt:rl:auth",
-    });
-    auditLimiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(20, "60 s"),
-      prefix: "wt:rl:audit",
-    });
-    signalLimiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(10, "60 s"),
-      prefix: "wt:rl:signal",
-    });
-  }
-  return { auth: authLimiter, audit: auditLimiter!, signal: signalLimiter! };
+  authLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(10, "60 s"),
+    prefix: "wt:rl:auth",
+  });
+  auditLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(20, "60 s"),
+    prefix: "wt:rl:audit",
+  });
+  signalLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(10, "60 s"),
+    prefix: "wt:rl:signal",
+  });
+  return { auth: authLimiter, audit: auditLimiter, signal: signalLimiter };
 }
 
 function withApiCors(req: NextRequest, res: NextResponse): NextResponse {
@@ -69,7 +68,7 @@ export async function proxy(req: NextRequest) {
   }
 
   // ── Rate limiting ─────────────────────────────────────────────────────────
-  // Only applies when UPSTASH_REDIS_REST_URL / _TOKEN are set.
+  // Only when UPSTASH_REDIS_REST_* or Vercel KV_REST_API_* are set.
   const { auth: al, audit: audl, signal: sigl } = getLimiters();
   if (al && audl && sigl) {
     const profile = getRateLimitProfile(pathname, method);
