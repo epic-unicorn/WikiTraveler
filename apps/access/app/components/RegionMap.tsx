@@ -629,17 +629,12 @@ export function RegionMap({
           openFocusedPopup();
         });
       } else {
-        // Already close enough — keep zoom; only pan if the pin sits near/outside the edge.
-        const padded = map.getBounds().pad(-0.12);
-        if (!padded.contains(latLng)) {
-          map.panTo(latLng, { animate: true });
-          map.once("moveend", () => {
-            if (selectedIdRef.current !== selectedPropertyId) return;
-            openFocusedPopup();
-          });
-        } else {
+        // Keep zoom; always center the selected pin.
+        map.panTo(latLng, { animate: true });
+        map.once("moveend", () => {
+          if (selectedIdRef.current !== selectedPropertyId) return;
           openFocusedPopup();
-        }
+        });
       }
     } catch {
       // ignore
