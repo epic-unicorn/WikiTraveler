@@ -74,6 +74,8 @@ interface Props {
   /** Browse without a search query: viewport-scoped pins + coverage (RFC-0002 M3). */
   viewportBrowse?: boolean;
   onDataNodeUrlChange?: (url: string) => void;
+  /** Viewport browse pins for list mode (map → list). */
+  onViewportPinsChange?: (pins: MapPin[]) => void;
 }
 
 export function PropertyDiscoveryView({
@@ -94,6 +96,7 @@ export function PropertyDiscoveryView({
   initialViewMode = null,
   viewportBrowse = false,
   onDataNodeUrlChange,
+  onViewportPinsChange,
 }: Props) {
   const { t, getTierLabel } = useLocale();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -138,8 +141,9 @@ export function PropertyDiscoveryView({
     return () => observer.disconnect();
   }, [showList, hasMore, visibleCount, properties.length]);
 
-  const handleSelect = useCallback((id: string) => {
+  const handleSelect = useCallback((id: string | null) => {
     setSelectedId(id);
+    if (!id) return;
     const el = itemRefs.current.get(id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -147,8 +151,8 @@ export function PropertyDiscoveryView({
   }, []);
 
   const handleMapSelect = useCallback(
-    (pin: MapPin) => {
-      handleSelect(pin.id);
+    (pin: MapPin | null) => {
+      handleSelect(pin?.id ?? null);
     },
     [handleSelect]
   );
@@ -201,6 +205,7 @@ export function PropertyDiscoveryView({
               autoFit={mapAutoFit}
               viewportBrowse={viewportBrowse}
               onDataNodeUrlChange={onDataNodeUrlChange}
+              onViewportPinsChange={onViewportPinsChange}
             />
           ) : (
             !loading &&

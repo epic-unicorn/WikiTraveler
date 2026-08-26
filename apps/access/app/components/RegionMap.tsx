@@ -32,7 +32,7 @@ interface Props {
   loading?: boolean;
   error?: string;
   selectedPropertyId?: string | null;
-  onSelectProperty?: (pin: MapPin) => void;
+  onSelectProperty?: (pin: MapPin | null) => void;
   userLocation?: UserLocation | null;
   radiusKm?: number | null;
   savedIds?: Set<string>;
@@ -43,6 +43,8 @@ interface Props {
   viewportBrowse?: boolean;
   /** Notify parent when viewport resolve picks a data node (for list links). */
   onDataNodeUrlChange?: (url: string) => void;
+  /** Viewport browse: current pins for list mode. */
+  onViewportPinsChange?: (pins: MapPin[]) => void;
 }
 
 function isDarkMode() {
@@ -52,7 +54,7 @@ function isDarkMode() {
 function getTileConfig() {
   if (isDarkMode()) {
     return {
-      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     };
@@ -190,6 +192,7 @@ export function RegionMap({
   className,
   viewportBrowse = false,
   onDataNodeUrlChange,
+  onViewportPinsChange,
 }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
@@ -230,12 +233,24 @@ export function RegionMap({
   const selectedIdRef = useRef<string | null>(null);
   const savedIdsRef = useRef<Set<string>>(new Set());
   const lastFitSignatureRef = useRef<string | null>(null);
+  const lastFocusedSelectRef = useRef<string | null>(null);
+  const clearingSelectionRef = useRef(false);
   const updateRadiiRef = useRef<(() => void) | null>(null);
   const viewportFetchRef = useRef(0);
+  const onSelectPropertyRef = useRef(onSelectProperty);
+  onSelectPropertyRef.current = onSelectProperty;
 
   pinsRef.current = pins;
   selectedIdRef.current = selectedPropertyId;
   savedIdsRef.current = savedIds ?? new Set();
+
+  useEffect(() => {
+    if (!viewportBrowse) {
+      onViewportPinsChange?.([]);
+      return;
+    }
+    onViewportPinsChange?.(internalPins);
+  }, [viewportBrowse, internalPins, onViewportPinsChange]);
 
   const showCoverage = useCallback((regions: CoverageRegion[]) => {
     const L = leafletRef.current;
@@ -490,6 +505,16 @@ export function RegionMap({
         marker.openPopup();
         onSelectProperty?.(pin);
       });
+      marker.on("popupclose", () => {
+        if (clearingSelectionRef.current) return;
+        if (selectedIdRef.current !== pin.id) return;
+        clearingSelectionRef.current = true;
+        lastFocusedSelectRef.current = null;
+        onSelectPropertyRef.current?.(null);
+        queueMicrotask(() => {
+          clearingSelectionRef.current = false;
+        });
+      });
       marker.addTo(group);
       markerByIdRef.current.set(pin.id, marker);
       if (pin.audited || saved) marker.bringToFront();
@@ -526,27 +551,7 @@ export function RegionMap({
       }
     }
 
-    const selectedMarker = selectedIdRef.current
-      ? markerByIdRef.current.get(selectedIdRef.current)
-      : undefined;
-    if (selectedMarker) {
-      requestAnimationFrame(() => {
-        if (!mapRef.current) return;
-        try {
-          const latLng = selectedMarker.getLatLng();
-          const selectedPin = pinsRef.current.find((pin) => pin.id === selectedIdRef.current);
-          if (selectedPin) ensurePopup(selectedMarker, selectedPin);
-          mapRef.current.setView(latLng, Math.max(mapRef.current.getZoom(), 16), {
-            animate: true,
-          });
-          selectedMarker.openPopup();
-        } catch {
-          // ignore
-        }
-      });
-      return;
-    }
-
+    // Do not re-zoom / re-open popup on marker rebuild — that fights user zoom-out.
     if (viewportBrowse) return;
 
     const fitSignature = `${sorted.map((p) => p.id).join(",")}|${userLocation ? `${userLocation.lat},${userLocation.lon}` : ""}|${radiusKm ?? ""}`;
@@ -581,7 +586,12 @@ export function RegionMap({
   }, [mode]);
 
   useEffect(() => {
-    if (!selectedPropertyId) return;
+    if (!selectedPropertyId) {
+      lastFocusedSelectRef.current = null;
+      return;
+    }
+    if (lastFocusedSelectRef.current === selectedPropertyId) return;
+    lastFocusedSelectRef.current = selectedPropertyId;
     const marker = markerByIdRef.current.get(selectedPropertyId);
     const map = mapRef.current;
     if (!marker || !map) return;

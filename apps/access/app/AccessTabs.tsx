@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useLocale } from "@wikitraveler/ui";
 import { AccessToolbar } from "./AccessToolbar";
@@ -48,15 +47,6 @@ const TAB_ICONS: Record<TabId, React.ReactNode> = {
     </svg>
   ),
 };
-
-function PlusIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
 
 export function AccessTabs() {
   const { t } = useLocale();
@@ -131,18 +121,6 @@ export function AccessTabs() {
       <AccessToolbar
         nodeReachable={nodeReachable}
         nodeRegion={nodeInfo?.region}
-        end={
-          contributor ? (
-            <Link
-              href="/properties/new"
-              className="wt-toolbar-btn"
-              title={t("ui.addProperty")}
-              aria-label={t("ui.addProperty")}
-            >
-              <PlusIcon />
-            </Link>
-          ) : undefined
-        }
       />
       <main
         id="main-content"

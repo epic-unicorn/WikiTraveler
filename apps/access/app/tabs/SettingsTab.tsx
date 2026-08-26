@@ -97,29 +97,37 @@ export function SettingsTab({
             {hint.message}
           </p>
         ))}
-
-        <label htmlFor="node-url" className="fk-settings-label">{t("ui.settingsHomeNodeUrl")}</label>
-        <input
-          id="node-url"
-          type="url"
-          className="fk-settings-input"
-          value={settingsUrl}
-          onChange={(e) => setSettingsUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && save()}
-          placeholder="https://..."
-        />
-
-        {settingsError && <p className="status-err">{settingsError}</p>}
-
-        <div className="fk-settings-actions">
-          <button type="button" className="btn-primary fk-settings-save" onClick={save}>
-            {t("ui.save")}
-          </button>
-          <button type="button" className="btn-secondary fk-settings-reset" onClick={reset}>
-            {t("ui.reset")}
-          </button>
-        </div>
       </div>
+
+      <details className="fk-settings-advanced">
+        <summary className="fk-settings-advanced__summary">{t("ui.settingsAdvanced")}</summary>
+        <div className="card fk-settings-card">
+          <p className="fk-settings-theme-hint fk-settings-advanced__hint">
+            {t("ui.settingsHomeNodeAdvancedHint")}
+          </p>
+          <label htmlFor="node-url" className="fk-settings-label">{t("ui.settingsHomeNodeUrl")}</label>
+          <input
+            id="node-url"
+            type="url"
+            className="fk-settings-input"
+            value={settingsUrl}
+            onChange={(e) => setSettingsUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && save()}
+            placeholder="https://..."
+          />
+
+          {settingsError && <p className="status-err">{settingsError}</p>}
+
+          <div className="fk-settings-actions">
+            <button type="button" className="btn-primary fk-settings-save" onClick={save}>
+              {t("ui.save")}
+            </button>
+            <button type="button" className="btn-secondary fk-settings-reset" onClick={reset}>
+              {t("ui.reset")}
+            </button>
+          </div>
+        </div>
+      </details>
 
       <p className="fk-section-header fk-section-header--compact">{t("ui.settingsLanguage")}</p>
       <div className="card fk-settings-card fk-settings-card--compact">

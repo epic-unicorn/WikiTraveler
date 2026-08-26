@@ -10,7 +10,7 @@ import {
   type PropertySummary,
 } from "@wikitraveler/ui";
 import { searchProperties, fetchSearchFields } from "../lib/accessApi";
-import { PropertyDiscoveryView } from "../components/PropertyDiscoveryView";
+import { PropertyDiscoveryView, mapPinsToSummaries } from "../components/PropertyDiscoveryView";
 import {
   filtersFromSearchParams,
   parseDiscoveryView,
@@ -21,7 +21,9 @@ import {
   setDiscoveryViewMode,
   type DiscoveryViewMode,
 } from "../lib/discoveryUtils";
+import { readSearchSession, writeSearchSession } from "../lib/searchSession";
 import type { DataRegionResolve } from "../hooks/useNodeContext";
+import type { MapPin } from "../lib/accessApi";
 
 interface Props {
   /** Active data node (search / browse / property host). */
@@ -34,28 +36,76 @@ interface Props {
 /** Match Admin dashboard search page size (API max 100). */
 const SEARCH_PAGE_SIZE = 100;
 
+function initialSearchState(searchParams: URLSearchParams): {
+  query: string;
+  filters: SearchFilters;
+  view: DiscoveryViewMode;
+  page: number;
+} {
+  const fromUrlQ = searchParams.get("q");
+  const fromUrlView = parseDiscoveryView(searchParams.get("view"));
+  const hasUrlState =
+    fromUrlQ != null ||
+    searchParams.has("features") ||
+    searchParams.has("audited") ||
+    searchParams.has("room") ||
+    fromUrlView != null;
+
+  if (hasUrlState) {
+    return {
+      query: fromUrlQ ?? "",
+      filters: filtersFromSearchParams(searchParams),
+      view: fromUrlView ?? getDiscoveryViewMode(),
+      page: 1,
+    };
+  }
+
+  const session = typeof window !== "undefined" ? readSearchSession() : null;
+  if (session) {
+    return {
+      query: session.query,
+      filters: session.filters,
+      view: session.view,
+      page: session.page,
+    };
+  }
+
+  return {
+    query: "",
+    filters: filtersFromSearchParams(searchParams),
+    view: getDiscoveryViewMode(),
+    page: 1,
+  };
+}
+
 export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
   const { locale, t } = useLocale();
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
-  const [filters, setFilters] = useState<SearchFilters>(() =>
-    filtersFromSearchParams(searchParams)
-  );
-  const [discoveryView, setDiscoveryView] = useState<DiscoveryViewMode>(() => {
-    const fromUrl = parseDiscoveryView(searchParams.get("view"));
-    return fromUrl ?? getDiscoveryViewMode();
-  });
+  const [boot] = useState(() => initialSearchState(searchParams));
+  const [query, setQuery] = useState(boot.query);
+  const [filters, setFilters] = useState<SearchFilters>(boot.filters);
+  const [discoveryView, setDiscoveryView] = useState<DiscoveryViewMode>(boot.view);
   const [searchFeatures, setSearchFeatures] = useState<SearchFeature[]>([]);
   const [results, setResults] = useState<PropertySummary[] | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(boot.page);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [mapDataNodeUrl, setMapDataNodeUrl] = useState(dataNodeUrl);
+  const [viewportPins, setViewportPins] = useState<MapPin[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const skipUrlHydrate = useRef(true);
+
+  useEffect(() => {
+    setDiscoveryViewMode(discoveryView);
+  }, []);
 
   // Restore search state when returning via back navigation (URL carries state).
   useEffect(() => {
+    if (skipUrlHydrate.current) {
+      skipUrlHydrate.current = false;
+      return;
+    }
     const nextQuery = searchParams.get("q") ?? "";
     const nextFilters = filtersFromSearchParams(searchParams);
     const nextView = parseDiscoveryView(searchParams.get("view"));
@@ -67,6 +117,10 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
       setDiscoveryViewMode(nextView);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    writeSearchSession({ query, filters, page, view: discoveryView });
+  }, [query, filters, page, discoveryView]);
 
   const returnState: AccessReturnState = useMemo(
     () => ({
@@ -119,7 +173,6 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
 
     const controller = new AbortController();
     abortRef.current = controller;
-    // Debounce typing; page clicks still go through this effect with page already updated.
     const delay = 350;
     const timer = setTimeout(async () => {
       setLoading(true);
@@ -146,9 +199,15 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, filters, mapDataNodeUrl, hasActiveSearch, page]);
+  }, [query, filters, mapDataNodeUrl, hasActiveSearch, page, t]);
 
-  const displayProperties: PropertySummary[] = hasActiveSearch ? (results ?? []) : [];
+  const browseListProperties = useMemo(
+    () => mapPinsToSummaries(viewportPins),
+    [viewportPins]
+  );
+  const displayProperties: PropertySummary[] = hasActiveSearch
+    ? (results ?? [])
+    : browseListProperties;
   const totalPages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
   const rangeFrom = total === 0 ? 0 : (page - 1) * SEARCH_PAGE_SIZE + 1;
   const rangeTo = Math.min(page * SEARCH_PAGE_SIZE, total);
@@ -161,16 +220,15 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
         <p className="fk-empty-body">
           {query.trim()
             ? t("ui.searchNoMatch", { query: query.trim() })
-            : t("ui.searchTryDifferent")}{" "}
-          {t("ui.searchTapPlus")}
+            : t("ui.searchTryDifferent")}
         </p>
       </div>
     ) : null
   ) : (
     <div className="fk-empty">
-      <span className="fk-empty-icon">🗺️</span>
-      <p className="fk-empty-title">{t("ui.mapZoomToSeePlaces")}</p>
-      <p className="fk-empty-body">{t("ui.discoveryBrowseHint")}</p>
+      <span className="fk-empty-icon">🔍</span>
+      <p className="fk-empty-title">{t("ui.searchListEmptyTitle")}</p>
+      <p className="fk-empty-body">{t("ui.searchListEmptyBody")}</p>
     </div>
   );
 
@@ -230,15 +288,16 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
         loading={hasActiveSearch ? loading : false}
         error={hasActiveSearch ? searchError : ""}
         homeNodeUrl={homeNodeUrl}
-        propertyNodeUrl={hasActiveSearch ? mapDataNodeUrl : mapDataNodeUrl}
+        propertyNodeUrl={mapDataNodeUrl}
         active
         emptyState={emptyState}
         mapAutoFit={hasActiveSearch}
         returnState={returnState}
         onViewModeChange={setDiscoveryView}
-        initialViewMode={parseDiscoveryView(searchParams.get("view"))}
+        initialViewMode={discoveryView}
         viewportBrowse={!hasActiveSearch}
         onDataNodeUrlChange={setMapDataNodeUrl}
+        onViewportPinsChange={setViewportPins}
       />
     </div>
   );
