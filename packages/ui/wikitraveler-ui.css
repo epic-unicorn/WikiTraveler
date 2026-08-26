@@ -18,14 +18,18 @@
 }
 
 .wt-toolbar--access .wt-logo--access-toolbar {
-  max-width: min(100%, 200px);
+  max-width: none;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-wordmark {
+  flex-wrap: nowrap;
   overflow: hidden;
 }
 
-@media (max-width: 400px) {
+/* Narrow Access header: mark + “Access” only — never wrap “WikiTraveler · Access”. */
+@media (max-width: 560px) {
   .wt-toolbar--access .wt-logo--access-toolbar .wt-logo-brand {
     display: none;
   }

@@ -16,9 +16,9 @@ describe("access proxy", () => {
     expect(res?.headers.get("location")).toContain("/login");
   });
 
-  it("allows login and register without a token", () => {
-    expect(proxy(request("/login"))?.status).toBe(200);
-    expect(proxy(request("/register"))?.status).toBe(200);
+  it("allows PWA manifest and icons without a token", () => {
+    expect(proxy(request("/manifest.webmanifest"))?.status).toBe(200);
+    expect(proxy(request("/icons/icon-192.png"))?.status).toBe(200);
   });
 
   it("redirects USER from audit routes to property detail", () => {

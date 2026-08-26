@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Access Nearby distinguishes location permission denied vs GPS timeout/unavailable (no false “GPS denied”)
 - Access map selection no longer re-zooms or reopens the popup after dismissing a pin and zooming out
+- Access PWA `manifest.webmanifest` / icons no longer redirect to `/login` for unauthenticated requests
+- Access Search tab no longer hydrates search state from `sessionStorage` during SSR (fixes hydration mismatch)
 
 - Large `node:import` / Admin gzip imports no longer hit Postgres bind-variable limits or per-row upsert timeouts; imports batch with `createMany`, retry transient disconnects, and support `--limit` for smoke tests
 - Vercel node builds prebuild workspace packages (`core` / `i18n` / `ui` / `ai-agent`) before Next so `@wikitraveler/i18n` resolves ([VERCEL.md](docs/VERCEL.md))
@@ -38,7 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Vercel gossip cron runs daily (`0 1 * * *`) so Hobby plan deploys work; Pro can restore a sub-daily schedule in `vercel.json` ([VERCEL.md](docs/VERCEL.md))
 - Removed legacy `vercel.json` `@secret` env block — set node env vars in the Vercel project (include `CLIENT_ORIGINS`; do not ship `CORS_ORIGINS=*`) ([VERCEL.md](docs/VERCEL.md))
-- Access mobile header is compact (no toolbar “+”; add property stays on Contribute); search state persists across property navigation; list empty copy is a search hint; browse list shows map viewport pins; dark map uses Carto Voyager tiles; home node URL lives under Settings → Advanced
+- Access mobile header is compact (no toolbar “+”; add property stays on Contribute); search state persists across property navigation; list empty copy is a search hint; browse list shows map viewport pins; dark map uses OSM tiles with a CSS filter (no Carto API key); home node URL lives under Settings → Advanced
 
 ---
 

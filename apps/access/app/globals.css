@@ -1126,6 +1126,11 @@ textarea { min-height: 80px; resize: vertical; }
   border: 1px solid var(--wt-border);
 }
 
+/* Dark map without Carto API keys: invert OSM tiles only (markers/popups stay normal). */
+html.wt-dark .fk-map-container .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.8);
+}
+
 .wt-map-legend {
   position: absolute;
   left: 12px;

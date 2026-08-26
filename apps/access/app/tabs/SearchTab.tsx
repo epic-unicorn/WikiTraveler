@@ -51,29 +51,20 @@ function initialSearchState(searchParams: URLSearchParams): {
     searchParams.has("room") ||
     fromUrlView != null;
 
+  // SSR + first client paint must match — never read sessionStorage here.
   if (hasUrlState) {
     return {
       query: fromUrlQ ?? "",
       filters: filtersFromSearchParams(searchParams),
-      view: fromUrlView ?? getDiscoveryViewMode(),
+      view: fromUrlView ?? "map",
       page: 1,
-    };
-  }
-
-  const session = typeof window !== "undefined" ? readSearchSession() : null;
-  if (session) {
-    return {
-      query: session.query,
-      filters: session.filters,
-      view: session.view,
-      page: session.page,
     };
   }
 
   return {
     query: "",
     filters: filtersFromSearchParams(searchParams),
-    view: getDiscoveryViewMode(),
+    view: "map",
     page: 1,
   };
 }
@@ -98,6 +89,35 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
 
   useEffect(() => {
     setDiscoveryViewMode(discoveryView);
+  }, []);
+
+  // Hydrate sessionStorage after mount (avoids SSR/client HTML mismatch).
+  useEffect(() => {
+    const fromUrlQ = searchParams.get("q");
+    const fromUrlView = parseDiscoveryView(searchParams.get("view"));
+    const hasUrlState =
+      fromUrlQ != null ||
+      searchParams.has("features") ||
+      searchParams.has("audited") ||
+      searchParams.has("room") ||
+      fromUrlView != null;
+    if (hasUrlState) return;
+
+    const session = readSearchSession();
+    if (session) {
+      setQuery(session.query);
+      setFilters(session.filters);
+      setPage(session.page);
+      setDiscoveryView(session.view);
+      setDiscoveryViewMode(session.view);
+      return;
+    }
+
+    const storedView = getDiscoveryViewMode();
+    if (storedView !== "map") {
+      setDiscoveryView(storedView);
+      setDiscoveryViewMode(storedView);
+    }
   }, []);
 
   // Restore search state when returning via back navigation (URL carries state).

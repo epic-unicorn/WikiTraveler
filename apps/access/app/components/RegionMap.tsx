@@ -47,18 +47,9 @@ interface Props {
   onViewportPinsChange?: (pins: MapPin[]) => void;
 }
 
-function isDarkMode() {
-  return typeof document !== "undefined" && document.documentElement.classList.contains("wt-dark");
-}
-
 function getTileConfig() {
-  if (isDarkMode()) {
-    return {
-      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    };
-  }
+  // OSM tiles stay free without an API key. Dark mode uses a CSS filter on the
+  // tile pane (see globals.css) instead of Carto basemaps that watermark “API KEY REQUIRED”.
   return {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -568,22 +559,6 @@ export function RegionMap({
     renderMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pins, mode, selectedPropertyId, userLocation, radiusKm, savedIds, onSelectProperty, autoFit, mapReady, contributor, t, viewportBrowse]);
-
-  useEffect(() => {
-    const L = leafletRef.current;
-    const map = mapRef.current;
-    const tile = tileLayerRef.current;
-    if (!L || !map || !tile) return;
-
-    try {
-      map.removeLayer(tile);
-    } catch {
-      return;
-    }
-
-    const { url, attribution } = getTileConfig();
-    tileLayerRef.current = L.tileLayer(url, { attribution, maxZoom: 19 }).addTo(map);
-  }, [mode]);
 
   useEffect(() => {
     if (!selectedPropertyId) {
