@@ -80,14 +80,26 @@ function NodeStatusChip({
 }) {
   const { t } = useLocale();
   if (reachable === null) {
-    return <span className="fk-node-status fk-node-status--checking">{t("ui.checking")}</span>;
+    return (
+      <span className="fk-node-status fk-node-status--checking" title={t("ui.checking")}>
+        <span className="fk-node-status__dot" aria-hidden="true" />
+        <span className="fk-node-status__label">{t("ui.checking")}</span>
+      </span>
+    );
   }
   if (!reachable) {
-    return <span className="fk-node-status fk-node-status--err">{t("ui.unreachable")}</span>;
+    return (
+      <span className="fk-node-status fk-node-status--err" title={t("ui.unreachable")}>
+        <span className="fk-node-status__dot" aria-hidden="true" />
+        <span className="fk-node-status__label">{t("ui.unreachable")}</span>
+      </span>
+    );
   }
+  const label = region?.trim() || t("ui.connected");
   return (
-    <span className="fk-node-status fk-node-status--ok" title={region ?? undefined}>
-      {region ? region : t("ui.connected")}
+    <span className="fk-node-status fk-node-status--ok" title={label}>
+      <span className="fk-node-status__dot" aria-hidden="true" />
+      <span className="fk-node-status__label">{label}</span>
     </span>
   );
 }
@@ -115,7 +127,11 @@ export function AccessToolbar({
   return (
     <AppToolbar
       className="wt-toolbar--access"
-      title={title ?? <WikiTravelerLogo product="access" size={28} />}
+      title={
+        title ?? (
+          <WikiTravelerLogo product="access" size={26} className="wt-logo--access-toolbar" />
+        )
+      }
       titleHref={title ? undefined : "/"}
       linkWrap={fkLinkWrap}
       start={start}

@@ -28,6 +28,7 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [geoDenied, setGeoDenied] = useState(false);
+  const [geoTimeout, setGeoTimeout] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
   useEffect(() => {
@@ -69,21 +70,45 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
   const requestGps = useCallback(() => {
     if (!navigator.geolocation) {
       setGeoDenied(true);
+      setGeoTimeout(false);
       return;
     }
     setGpsLoading(true);
     setError("");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        setGeoDenied(false);
-        setGpsLoading(false);
-      },
-      () => {
+    setGeoDenied(false);
+    setGeoTimeout(false);
+
+    const onSuccess = (pos: GeolocationPosition) => {
+      setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      setGeoDenied(false);
+      setGeoTimeout(false);
+      setGpsLoading(false);
+    };
+
+    const onError = (err: GeolocationPositionError, retried: boolean) => {
+      if (err.code === err.PERMISSION_DENIED) {
         setGeoDenied(true);
+        setGeoTimeout(false);
         setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+        return;
+      }
+      if (!retried) {
+        navigator.geolocation.getCurrentPosition(
+          onSuccess,
+          (retryErr) => onError(retryErr, true),
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        );
+        return;
+      }
+      setGeoTimeout(true);
+      setGeoDenied(false);
+      setGpsLoading(false);
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => onError(err, false),
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60_000 }
     );
   }, []);
 
@@ -109,6 +134,8 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
       <div className="fk-nearby-status-row">
         {geoDenied ? (
           <span className="fk-chip fk-chip--err">{t("ui.nearbyGpsDenied")}</span>
+        ) : geoTimeout ? (
+          <span className="fk-chip fk-chip--err">{t("ui.nearbyGpsTimeout")}</span>
         ) : gpsLoading ? (
           <span className="fk-chip fk-chip--warn">{t("ui.nearbyLocating")}</span>
         ) : coords ? (
@@ -173,9 +200,9 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
         )}
       </div>
 
-      {geoDenied && (
+      {(geoDenied || geoTimeout) && (
         <button type="button" className="btn-secondary fk-nearby-allow-btn" onClick={requestGps}>
-          📍 {t("ui.nearbyAllowLocation")}
+          📍 {geoDenied ? t("ui.nearbyAllowLocation") : t("ui.nearbyRetryLocation")}
         </button>
       )}
     </div>

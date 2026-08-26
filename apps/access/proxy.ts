@@ -4,8 +4,8 @@ import { decodeAuthCookie, looksLikeJwt } from "./lib/authCookie";
 import { roleFromToken } from "./app/lib/userRole";
 import { contributorRouteRedirect } from "./lib/contributorRoutes";
 
-const SKIP_PREFIXES = ["/_next/", "/node-api/"];
-const SKIP_EXACT = new Set(["/login", "/register", "/favicon.ico"]);
+const SKIP_PREFIXES = ["/_next/", "/node-api/", "/icons/"];
+const SKIP_EXACT = new Set(["/login", "/register", "/favicon.ico", "/manifest.webmanifest"]);
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -35,5 +35,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|node-api|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|node-api|favicon.ico|manifest\\.webmanifest|icons/).*)"],
 };

@@ -32,7 +32,7 @@ interface Props {
   loading?: boolean;
   error?: string;
   selectedPropertyId?: string | null;
-  onSelectProperty?: (pin: MapPin) => void;
+  onSelectProperty?: (pin: MapPin | null) => void;
   userLocation?: UserLocation | null;
   radiusKm?: number | null;
   savedIds?: Set<string>;
@@ -43,25 +43,23 @@ interface Props {
   viewportBrowse?: boolean;
   /** Notify parent when viewport resolve picks a data node (for list links). */
   onDataNodeUrlChange?: (url: string) => void;
-}
-
-function isDarkMode() {
-  return typeof document !== "undefined" && document.documentElement.classList.contains("wt-dark");
+  /** Viewport browse: current pins for list mode. */
+  onViewportPinsChange?: (pins: MapPin[]) => void;
+  /** When false, keep the Leaflet instance but hide the shell (preserves zoom). */
+  visible?: boolean;
 }
 
 function getTileConfig() {
-  if (isDarkMode()) {
-    return {
-      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    };
-  }
+  // OSM tiles stay free without an API key. Dark mode uses a CSS filter on the
+  // tile pane (see globals.css) instead of Carto basemaps that watermark “API KEY REQUIRED”.
   return {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   };
 }
+
+/** Below this zoom, selecting a pin zooms in. At/above (street–town), keep zoom. */
+const SELECT_ZOOM_FLOOR = 14;
 
 function radiusForZoom(zoom: number, selected: boolean): number {
   let base: number;
@@ -190,6 +188,8 @@ export function RegionMap({
   className,
   viewportBrowse = false,
   onDataNodeUrlChange,
+  onViewportPinsChange,
+  visible = true,
 }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
@@ -230,12 +230,25 @@ export function RegionMap({
   const selectedIdRef = useRef<string | null>(null);
   const savedIdsRef = useRef<Set<string>>(new Set());
   const lastFitSignatureRef = useRef<string | null>(null);
+  const lastFocusedSelectRef = useRef<string | null>(null);
+  const clearingSelectionRef = useRef(false);
+  const rebuildingMarkersRef = useRef(false);
   const updateRadiiRef = useRef<(() => void) | null>(null);
   const viewportFetchRef = useRef(0);
+  const onSelectPropertyRef = useRef(onSelectProperty);
+  onSelectPropertyRef.current = onSelectProperty;
 
   pinsRef.current = pins;
   selectedIdRef.current = selectedPropertyId;
   savedIdsRef.current = savedIds ?? new Set();
+
+  useEffect(() => {
+    if (!viewportBrowse) {
+      onViewportPinsChange?.([]);
+      return;
+    }
+    onViewportPinsChange?.(internalPins);
+  }, [viewportBrowse, internalPins, onViewportPinsChange]);
 
   const showCoverage = useCallback((regions: CoverageRegion[]) => {
     const L = leafletRef.current;
@@ -410,6 +423,15 @@ export function RegionMap({
   }, [active, userLocation, viewportBrowse]);
 
   useEffect(() => {
+    if (!visible || !mapReady) return;
+    const map = mapRef.current;
+    if (!map) return;
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+  }, [visible, mapReady]);
+
+  useEffect(() => {
     if (!mapReady || !viewportBrowse || useExternal) return;
     const map = mapRef.current;
     if (!map) return;
@@ -458,6 +480,7 @@ export function RegionMap({
     const userGroup = userLayerRef.current;
     if (!L || !map || !group || !userGroup) return;
 
+    rebuildingMarkersRef.current = true;
     group.clearLayers();
     userGroup.clearLayers();
     markerByIdRef.current.clear();
@@ -486,13 +509,40 @@ export function RegionMap({
         sticky: false,
       });
       marker.on("click", () => {
-        ensurePopup(marker, pin);
-        marker.openPopup();
+        // Selection effect opens the popup after marker rebuild; avoid open-then-destroy flicker.
         onSelectProperty?.(pin);
+      });
+      marker.on("popupclose", () => {
+        // clearLayers() closes popups — ignore that so selection/rebuild doesn't clear parent state
+        if (rebuildingMarkersRef.current || clearingSelectionRef.current) return;
+        if (selectedIdRef.current !== pin.id) return;
+        clearingSelectionRef.current = true;
+        lastFocusedSelectRef.current = null;
+        onSelectPropertyRef.current?.(null);
+        queueMicrotask(() => {
+          clearingSelectionRef.current = false;
+        });
       });
       marker.addTo(group);
       markerByIdRef.current.set(pin.id, marker);
       if (pin.audited || saved) marker.bringToFront();
+    }
+
+    rebuildingMarkersRef.current = false;
+
+    // Restore popup after rebuild if this pin is still the focused selection (e.g. viewport refresh).
+    const focusedId = selectedIdRef.current;
+    if (focusedId && lastFocusedSelectRef.current === focusedId) {
+      const focusedMarker = markerByIdRef.current.get(focusedId);
+      const focusedPin = pinsRef.current.find((p) => p.id === focusedId);
+      if (focusedMarker && focusedPin) {
+        ensurePopup(focusedMarker, focusedPin);
+        requestAnimationFrame(() => {
+          if (selectedIdRef.current !== focusedId) return;
+          if (lastFocusedSelectRef.current !== focusedId) return;
+          markerByIdRef.current.get(focusedId)?.openPopup();
+        });
+      }
     }
 
     updateRadiiRef.current = () => {
@@ -526,27 +576,7 @@ export function RegionMap({
       }
     }
 
-    const selectedMarker = selectedIdRef.current
-      ? markerByIdRef.current.get(selectedIdRef.current)
-      : undefined;
-    if (selectedMarker) {
-      requestAnimationFrame(() => {
-        if (!mapRef.current) return;
-        try {
-          const latLng = selectedMarker.getLatLng();
-          const selectedPin = pinsRef.current.find((pin) => pin.id === selectedIdRef.current);
-          if (selectedPin) ensurePopup(selectedMarker, selectedPin);
-          mapRef.current.setView(latLng, Math.max(mapRef.current.getZoom(), 16), {
-            animate: true,
-          });
-          selectedMarker.openPopup();
-        } catch {
-          // ignore
-        }
-      });
-      return;
-    }
-
+    // Do not re-zoom / re-open popup on marker rebuild — that fights user zoom-out.
     if (viewportBrowse) return;
 
     const fitSignature = `${sorted.map((p) => p.id).join(",")}|${userLocation ? `${userLocation.lat},${userLocation.lon}` : ""}|${radiusKm ?? ""}`;
@@ -565,36 +595,51 @@ export function RegionMap({
   }, [pins, mode, selectedPropertyId, userLocation, radiusKm, savedIds, onSelectProperty, autoFit, mapReady, contributor, t, viewportBrowse]);
 
   useEffect(() => {
-    const L = leafletRef.current;
-    const map = mapRef.current;
-    const tile = tileLayerRef.current;
-    if (!L || !map || !tile) return;
-
-    try {
-      map.removeLayer(tile);
-    } catch {
+    if (!selectedPropertyId) {
+      lastFocusedSelectRef.current = null;
       return;
     }
-
-    const { url, attribution } = getTileConfig();
-    tileLayerRef.current = L.tileLayer(url, { attribution, maxZoom: 19 }).addTo(map);
-  }, [mode]);
-
-  useEffect(() => {
-    if (!selectedPropertyId) return;
+    if (!mapReady) return;
+    // Wait until markers exist (renderMarkers runs in an earlier effect this tick).
     const marker = markerByIdRef.current.get(selectedPropertyId);
     const map = mapRef.current;
     if (!marker || !map) return;
+    if (lastFocusedSelectRef.current === selectedPropertyId) return;
+    lastFocusedSelectRef.current = selectedPropertyId;
+
+    const openFocusedPopup = () => {
+      const current = markerByIdRef.current.get(selectedPropertyId);
+      if (!current || selectedIdRef.current !== selectedPropertyId) return;
+      const pin = pinsRef.current.find((p) => p.id === selectedPropertyId);
+      if (pin) ensurePopup(current, pin);
+      current.openPopup();
+    };
+
     try {
       const latLng = marker.getLatLng();
       const selectedPin = pinsRef.current.find((pin) => pin.id === selectedPropertyId);
       if (selectedPin) ensurePopup(marker, selectedPin);
-      map.setView(latLng, Math.max(map.getZoom(), 16), { animate: true });
-      marker.openPopup();
+
+      const zoom = map.getZoom();
+      if (zoom < SELECT_ZOOM_FLOOR) {
+        // Zoom in once to neighborhood/street; popup restored after moveend / pin refresh.
+        map.setView(latLng, SELECT_ZOOM_FLOOR, { animate: true });
+        map.once("moveend", () => {
+          if (selectedIdRef.current !== selectedPropertyId) return;
+          openFocusedPopup();
+        });
+      } else {
+        // Keep zoom; always center the selected pin.
+        map.panTo(latLng, { animate: true });
+        map.once("moveend", () => {
+          if (selectedIdRef.current !== selectedPropertyId) return;
+          openFocusedPopup();
+        });
+      }
     } catch {
       // ignore
     }
-  }, [selectedPropertyId, mapReady]);
+  }, [selectedPropertyId, mapReady, pins]);
 
   const showMapShell = viewportBrowse || pins.length > 0 || useExternal;
 
