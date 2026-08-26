@@ -186,34 +186,37 @@ export function PropertyDiscoveryView({
         </div>
       )}
 
-      {showMap && (
-        <div className="fk-discovery-map">
-          {hasMap ? (
-            <RegionMap
-              nodeUrl={propertyNodeUrl}
-              homeNodeUrl={homeNodeUrl}
-              active={active}
-              pins={viewportBrowse ? undefined : pins}
-              loading={loading}
-              error={error}
-              selectedPropertyId={selectedId}
-              onSelectProperty={handleMapSelect}
-              userLocation={userLocation}
-              radiusKm={radiusKm}
-              savedIds={savedIds}
-              interactionMode="select"
-              autoFit={mapAutoFit}
-              viewportBrowse={viewportBrowse}
-              onDataNodeUrlChange={onDataNodeUrlChange}
-              onViewportPinsChange={onViewportPinsChange}
-            />
-          ) : (
-            !loading &&
-            properties.length > 0 && (
-              <p className="status-muted fk-discovery-map-unavailable">{t("ui.discoveryMapUnavailable")}</p>
-            )
-          )}
+      {hasMap ? (
+        <div
+          className={showMap ? "fk-discovery-map" : "fk-discovery-map fk-discovery-map--hidden"}
+          aria-hidden={!showMap}
+        >
+          <RegionMap
+            nodeUrl={propertyNodeUrl}
+            homeNodeUrl={homeNodeUrl}
+            active={active}
+            visible={showMap}
+            pins={viewportBrowse ? undefined : pins}
+            loading={loading}
+            error={error}
+            selectedPropertyId={selectedId}
+            onSelectProperty={handleMapSelect}
+            userLocation={userLocation}
+            radiusKm={radiusKm}
+            savedIds={savedIds}
+            interactionMode="select"
+            autoFit={mapAutoFit}
+            viewportBrowse={viewportBrowse}
+            onDataNodeUrlChange={onDataNodeUrlChange}
+            onViewportPinsChange={onViewportPinsChange}
+          />
         </div>
+      ) : (
+        showMap &&
+        !loading &&
+        properties.length > 0 && (
+          <p className="status-muted fk-discovery-map-unavailable">{t("ui.discoveryMapUnavailable")}</p>
+        )
       )}
 
       {showList && (

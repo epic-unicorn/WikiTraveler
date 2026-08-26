@@ -45,6 +45,8 @@ interface Props {
   onDataNodeUrlChange?: (url: string) => void;
   /** Viewport browse: current pins for list mode. */
   onViewportPinsChange?: (pins: MapPin[]) => void;
+  /** When false, keep the Leaflet instance but hide the shell (preserves zoom). */
+  visible?: boolean;
 }
 
 function getTileConfig() {
@@ -184,6 +186,7 @@ export function RegionMap({
   viewportBrowse = false,
   onDataNodeUrlChange,
   onViewportPinsChange,
+  visible = true,
 }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
@@ -226,6 +229,7 @@ export function RegionMap({
   const lastFitSignatureRef = useRef<string | null>(null);
   const lastFocusedSelectRef = useRef<string | null>(null);
   const clearingSelectionRef = useRef(false);
+  const rebuildingMarkersRef = useRef(false);
   const updateRadiiRef = useRef<(() => void) | null>(null);
   const viewportFetchRef = useRef(0);
   const onSelectPropertyRef = useRef(onSelectProperty);
@@ -416,6 +420,15 @@ export function RegionMap({
   }, [active, userLocation, viewportBrowse]);
 
   useEffect(() => {
+    if (!visible || !mapReady) return;
+    const map = mapRef.current;
+    if (!map) return;
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+  }, [visible, mapReady]);
+
+  useEffect(() => {
     if (!mapReady || !viewportBrowse || useExternal) return;
     const map = mapRef.current;
     if (!map) return;
@@ -464,6 +477,7 @@ export function RegionMap({
     const userGroup = userLayerRef.current;
     if (!L || !map || !group || !userGroup) return;
 
+    rebuildingMarkersRef.current = true;
     group.clearLayers();
     userGroup.clearLayers();
     markerByIdRef.current.clear();
@@ -497,7 +511,8 @@ export function RegionMap({
         onSelectProperty?.(pin);
       });
       marker.on("popupclose", () => {
-        if (clearingSelectionRef.current) return;
+        // clearLayers() closes popups — ignore that so selection/rebuild doesn't clear parent state
+        if (rebuildingMarkersRef.current || clearingSelectionRef.current) return;
         if (selectedIdRef.current !== pin.id) return;
         clearingSelectionRef.current = true;
         lastFocusedSelectRef.current = null;
@@ -510,6 +525,8 @@ export function RegionMap({
       markerByIdRef.current.set(pin.id, marker);
       if (pin.audited || saved) marker.bringToFront();
     }
+
+    rebuildingMarkersRef.current = false;
 
     updateRadiiRef.current = () => {
       const m = mapRef.current;
@@ -565,21 +582,30 @@ export function RegionMap({
       lastFocusedSelectRef.current = null;
       return;
     }
-    if (lastFocusedSelectRef.current === selectedPropertyId) return;
-    lastFocusedSelectRef.current = selectedPropertyId;
+    if (!mapReady) return;
+    // Wait until markers exist (renderMarkers runs in an earlier effect this tick).
     const marker = markerByIdRef.current.get(selectedPropertyId);
     const map = mapRef.current;
     if (!marker || !map) return;
+    if (lastFocusedSelectRef.current === selectedPropertyId) return;
+    lastFocusedSelectRef.current = selectedPropertyId;
     try {
       const latLng = marker.getLatLng();
       const selectedPin = pinsRef.current.find((pin) => pin.id === selectedPropertyId);
       if (selectedPin) ensurePopup(marker, selectedPin);
       map.setView(latLng, Math.max(map.getZoom(), 16), { animate: true });
-      marker.openPopup();
+      // After setView animation, open popup on the current marker instance.
+      requestAnimationFrame(() => {
+        const current = markerByIdRef.current.get(selectedPropertyId);
+        if (!current || selectedIdRef.current !== selectedPropertyId) return;
+        const pin = pinsRef.current.find((p) => p.id === selectedPropertyId);
+        if (pin) ensurePopup(current, pin);
+        current.openPopup();
+      });
     } catch {
       // ignore
     }
-  }, [selectedPropertyId, mapReady]);
+  }, [selectedPropertyId, mapReady, pins]);
 
   const showMapShell = viewportBrowse || pins.length > 0 || useExternal;
 

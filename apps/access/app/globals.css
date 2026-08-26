@@ -1231,9 +1231,14 @@ html.wt-dark .wt-map-legend-swatch--not-audited {
 }
 
 .fk-discovery-map-unavailable {
+  margin: 8px 0 0;
   padding: 12px;
   font-size: 13px;
   text-align: center;
+}
+
+.fk-discovery-map--hidden {
+  display: none;
 }
 
 .fk-discovery-cards {

@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Access Nearby distinguishes location permission denied vs GPS timeout/unavailable (no false “GPS denied”)
 - Access map selection no longer re-zooms or reopens the popup after dismissing a pin and zooming out
+- Access map↔list toggle keeps the Leaflet view (zoom/center) by hiding instead of unmounting the map
+- Access pin popup opens again after selection (ignore popupclose during marker rebuild)
 - Access PWA `manifest.webmanifest` / icons no longer redirect to `/login` for unauthenticated requests
 - Access Search tab no longer hydrates search state from `sessionStorage` during SSR (fixes hydration mismatch)
 
