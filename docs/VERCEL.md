@@ -199,36 +199,47 @@ Configure region bbox in Admin → **Region & data** (save only). Property CRUD 
 
 Access is a **separate** Vercel project — no database, no cron. **Hub operators** deploy the canonical (and optional backup) Access. **Node operators** usually skip this and point travelers at `https://access.wikitraveler.org`.
 
+Do **not** reuse the node project or root `vercel.json` (that file builds `apps/node` and registers node crons).
+
 1. Import the same repo again (second project), e.g. `wikitraveler-access` or `wikitraveler-access-backup`.
-2. **Root Directory:** `apps/access` (or repo root with output `apps/access/.next`).
-3. Build:
+2. **Root Directory:** `apps/access` (Include files outside the Root Directory / monorepo: on).
+3. Framework: Next.js. `apps/access/vercel.json` sets install + build; override only if needed:
 
 | Setting | Value |
 |---------|-------|
-| **Install Command** | `cd ../.. && pnpm install` (if root is `apps/access`) |
-| **Build Command** | `pnpm --filter @wikitraveler/access build` |
-| **Output Directory** | `apps/access/.next` |
+| **Install Command** | `cd ../.. && pnpm install --frozen-lockfile` |
+| **Build Command** | `cd ../.. && pnpm run vercel-build:access` (builds `core` / `i18n` / `ui`, then Access) |
+| **Output Directory** | `.next` (relative to `apps/access`) |
 
 4. Environment variable — default **home** node for registration/login (GPS resolve still reaches peers):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_NODE_API_URL` | **Yes** | Home node URL, e.g. `https://node.example.com` (no trailing slash) |
+| `NEXT_PUBLIC_NODE_API_URL` | **Yes** | Home node URL, e.g. `https://node-eu.wikitraveler.org` (no trailing slash) |
 
-Baked in at build time — redeploy Access after changing the home node URL.
+Baked in at build time — redeploy Access after changing the home node URL. Set for **Production** (and Preview if you use it).
+
+5. **Deployment Protection:** off for Production (public traveler app).
+
+6. Custom domain (canonical hub):
+
+1. Vercel Access project → **Domains** → add `access.wikitraveler.org`.
+2. Cloudflare DNS → CNAME `access` → `cname.vercel-dns.com` (or the target Vercel shows), **DNS only (grey cloud)**.
+3. Wait until the domain is **Valid** in Vercel.
 
 **H5:** Redeploy **Node + Access** together when map/API contracts change (e.g. `map?bbox=`). See [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-5. Allow this Access origin on **every public data node** travelers will hit (including yours):
+7. Allow this Access origin on **every public data node** travelers will hit (including yours):
 
 ```env
 CLIENT_ORIGINS=https://access.wikitraveler.org,https://access-backup.example.org,https://audit.example.com
-# or merge into CORS_ORIGINS — both feed the middleware allowlist
+CORS_ORIGINS=https://access.wikitraveler.org,https://access-backup.example.org,https://audit.example.com
+# both feed the middleware allowlist — do not leave CORS_ORIGINS unset on public nodes
 ```
 
 **H4:** Keep a second Access project as backup; list both origins on nodes before you need them.
 
-6. Verify: open Access → `/login` → sign in → search/audit outside the home region when peers allow the hub origin → confirm on the **data** node dashboard.
+8. Verify: open `https://access.wikitraveler.org` → `/login` → sign in against the home node → search/map/audit → confirm CORS on the data node.
 
 ### 6. Connect other clients
 

@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Rate limiting accepts Vercel Marketplace Upstash aliases `KV_REST_API_URL` / `KV_REST_API_TOKEN` (same as `UPSTASH_REDIS_REST_*`) ([VERCEL.md](docs/VERCEL.md))
+- Access Vercel deploy: `vercel-build:access`, `apps/access/vercel.json`, and hub custom-domain steps ([VERCEL.md](docs/VERCEL.md))
 
 ### Fixed
 

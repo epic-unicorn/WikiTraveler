@@ -35,6 +35,7 @@
     "build": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/i18n build && pnpm --filter @wikitraveler/i18n build:browser && pnpm --filter @wikitraveler/ui build && pnpm --filter @wikitraveler/ai-agent build && pnpm --filter @wikitraveler/sdk build && pnpm --filter @wikitraveler/node build && pnpm --filter @wikitraveler/access build",
     "vercel-build:packages": "pnpm exec prisma generate && pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/i18n build && pnpm --filter @wikitraveler/ui build && pnpm --filter @wikitraveler/ai-agent build",
     "vercel-build": "pnpm run vercel-build:packages && pnpm --filter @wikitraveler/node exec next build",
+    "vercel-build:access": "pnpm --filter @wikitraveler/core build && pnpm --filter @wikitraveler/i18n build && pnpm --filter @wikitraveler/ui build && pnpm --filter @wikitraveler/access exec next build",
     "lint": "pnpm --recursive lint",
     "test": "pnpm --filter @wikitraveler/node test && pnpm --filter @wikitraveler/access test",
     "test:a11y": "pnpm --filter @wikitraveler/node test:a11y",

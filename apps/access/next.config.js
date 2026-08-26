@@ -13,7 +13,8 @@ const nextConfig = {
       process.env.WIKITRAVELER_VERSION ?? rootPkg.version,
   },
   transpilePackages: ["@wikitraveler/core", "@wikitraveler/ui", "@ionic/react"],
-  output: "standalone",
+  // Docker needs standalone; Vercel uses its own Next builder (VERCEL=1).
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
