@@ -73,7 +73,10 @@ export function PropertySearchBar({
   const { t } = useLocale();
 
   const resolvedPlaceholder = placeholder ?? t("ui.searchPlaceholder");
-  const features = searchFeatures ?? (SEARCH_FEATURES as unknown as SearchFeature[]);
+  const features =
+    searchFeatures && searchFeatures.length > 0
+      ? searchFeatures
+      : (SEARCH_FEATURES as unknown as SearchFeature[]);
   const resolvedLabels = {
     audited: labels.audited ?? t("ui.filterAudited"),
     notAudited: labels.notAudited ?? t("ui.filterNotAudited"),
@@ -192,38 +195,35 @@ export function PropertySearchBar({
 
   if (alwaysShowFilters && showFilters) {
     return (
-      <div className="wt-search-bar" style={{ marginBottom: 16 }}>
-        <div className="wt-search-unified">
-          <span className="wt-search-unified-icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-          <label htmlFor="wt-property-search" className="wt-sr-only">
-            {resolvedPlaceholder}
-          </label>
-          <input
-            id="wt-property-search"
-            type="search"
-            autoComplete="off"
-            className="wt-search-unified-input"
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            placeholder={resolvedPlaceholder}
-            aria-expanded={showSuggestions}
-            aria-controls="wt-search-suggestions"
-            role="combobox"
-          />
-          {clearSearchButton}
-          <div className="wt-search-filter-wrap" ref={filterWrapRef}>
+      <div className="wt-search-bar wt-search-bar--access" style={{ marginBottom: 16 }} ref={filterWrapRef}>
+        <div className="wt-search-access-row">
+          <div className="wt-search-unified">
+            <label htmlFor="wt-property-search" className="wt-sr-only">
+              {resolvedPlaceholder}
+            </label>
+            <input
+              id="wt-property-search"
+              type="search"
+              autoComplete="off"
+              className="wt-search-unified-input"
+              value={query}
+              onChange={(e) => onQueryChange(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder={resolvedPlaceholder}
+              aria-expanded={showSuggestions}
+              aria-controls="wt-search-suggestions"
+              role="combobox"
+            />
+            {clearSearchButton}
+          </div>
+          <div className="wt-search-filter-wrap">
             <button
               type="button"
               className={`wt-search-filter-btn${popoverOpen ? " wt-search-filter-btn--open" : ""}${activeAdvancedCount > 0 ? " wt-search-filter-btn--has-active" : ""}`}
               aria-haspopup="dialog"
               aria-expanded={popoverOpen}
+              aria-controls="wt-search-filter-panel"
               aria-label={resolvedLabels.advancedFilters}
               title={resolvedLabels.advancedFilters}
               onClick={() => setPopoverOpen((v) => !v)}
@@ -237,27 +237,32 @@ export function PropertySearchBar({
                 <span className="wt-search-filter-count" aria-hidden="true">{activeAdvancedCount}</span>
               )}
             </button>
-            {popoverOpen && (
-              <div className="wt-search-filter-popover" role="dialog" aria-label={resolvedLabels.advancedFilters}>
-                <div className="wt-search-filter-popover-head">
-                  <span>{resolvedLabels.advancedFilters}</span>
-                  {activeAdvancedCount > 0 && (
-                    <button
-                      type="button"
-                      className="wt-search-filter-clear"
-                      onClick={() =>
-                        onFiltersChange({ ...filters, features: [], audited: null, hasAccessibleRoom: null })
-                      }
-                    >
-                      {t("ui.reset")}
-                    </button>
-                  )}
-                </div>
-                <div className="wt-search-filter-popover-chips">{filterChips}</div>
-              </div>
-            )}
           </div>
         </div>
+        {popoverOpen && (
+          <div
+            id="wt-search-filter-panel"
+            className="wt-search-filter-panel"
+            role="dialog"
+            aria-label={resolvedLabels.advancedFilters}
+          >
+            <div className="wt-search-filter-popover-head">
+              <span>{resolvedLabels.advancedFilters}</span>
+              {activeAdvancedCount > 0 && (
+                <button
+                  type="button"
+                  className="wt-search-filter-clear"
+                  onClick={() =>
+                    onFiltersChange({ ...filters, features: [], audited: null, hasAccessibleRoom: null })
+                  }
+                >
+                  {t("ui.reset")}
+                </button>
+              )}
+            </div>
+            <div className="wt-search-filter-popover-chips">{filterChips}</div>
+          </div>
+        )}
         {showSuggestions && (
           <ul id="wt-search-suggestions" className="wt-search-suggestions" role="listbox">
             {suggestions!.map((s) => (

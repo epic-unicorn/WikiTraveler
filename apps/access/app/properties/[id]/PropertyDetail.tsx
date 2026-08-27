@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { TierBadge, useLocale } from "@wikitraveler/ui";
-import { AccessToolbar } from "../../AccessToolbar";
+import { useLocale } from "@wikitraveler/ui";
 import { ReportIssueForm } from "../../components/ReportIssueForm";
-import { HistoryBackButton } from "../../lib/historyBack";
+import { useHistoryBack } from "../../lib/historyBack";
 import {
   fetchPropertyAccessibility,
   fetchPropertySignals,
@@ -26,12 +25,28 @@ import {
   photosForSection,
   unassignedPhotos,
   type DisplayFact,
+  type FactSection,
 } from "../../lib/propertyFacts";
+import { AccessibilityIconRow } from "../../components/AccessibilityIconRow";
+import { PropertyMiniMap } from "../../components/PropertyMiniMap";
 
 interface Props {
   propertyId: string;
   initialNodeUrl?: string;
 }
+
+/** Expected field counts for category fill bars (matches SECTION_RULES). */
+const CATEGORY_EXPECTED: Array<{
+  id: string;
+  labelKey: string;
+  sectionIds: string[];
+  expected: number;
+}> = [
+  { id: "mobility", labelKey: "ui.auditStepMobility", sectionIds: ["entrance", "mobility"], expected: 11 },
+  { id: "room", labelKey: "ui.auditStepRoom", sectionIds: ["room"], expected: 7 },
+  { id: "bathroom", labelKey: "ui.auditStepBathroom", sectionIds: ["bathroom"], expected: 3 },
+  { id: "communication", labelKey: "ui.auditStepCommunication", sectionIds: ["communication"], expected: 5 },
+];
 
 function PhotoStrip({
   photos,
@@ -54,9 +69,37 @@ function PhotoStrip({
   );
 }
 
+function categoryBars(sections: FactSection[]): Array<{ id: string; labelKey: string; pct: number; count: number }> {
+  return CATEGORY_EXPECTED.map((cat) => {
+    const count = sections
+      .filter((s) => cat.sectionIds.includes(s.id))
+      .reduce((sum, s) => sum + s.facts.length, 0);
+    const pct = Math.min(100, Math.round((count / cat.expected) * 100));
+    return { id: cat.id, labelKey: cat.labelKey, pct, count };
+  });
+}
+
+/** Overall score = expected-field-weighted coverage across categories (0–100). */
+function overallAccessibilityScore(
+  bars: Array<{ pct: number }>
+): number | null {
+  let weighted = 0;
+  let expected = 0;
+  for (let i = 0; i < CATEGORY_EXPECTED.length; i++) {
+    const bar = bars[i];
+    if (!bar) continue;
+    weighted += bar.pct * CATEGORY_EXPECTED[i].expected;
+    expected += CATEGORY_EXPECTED[i].expected;
+  }
+  if (expected <= 0) return null;
+  if (bars.every((b) => b.pct === 0)) return null;
+  return Math.round(weighted / expected);
+}
+
 export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
   const { locale, t } = useLocale();
   const searchParams = useSearchParams();
+  const goBack = useHistoryBack("/");
   const nodeParam = searchParams.get("node");
   const homeNodeUrl = initialNodeUrl ?? ENV_NODE_URL;
   const targetNodeUrl = nodeParam ?? homeNodeUrl;
@@ -73,6 +116,8 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
     tier: string;
   } | null>(null);
   const [offline, setOffline] = useState(false);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [scoreHelpOpen, setScoreHelpOpen] = useState(false);
 
   const role = roleFromToken(readAuthToken());
   const contributor = canContribute(role);
@@ -108,6 +153,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
         ]);
         if (cancelled) return;
         setData(access);
+        setHeroIndex(0);
         setOpenCount(signals.openCount);
         cachePropertyDetail({
           propertyId,
@@ -121,6 +167,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
         const cached = readCachedPropertyDetail(propertyId, locale);
         if (cached?.payload) {
           setData(cached.payload as Awaited<ReturnType<typeof fetchPropertyAccessibility>>);
+          setHeroIndex(0);
           setOffline(true);
         } else {
           setError(t("ui.propertyLoadFailed"));
@@ -150,6 +197,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
         })),
       ]);
       setData(access);
+      setHeroIndex(0);
       setOpenCount(signals.openCount);
       cachePropertyDetail({
         propertyId,
@@ -187,17 +235,6 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
     alert(t("ui.shareLinkCopied"));
   }
 
-  function handleSave() {
-    if (!data?.property) return;
-    const nowSaved = toggleSavedPlace({
-      id: data.property.id,
-      name: data.property.name,
-      location: data.property.location,
-      nodeUrl: targetNodeUrl,
-    });
-    setSaved(nowSaved);
-  }
-
   const auditPhotos: AuditPhotosPayload | null = data?.auditPhotos ?? null;
   const allPhotos =
     auditPhotos?.photos.map((p) => ({
@@ -210,6 +247,18 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
   const heroPhotos =
     data?.property.photos?.map((p) => ({ url: p.url, caption: p.caption ?? null })) ??
     allPhotos.slice(0, 4).map((p) => ({ url: p.url, caption: p.caption }));
+
+  function handleSave() {
+    if (!data?.property) return;
+    const nowSaved = toggleSavedPlace({
+      id: data.property.id,
+      name: data.property.name,
+      location: data.property.location,
+      nodeUrl: targetNodeUrl,
+      imageUrl: heroPhotos[0]?.url ?? null,
+    });
+    setSaved(nowSaved);
+  }
 
   const displayFacts: DisplayFact[] = (data?.facts ?? []).map((f) => ({
     fieldName: f.fieldName,
@@ -227,44 +276,92 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
   const orphanPhotos = unassignedPhotos(allPhotos, displayFacts);
   const shownStepScopes = new Set<string>();
 
+  const bars = categoryBars(sections);
+  const accessibilityScore = overallAccessibilityScore(bars);
+  const excellent = accessibilityScore != null && accessibilityScore >= 70;
+  const factTotal =
+    (data?.confidenceSummary?.verifiedCount ?? 0) +
+    (data?.confidenceSummary?.aiGuessCount ?? 0) +
+    (data?.confidenceSummary?.officialCount ?? 0);
+  const factsPresent = displayFacts.length;
+
+  const safeHeroIndex = heroPhotos.length > 0 ? Math.min(heroIndex, heroPhotos.length - 1) : 0;
+  const heroPhoto = heroPhotos[safeHeroIndex] ?? null;
+  const propertyLat = data?.property.lat;
+  const propertyLon = data?.property.lon;
+  const hasCoords =
+    propertyLat != null &&
+    propertyLon != null &&
+    Number.isFinite(propertyLat) &&
+    Number.isFinite(propertyLon) &&
+    propertyLat !== 0 &&
+    propertyLon !== 0;
+
   return (
     <div className="fk-shell">
-      <AccessToolbar nodeReachable={!offline && !error ? true : error ? false : null} />
       <main className="page fk-main fk-property-detail">
         {loading && (
           <div className="fk-property-skeleton" aria-busy="true">
-            <div className="fk-discovery-skeleton fk-discovery-skeleton--hero" />
+            <div className="fk-discovery-skeleton fk-discovery-skeleton--hero fk-property-skeleton-hero" />
             <div className="fk-discovery-skeleton fk-discovery-skeleton--card" />
             <div className="fk-discovery-skeleton fk-discovery-skeleton--card" />
           </div>
         )}
-        {error && <p className="status-err">{error}</p>}
-        {offline && (
-          <p className="fk-chip fk-chip--warn fk-offline-banner">{t("ui.offlineCached")}</p>
-        )}
+        {error && <p className="status-err fk-property-error">{error}</p>}
 
         {data && (
           <>
-            <div className="fk-property-lead">
-              <HistoryBackButton />
-              <div className="fk-property-titlerow">
-                <h1 className="fk-property-title">{data.property.name}</h1>
-                <div className="fk-property-title-actions">
+            <div className={`fk-property-hero-bleed${heroPhoto ? "" : " fk-property-hero-bleed--empty"}`}>
+              {heroPhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className={`fk-property-hero-img${heroPhotos.length > 1 ? " fk-property-hero-img--cycle" : ""}`}
+                  src={heroPhoto.url}
+                  alt={heroPhoto.caption ?? data.property.name}
+                  onClick={
+                    heroPhotos.length > 1
+                      ? () => setHeroIndex((i) => (i + 1) % heroPhotos.length)
+                      : undefined
+                  }
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className="fk-property-hero-img fk-property-hero-img--placeholder"
+                  src="/images/property-hero-placeholder.png"
+                  alt=""
+                  aria-hidden="true"
+                />
+              )}
+
+              <div className="fk-property-hero-overlay">
+                <button
+                  type="button"
+                  className="fk-icon-btn fk-icon-btn--overlay"
+                  onClick={goBack}
+                  aria-label={t("ui.back")}
+                  title={t("ui.back")}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <div className="fk-property-hero-actions">
                   <button
                     type="button"
-                    className={`fk-icon-btn${saved ? " fk-icon-btn--active" : ""}`}
+                    className={`fk-icon-btn fk-icon-btn--overlay${saved ? " fk-icon-btn--active" : ""}`}
                     onClick={handleSave}
                     aria-pressed={saved}
                     aria-label={saved ? t("ui.savedRemove") : t("ui.savedAdd")}
                     title={saved ? t("ui.savedRemove") : t("ui.savedAdd")}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                     </svg>
                   </button>
                   <button
                     type="button"
-                    className="fk-icon-btn"
+                    className="fk-icon-btn fk-icon-btn--overlay"
                     onClick={handleShare}
                     aria-label={t("ui.share")}
                     title={t("ui.share")}
@@ -279,188 +376,207 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                   </button>
                 </div>
               </div>
-              <p className="fk-property-location">{data.property.address ?? data.property.location}</p>
-              {data.property.description && (
-                <p className="fk-property-description">{data.property.description}</p>
-              )}
-              {data.property.sourceLinks && data.property.sourceLinks.length > 0 && (
-                <div className="fk-property-sources">
-                  {data.property.sourceLinks.map((link) => (
-                    <a
-                      key={link.url}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="fk-property-source-link"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
+
+              {heroPhotos.length > 1 && (
+                <span className="fk-property-hero-counter" aria-live="polite">
+                  {safeHeroIndex + 1} / {heroPhotos.length}
+                </span>
               )}
             </div>
 
-            {heroPhotos.length > 0 && (
-              <div className="fk-property-hero">
-                <PhotoStrip photos={heroPhotos} label={t("ui.existingDataPhotos")} />
-              </div>
-            )}
+            <div className="fk-property-sheet">
+              {offline && (
+                <p className="fk-chip fk-chip--warn fk-offline-banner">{t("ui.offlineCached")}</p>
+              )}
 
-            {data.confidenceSummary && (
-              <p className="fk-property-confidence">
-                {t("ui.propertyConfidenceSummary", {
-                  verified: data.confidenceSummary.verifiedCount,
-                  ai: data.confidenceSummary.aiGuessCount,
-                  date: data.confidenceSummary.lastAuditAt
-                    ? new Date(data.confidenceSummary.lastAuditAt).toLocaleDateString(locale)
-                    : t("ui.unknown"),
-                })}
-              </p>
-            )}
-
-            {openCount > 0 && (
-              <p className="fk-property-signals">{t("ui.propertyOpenSignals", { count: openCount })}</p>
-            )}
-
-            {contributor && (
-              <div className="fk-property-actions">
-                <Link
-                  href={auditHref(data.property.id, targetNodeUrl, homeNodeUrl)}
-                  className="btn-primary fk-property-verify-primary"
-                >
-                  {t("ui.mapViewAudit")}
-                </Link>
-              </div>
-            )}
-
-            {reportOpen && (
-              <div
-                className="fk-modal-overlay"
-                role="presentation"
-                onClick={() => setReportOpen(false)}
-              >
-                <div
-                  className="fk-modal-sheet"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label={t("ui.signalReportTitle")}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="fk-modal-handle" aria-hidden="true" />
-                  <button
-                    type="button"
-                    className="fk-modal-close"
-                    aria-label={t("ui.cancel")}
-                    onClick={() => setReportOpen(false)}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                  <div className="fk-modal-body">
-                    <ReportIssueForm
-                      propertyId={data.property.id}
-                      nodeUrl={targetNodeUrl}
-                      fieldName={reportField?.fieldName}
-                      currentValue={reportField?.value}
-                      currentTier={reportField?.tier}
-                      onSubmitted={() => {
-                        setReportOpen(false);
-                        reload();
-                      }}
-                      onCancel={() => setReportOpen(false)}
+              <header className="fk-property-sheet-head">
+                <div className="fk-property-sheet-top">
+                  <div className="fk-property-sheet-intro">
+                    <div className="fk-property-sheet-title-row">
+                      <h1 className="fk-property-title fk-property-title--section">{data.property.name}</h1>
+                      {excellent && (
+                        <span className="fk-property-badge fk-property-badge--excellent">
+                          {t("ui.propertyScoreExcellent")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="fk-property-location">
+                      {data.property.address ?? data.property.location}
+                    </p>
+                    <AccessibilityIconRow facts={data.facts} withLabels />
+                  </div>
+                  {hasCoords && (
+                    <PropertyMiniMap
+                      lat={propertyLat!}
+                      lon={propertyLon!}
+                      name={data.property.name}
                     />
+                  )}
+                </div>
+                {data.property.description && (
+                  <p className="fk-property-description">{data.property.description}</p>
+                )}
+                {data.property.sourceLinks && data.property.sourceLinks.length > 0 && (
+                  <div className="fk-property-sources">
+                    {data.property.sourceLinks.map((link) => (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="fk-property-source-link"
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </header>
+
+              {(accessibilityScore != null || bars.some((b) => b.pct > 0)) && (
+                <section className="fk-property-score" aria-labelledby="fk-property-score-title">
+                  <div className="fk-property-score-heading-row">
+                    <h2 id="fk-property-score-title" className="fk-property-score-heading">
+                      {t("ui.propertyScoreTitle")}
+                    </h2>
+                    <button
+                      type="button"
+                      className="fk-property-score-help"
+                      aria-expanded={scoreHelpOpen}
+                      aria-controls="fk-property-score-help"
+                      aria-label={t("ui.propertyScoreHelp")}
+                      title={t("ui.propertyScoreHelp")}
+                      onClick={() => setScoreHelpOpen((open) => !open)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4" strokeLinecap="round" />
+                        <circle cx="12" cy="17" r="0.8" fill="currentColor" stroke="none" />
+                      </svg>
+                    </button>
+                  </div>
+                  {scoreHelpOpen && (
+                    <p id="fk-property-score-help" className="fk-property-score-help-body" role="note">
+                      {t("ui.propertyScoreHelpBody")}
+                    </p>
+                  )}
+                  <div className="fk-property-score-body">
+                    {accessibilityScore != null && (
+                      <div
+                        className="fk-property-score-donut"
+                        style={{ ["--fk-score-pct" as string]: accessibilityScore }}
+                        role="img"
+                        aria-label={`${accessibilityScore}%`}
+                      >
+                        <div className="fk-property-score-donut-inner">
+                          <span className="fk-property-score-pct">{accessibilityScore}%</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="fk-property-score-bars">
+                      {bars.map((bar) => (
+                        <div key={bar.id} className="fk-property-score-bar">
+                          <div className="fk-property-score-bar-meta">
+                            <span>{t(bar.labelKey)}</span>
+                            <span>{bar.pct}%</span>
+                          </div>
+                          <div className="fk-property-score-bar-track" aria-hidden="true">
+                            <div
+                              className="fk-property-score-bar-fill"
+                              style={{ width: `${bar.pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      {factsPresent > 0 && (
+                        <p className="fk-property-score-based">
+                          {data.confidenceSummary && factTotal > 0
+                            ? t("ui.propertyScoreBasedOn", {
+                                verified: data.confidenceSummary.verifiedCount,
+                                total: factTotal,
+                              })
+                            : t("ui.propertyScoreCoverage", { count: factsPresent })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {data.confidenceSummary && accessibilityScore == null && factsPresent === 0 && (
+                <p className="fk-property-confidence">
+                  {t("ui.propertyConfidenceSummary", {
+                    verified: data.confidenceSummary.verifiedCount,
+                    ai: data.confidenceSummary.aiGuessCount,
+                    date: data.confidenceSummary.lastAuditAt
+                      ? new Date(data.confidenceSummary.lastAuditAt).toLocaleDateString(locale)
+                      : t("ui.unknown"),
+                  })}
+                </p>
+              )}
+
+              {openCount > 0 && (
+                <p className="fk-property-signals">{t("ui.propertyOpenSignals", { count: openCount })}</p>
+              )}
+
+              {contributor && (
+                <div className="fk-property-actions">
+                  <Link
+                    href={auditHref(data.property.id, targetNodeUrl, homeNodeUrl)}
+                    className="btn-secondary fk-property-action-btn"
+                  >
+                    {t("ui.mapViewAudit")}
+                  </Link>
+                </div>
+              )}
+
+              {reportOpen && (
+                <div
+                  className="fk-modal-overlay"
+                  role="presentation"
+                  onClick={() => setReportOpen(false)}
+                >
+                  <div
+                    className="fk-modal-sheet"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={t("ui.signalReportTitle")}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="fk-modal-handle" aria-hidden="true" />
+                    <button
+                      type="button"
+                      className="fk-modal-close"
+                      aria-label={t("ui.cancel")}
+                      onClick={() => setReportOpen(false)}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                    <div className="fk-modal-body">
+                      <ReportIssueForm
+                        propertyId={data.property.id}
+                        nodeUrl={targetNodeUrl}
+                        fieldName={reportField?.fieldName}
+                        currentValue={reportField?.value}
+                        currentTier={reportField?.tier}
+                        onSubmitted={() => {
+                          setReportOpen(false);
+                          reload();
+                        }}
+                        onCancel={() => setReportOpen(false)}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {sections.length === 0 ? (
-              <div className="fk-empty">
-                <p className="fk-empty-title">{t("ui.propertyNoFacts")}</p>
-                <p className="fk-empty-body">{t("ui.propertyNoFactsBody")}</p>
-                <button
-                  type="button"
-                  className="fk-property-report-cta"
-                  onClick={() => {
-                    setReportField(null);
-                    setReportOpen(true);
-                  }}
-                >
-                  {t("ui.signalReportCta")}
-                </button>
-              </div>
-            ) : (
-              <div className="fk-property-sections">
-                {sections.map((section) => {
-                  const sectionPhotosRaw = photosForSection(allPhotos, section);
-                  const sectionPhotos = sectionPhotosRaw.filter((p) => {
-                    if (section.id === "room") return true;
-                    const stepKey = p.groupKey ?? section.id;
-                    if (shownStepScopes.has(stepKey)) return false;
-                    shownStepScopes.add(stepKey);
-                    return true;
-                  });
-                  return (
-                  <section key={section.id} className="fk-property-section">
-                    <h2 className="fk-property-section-title">{t(section.labelKey)}</h2>
-                    <ul className="fk-property-facts">
-                      {section.facts.map((fact) => {
-                        const { label, displayValue } = resolveFactDisplay(
-                          {
-                            fieldName: fact.fieldName,
-                            value: fact.value,
-                            tier: fact.tier,
-                            valueLocale: fact.valueLocale,
-                            translatedValue:
-                              fact.machineTranslated && fact.displayValue ? fact.displayValue : undefined,
-                            machineTranslated: fact.machineTranslated,
-                          },
-                          locale
-                        );
-                        const factPhotos = photosForFact(allPhotos, fact);
-                        return (
-                          <li key={`${fact.scopeKey ?? "property"}-${fact.fieldName}`} className="fk-property-fact">
-                            <div className="fk-property-fact-head">
-                              <div>
-                                <div className="fk-property-fact-label">{label}</div>
-                                <div className="fk-property-fact-value">{displayValue}</div>
-                                <div className="fk-property-fact-tier-hint">
-                                  {getTierLabel(fact.tier, locale)}
-                                </div>
-                              </div>
-                              <TierBadge tier={fact.tier as "OFFICIAL" | "AI_GUESS" | "VERIFIED" | "CONFIRMED"} />
-                            </div>
-                            {factPhotos.length > 0 && (
-                              <PhotoStrip photos={factPhotos} label={label} />
-                            )}
-                            <button
-                              type="button"
-                              className="fk-property-fact-report"
-                              onClick={() => {
-                                setReportField({
-                                  fieldName: fact.fieldName,
-                                  value: fact.value,
-                                  tier: fact.tier,
-                                });
-                                setReportOpen(true);
-                              }}
-                            >
-                              {t("ui.signalReportField")}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    {sectionPhotos.length > 0 && (
-                      <PhotoStrip photos={sectionPhotos} label={t(section.labelKey)} />
-                    )}
-                  </section>
-                  );
-                })}
-                <div className="fk-property-report-row">
-                  <p className="fk-property-report-prompt">{t("ui.signalReportPrompt")}</p>
+              {sections.length === 0 ? (
+                <div className="fk-empty">
+                  <p className="fk-empty-title">{t("ui.propertyNoFacts")}</p>
+                  <p className="fk-empty-body">{t("ui.propertyNoFactsBody")}</p>
                   <button
                     type="button"
                     className="fk-property-report-cta"
@@ -472,15 +588,99 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                     {t("ui.signalReportCta")}
                   </button>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="fk-property-sections">
+                  {sections.map((section) => {
+                    const sectionPhotosRaw = photosForSection(allPhotos, section);
+                    const sectionPhotos = sectionPhotosRaw.filter((p) => {
+                      if (section.id === "room") return true;
+                      const stepKey = p.groupKey ?? section.id;
+                      if (shownStepScopes.has(stepKey)) return false;
+                      shownStepScopes.add(stepKey);
+                      return true;
+                    });
+                    return (
+                      <section key={section.id} className="fk-property-section">
+                        <h2 className="fk-property-section-title">{t(section.labelKey)}</h2>
+                        <ul className="fk-property-facts">
+                          {section.facts.map((fact) => {
+                            const { label, displayValue } = resolveFactDisplay(
+                              {
+                                fieldName: fact.fieldName,
+                                value: fact.value,
+                                tier: fact.tier,
+                                valueLocale: fact.valueLocale,
+                                translatedValue:
+                                  fact.machineTranslated && fact.displayValue ? fact.displayValue : undefined,
+                                machineTranslated: fact.machineTranslated,
+                              },
+                              locale
+                            );
+                            const factPhotos = photosForFact(allPhotos, fact);
+                            return (
+                              <li
+                                key={`${fact.scopeKey ?? "property"}-${fact.fieldName}`}
+                                className={`fk-property-fact${fact.fieldName === "notes" ? " fk-property-fact--notes" : ""}`}
+                              >
+                                <div className="fk-property-fact-row">
+                                  <span className="fk-property-fact-label">{label}</span>
+                                  <span className="fk-property-fact-value">{displayValue}</span>
+                                </div>
+                                <div className="fk-property-fact-meta">
+                                  <span className="fk-property-fact-tier">
+                                    {getTierLabel(fact.tier, locale)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="fk-property-fact-report"
+                                    onClick={() => {
+                                      setReportField({
+                                        fieldName: fact.fieldName,
+                                        value: fact.value,
+                                        tier: fact.tier,
+                                      });
+                                      setReportOpen(true);
+                                    }}
+                                  >
+                                    {t("ui.signalReportField")}
+                                  </button>
+                                </div>
+                                {factPhotos.length > 0 && (
+                                  <PhotoStrip photos={factPhotos} label={label} />
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        {sectionPhotos.length > 0 && (
+                          <PhotoStrip photos={sectionPhotos} label={t(section.labelKey)} />
+                        )}
+                      </section>
+                    );
+                  })}
+                  <div className="fk-property-report-row">
+                    <p className="fk-property-report-prompt">{t("ui.signalReportPrompt")}</p>
+                    <button
+                      type="button"
+                      className="fk-property-report-cta"
+                      onClick={() => {
+                        setReportField(null);
+                        setReportOpen(true);
+                      }}
+                    >
+                      {t("ui.signalReportCta")}
+                    </button>
+                  </div>
+                </div>
+              )}
 
-            {orphanPhotos.length > 0 && (
-              <section className="fk-property-section">
-                <h2 className="fk-property-section-title">{t("ui.propertyAuditPhotos")}</h2>
-                <PhotoStrip photos={orphanPhotos} label={t("ui.propertyAuditPhotos")} />
-              </section>
-            )}
+              {orphanPhotos.length > 0 && (
+                <section className="fk-property-section">
+                  <h2 className="fk-property-section-title">{t("ui.propertyAuditPhotos")}</h2>
+                  <PhotoStrip photos={orphanPhotos} label={t("ui.propertyAuditPhotos")} />
+                </section>
+              )}
+            </div>
           </>
         )}
       </main>

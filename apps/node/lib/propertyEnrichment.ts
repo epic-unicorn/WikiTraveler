@@ -15,10 +15,13 @@ export type PropertyDetailPayload = {
   website: string | null;
   sourceLinks: Array<{ label: string; url: string }>;
   photos: Array<{ url: string; caption: string | null; source: string }>;
+  claimedByUserId?: string | null;
+  claimedAt?: string | null;
+  isClaimedByMe?: boolean;
 };
 
 export function buildPropertyDetail(
-  property: Property,
+  property: Property & { claimedByUserId?: string | null; claimedAt?: Date | null },
   facts: FactLike[],
   auditPhotoUrls: Array<{ url: string; caption: string | null }>
 ): PropertyDetailPayload {
@@ -57,6 +60,8 @@ export function buildPropertyDetail(
     website: null,
     sourceLinks,
     photos,
+    claimedByUserId: property.claimedByUserId ?? null,
+    claimedAt: property.claimedAt?.toISOString() ?? null,
   };
 }
 

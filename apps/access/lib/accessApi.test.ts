@@ -125,18 +125,18 @@ describe("propertyFacts", () => {
 
   it("keeps step photos out of the general orphan pool", () => {
     const photos = [
-      { url: "https://example.com/a.jpg", fieldName: null, scopeKey: "step:building_access" },
+      { url: "https://example.com/a.jpg", fieldName: null, scopeKey: "step:entrance" },
       { url: "https://example.com/b.jpg", fieldName: null, scopeKey: null },
     ];
     const orphans = unassignedPhotos(photos);
     expect(orphans).toHaveLength(1);
     expect(orphans[0].url).toContain("b.jpg");
-    expect(photosForStepScope(photos, "step:building_access")).toHaveLength(1);
+    expect(photosForStepScope(photos, "step:entrance")).toHaveLength(1);
   });
 
   it("shows step photos once per section via photosForSection", () => {
     const photos = [
-      { url: "https://example.com/entry.jpg", fieldName: null, scopeKey: "step:building_access" },
+      { url: "https://example.com/entry.jpg", fieldName: null, scopeKey: "step:entrance" },
     ];
     const sections = groupFactsBySection([
       { fieldName: "step_free_entrance", value: "yes", tier: "VERIFIED" },

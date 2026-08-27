@@ -7,12 +7,14 @@ describe("formatFactValue", () => {
     expect(formatFactValue("ramp_present", "no", { locale: "fr" }).displayValue).toBe("Non");
   });
 
-  it("translates room type lists", () => {
-    const result = formatFactValue("room_types_available", "double,accessible_king", {
-      locale: "nl",
-    });
-    expect(result.displayValue).toContain("Standaard tweepersoons");
-    expect(result.displayValue).toContain("Toegankelijke king");
+  it("translates path_to_entrance enum tokens", () => {
+    expect(formatFactValue("path_to_entrance", "step_free", { locale: "nl" }).displayValue).toBe(
+      "Drempelloos"
+    );
+    expect(
+      formatFactValue("path_to_entrance", "step_free,uneven,steep", { locale: "nl" }).displayValue
+    ).toBe("Drempelloos, Oneffen, Steil");
+    expect(formatFactValue("path_to_entrance", "steep", { locale: "en" }).displayValue).toBe("Steep");
   });
 
   it("keeps prose as original when locales match", () => {

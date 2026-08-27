@@ -174,25 +174,36 @@ export const ACCESSIBILITY_FIELDS = [
   "door_width_cm",
   "ramp_present",
   "elevator_present",
-  "elevator_floor_count",
+  "elevator_width_cm",
+  "corridor_min_width_cm",
   "quiet_hours_start",
   "quiet_hours_end",
   "accessible_bathroom",
   "hearing_loop",
   "braille_signage",
   "step_free_entrance",
+  "automatic_door",
+  "path_to_entrance",
   "parking_accessible",
   "notes",
   "tactile_paving",
+  "visual_alarms",
   "roll_in_shower",
   "grab_bars_bathroom",
   "bed_height_cm",
   "turning_circle_cm",
+  "step_free_room",
+  "clear_space_beside_bed",
   "pool_lift",
   "service_animal_policy",
   "room_types_available",
-  "accessible_room_count",
   "accessible_room_description",
+] as const;
+
+/** Legacy fields kept for reading historical facts; inactive in the seed catalogue. */
+export const LEGACY_ACCESSIBILITY_FIELDS = [
+  "elevator_floor_count",
+  "accessible_room_count",
 ] as const;
 
 export type AccessibilityFieldName = (typeof ACCESSIBILITY_FIELDS)[number];

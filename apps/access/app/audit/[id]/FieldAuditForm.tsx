@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AccessToolbar } from "../../AccessToolbar";
-import { HistoryBackButton } from "../../lib/historyBack";
-import { type AuditPhotos, type ExistingFact } from "./ExistingDataPanel";
+import { type ExistingFact } from "./ExistingDataPanel";
 import { AuditWizard } from "./AuditWizard";
 import { clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
 import { canContribute, roleFromToken } from "../../lib/userRole";
@@ -19,13 +18,11 @@ interface Props {
   propertyName: string;
   location: string;
   existingFacts: ExistingFact[];
-  auditPhotos: AuditPhotos | null;
-  hasAiGuess: boolean;
   /** The node that hosts this property — may differ from the user's home node. */
   targetNodeUrl?: string;
 }
 
-export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, auditPhotos, hasAiGuess, targetNodeUrl }: Props) {
+export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, targetNodeUrl }: Props) {
   const router = useRouter();
   const { locale, t, getTierLabel } = useLocale();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
@@ -115,8 +112,6 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [loadedFacts, setLoadedFacts] = useState(existingFacts);
-  const [loadedPhotos, setLoadedPhotos] = useState(auditPhotos);
-  const [loadedHasAiGuess, setLoadedHasAiGuess] = useState(hasAiGuess);
   const [displayName, setDisplayName] = useState(propertyName);
   const [displayLocation, setDisplayLocation] = useState(location);
   const [propertyMissing, setPropertyMissing] = useState(false);
@@ -148,9 +143,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
 
   useEffect(() => {
     setLoadedFacts(existingFacts);
-    setLoadedPhotos(auditPhotos);
-    setLoadedHasAiGuess(hasAiGuess);
-  }, [existingFacts, auditPhotos, hasAiGuess]);
+  }, [existingFacts]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -182,16 +175,10 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
         const data = (await res.json()) as {
           property?: { name?: string; location?: string };
           facts?: ExistingFact[];
-          auditPhotos?: AuditPhotos | null;
-          hasAiGuess?: boolean;
         };
         if (data.property?.name) setDisplayName(data.property.name);
         if (data.property?.location) setDisplayLocation(data.property.location);
         setLoadedFacts(data.facts ?? []);
-        setLoadedPhotos(data.auditPhotos ?? null);
-        setLoadedHasAiGuess(
-          data.hasAiGuess ?? (data.facts ?? []).some((f) => f.tier === "AI_GUESS")
-        );
       })
       .catch(() => { /* keep SSR / cached props */ })
       .finally(() => {
@@ -211,7 +198,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   if (status === "ok") {
     return (
       <>
-        <AccessToolbar title={t("ui.auditSubmitted")} backLabel={t("ui.back")} />
+        <AccessToolbar showBack showAccount={false} title={t("ui.auditSubmitted")} backLabel={t("ui.back")} />
         <main id="main-content" className="page" role="status" aria-live="polite">
           <div className="card" style={{ textAlign: "center", paddingTop: 32, paddingBottom: 32 }}>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t("ui.thankYou")}</h2>
@@ -228,13 +215,12 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   }
 
   return (
-    <div className="fk-shell">
-      <AccessToolbar />
+    <div className="fk-shell fk-audit-page">
+      <AccessToolbar showBack showAccount={false} title={t("ui.verifyAccess")} />
 
       <main className="page fk-main">
         <div className="fk-property-lead">
-          <HistoryBackButton />
-          <h1 className="fk-property-title">{displayName}</h1>
+          <h1 className="fk-property-title fk-property-title--section">{displayName}</h1>
           {displayLocation && displayLocation !== displayName ? (
             <p className="fk-property-location">{displayLocation}</p>
           ) : null}
@@ -337,8 +323,6 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               locale={locale}
               fieldDefs={fieldDefs}
               loadedFacts={loadedFacts}
-              auditPhotos={loadedPhotos}
-              hasAiGuess={loadedHasAiGuess}
               t={t}
               getTierLabel={getTierLabel}
               onSuccess={() => {

@@ -29,10 +29,10 @@ interface Props {
   onRoomValueChange: (scopeKey: string, fieldName: string, value: string) => void;
   roomDescriptions: Record<string, string>;
   onRoomDescriptionChange: (roomType: string, value: string) => void;
-  accessibleRoomCount?: string;
-  onAccessibleRoomCountChange?: (value: string) => void;
-  accessibleRoomCountLabel?: string;
-  accessibleRoomCountHint?: string;
+  /** When true, only bathroom room fields are shown (bathroom wizard step). */
+  bathroomOnly?: boolean;
+  /** When true, hide bathroom fields (room wizard step). */
+  hideBathroomFields?: boolean;
   roomPhotos?: Record<string, AuditPhotoInput[]>;
   onRoomPhotosChange?: (typeId: string, photos: AuditPhotoInput[]) => void;
   totalPhotoCount?: number;
@@ -42,6 +42,17 @@ interface Props {
   nextPhotoLabel?: string;
   removePhotoLabel?: string;
   renderRoomField?: (field: RoomFieldDef, scopeKey: string) => React.ReactNode;
+  showTypePicker?: boolean;
+}
+
+function slugifyCustomType(raw: string): string {
+  const base = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  return base || `custom_${Date.now().toString(36)}`;
 }
 
 export function RoomAuditSection({
@@ -52,10 +63,8 @@ export function RoomAuditSection({
   onRoomValueChange,
   roomDescriptions,
   onRoomDescriptionChange,
-  accessibleRoomCount,
-  onAccessibleRoomCountChange,
-  accessibleRoomCountLabel,
-  accessibleRoomCountHint,
+  bathroomOnly = false,
+  hideBathroomFields = false,
   roomPhotos = {},
   onRoomPhotosChange,
   totalPhotoCount = 0,
@@ -65,9 +74,11 @@ export function RoomAuditSection({
   nextPhotoLabel,
   removePhotoLabel,
   renderRoomField,
+  showTypePicker = true,
 }: Props) {
   const { locale, t } = useLocale();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [customLabel, setCustomLabel] = useState("");
   const useCollapsible = selectedTypes.length > 1;
 
   useEffect(() => {
@@ -86,6 +97,17 @@ export function RoomAuditSection({
     } else {
       onTypesChange([...selectedTypes, typeId]);
     }
+  }
+
+  function addCustomType() {
+    const label = customLabel.trim();
+    if (!label) return;
+    let id = slugifyCustomType(label);
+    if ((STANDARD_ROOM_TYPES as readonly string[]).includes(id) || selectedTypes.includes(id)) {
+      id = `${id}_${Date.now().toString(36)}`;
+    }
+    onTypesChange([...selectedTypes, id]);
+    setCustomLabel("");
   }
 
   async function handlePhotoAdd(typeId: string, files: FileList | File[]) {
@@ -147,27 +169,41 @@ export function RoomAuditSection({
     );
   }
 
-  const generalFields = roomFields.filter((f) => !BATHROOM_FIELDS.has(f.fieldName));
-  const bathroomFields = roomFields.filter((f) => BATHROOM_FIELDS.has(f.fieldName));
+  const generalFields = hideBathroomFields
+    ? roomFields.filter((f) => !BATHROOM_FIELDS.has(f.fieldName))
+    : bathroomOnly
+      ? roomFields.filter((f) => BATHROOM_FIELDS.has(f.fieldName))
+      : roomFields.filter((f) => !BATHROOM_FIELDS.has(f.fieldName));
+  const bathroomFields =
+    hideBathroomFields || bathroomOnly
+      ? []
+      : roomFields.filter((f) => BATHROOM_FIELDS.has(f.fieldName));
+  const fieldsForType = bathroomOnly
+    ? roomFields.filter((f) => BATHROOM_FIELDS.has(f.fieldName))
+    : [...generalFields, ...bathroomFields];
 
   function renderTypeFields(typeId: string, scope: string, typePhotos: AuditPhotoInput[]) {
     return (
       <div className="fk-room-type-fields">
-        <label htmlFor={`desc-${typeId}`} style={{ fontSize: 13 }}>
-          {t("ui.roomDescription")}
-        </label>
-        <textarea
-          id={`desc-${typeId}`}
-          placeholder={t("ui.roomDescPlaceholder")}
-          value={roomDescriptions[typeId] ?? ""}
-          onChange={(e) => onRoomDescriptionChange(typeId, e.target.value)}
-        />
+        {!bathroomOnly && (
+          <>
+            <label htmlFor={`desc-${typeId}`} style={{ fontSize: 13 }}>
+              {t("ui.roomDescription")}
+            </label>
+            <textarea
+              id={`desc-${typeId}`}
+              placeholder={t("ui.roomDescPlaceholder")}
+              value={roomDescriptions[typeId] ?? ""}
+              onChange={(e) => onRoomDescriptionChange(typeId, e.target.value)}
+            />
+          </>
+        )}
 
-        {generalFields.map((field) =>
+        {(bathroomOnly ? fieldsForType : generalFields).map((field) =>
           renderRoomField ? renderRoomField(field, scope) : renderDefaultField(field, scope)
         )}
 
-        {bathroomFields.length > 0 && (
+        {!bathroomOnly && bathroomFields.length > 0 && (
           <>
             <p style={{ fontSize: 13, fontWeight: 600, marginTop: 12, marginBottom: 8 }}>
               {t("ui.roomBathroomSection")}
@@ -178,7 +214,7 @@ export function RoomAuditSection({
           </>
         )}
 
-        {onRoomPhotosChange && (
+        {onRoomPhotosChange && !bathroomOnly && (
           <div style={{ marginTop: 12 }}>
             <label htmlFor={`photos-${typeId}`} style={{ fontSize: 13, fontWeight: 600 }}>
               {t("ui.auditStepPhotos")}
@@ -215,45 +251,64 @@ export function RoomAuditSection({
     );
   }
 
+  const customSelected = selectedTypes.filter(
+    (id) => !(STANDARD_ROOM_TYPES as readonly string[]).includes(id)
+  );
+
   return (
     <div>
-      <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 12 }}>
-        {t("ui.roomTypesOnProperty")}
-      </p>
+      {showTypePicker && (
+        <>
+          <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 12 }}>
+            {t("ui.roomTypesOnProperty")}
+          </p>
 
-      <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
-        <legend className="wt-sr-only">{t("ui.roomTypesOnProperty")}</legend>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {STANDARD_ROOM_TYPES.map((typeId) => (
-            <button
-              key={typeId}
-              type="button"
-              onClick={() => toggleType(typeId)}
-              aria-pressed={selectedTypes.includes(typeId)}
-              className={`fk-room-type-chip${selectedTypes.includes(typeId) ? " fk-room-type-chip--active" : ""}`}
-            >
-              {getRoomTypeLabel(typeId, locale)}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+          <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
+            <legend className="wt-sr-only">{t("ui.roomTypesOnProperty")}</legend>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {STANDARD_ROOM_TYPES.map((typeId) => (
+                <button
+                  key={typeId}
+                  type="button"
+                  onClick={() => toggleType(typeId)}
+                  aria-pressed={selectedTypes.includes(typeId)}
+                  className={`fk-room-type-chip${selectedTypes.includes(typeId) ? " fk-room-type-chip--active" : ""}`}
+                >
+                  {getRoomTypeLabel(typeId, locale)}
+                </button>
+              ))}
+              {customSelected.map((typeId) => (
+                <button
+                  key={typeId}
+                  type="button"
+                  onClick={() => toggleType(typeId)}
+                  aria-pressed
+                  className="fk-room-type-chip fk-room-type-chip--active"
+                >
+                  {getRoomTypeLabel(typeId, locale)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
-      {onAccessibleRoomCountChange && accessibleRoomCountLabel && (
-        <div style={{ marginTop: 16 }}>
-          <label htmlFor="accessible-room-count">{accessibleRoomCountLabel}</label>
-          {accessibleRoomCountHint ? (
-            <p className="existing-data-panel-hint" style={{ marginTop: 4, marginBottom: 6 }}>
-              {accessibleRoomCountHint}
-            </p>
-          ) : null}
-          <input
-            id="accessible-room-count"
-            type="number"
-            min={0}
-            value={accessibleRoomCount ?? ""}
-            onChange={(e) => onAccessibleRoomCountChange(e.target.value)}
-          />
-        </div>
+          <div className="fk-custom-room-row">
+            <label htmlFor="custom-room-type">{t("ui.customRoomType")}</label>
+            <div className="fk-custom-room-row__inputs">
+              <input
+                id="custom-room-type"
+                type="text"
+                className="fk-custom-room-input"
+                value={customLabel}
+                onChange={(e) => setCustomLabel(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomType())}
+                placeholder={t("ui.customRoomTypePlaceholder")}
+              />
+              <button type="button" className="btn-secondary" onClick={addCustomType}>
+                {t("ui.addCustomRoomType")}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {selectedTypes.map((typeId) => {

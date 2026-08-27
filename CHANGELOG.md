@@ -12,12 +12,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Access UX redesign: Search / Saved / Profile nav, place-aware search, map “Search this area” + client cache, claim property, booking deep links, onboarding + a11y preferences, in-app report notifications ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Property claim API: `POST`/`DELETE /api/properties/[id]/claim` (AUDITOR/ADMIN); `claimedByUserId` / `claimedAt` on Property + Access accessibility GET (`isClaimedByMe`) ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access audit wizard steps: Entrance → Mobility → Room → Bathroom → Communication → Review with Yes/Partial/No/N/A toggles; fields `automatic_door`, `path_to_entrance`, `corridor_min_width_cm`, `elevator_width_cm`, `visual_alarms`, `step_free_room`, `clear_space_beside_bed` ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Rate limiting accepts Vercel Marketplace Upstash aliases `KV_REST_API_URL` / `KV_REST_API_TOKEN` (same as `UPSTASH_REDIS_REST_*`) ([VERCEL.md](docs/VERCEL.md))
 - Access Vercel deploy: `vercel-build:access`, `apps/access/vercel.json`, and hub custom-domain steps ([VERCEL.md](docs/VERCEL.md))
 - Access installable PWA: web manifest, 192/512 icons, and Apple web-app metadata for Add to Home Screen (standalone; no offline SW yet)
 
 ### Fixed
 
+- Access property detail facts: field name left / value right (audit-style row), tier label + “Dit veld melden” on the line below
+- Access audit: Annuleren (and successful submit) discards the session draft instead of re-saving on exit
+- Access property detail title and Saved list card names use Saved/Profile hero section title typography (e.g. “Opgeslagen locaties”); audit property header and toolbar page titles (e.g. “Ter plaatse verifiëren”) match
+- Access Search hero: reduced vertical padding on the search field only (logo/header unchanged)
+- Access audit: removed collapsible “Huidige gegevens” panel — existing values are prefilled in the wizard fields
+- Access audit wizard: auto-save draft (step, values, photos) to session storage; compact wizard nav (Terug / Annuleren left, Volgende right); manual Concept button removed
+- Access audit field tier labels (e.g. Officieel) sit small under the field title instead of inline
+- Access audit existing facts use the same field-row style as empty fields (prefilled pills, tier label beside field name); audit draft no longer wipes DB prefills; `path_to_entrance` pills green/yellow/red; `ui.notes` label translated; `path_to_entrance` is single-choice again
+- Access audit/property display translates `path_to_entrance` enum values (step-free / uneven / steep) instead of showing English tokens
 - Access Nearby distinguishes location permission denied vs GPS timeout/unavailable (no false “GPS denied”)
 - Access map selection no longer re-zooms or reopens the popup after dismissing a pin and zooming out
 - Access map↔list toggle keeps the Leaflet view (zoom/center) by hiding instead of unmounting the map
@@ -42,6 +54,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Access UX polish: map locate (1 km Near me), property detail hero/sheet + accessibility score + claim card, minimal a11y icons, audit label/control rows + per-step notes/photos + title/address margin + scroll-to-top on step next/back; custom room type stacked input/button; add-property/audit toolbars without role chip + single back; Saved → property back returns to Saved tab; removed Check availability; Saved list cards with property photos ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access Search: shared navy Access hero (WikiTraveler · Access + Saved/Profile subsection), sticky Map/List tabs with full-height map/list, full-bleed search + filter icon, hero notification bell → Profile with badge, result meta under tabs, locate permission/progress feedback; property claim UI hidden; property sheet mini-map + a11y icons left-aligned under address; property hero photo placeholder; property facts label/value rows with single tier badge (notes left-aligned for reading); accessibility score from category coverage with help explainer; map legend removed (unified pins, saved as hearts, coverage message only — no shaded regions); zoom-in hint clears so Search this area can show; map pin opens bottom summary sheet with photo thumb; map camera restored after View property back ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access: Near me and Settings fold into Search / Profile; Contribute tab removed (claim + add property from Profile); Saved shows favorites only; global region chip removed from toolbar; `accessible_room_count` retired from active audit catalogue ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Vercel gossip cron runs daily (`0 1 * * *`) so Hobby plan deploys work; Pro can restore a sub-daily schedule in `vercel.json` ([VERCEL.md](docs/VERCEL.md))
 - Removed legacy `vercel.json` `@secret` env block — set node env vars in the Vercel project (include `CLIENT_ORIGINS`; do not ship `CORS_ORIGINS=*`) ([VERCEL.md](docs/VERCEL.md))
 - Access mobile header is compact (no toolbar “+”; add property stays on Contribute); search state persists across property navigation; list empty copy is a search hint; browse list shows map viewport pins; dark map uses OSM tiles with a CSS filter (no Carto API key); home node URL lives under Settings → Advanced

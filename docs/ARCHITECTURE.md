@@ -312,8 +312,10 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 | GET | `/api/properties?q=` | USER | Search properties |
 | POST | `/api/properties` | AUDITOR | Create property |
 | GET | `/api/properties/map?bbox=` | USER | Viewport pins; requires `bbox=` (or Admin `region=1`); may return `BBOX_TOO_LARGE` |
-| GET | `/api/properties/[id]/accessibility` | USER | Collapsed facts with tier |
+| GET | `/api/properties/[id]/accessibility` | USER | Collapsed facts with tier; includes `claimedByUserId` / `isClaimedByMe` |
 | POST | `/api/properties/[id]/accessibility` | AUDITOR | Submit audit (saves facts, triggers push + vision) |
+| POST | `/api/properties/[id]/claim` | AUDITOR | Claim property for current auditor (`409` if claimed by another; ADMIN may take over) |
+| DELETE | `/api/properties/[id]/claim` | AUDITOR | Clear claim (claimer or ADMIN) |
 | POST | `/api/properties/[id]/analyze` | AUDITOR | On-demand AI analysis |
 | POST | `/api/properties/[id]/external-ids` | AUDITOR | Add external ID mapping |
 | POST | `/api/import` | AUDITOR | Bulk import properties |

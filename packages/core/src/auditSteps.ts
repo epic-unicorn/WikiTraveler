@@ -1,40 +1,54 @@
 export type AuditStepId =
-  | "building_access"
-  | "shared_facilities"
-  | "rooms"
+  | "entrance"
+  | "mobility"
+  | "room"
+  | "bathroom"
+  | "communication"
   | "review";
 
 /** Fixed WikiTraveler Access wizard — full audit only. */
 export const AUDIT_WIZARD_STEPS: AuditStepId[] = [
-  "building_access",
-  "shared_facilities",
-  "rooms",
+  "entrance",
+  "mobility",
+  "room",
+  "bathroom",
+  "communication",
   "review",
 ];
 
 export const FIELD_AUDIT_STEP: Record<string, AuditStepId> = {
-  parking_accessible: "building_access",
-  step_free_entrance: "building_access",
-  ramp_present: "building_access",
-  door_width_cm: "building_access",
-  elevator_present: "building_access",
-  elevator_floor_count: "building_access",
-  tactile_paving: "building_access",
-  braille_signage: "building_access",
-  hearing_loop: "building_access",
-  notes: "building_access",
-  service_animal_policy: "building_access",
-  accessible_bathroom: "shared_facilities",
-  pool_lift: "shared_facilities",
-  quiet_hours_start: "shared_facilities",
-  quiet_hours_end: "shared_facilities",
-  accessible_room_count: "rooms",
-  room_types_available: "rooms",
-  accessible_room_description: "rooms",
-  roll_in_shower: "rooms",
-  grab_bars_bathroom: "rooms",
-  bed_height_cm: "rooms",
-  turning_circle_cm: "rooms",
+  step_free_entrance: "entrance",
+  automatic_door: "entrance",
+  ramp_present: "entrance",
+  door_width_cm: "entrance",
+  path_to_entrance: "entrance",
+
+  elevator_present: "mobility",
+  elevator_width_cm: "mobility",
+  corridor_min_width_cm: "mobility",
+  parking_accessible: "mobility",
+  pool_lift: "mobility",
+
+  room_types_available: "room",
+  accessible_room_description: "room",
+  step_free_room: "room",
+  clear_space_beside_bed: "room",
+  bed_height_cm: "room",
+  turning_circle_cm: "room",
+
+  accessible_bathroom: "bathroom",
+  roll_in_shower: "bathroom",
+  grab_bars_bathroom: "bathroom",
+
+  hearing_loop: "communication",
+  braille_signage: "communication",
+  tactile_paving: "communication",
+  visual_alarms: "communication",
+  service_animal_policy: "communication",
+
+  quiet_hours_start: "review",
+  quiet_hours_end: "review",
+  notes: "review",
 };
 
 export function auditStepForField(fieldName: string): AuditStepId | undefined {

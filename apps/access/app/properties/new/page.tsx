@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@wikitraveler/ui";
 import { AccessToolbar } from "../../AccessToolbar";
-import { HistoryBackButton } from "../../lib/historyBack";
 import { CreatePropertyPanel } from "../../tabs/CreatePropertyPanel";
 import { useNodeContext } from "../../hooks/useNodeContext";
 import { readAuthToken } from "../../lib/authStorage";
@@ -30,18 +29,21 @@ export default function NewPropertyPage() {
 
   return (
     <div className="fk-shell">
-      <AccessToolbar />
+      <AccessToolbar showBack showAccount={false} title={t("ui.addProperty")} />
       <main className="page fk-main">
-        <div className="fk-property-lead">
-          <HistoryBackButton />
-          <h1 className="fk-property-title">{t("ui.addProperty")}</h1>
-          <p className="fk-property-location">{t("ui.contributeBody")}</p>
+        <div className="fk-page-body fk-new-property">
+          <header className="fk-new-property__intro">
+            <h1 className="fk-property-title">{t("ui.addProperty")}</h1>
+            <p className="fk-property-location">{t("ui.contributeBody")}</p>
+          </header>
+          <div className="card fk-new-property__form">
+            <CreatePropertyPanel
+              searchNodeUrl={searchNodeUrl}
+              homeNodeUrl={nodeUrl}
+              onCreated={handleCreated}
+            />
+          </div>
         </div>
-        <CreatePropertyPanel
-          searchNodeUrl={searchNodeUrl}
-          homeNodeUrl={nodeUrl}
-          onCreated={handleCreated}
-        />
       </main>
     </div>
   );

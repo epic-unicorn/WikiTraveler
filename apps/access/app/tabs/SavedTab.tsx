@@ -3,128 +3,139 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "@wikitraveler/ui";
-import { readSavedPlaces, removeSavedPlace } from "../lib/savedPlaces";
+import {
+  readSavedPlaces,
+  patchSavedPlace,
+  SAVED_PLACES_EVENT,
+  type SavedPlace,
+} from "../lib/savedPlaces";
 import { propertyHref } from "../lib/propertyHref";
-import { fetchMySignals, fetchContributorStats } from "../lib/accessApi";
-import { RecentPropertiesSection } from "../components/RecentPropertiesSection";
-import { readRecentAudits } from "../lib/recentAudits";
+import { fetchPropertyAccessibility } from "../lib/accessApi";
+import { saveAccessReturn } from "../lib/navigationReturn";
+import { AccessPageHero } from "../components/AccessPageHero";
+
+const PLACEHOLDER_SRC = "/images/property-hero-placeholder.png";
 
 interface Props {
   homeNodeUrl: string;
   active?: boolean;
 }
 
+function thumbSrc(place: SavedPlace): string {
+  return place.imageUrl || PLACEHOLDER_SRC;
+}
+
 export function SavedTab({ homeNodeUrl, active = true }: Props) {
-  const { t } = useLocale();
-  const [saved, setSaved] = useState(() => readSavedPlaces());
-  const [signals, setSignals] = useState<
-    Awaited<ReturnType<typeof fetchMySignals>>["signals"]
-  >([]);
-  const [signalsLoading, setSignalsLoading] = useState(true);
-  const recentCount = readRecentAudits().length;
+  const { t, locale } = useLocale();
+  const [saved, setSaved] = useState<SavedPlace[]>([]);
 
   useEffect(() => {
+    const sync = () => setSaved(readSavedPlaces());
+    sync();
+    window.addEventListener(SAVED_PLACES_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(SAVED_PLACES_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (active) setSaved(readSavedPlaces());
+  }, [active]);
+
+  // Hydrate thumbnails for favorites saved before imageUrl existed.
+  useEffect(() => {
     if (!active) return;
+
     let cancelled = false;
-    setSignalsLoading(true);
-    fetchMySignals(homeNodeUrl)
-      .then((d) => {
-        if (!cancelled) setSignals(d.signals);
-      })
-      .catch(() => {
-        if (!cancelled) setSignals([]);
-      })
-      .finally(() => {
-        if (!cancelled) setSignalsLoading(false);
-      });
+    const controller = new AbortController();
+
+    (async () => {
+      const needsImage = readSavedPlaces().filter((p) => p.imageUrl === undefined);
+      for (const place of needsImage) {
+        if (cancelled) break;
+        try {
+          const data = await fetchPropertyAccessibility(
+            place.nodeUrl || homeNodeUrl,
+            place.id,
+            locale,
+            controller.signal
+          );
+          const url =
+            data.property.photos?.[0]?.url ??
+            data.auditPhotos?.photos?.[0]?.url ??
+            null;
+          if (!cancelled) {
+            patchSavedPlace(place.id, { imageUrl: url });
+            setSaved(readSavedPlaces());
+          }
+        } catch {
+          if (!cancelled && !controller.signal.aborted) {
+            patchSavedPlace(place.id, { imageUrl: null });
+            setSaved(readSavedPlaces());
+          }
+        }
+      }
+    })();
+
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [active, homeNodeUrl]);
+  }, [active, homeNodeUrl, locale]);
 
   return (
-    <div className="tab-content" style={{ paddingTop: 16 }}>
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px" }}>{t("ui.savedTitle")}</h2>
+    <div className="tab-content fk-saved-tab">
+      <AccessPageHero
+        sectionTitle={t("ui.savedTitle")}
+        sectionSubtitle={t("ui.savedSubtitle")}
+      />
+
+      <div className="fk-page-body">
         {saved.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>{t("ui.savedEmpty")}</p>
+          <p className="fk-saved-empty">{t("ui.savedEmpty")}</p>
         ) : (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+          <ul className="fk-saved-list">
             {saved.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="fk-saved-card">
                 <Link
                   href={propertyHref(p.id, p.nodeUrl, homeNodeUrl)}
-                  style={{
-                    display: "block",
-                    padding: "12px 14px",
-                    border: "1px solid var(--wt-border)",
-                    borderRadius: 10,
-                    textDecoration: "none",
-                    color: "inherit",
-                  }}
+                  className="fk-saved-card__link"
+                  onClick={() => saveAccessReturn({ tab: "saved" })}
                 >
-                  <strong style={{ fontSize: 14 }}>{p.name}</strong>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--wt-text-muted)" }}>{p.location}</p>
+                  <span className="fk-saved-card__thumb" aria-hidden="true">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      className="fk-saved-card__thumb-img"
+                      src={thumbSrc(p)}
+                      alt=""
+                      loading="lazy"
+                    />
+                  </span>
+                  <span className="fk-saved-card__body">
+                    <strong className="fk-saved-card__name">{p.name}</strong>
+                    <span className="fk-saved-card__loc">{p.location}</span>
+                    <span className="fk-saved-card__cta">{t("ui.mapViewProperty")}</span>
+                  </span>
+                  <svg
+                    className="fk-saved-card__chevron"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 6 15 12 9 18" />
+                  </svg>
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    removeSavedPlace(p.id);
-                    setSaved(readSavedPlaces());
-                  }}
-                  style={{
-                    marginTop: 4,
-                    background: "none",
-                    border: "none",
-                    fontSize: 11,
-                    color: "var(--wt-danger)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {t("ui.savedRemove")}
-                </button>
               </li>
             ))}
           </ul>
         )}
-      </section>
-
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px" }}>{t("ui.myReportsTitle")}</h2>
-        {signalsLoading && <p className="status-muted">{t("ui.loading")}</p>}
-        {!signalsLoading && signals.length === 0 && (
-          <p style={{ fontSize: 13, color: "var(--wt-text-muted)" }}>{t("ui.myReportsEmpty")}</p>
-        )}
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-          {signals.map((s) => (
-            <li
-              key={s.id}
-              style={{
-                padding: "10px 12px",
-                border: "1px solid var(--wt-border)",
-                borderRadius: 10,
-              }}
-            >
-              <Link
-                href={propertyHref(s.property.id, homeNodeUrl, homeNodeUrl)}
-                style={{ fontWeight: 600, fontSize: 13, color: "var(--wt-primary)", textDecoration: "none" }}
-              >
-                {s.property.name}
-              </Link>
-              <p style={{ margin: "4px 0 0", fontSize: 12 }}>
-                {t(`ui.signalType${s.type}`)} · {t(`ui.signalsStatus${s.status}`)}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {recentCount > 0 && (
-        <section>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px" }}>{t("ui.tabRecent")}</h2>
-          <RecentPropertiesSection homeNodeUrl={homeNodeUrl} compact maxItems={5} />
-        </section>
-      )}
+      </div>
     </div>
   );
 }

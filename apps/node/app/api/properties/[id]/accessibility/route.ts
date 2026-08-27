@@ -188,6 +188,12 @@ export async function GET(
     auditPhotos?.photos.map((p) => ({ url: p.url, caption: p.caption })) ?? []
   );
 
+  const authUser = await getAuthUser(req);
+  const me = authUser ? auditorId(authUser) : null;
+  propertyDetail.isClaimedByMe = Boolean(
+    me && propertyDetail.claimedByUserId && propertyDetail.claimedByUserId === me
+  );
+
   const notesFact = collapsedFacts.find((f) => f.fieldName === "notes");
   if (notesFact?.value) {
     propertyDetail.description = notesFact.value;
