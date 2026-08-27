@@ -14,6 +14,8 @@ import { readMapCamera, saveMapCamera } from "../lib/mapCameraSession";
 /** Below this zoom, no property pins — ask the traveler to zoom in. */
 export const MAP_PIN_MIN_ZOOM = 10;
 
+type MapMarker = import("leaflet").Marker | import("leaflet").CircleMarker;
+
 interface UserLocation {
   lat: number;
   lon: number;
