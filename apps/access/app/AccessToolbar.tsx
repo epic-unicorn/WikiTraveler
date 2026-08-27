@@ -38,7 +38,10 @@ interface Props {
   backLabel?: string;
   backFallbackHref?: string;
   nodeReachable?: boolean | null;
+  /** @deprecated Region chip removed — kept for call-site compatibility. */
   nodeRegion?: string | null;
+  /** Account/role chip in the toolbar end (default true). */
+  showAccount?: boolean;
   end?: ReactNode;
 }
 
@@ -71,13 +74,7 @@ function AccessHistoryBack({
   );
 }
 
-function NodeStatusChip({
-  reachable,
-  region,
-}: {
-  reachable: boolean | null;
-  region?: string | null;
-}) {
+function NodeStatusChip({ reachable }: { reachable: boolean | null }) {
   const { t } = useLocale();
   if (reachable === null) {
     return (
@@ -95,11 +92,10 @@ function NodeStatusChip({
       </span>
     );
   }
-  const label = region?.trim() || t("ui.connected");
   return (
-    <span className="fk-node-status fk-node-status--ok" title={label}>
+    <span className="fk-node-status fk-node-status--ok" title={t("ui.connected")}>
       <span className="fk-node-status__dot" aria-hidden="true" />
-      <span className="fk-node-status__label">{label}</span>
+      <span className="fk-node-status__label">{t("ui.connected")}</span>
     </span>
   );
 }
@@ -111,7 +107,7 @@ export function AccessToolbar({
   backLabel,
   backFallbackHref = "/",
   nodeReachable,
-  nodeRegion,
+  showAccount = true,
   end,
 }: Props) {
   const { t } = useLocale();
@@ -124,24 +120,34 @@ export function AccessToolbar({
     )
   ) : undefined;
 
+  const endContent =
+    nodeReachable !== undefined || showAccount || end ? (
+      <div className="fk-toolbar-end">
+        {nodeReachable !== undefined && (
+          <NodeStatusChip reachable={nodeReachable ?? null} />
+        )}
+        {showAccount && <AccessAccountBadge />}
+        {end}
+      </div>
+    ) : undefined;
+
+  const titleContent =
+    title === undefined ? (
+      <WikiTravelerLogo product="access" size={26} className="wt-logo--access-toolbar" />
+    ) : typeof title === "string" ? (
+      <span className="fk-toolbar-page-title">{title}</span>
+    ) : (
+      title
+    );
+
   return (
     <AppToolbar
       className="wt-toolbar--access"
-      title={
-        title ?? (
-          <WikiTravelerLogo product="access" size={26} className="wt-logo--access-toolbar" />
-        )
-      }
-      titleHref={title ? undefined : "/"}
+      title={titleContent}
+      titleHref={title === undefined ? "/" : undefined}
       linkWrap={fkLinkWrap}
       start={start}
-      end={
-        <div className="fk-toolbar-end">
-          <NodeStatusChip reachable={nodeReachable ?? null} region={nodeRegion} />
-          <AccessAccountBadge />
-          {end}
-        </div>
-      }
+      end={endContent}
     />
   );
 }

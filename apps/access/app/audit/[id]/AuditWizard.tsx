@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   AUDIT_WIZARD_STEPS,
   fieldsForStep,
@@ -12,16 +13,16 @@ import {
   MAX_AUDIT_PHOTOS,
   roomScopeKey,
   getRoomTypeLabel,
+  getFieldEnumLabel,
   type AuditPhotoInput,
 } from "@wikitraveler/i18n";
-import { ProseFactValue } from "@wikitraveler/ui";
-import ExistingDataPanel, { type ExistingFact } from "./ExistingDataPanel";
+import { type ExistingFact } from "./ExistingDataPanel";
 import { RoomAuditSection } from "./RoomAuditSection";
 import { AuditPhotoGallery } from "../../components/AuditPhotoGallery";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { stepScopeKey, groupPhotosByStepScope } from "../../lib/propertyFacts";
-import { resolveFactDisplay } from "../../lib/factDisplay";
 import { invalidateMapPins } from "../../lib/accessApi";
+import { propertyHref } from "../../lib/propertyHref";
 import {
   loadAuditDraft,
   saveAuditDraft,
@@ -48,20 +49,86 @@ interface Props {
   locale: string;
   fieldDefs: FieldDef[];
   loadedFacts: ExistingFact[];
-  auditPhotos: import("./ExistingDataPanel").AuditPhotos | null;
-  hasAiGuess: boolean;
   onSuccess: () => void;
   onError: (msg: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
   getTierLabel: (tier: string) => string;
 }
 
+type PhotoStepId = "entrance" | "mobility" | "bathroom" | "communication";
+
 const STEP_TITLE_KEY: Record<AuditStepId, string> = {
-  building_access: "ui.auditStepBuilding",
-  shared_facilities: "ui.auditStepShared",
-  rooms: "ui.auditStepRooms",
+  entrance: "ui.auditStepEntrance",
+  mobility: "ui.auditStepMobility",
+  room: "ui.auditStepRoom",
+  bathroom: "ui.auditStepBathroom",
+  communication: "ui.auditStepCommunication",
   review: "ui.auditStepReview",
 };
+
+const BOOL_OPTIONS = [
+  { value: "yes", labelKey: "ui.yes", className: "fk-bool-pill--yes" },
+  { value: "partial", labelKey: "ui.partial", className: "fk-bool-pill--partial" },
+  { value: "no", labelKey: "ui.no", className: "fk-bool-pill--no" },
+  { value: "n/a", labelKey: "ui.notApplicable", className: "fk-bool-pill--na" },
+] as const;
+
+const PHOTO_STEPS = new Set<AuditStepId>(["entrance", "mobility", "bathroom", "communication"]);
+
+const PATH_TO_ENTRANCE_PILL_CLASS: Record<string, string> = {
+  step_free: "fk-bool-pill--yes",
+  uneven: "fk-bool-pill--partial",
+  steep: "fk-bool-pill--no",
+};
+
+function normalizeFieldValue(fieldName: string, value: string): string {
+  const trimmed = value.trim();
+  if (fieldName === "path_to_entrance" && trimmed.includes(",")) {
+    return trimmed.split(",")[0]?.trim() ?? trimmed;
+  }
+  return trimmed;
+}
+
+function formValuesFromFacts(facts: ExistingFact[]) {
+  const propVals: Record<string, string> = {};
+  const rooms: string[] = [];
+  const rVals: Record<string, string> = {};
+  const rDesc: Record<string, string> = {};
+  for (const f of facts) {
+    const scope = (f as ExistingFact & { scopeKey?: string }).scopeKey ?? "property";
+    if (scope === "property") {
+      if (f.fieldName === "room_types_available") {
+        rooms.push(...f.value.split(",").map((s) => s.trim()).filter(Boolean));
+      } else if (f.fieldName === "notes") {
+        // Append-only: do not prefill notes into the editor.
+      } else {
+        propVals[f.fieldName] = normalizeFieldValue(f.fieldName, f.value);
+      }
+    } else if (f.fieldName === "accessible_room_description") {
+      const typeId = scope.replace("room-type:", "");
+      rDesc[typeId] = f.value;
+    } else {
+      rVals[factRowKey(f.fieldName, scope)] = normalizeFieldValue(f.fieldName, f.value);
+    }
+  }
+  return { propVals, rooms, rVals, rDesc };
+}
+
+/** Draft overlay: only non-empty draft values override DB defaults. */
+function mergeDraftStringMaps(
+  base: Record<string, string>,
+  draft: Record<string, string>
+): Record<string, string> {
+  const merged = { ...base };
+  for (const [k, v] of Object.entries(draft)) {
+    if (typeof v === "string" && v.trim()) merged[k] = v.trim();
+  }
+  return merged;
+}
+
+function nonEmptyStringMap(values: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(values).filter(([, v]) => v.trim()));
+}
 
 function fieldInputType(valueType: string): "toggle" | "number" | "time" | "textarea" {
   switch (valueType) {
@@ -101,9 +168,11 @@ function flattenPhotos(
 }
 
 const FALLBACK_WIZARD_STEPS: AuditStepId[] = [
-  "building_access",
-  "shared_facilities",
-  "rooms",
+  "entrance",
+  "mobility",
+  "room",
+  "bathroom",
+  "communication",
   "review",
 ];
 
@@ -115,13 +184,12 @@ export function AuditWizard({
   locale,
   fieldDefs,
   loadedFacts,
-  auditPhotos,
-  hasAiGuess,
   onSuccess,
   onError,
   t,
   getTierLabel,
 }: Props) {
+  const router = useRouter();
   const submitUrl = targetNodeUrl ?? nodeUrl;
   const steps = AUDIT_WIZARD_STEPS?.length ? AUDIT_WIZARD_STEPS : FALLBACK_WIZARD_STEPS;
 
@@ -132,11 +200,16 @@ export function AuditWizard({
   const [roomDescriptions, setRoomDescriptions] = useState<Record<string, string>>({});
   const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
   const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
-  const [elevatorNa, setElevatorNa] = useState(false);
+  const [stepNotes, setStepNotes] = useState<Partial<Record<AuditStepId, string>>>({});
   const [propertyPhotos, setPropertyPhotos] = useState<AuditPhotoInput[]>([]);
   const [roomPhotos, setRoomPhotos] = useState<Record<string, AuditPhotoInput[]>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [reviewLightbox, setReviewLightbox] = useState<number | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const skipPersistRef = useRef(true);
+  const discardDraftRef = useRef(false);
+  const persistDraftRef = useRef<() => void>(() => {});
 
   const currentStep = steps[stepIndex] ?? "review";
 
@@ -144,7 +217,6 @@ export function AuditWizard({
     (f) => f.scope === "PROPERTY" && f.fieldName !== "room_types_available"
   );
   const roomFieldDefs = fieldDefs.filter((f) => f.scope === "ROOM");
-  const accessibleRoomCountField = fieldDefs.find((f) => f.fieldName === "accessible_room_count");
 
   const existingByKey = useMemo(() => {
     const map = new Map<string, ExistingFact>();
@@ -155,82 +227,134 @@ export function AuditWizard({
     return map;
   }, [loadedFacts]);
 
+  const existingNotes = existingByKey.get(factRowKey("notes"))?.value ?? "";
+
   const totalPhotoCount = countPhotos(propertyPhotos, roomPhotos);
 
   const persistDraft = useCallback(() => {
+    if (discardDraftRef.current) return;
     const draft: AuditDraft = {
       version: 2,
       step: stepIndex,
-      propertyValues,
+      propertyValues: {
+        ...nonEmptyStringMap(propertyValues),
+        ...Object.fromEntries(
+          Object.entries(stepNotes)
+            .filter(([, v]) => v?.trim())
+            .map(([k, v]) => [`__note_${k}`, v])
+        ),
+      },
       selectedRoomTypes,
-      roomValues,
-      roomDescriptions,
+      roomValues: nonEmptyStringMap(roomValues),
+      roomDescriptions: nonEmptyStringMap(roomDescriptions),
       confirmedKeys: [...confirmedKeys],
       editingKeys: [...editingKeys],
-      elevatorNa,
+      elevatorNa: false,
       propertyPhotos,
       roomPhotos,
       updatedAt: new Date().toISOString(),
     };
     saveAuditDraft(propertyId, draft);
+    setDraftSavedAt(draft.updatedAt);
   }, [
     stepIndex,
     propertyValues,
+    stepNotes,
     selectedRoomTypes,
     roomValues,
     roomDescriptions,
     confirmedKeys,
     editingKeys,
-    elevatorNa,
     propertyPhotos,
     roomPhotos,
     propertyId,
   ]);
 
-  useEffect(() => {
-    persistDraft();
-  }, [persistDraft]);
+  persistDraftRef.current = persistDraft;
 
+  function discardDraft() {
+    discardDraftRef.current = true;
+    clearAuditDraft(propertyId);
+  }
+
+  // Restore draft once per property; do not re-run when loadedFacts refreshes (would reset step).
   useEffect(() => {
+    setHydrated(false);
+    skipPersistRef.current = true;
+    discardDraftRef.current = false;
+
+    const fromFacts = formValuesFromFacts(loadedFacts);
     const draft = loadAuditDraft(propertyId);
     if (draft) {
       setStepIndex(draft.step);
-      setPropertyValues(draft.propertyValues);
-      setSelectedRoomTypes(draft.selectedRoomTypes);
-      setRoomValues(draft.roomValues);
-      setRoomDescriptions(draft.roomDescriptions);
+      const restoredNotes: Partial<Record<AuditStepId, string>> = {};
+      const rest: Record<string, string> = {};
+      for (const [k, v] of Object.entries(draft.propertyValues)) {
+        if (k.startsWith("__note_") && typeof v === "string") {
+          restoredNotes[k.slice("__note_".length) as AuditStepId] = v;
+        } else if (k === "__new_note" && typeof v === "string") {
+          restoredNotes.review = v;
+        } else {
+          rest[k] = v;
+        }
+      }
+      setPropertyValues(mergeDraftStringMaps(fromFacts.propVals, rest));
+      setStepNotes(restoredNotes);
+      setSelectedRoomTypes(
+        draft.selectedRoomTypes.length > 0 ? draft.selectedRoomTypes : fromFacts.rooms
+      );
+      setRoomValues(mergeDraftStringMaps(fromFacts.rVals, draft.roomValues));
+      setRoomDescriptions(mergeDraftStringMaps(fromFacts.rDesc, draft.roomDescriptions));
       setConfirmedKeys(new Set(draft.confirmedKeys));
       setEditingKeys(new Set(draft.editingKeys));
-      setElevatorNa(draft.elevatorNa);
       setPropertyPhotos(draft.propertyPhotos);
       setRoomPhotos(draft.roomPhotos);
+    } else {
+      setStepIndex(0);
+      setPropertyValues(fromFacts.propVals);
+      setSelectedRoomTypes(fromFacts.rooms);
+      setRoomValues(fromFacts.rVals);
+      setRoomDescriptions(fromFacts.rDesc);
+      setConfirmedKeys(new Set());
+      setEditingKeys(new Set());
+      setStepNotes({});
+      setPropertyPhotos([]);
+      setRoomPhotos({});
+    }
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset wizard when switching property
+  }, [propertyId]);
+
+  // When accessibility facts load async, fill defaults without overwriting draft/edits or step.
+  useEffect(() => {
+    if (!hydrated) return;
+    const fromFacts = formValuesFromFacts(loadedFacts);
+    setPropertyValues((prev) => mergeDraftStringMaps(fromFacts.propVals, prev));
+    setRoomValues((prev) => mergeDraftStringMaps(fromFacts.rVals, prev));
+    setRoomDescriptions((prev) => mergeDraftStringMaps(fromFacts.rDesc, prev));
+    setSelectedRoomTypes((prev) => (prev.length > 0 ? prev : fromFacts.rooms));
+  }, [loadedFacts, hydrated]);
+
+  // Auto-save draft (debounced) on any change after hydration.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (skipPersistRef.current) {
+      skipPersistRef.current = false;
       return;
     }
+    const timer = window.setTimeout(() => persistDraftRef.current(), 400);
+    return () => window.clearTimeout(timer);
+  }, [persistDraft, hydrated]);
 
-    const propVals: Record<string, string> = {};
-    const rooms: string[] = [];
-    const rVals: Record<string, string> = {};
-    const rDesc: Record<string, string> = {};
-    for (const f of loadedFacts) {
-      const scope = (f as ExistingFact & { scopeKey?: string }).scopeKey ?? "property";
-      if (scope === "property") {
-        if (f.fieldName === "room_types_available") {
-          rooms.push(...f.value.split(",").map((s) => s.trim()).filter(Boolean));
-        } else {
-          propVals[f.fieldName] = f.value;
-        }
-      } else if (f.fieldName === "accessible_room_description") {
-        const typeId = scope.replace("room-type:", "");
-        rDesc[typeId] = f.value;
-      } else {
-        rVals[factRowKey(f.fieldName, scope)] = f.value;
+  // Flush draft when leaving the wizard (unless cancelled or submitted).
+  useEffect(() => {
+    if (!hydrated) return;
+    return () => {
+      if (!discardDraftRef.current) {
+        persistDraftRef.current();
       }
-    }
-    setPropertyValues(propVals);
-    setSelectedRoomTypes(rooms);
-    setRoomValues(rVals);
-    setRoomDescriptions(rDesc);
-  }, [propertyId, loadedFacts]);
+    };
+  }, [hydrated, propertyId]);
 
   function setProp(name: string, value: string) {
     setPropertyValues((prev) => ({ ...prev, [name]: value }));
@@ -251,57 +375,68 @@ export function AuditWizard({
     });
   }
 
-  function markConfirm(fieldName: string, scopeKey = "property") {
-    const key = factRowKey(fieldName, scopeKey);
-    setConfirmedKeys((prev) => new Set(prev).add(key));
-    setEditingKeys((prev) => {
-      const next = new Set(prev);
-      next.delete(key);
-      return next;
-    });
-  }
-
-  function markEditing(fieldName: string, scopeKey = "property") {
-    const key = factRowKey(fieldName, scopeKey);
-    setEditingKeys((prev) => new Set(prev).add(key));
-    setConfirmedKeys((prev) => {
-      const next = new Set(prev);
-      next.delete(key);
-      return next;
-    });
-  }
-
   function fieldsInStep(step: AuditStepId): FieldDef[] {
     const names = new Set(fieldsForStep(step));
     const mapped = propertyFields.filter((f) => names.has(f.fieldName));
-    if (step !== "shared_facilities") return mapped;
-    // Catch-all: property fields not explicitly mapped to a wizard step (e.g.
-    // node-specific custom fields or newly added standard fields) must still be
-    // auditable here — otherwise they silently disappear vs. the node UI, which
-    // lets you audit every property field.
-    const unmapped = propertyFields.filter((f) => !FIELD_AUDIT_STEP[f.fieldName]);
+    if (step !== "communication") {
+      return mapped.filter((f) => f.fieldName !== "notes");
+    }
+    const unmapped = propertyFields.filter(
+      (f) => !FIELD_AUDIT_STEP[f.fieldName] && f.fieldName !== "notes"
+    );
     return [...mapped, ...unmapped];
   }
 
   function buildSubmitFacts(): Array<{ fieldName: string; value: string; scopeKey?: string; confirm?: boolean }> {
     const facts: Array<{ fieldName: string; value: string; scopeKey?: string; confirm?: boolean }> = [];
 
+    const pushIfUnchanged = (
+      key: string,
+      fieldName: string,
+      value: string,
+      scopeKey: string
+    ): boolean => {
+      const existing = existingByKey.get(key);
+      if (!existing) return false;
+      const normalized = normalizeFieldValue(fieldName, value);
+      const existingNormalized = normalizeFieldValue(fieldName, existing.value);
+      if (existingNormalized === normalized) {
+        facts.push({ fieldName, value: existing.value, scopeKey, confirm: true });
+        return true;
+      }
+      return false;
+    };
+
     for (const key of confirmedKeys) {
       const { scopeKey, fieldName } = parseFactRowKey(key);
+      if (fieldName === "notes") continue;
       const existing = existingByKey.get(key);
       if (!existing) continue;
       facts.push({ fieldName, value: existing.value, scopeKey, confirm: true });
     }
 
     for (const [fieldName, value] of Object.entries(propertyValues)) {
+      if (fieldName.startsWith("__")) continue;
       if (!value.trim()) continue;
+      if (fieldName === "notes") continue;
       const key = factRowKey(fieldName);
       if (confirmedKeys.has(key)) continue;
+      if (pushIfUnchanged(key, fieldName, value, "property")) continue;
       facts.push({ fieldName, value, scopeKey: "property" });
     }
 
-    if (elevatorNa && !confirmedKeys.has(factRowKey("elevator_present"))) {
-      facts.push({ fieldName: "elevator_present", value: "no", scopeKey: "property" });
+    const noteParts: string[] = [];
+    for (const step of steps) {
+      if (step === "review") continue;
+      const part = stepNotes[step]?.trim();
+      if (part) noteParts.push(`[${t(STEP_TITLE_KEY[step])}] ${part}`);
+    }
+    const reviewNote = stepNotes.review?.trim();
+    if (reviewNote) noteParts.push(reviewNote);
+    if (noteParts.length > 0) {
+      const joined = noteParts.join("\n\n");
+      const appended = existingNotes ? `${existingNotes.trim()}\n\n${joined}` : joined;
+      facts.push({ fieldName: "notes", value: appended, scopeKey: "property" });
     }
 
     if (selectedRoomTypes.length > 0) {
@@ -320,6 +455,7 @@ export function AuditWizard({
         if (!key.startsWith(`${scope}::`) || !value.trim()) continue;
         const fieldName = key.slice(scope.length + 2);
         if (confirmedKeys.has(key)) continue;
+        if (pushIfUnchanged(key, fieldName, value, scope)) continue;
         facts.push({ fieldName, value, scopeKey: scope });
       }
     }
@@ -346,20 +482,15 @@ export function AuditWizard({
       onError(d.message ?? t("ui.submissionFailed"));
       return;
     }
-    clearAuditDraft(propertyId);
-    // New audit facts (e.g. VERIFIED) change the map's audited markers — drop
-    // the cached pins so the map reflects this audit on the next view.
+    discardDraft();
     invalidateMapPins();
     onSuccess();
   }
 
-  async function handleStepPhotoAdd(
-    step: "building_access" | "shared_facilities",
-    files: FileList | File[]
-  ) {
+  async function handleStepPhotoAdd(step: PhotoStepId, files: FileList | File[]) {
     const remaining = MAX_AUDIT_PHOTOS - totalPhotoCount;
     const list = Array.from(files).slice(0, remaining);
-    const scopeKey = stepScopeKey(step);
+    const scope = stepScopeKey(step);
     const compressed = await Promise.all(list.map((f) => compressPhoto(f)));
     setPropertyPhotos((prev) =>
       [
@@ -368,19 +499,19 @@ export function AuditWizard({
           dataUri: c.dataUri,
           width: c.width,
           height: c.height,
-          scopeKey,
+          scopeKey: scope,
           fieldName: undefined,
         })),
       ].slice(0, MAX_AUDIT_PHOTOS)
     );
   }
 
-  function photosForStep(step: "building_access" | "shared_facilities"): AuditPhotoInput[] {
+  function photosForStep(step: PhotoStepId): AuditPhotoInput[] {
     const scope = stepScopeKey(step);
     return propertyPhotos.filter((p) => (p.scopeKey ?? "") === scope);
   }
 
-  function setPhotosForStep(step: "building_access" | "shared_facilities", next: AuditPhotoInput[]) {
+  function setPhotosForStep(step: PhotoStepId, next: AuditPhotoInput[]) {
     const scope = stepScopeKey(step);
     const others = propertyPhotos.filter((p) => (p.scopeKey ?? "") !== scope);
     setPropertyPhotos([
@@ -390,21 +521,25 @@ export function AuditWizard({
   }
 
   function stepPhotoGroupLabel(scopeKey: string): string {
-    if (scopeKey === "step:building_access") return t("ui.auditStepBuilding");
-    if (scopeKey === "step:shared_facilities") return t("ui.auditStepShared");
+    if (scopeKey === "step:entrance" || scopeKey === "step:building_access") {
+      return t("ui.auditStepEntrance");
+    }
+    if (scopeKey === "step:mobility") return t("ui.auditStepMobility");
+    if (scopeKey === "step:bathroom" || scopeKey === "step:shared_facilities") {
+      return t("ui.auditStepBathroom");
+    }
+    if (scopeKey === "step:communication") return t("ui.auditStepCommunication");
     if (scopeKey.startsWith("room-type:")) {
       return getRoomTypeLabel(scopeKey.slice("room-type:".length), locale);
     }
     return t("ui.propertyAuditPhotos");
   }
 
-  function renderPropertyPhotoSection(step: "building_access" | "shared_facilities") {
+  function renderPropertyPhotoSection(step: PhotoStepId) {
     const stepPhotos = photosForStep(step);
     return (
       <div style={{ marginTop: 16 }}>
-        <label htmlFor={`step-photos-${step}`} style={{ fontSize: 13, fontWeight: 600 }}>
-          {t("ui.auditStepPhotos")}
-        </label>
+        <p style={{ fontSize: 13, fontWeight: 600 }}>{t("ui.auditStepPhotos")}</p>
         <p className="existing-data-panel-hint" style={{ marginTop: 4 }}>
           {t("ui.auditStepPhotosHint")}
         </p>
@@ -495,118 +630,138 @@ export function AuditWizard({
     );
   }
 
-  function renderConfirmRow(field: FieldDef, scopeKey = "property") {
+  function fieldLabel(field: FieldDef, tierLabel?: string) {
+    return (
+      <span className="fk-field-row__label-text">
+        <span className="fk-field-row__label-title">{field.label}</span>
+        {tierLabel ? <span className="fk-field-row__tier">{tierLabel}</span> : null}
+      </span>
+    );
+  }
+
+  function renderFieldRow(field: FieldDef, scopeKey = "property") {
     const key = factRowKey(field.fieldName, scopeKey);
     const existing = existingByKey.get(key);
-    const isEditing = editingKeys.has(key);
-    const isConfirmed = confirmedKeys.has(key);
+    const tierLabel = existing ? getTierLabel(existing.tier) : undefined;
+    return renderInput(field, scopeKey, tierLabel);
+  }
 
-    if (!existing) {
-      return renderInput(field, scopeKey);
-    }
-
-    const { displayValue } = resolveFactDisplay({ ...existing, fieldName: field.fieldName }, locale);
-    const tierLabel = getTierLabel(existing.tier);
-
-    if (isEditing) {
-      return <div key={key} style={{ marginBottom: 12 }}>{renderInput(field, scopeKey)}</div>;
-    }
-
+  function renderBoolPills(
+    field: FieldDef,
+    scopeKey: string,
+    val: string,
+    onChange: (v: string) => void,
+    tierLabel?: string
+  ) {
     return (
-      <div
-        key={key}
-        className="fk-confirm-row"
-        style={{ marginBottom: 12, padding: 12, border: "1px solid var(--wt-border)", borderRadius: 8 }}
-      >
-        <div style={{ fontWeight: 600, fontSize: 14 }}>{field.label}</div>
-        <div style={{ fontSize: 13, marginTop: 4, color: "var(--wt-text-muted)" }}>
-          {(existing as ExistingFact & { machineTranslated?: boolean }).machineTranslated ? (
-            <ProseFactValue
-              displayValue={(existing as ExistingFact & { displayValue?: string }).displayValue ?? displayValue}
-              rawValue={existing.value}
-              machineTranslated
-              valueLocale={(existing as ExistingFact & { valueLocale?: string }).valueLocale}
-            />
-          ) : (
-            displayValue
-          )}{" "}
-          · {tierLabel}
-        </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button
-            type="button"
-            className={isConfirmed ? "btn-primary" : "btn-secondary"}
-            style={{ fontSize: 12, padding: "6px 12px" }}
-            onClick={() => markConfirm(field.fieldName, scopeKey)}
-          >
-            {t("ui.stillCorrect")}
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            style={{ fontSize: 12, padding: "6px 12px" }}
-            onClick={() => markEditing(field.fieldName, scopeKey)}
-          >
-            {t("ui.updateValue")}
-          </button>
+      <div key={`${scopeKey}-${field.fieldName}`} className="fk-field-row">
+        <div className="fk-field-row__label">{fieldLabel(field, tierLabel)}</div>
+        <div className="fk-field-row__control fk-bool-pills" role="group" aria-label={field.label}>
+          {BOOL_OPTIONS.map((opt) => {
+            const active = val === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                className={`fk-bool-pill ${opt.className}${active ? " fk-bool-pill--active" : ""}`}
+                aria-pressed={active}
+                onClick={() => onChange(active ? "" : opt.value)}
+              >
+                {t(opt.labelKey)}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
   }
 
-  function renderInput(field: FieldDef, scopeKey = "property") {
+  function renderEnumPills(
+    field: FieldDef,
+    scopeKey: string,
+    val: string,
+    onChange: (v: string) => void,
+    tierLabel?: string
+  ) {
+    const opts = field.enumValues ?? [];
+
+    return (
+      <div key={`${scopeKey}-${field.fieldName}`} className="fk-field-row">
+        <div className="fk-field-row__label">{fieldLabel(field, tierLabel)}</div>
+        <div className="fk-field-row__control fk-bool-pills" role="group" aria-label={field.label}>
+          {opts.map((opt) => {
+            const active = val === opt;
+            const pillClass =
+              field.fieldName === "path_to_entrance"
+                ? PATH_TO_ENTRANCE_PILL_CLASS[opt] ?? "fk-bool-pill--yes"
+                : "fk-bool-pill--yes";
+            return (
+              <button
+                key={opt}
+                type="button"
+                className={`fk-bool-pill ${pillClass}${active ? " fk-bool-pill--active" : ""}`}
+                aria-pressed={active}
+                onClick={() => onChange(active ? "" : opt)}
+              >
+                {getFieldEnumLabel(field.fieldName, opt, locale)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function renderInput(field: FieldDef, scopeKey = "property", tierLabel?: string) {
     const type = fieldInputType(field.valueType);
-    const val =
+    const key = factRowKey(field.fieldName, scopeKey);
+    let val =
       scopeKey === "property"
         ? (propertyValues[field.fieldName] ?? "")
-        : (roomValues[factRowKey(field.fieldName, scopeKey)] ?? "");
+        : (roomValues[key] ?? "");
+    val = normalizeFieldValue(field.fieldName, val);
 
     const onChange = (v: string) => {
       if (scopeKey === "property") setProp(field.fieldName, v);
       else setRoomValue(scopeKey, field.fieldName, v);
     };
 
+    if (field.valueType === "ENUM" && field.enumValues && field.enumValues.length > 0 && field.enumValues.length <= 6) {
+      return renderEnumPills(field, scopeKey, val, onChange, tierLabel);
+    }
+
     if (field.valueType === "ENUM" && field.enumValues && field.enumValues.length > 0) {
       return (
-        <div key={`${scopeKey}-${field.fieldName}`}>
-          <label htmlFor={`f-${scopeKey}-${field.fieldName}`}>{field.label}</label>
-          <select
-            id={`f-${scopeKey}-${field.fieldName}`}
-            value={val}
-            onChange={(e) => onChange(e.target.value)}
-          >
-            <option value="">{t("ui.selectOption")}</option>
-            {field.enumValues.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
+        <div key={`${scopeKey}-${field.fieldName}`} className="fk-field-row">
+          <label className="fk-field-row__label" htmlFor={`f-${scopeKey}-${field.fieldName}`}>
+            {fieldLabel(field, tierLabel)}
+          </label>
+          <div className="fk-field-row__control">
+            <select
+              id={`f-${scopeKey}-${field.fieldName}`}
+              value={val}
+              onChange={(e) => onChange(e.target.value)}
+            >
+              <option value="">{t("ui.selectOption")}</option>
+              {field.enumValues.map((opt) => (
+                <option key={opt} value={opt}>
+                  {getFieldEnumLabel(field.fieldName, opt, locale)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       );
     }
 
     if (type === "toggle") {
-      return (
-        <label className="toggle-row" key={`${scopeKey}-${field.fieldName}`} htmlFor={`f-${scopeKey}-${field.fieldName}`}>
-          <span className="toggle-label">{field.label}</span>
-          <span className="toggle">
-            <input
-              id={`f-${scopeKey}-${field.fieldName}`}
-              type="checkbox"
-              checked={val === "yes"}
-              onChange={(e) => onChange(e.target.checked ? "yes" : "no")}
-            />
-            <span className="toggle-slider" />
-          </span>
-        </label>
-      );
+      return renderBoolPills(field, scopeKey, val, onChange, tierLabel);
     }
 
     if (type === "textarea") {
       return (
-        <div key={`${scopeKey}-${field.fieldName}`}>
-          <label htmlFor={`f-${scopeKey}-${field.fieldName}`}>{field.label}</label>
+        <div key={`${scopeKey}-${field.fieldName}`} className="fk-field-stack">
+          <label htmlFor={`f-${scopeKey}-${field.fieldName}`}>{fieldLabel(field, tierLabel)}</label>
           <textarea
             id={`f-${scopeKey}-${field.fieldName}`}
             value={val}
@@ -617,16 +772,37 @@ export function AuditWizard({
     }
 
     return (
-      <div key={`${scopeKey}-${field.fieldName}`}>
-        <label htmlFor={`f-${scopeKey}-${field.fieldName}`}>
-          {field.label}
-          {field.unit ? ` (${field.unit})` : ""}
+      <div key={`${scopeKey}-${field.fieldName}`} className="fk-field-row">
+        <label className="fk-field-row__label" htmlFor={`f-${scopeKey}-${field.fieldName}`}>
+          {fieldLabel(field, tierLabel)}
         </label>
-        <input
-          id={`f-${scopeKey}-${field.fieldName}`}
-          type={type === "number" ? "number" : type === "time" ? "time" : "text"}
-          value={val}
-          onChange={(e) => onChange(e.target.value)}
+        <div className="fk-field-row__control fk-field-row__control--input">
+          <input
+            id={`f-${scopeKey}-${field.fieldName}`}
+            type={type === "number" ? "number" : type === "time" ? "time" : "text"}
+            value={val}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          {field.unit ? <span className="fk-field-unit">{field.unit}</span> : null}
+        </div>
+      </div>
+    );
+  }
+
+  function renderStepNotes() {
+    if (currentStep === "review") return null;
+    const note = stepNotes[currentStep] ?? "";
+    return (
+      <div className="fk-field-stack" style={{ marginTop: 16 }}>
+        <label htmlFor={`step-note-${currentStep}`}>{t("ui.notes")}</label>
+        <textarea
+          id={`step-note-${currentStep}`}
+          value={note}
+          onChange={(e) =>
+            setStepNotes((prev) => ({ ...prev, [currentStep]: e.target.value }))
+          }
+          placeholder={t("ui.auditAppendNotePlaceholder")}
+          rows={3}
         />
       </div>
     );
@@ -634,6 +810,7 @@ export function AuditWizard({
 
   function renderStepBody() {
     if (currentStep === "review") {
+      const reviewFields = fieldsInStep("review").filter((f) => f.fieldName !== "notes");
       const facts = buildSubmitFacts();
       const confirming = facts.filter((f) => f.confirm).length;
       const updating = facts.filter((f) => !f.confirm && existingByKey.has(factRowKey(f.fieldName, f.scopeKey))).length;
@@ -641,6 +818,13 @@ export function AuditWizard({
       return (
         <div>
           <h3 style={{ fontSize: 15, fontWeight: 600 }}>{t("ui.reviewSummary")}</h3>
+          {reviewFields.map((f) => renderFieldRow(f))}
+          {renderStepNotes()}
+          {existingNotes ? (
+            <p className="existing-data-panel-hint" style={{ marginTop: 8 }}>
+              {t("ui.auditExistingNotesHint")}
+            </p>
+          ) : null}
           <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginTop: 8 }}>
             {confirming > 0 ? `${t("ui.reviewConfirming", { count: confirming })} · ` : ""}
             {updating > 0 ? `${t("ui.reviewUpdating", { count: updating })} · ` : ""}
@@ -654,81 +838,125 @@ export function AuditWizard({
       );
     }
 
-    if (currentStep === "rooms") {
+    if (currentStep === "room") {
       return (
-        <RoomAuditSection
-          roomFields={roomFieldDefs}
-          selectedTypes={selectedRoomTypes}
-          onTypesChange={setSelectedRoomTypes}
-          roomValues={roomValues}
-          onRoomValueChange={setRoomValue}
-          roomDescriptions={roomDescriptions}
-          onRoomDescriptionChange={(typeId, value) =>
-            setRoomDescriptions((prev) => ({ ...prev, [typeId]: value }))
-          }
-          accessibleRoomCount={propertyValues.accessible_room_count ?? ""}
-          onAccessibleRoomCountChange={(value) => setProp("accessible_room_count", value)}
-          accessibleRoomCountLabel={
-            accessibleRoomCountField?.label ?? t("fields.accessible_room_count")
-          }
-          accessibleRoomCountHint={t("ui.accessibleRoomCountHint")}
-          roomPhotos={roomPhotos}
-          onRoomPhotosChange={(typeId, photos) =>
-            setRoomPhotos((prev) => ({
-              ...prev,
-              [typeId]: photos.map((p) => ({
-                ...p,
-                fieldName: undefined,
-                scopeKey: roomScopeKey(typeId),
-              })),
-            }))
-          }
-          totalPhotoCount={totalPhotoCount}
-          photoLabel={t("ui.auditStepPhotos")}
-          closePhotoLabel={t("ui.closePhoto")}
-          prevPhotoLabel={t("ui.photoPrev")}
-          nextPhotoLabel={t("ui.photoNext")}
-          removePhotoLabel={t("ui.removePhoto")}
-          renderRoomField={(field, scopeKey) =>
-            renderConfirmRow({ ...field, scope: "ROOM" }, scopeKey)
-          }
-        />
+        <div>
+          <RoomAuditSection
+            roomFields={roomFieldDefs}
+            selectedTypes={selectedRoomTypes}
+            onTypesChange={setSelectedRoomTypes}
+            roomValues={roomValues}
+            onRoomValueChange={setRoomValue}
+            roomDescriptions={roomDescriptions}
+            onRoomDescriptionChange={(typeId, value) =>
+              setRoomDescriptions((prev) => ({ ...prev, [typeId]: value }))
+            }
+            hideBathroomFields
+            roomPhotos={roomPhotos}
+            onRoomPhotosChange={(typeId, photos) =>
+              setRoomPhotos((prev) => ({
+                ...prev,
+                [typeId]: photos.map((p) => ({
+                  ...p,
+                  fieldName: undefined,
+                  scopeKey: roomScopeKey(typeId),
+                })),
+              }))
+            }
+            totalPhotoCount={totalPhotoCount}
+            photoLabel={t("ui.auditStepPhotos")}
+            closePhotoLabel={t("ui.closePhoto")}
+            prevPhotoLabel={t("ui.photoPrev")}
+            nextPhotoLabel={t("ui.photoNext")}
+            removePhotoLabel={t("ui.removePhoto")}
+            renderRoomField={(field, scopeKey) =>
+              renderFieldRow({ ...field, scope: "ROOM" }, scopeKey)
+            }
+          />
+          {renderStepNotes()}
+        </div>
+      );
+    }
+
+    if (currentStep === "bathroom") {
+      const propertyBathroom = propertyFields.filter((f) => f.fieldName === "accessible_bathroom");
+      return (
+        <div>
+          {propertyBathroom.map((f) => renderFieldRow(f))}
+          {selectedRoomTypes.length > 0 ? (
+            <RoomAuditSection
+              roomFields={roomFieldDefs}
+              selectedTypes={selectedRoomTypes}
+              onTypesChange={setSelectedRoomTypes}
+              roomValues={roomValues}
+              onRoomValueChange={setRoomValue}
+              roomDescriptions={roomDescriptions}
+              onRoomDescriptionChange={(typeId, value) =>
+                setRoomDescriptions((prev) => ({ ...prev, [typeId]: value }))
+              }
+              bathroomOnly
+              showTypePicker={false}
+              renderRoomField={(field, scopeKey) =>
+                renderFieldRow({ ...field, scope: "ROOM" }, scopeKey)
+              }
+            />
+          ) : (
+            <p className="existing-data-panel-hint" style={{ marginTop: 12 }}>
+              {t("ui.auditBathroomNoRooms")}
+            </p>
+          )}
+          {renderPropertyPhotoSection("bathroom")}
+          {renderStepNotes()}
+        </div>
       );
     }
 
     const stepFields = fieldsInStep(currentStep);
     return (
       <div>
-        {currentStep === "building_access" && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13 }}>
-            <input type="checkbox" checked={elevatorNa} onChange={(e) => setElevatorNa(e.target.checked)} />
-            {t("ui.auditElevatorNa")} ({fieldDefs.find((f) => f.fieldName === "elevator_present")?.label})
-          </label>
-        )}
-        {stepFields.map((f) => renderConfirmRow(f))}
-        {(currentStep === "building_access" || currentStep === "shared_facilities") &&
-          renderPropertyPhotoSection(currentStep)}
+        {stepFields.map((f) => renderFieldRow(f))}
+        {PHOTO_STEPS.has(currentStep)
+          ? renderPropertyPhotoSection(currentStep as PhotoStepId)
+          : null}
+        {renderStepNotes()}
       </div>
     );
   }
 
+  function scrollFormToTop() {
+    const main = document.querySelector(".fk-main");
+    if (main instanceof HTMLElement) {
+      main.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }
+
   function goNext() {
-    if (stepIndex < steps.length - 1) setStepIndex((i) => i + 1);
+    if (stepIndex >= steps.length - 1) return;
+    setStepIndex((i) => i + 1);
+    scrollFormToTop();
   }
 
   function goPrev() {
-    if (stepIndex > 0) setStepIndex((i) => i - 1);
+    if (stepIndex <= 0) return;
+    setStepIndex((i) => i - 1);
+    scrollFormToTop();
+  }
+
+  function cancelAudit() {
+    discardDraft();
+    router.push(propertyHref(propertyId, submitUrl, nodeUrl));
   }
 
   return (
     <>
-      <ExistingDataPanel facts={loadedFacts} auditPhotos={auditPhotos} hasAiGuess={hasAiGuess} />
-
       <div className="card fk-audit-form">
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
           <span style={{ fontSize: 12, color: "var(--wt-text-muted)" }}>
             {t("ui.auditStepOf", { current: stepIndex + 1, total: steps.length })} · {t(STEP_TITLE_KEY[currentStep])}
           </span>
+          {draftSavedAt ? (
+            <span style={{ fontSize: 11, color: "var(--wt-text-muted)" }}>{t("ui.auditDraftSaved")}</span>
+          ) : null}
         </div>
 
         <div style={{ height: 4, background: "var(--wt-border)", borderRadius: 2, marginBottom: 16 }}>
@@ -742,16 +970,25 @@ export function AuditWizard({
           />
         </div>
 
-        {renderStepBody()}
+        {hydrated ? renderStepBody() : (
+          <p className="existing-data-panel-hint" style={{ margin: "8px 0 16px" }}>
+            {t("ui.loading")}
+          </p>
+        )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-          {stepIndex > 0 ? (
-            <button type="button" className="btn-secondary" onClick={goPrev}>
-              {t("ui.prevStep")}
+        <div className="fk-audit-wizard-nav" role="navigation" aria-label={t(STEP_TITLE_KEY[currentStep])}>
+          <div className="fk-audit-wizard-nav__start">
+            {stepIndex > 0 ? (
+              <button type="button" className="btn-secondary fk-audit-wizard-nav__btn" onClick={goPrev}>
+                {t("ui.prevStep")}
+              </button>
+            ) : null}
+            <button type="button" className="btn-secondary fk-audit-wizard-nav__btn" onClick={cancelAudit}>
+              {t("ui.cancel")}
             </button>
-          ) : null}
+          </div>
           {currentStep !== "review" ? (
-            <button type="button" className="btn-primary" onClick={goNext}>
+            <button type="button" className="btn-primary fk-audit-wizard-nav__btn fk-audit-wizard-nav__btn--next" onClick={goNext}>
               {t("ui.nextStep")}
             </button>
           ) : null}

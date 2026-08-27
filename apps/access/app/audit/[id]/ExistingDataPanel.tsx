@@ -154,8 +154,14 @@ export default function ExistingDataPanel({ facts, auditPhotos, hasAiGuess }: Pr
   );
 
   function photoGroupLabel(scopeKey: string): string {
-    if (scopeKey === "step:building_access") return t("ui.auditStepBuilding");
-    if (scopeKey === "step:shared_facilities") return t("ui.auditStepShared");
+    if (scopeKey === "step:entrance" || scopeKey === "step:building_access") {
+      return t("ui.auditStepEntrance");
+    }
+    if (scopeKey === "step:mobility") return t("ui.auditStepMobility");
+    if (scopeKey === "step:bathroom" || scopeKey === "step:shared_facilities") {
+      return t("ui.auditStepBathroom");
+    }
+    if (scopeKey === "step:communication") return t("ui.auditStepCommunication");
     if (isRoomPhotoScope(scopeKey)) {
       return getRoomTypeLabel(scopeKey.slice("room-type:".length), locale);
     }

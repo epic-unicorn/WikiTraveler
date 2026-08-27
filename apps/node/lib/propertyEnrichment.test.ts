@@ -12,6 +12,8 @@ describe("propertyEnrichment", () => {
     wheelmapId: "456",
     canonicalId: "c1",
     dataSource: "NODE_ORIGINAL",
+    claimedByUserId: null,
+    claimedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

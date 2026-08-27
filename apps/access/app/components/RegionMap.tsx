@@ -3,19 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTheme, useLocale } from "@wikitraveler/ui";
 import {
-  fetchCoverageRegions,
   fetchMapPins,
   MapPinsError,
   resolvePeerNode,
   toClientNodeUrl,
-  type CoverageRegion,
   type MapPin,
 } from "../lib/accessApi";
-import { buildAccessMapPopup, buildAccessMapTooltip } from "../lib/mapPopup";
-import { readAuthToken } from "../lib/authStorage";
-import { canContribute, roleFromToken } from "../lib/userRole";
+import { readMapCamera, saveMapCamera } from "../lib/mapCameraSession";
 
-/** Below this zoom, show coverage rectangles only (no property pins). */
+/** Below this zoom, no property pins — ask the traveler to zoom in. */
 export const MAP_PIN_MIN_ZOOM = 10;
 
 interface UserLocation {
@@ -36,10 +32,9 @@ interface Props {
   userLocation?: UserLocation | null;
   radiusKm?: number | null;
   savedIds?: Set<string>;
-  interactionMode?: "popup" | "select";
   autoFit?: boolean;
   className?: string;
-  /** RFC-0002 M3: fetch pins for the visible bbox; coverage at low zoom. */
+  /** RFC-0002 M3: fetch pins for the visible bbox; message when zoomed out. */
   viewportBrowse?: boolean;
   /** Notify parent when viewport resolve picks a data node (for list links). */
   onDataNodeUrlChange?: (url: string) => void;
@@ -47,6 +42,9 @@ interface Props {
   onViewportPinsChange?: (pins: MapPin[]) => void;
   /** When false, keep the Leaflet instance but hide the shell (preserves zoom). */
   visible?: boolean;
+  /** GPS locate control — pan/zoom to user and notify parent (Near me). */
+  onLocateMe?: () => void;
+  locateLoading?: boolean;
 }
 
 function getTileConfig() {
@@ -58,9 +56,6 @@ function getTileConfig() {
   };
 }
 
-/** Below this zoom, selecting a pin zooms in. At/above (street–town), keep zoom. */
-const SELECT_ZOOM_FLOOR = 14;
-
 function radiusForZoom(zoom: number, selected: boolean): number {
   let base: number;
   if (zoom <= 6) base = 5;
@@ -71,51 +66,35 @@ function radiusForZoom(zoom: number, selected: boolean): number {
   return selected ? base + 3 : base;
 }
 
+const PIN_COLOR = { color: "#1e40af", fillColor: "#60a5fa" };
+const PIN_COLOR_DARK = { color: "#3b82f6", fillColor: "#60a5fa" };
+
 function pinMarkerStyle(
-  pin: MapPin,
   themeMode: string,
   selected: boolean,
-  zoom: number,
-  saved: boolean
+  zoom: number
 ): import("leaflet").CircleMarkerOptions {
   const dark = themeMode === "dark";
-  const baseAudited = {
-    color: dark ? "#059669" : "#047857",
-    fillColor: dark ? "#6ee7b7" : "#34d399",
-    fillOpacity: 0.92,
-    weight: selected ? 4 : 2,
-  };
-  const baseNotAudited = {
-    color: dark ? "#3b82f6" : "#1e40af",
-    fillColor: dark ? "#60a5fa" : "#60a5fa",
+  const colors = dark ? PIN_COLOR_DARK : PIN_COLOR;
+  return {
+    radius: radiusForZoom(zoom, selected),
+    ...colors,
     fillOpacity: 0.9,
     weight: selected ? 4 : 2,
   };
-  const style = pin.audited ? baseAudited : baseNotAudited;
-  if (saved) {
-    return {
-      radius: radiusForZoom(zoom, selected) + 1,
-      ...style,
-      color: "#b45309",
-      weight: selected ? 5 : 3.5,
-    };
-  }
-  return {
-    radius: radiusForZoom(zoom, selected),
-    ...style,
-  };
 }
 
-function pinStackOrder(pin: MapPin): number {
-  return pin.audited ? 2 : 1;
-}
+const HEART_SVG =
+  '<svg class="wt-map-pin__heart-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
-function parseBboxClient(raw: string): [number, number, number, number] | null {
-  const parts = raw.split(",").map(Number);
-  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return null;
-  const [minLat, minLon, maxLat, maxLon] = parts as [number, number, number, number];
-  if (minLat >= maxLat || minLon >= maxLon) return null;
-  return [minLat, minLon, maxLat, maxLon];
+function savedPinIcon(L: typeof import("leaflet"), selected: boolean) {
+  const size = selected ? 30 : 24;
+  return L.divIcon({
+    className: `wt-map-pin wt-map-pin--saved${selected ? " wt-map-pin--selected" : ""}`,
+    html: `<span class="wt-map-pin__heart">${HEART_SVG}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
 }
 
 function formatBoundsBbox(b: import("leaflet").LatLngBounds): string {
@@ -152,7 +131,6 @@ function destroyMap(
   mapRef: React.MutableRefObject<import("leaflet").Map | null>,
   layerGroupRef: React.MutableRefObject<import("leaflet").FeatureGroup | null>,
   userLayerRef: React.MutableRefObject<import("leaflet").LayerGroup | null>,
-  coverageLayerRef: React.MutableRefObject<import("leaflet").LayerGroup | null>,
   tileLayerRef: React.MutableRefObject<import("leaflet").TileLayer | null>,
   leafletRef: React.MutableRefObject<typeof import("leaflet") | null>,
   containerRef: React.RefObject<HTMLDivElement | null>
@@ -163,13 +141,18 @@ function destroyMap(
   }
   layerGroupRef.current = null;
   userLayerRef.current = null;
-  coverageLayerRef.current = null;
   tileLayerRef.current = null;
   leafletRef.current = null;
   if (containerRef.current) {
     delete (containerRef.current as HTMLDivElement & { _leaflet_id?: number })._leaflet_id;
   }
 }
+
+function persistMapCamera(map: import("leaflet").Map) {
+  const center = map.getCenter();
+  saveMapCamera({ lat: center.lat, lon: center.lng, zoom: map.getZoom() });
+}
+
 
 export function RegionMap({
   nodeUrl,
@@ -183,13 +166,14 @@ export function RegionMap({
   userLocation = null,
   radiusKm = null,
   savedIds,
-  interactionMode = "select",
   autoFit = true,
   className,
   viewportBrowse = false,
   onDataNodeUrlChange,
   onViewportPinsChange,
   visible = true,
+  onLocateMe,
+  locateLoading = false,
 }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
@@ -197,21 +181,15 @@ export function RegionMap({
   const [internalLoading, setInternalLoading] = useState(false);
   const [internalError, setInternalError] = useState("");
   const [mapReady, setMapReady] = useState(false);
-  const [contributor, setContributor] = useState(false);
   const [zoomHint, setZoomHint] = useState(false);
+  const [areaDirty, setAreaDirty] = useState(false);
+  const initialViewportSearchDone = useRef(false);
   const [coverageHint, setCoverageHint] = useState(false);
 
-  const nodeUrlRef = useRef(nodeUrl);
   const homeNodeUrlRef = useRef(homeNodeUrl);
   const dataNodeUrlRef = useRef(nodeUrl);
-  nodeUrlRef.current = nodeUrl;
   homeNodeUrlRef.current = homeNodeUrl;
   dataNodeUrlRef.current = nodeUrl;
-
-  useEffect(() => {
-    const token = readAuthToken();
-    setContributor(canContribute(roleFromToken(token)));
-  }, []);
 
   const useExternal = externalPins !== undefined && !viewportBrowse;
   const pins = useExternal ? (externalPins ?? []) : internalPins;
@@ -222,17 +200,13 @@ export function RegionMap({
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layerGroupRef = useRef<import("leaflet").FeatureGroup | null>(null);
   const userLayerRef = useRef<import("leaflet").LayerGroup | null>(null);
-  const coverageLayerRef = useRef<import("leaflet").LayerGroup | null>(null);
   const tileLayerRef = useRef<import("leaflet").TileLayer | null>(null);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
-  const markerByIdRef = useRef<Map<string, import("leaflet").CircleMarker>>(new Map());
+  const markerByIdRef = useRef<Map<string, MapMarker>>(new Map());
   const pinsRef = useRef<MapPin[]>([]);
   const selectedIdRef = useRef<string | null>(null);
   const savedIdsRef = useRef<Set<string>>(new Set());
   const lastFitSignatureRef = useRef<string | null>(null);
-  const lastFocusedSelectRef = useRef<string | null>(null);
-  const clearingSelectionRef = useRef(false);
-  const rebuildingMarkersRef = useRef(false);
   const updateRadiiRef = useRef<(() => void) | null>(null);
   const viewportFetchRef = useRef(0);
   const onSelectPropertyRef = useRef(onSelectProperty);
@@ -250,33 +224,6 @@ export function RegionMap({
     onViewportPinsChange?.(internalPins);
   }, [viewportBrowse, internalPins, onViewportPinsChange]);
 
-  const showCoverage = useCallback((regions: CoverageRegion[]) => {
-    const L = leafletRef.current;
-    const coverage = coverageLayerRef.current;
-    if (!L || !coverage) return;
-    coverage.clearLayers();
-    for (const r of regions) {
-      const bb = parseBboxClient(r.bbox);
-      if (!bb) continue;
-      const [minLat, minLon, maxLat, maxLon] = bb;
-      const rect = L.rectangle(
-        [
-          [minLat, minLon],
-          [maxLat, maxLon],
-        ],
-        {
-          color: r.self ? "#0f766e" : "#1d4ed8",
-          weight: 1.5,
-          fillOpacity: 0.12,
-          dashArray: r.self ? undefined : "4 4",
-        }
-      );
-      const label = r.region || r.nodeId || r.url;
-      rect.bindTooltip(label, { sticky: true });
-      rect.addTo(coverage);
-    }
-  }, []);
-
   const refreshViewport = useCallback(async () => {
     if (!viewportBrowse || useExternal) return;
     const map = mapRef.current;
@@ -285,16 +232,11 @@ export function RegionMap({
     const zoom = map.getZoom();
     if (zoom < MAP_PIN_MIN_ZOOM) {
       setZoomHint(true);
+      setAreaDirty(false);
       setCoverageHint(false);
       setInternalPins([]);
       setInternalError("");
       setInternalLoading(false);
-      try {
-        const regions = await fetchCoverageRegions(homeNodeUrlRef.current);
-        showCoverage(regions);
-      } catch {
-        showCoverage([]);
-      }
       return;
     }
 
@@ -313,18 +255,10 @@ export function RegionMap({
       if (!peer || peer.matched === "fallback") {
         setCoverageHint(true);
         setInternalPins([]);
-        coverageLayerRef.current?.clearLayers();
-        try {
-          const regions = await fetchCoverageRegions(homeNodeUrlRef.current);
-          showCoverage(regions);
-        } catch {
-          /* ignore */
-        }
         return;
       }
 
       setCoverageHint(false);
-      coverageLayerRef.current?.clearLayers();
       const dataUrl = toClientNodeUrl(peer.url);
       dataNodeUrlRef.current = dataUrl;
       onDataNodeUrlChange?.(dataUrl);
@@ -336,6 +270,7 @@ export function RegionMap({
       if (fetchId !== viewportFetchRef.current) return;
       if (e instanceof MapPinsError && e.code === "BBOX_TOO_LARGE") {
         setZoomHint(true);
+        setAreaDirty(false);
         setInternalPins([]);
         setInternalError("");
       } else {
@@ -345,7 +280,7 @@ export function RegionMap({
     } finally {
       if (fetchId === viewportFetchRef.current) setInternalLoading(false);
     }
-  }, [viewportBrowse, useExternal, showCoverage, onDataNodeUrlChange, t]);
+  }, [viewportBrowse, useExternal, onDataNodeUrlChange, t]);
 
   // Legacy internal fetch (non-viewport): load region=1 style not available on peers —
   // callers should pass external pins or use viewportBrowse.
@@ -362,12 +297,12 @@ export function RegionMap({
         mapRef,
         layerGroupRef,
         userLayerRef,
-        coverageLayerRef,
         tileLayerRef,
         leafletRef,
         containerRef
       );
       lastFitSignatureRef.current = null;
+      initialViewportSearchDone.current = false;
       setMapReady(false);
       return;
     }
@@ -379,10 +314,19 @@ export function RegionMap({
       if (cancelled || !containerRef.current || mapRef.current) return;
 
       leafletRef.current = L;
-      const initialCenter: [number, number] = userLocation
-        ? [userLocation.lat, userLocation.lon]
-        : [52.3, 5.3];
-      const initialZoom = userLocation ? 12 : viewportBrowse ? 6 : 7;
+      const restored = readMapCamera();
+      let initialCenter: [number, number];
+      let initialZoom: number;
+      if (restored) {
+        initialCenter = [restored.lat, restored.lon];
+        initialZoom = restored.zoom;
+      } else if (userLocation) {
+        initialCenter = [userLocation.lat, userLocation.lon];
+        initialZoom = 12;
+      } else {
+        initialCenter = [52.3, 5.3];
+        initialZoom = viewportBrowse ? 6 : 7;
+      }
       const map = L.map(containerRef.current, { preferCanvas: true }).setView(
         initialCenter,
         initialZoom
@@ -394,9 +338,12 @@ export function RegionMap({
 
       layerGroupRef.current = L.featureGroup().addTo(map);
       userLayerRef.current = L.layerGroup().addTo(map);
-      coverageLayerRef.current = L.layerGroup().addTo(map);
 
-      map.on("zoomend", () => updateRadiiRef.current?.());
+      map.on("zoomend", () => {
+        updateRadiiRef.current?.();
+        persistMapCamera(map);
+      });
+      map.on("moveend", () => persistMapCamera(map));
 
       requestAnimationFrame(() => {
         if (!mapRef.current) return;
@@ -412,12 +359,12 @@ export function RegionMap({
         mapRef,
         layerGroupRef,
         userLayerRef,
-        coverageLayerRef,
         tileLayerRef,
         leafletRef,
         containerRef
       );
       lastFitSignatureRef.current = null;
+      initialViewportSearchDone.current = false;
       setMapReady(false);
     };
   }, [active, userLocation, viewportBrowse]);
@@ -436,42 +383,35 @@ export function RegionMap({
     const map = mapRef.current;
     if (!map) return;
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const schedule = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        void refreshViewport();
-      }, 280);
+    const syncChromeAfterMove = () => {
+      if (!initialViewportSearchDone.current) return;
+      persistMapCamera(map);
+      const zoom = map.getZoom();
+      if (zoom < MAP_PIN_MIN_ZOOM) {
+        setZoomHint(true);
+        setAreaDirty(false);
+        setCoverageHint(false);
+        setInternalPins([]);
+        return;
+      }
+      // Zoomed in far enough: drop the zoom hint so “Search this area” can appear.
+      setZoomHint(false);
+      setAreaDirty(true);
     };
 
-    map.on("moveend", schedule);
-    map.on("zoomend", schedule);
-    schedule();
+    map.on("moveend", syncChromeAfterMove);
+    map.on("zoomend", syncChromeAfterMove);
+
+    if (!initialViewportSearchDone.current) {
+      initialViewportSearchDone.current = true;
+      void refreshViewport().then(() => setAreaDirty(false));
+    }
 
     return () => {
-      if (timer) clearTimeout(timer);
-      map.off("moveend", schedule);
-      map.off("zoomend", schedule);
+      map.off("moveend", syncChromeAfterMove);
+      map.off("zoomend", syncChromeAfterMove);
     };
   }, [mapReady, viewportBrowse, useExternal, refreshViewport]);
-
-  function ensurePopup(marker: import("leaflet").CircleMarker, pin: MapPin) {
-    if (marker.getPopup()) return;
-    marker.bindPopup(
-      buildAccessMapPopup(
-        pin,
-        homeNodeUrlRef.current,
-        dataNodeUrlRef.current || nodeUrlRef.current,
-        {
-          view: t("ui.mapViewProperty"),
-          audit: t("ui.mapViewAudit"),
-          auditedOpen: t("ui.mapAuditedOpen"),
-        },
-        contributor
-      ),
-      { maxWidth: 260 }
-    );
-  }
 
   function renderMarkers() {
     const L = leafletRef.current;
@@ -480,69 +420,37 @@ export function RegionMap({
     const userGroup = userLayerRef.current;
     if (!L || !map || !group || !userGroup) return;
 
-    rebuildingMarkersRef.current = true;
     group.clearLayers();
     userGroup.clearLayers();
     markerByIdRef.current.clear();
 
     const zoom = map.getZoom();
+    const savedSet = savedIdsRef.current;
 
     const sorted = [...pinsRef.current]
       .filter((p) => p.lat !== 0 && p.lon !== 0)
       .sort((a, b) => {
-        const order = pinStackOrder(a) - pinStackOrder(b);
-        return order !== 0 ? order : a.id.localeCompare(b.id);
+        const aSaved = savedSet.has(a.id) ? 1 : 0;
+        const bSaved = savedSet.has(b.id) ? 1 : 0;
+        if (aSaved !== bSaved) return aSaved - bSaved;
+        return a.id.localeCompare(b.id);
       });
 
     for (const pin of sorted) {
       const selected = pin.id === selectedIdRef.current;
-      const saved = savedIdsRef.current.has(pin.id);
-      const marker = L.circleMarker(
-        [pin.lat, pin.lon],
-        pinMarkerStyle(pin, mode, selected, zoom, saved)
-      );
-      marker.bindTooltip(buildAccessMapTooltip(pin), {
-        direction: "top",
-        offset: [0, -6],
-        opacity: 1,
-        className: "wt-map-tooltip-wrap",
-        sticky: false,
-      });
+      const saved = savedSet.has(pin.id);
+      const marker: MapMarker = saved
+        ? L.marker([pin.lat, pin.lon], { icon: savedPinIcon(L, selected), zIndexOffset: 400 })
+        : L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(mode, selected, zoom));
       marker.on("click", () => {
-        // Selection effect opens the popup after marker rebuild; avoid open-then-destroy flicker.
-        onSelectProperty?.(pin);
-      });
-      marker.on("popupclose", () => {
-        // clearLayers() closes popups — ignore that so selection/rebuild doesn't clear parent state
-        if (rebuildingMarkersRef.current || clearingSelectionRef.current) return;
-        if (selectedIdRef.current !== pin.id) return;
-        clearingSelectionRef.current = true;
-        lastFocusedSelectRef.current = null;
-        onSelectPropertyRef.current?.(null);
-        queueMicrotask(() => {
-          clearingSelectionRef.current = false;
-        });
+        if (selectedIdRef.current === pin.id) {
+          onSelectPropertyRef.current?.(null);
+        } else {
+          onSelectPropertyRef.current?.(pin);
+        }
       });
       marker.addTo(group);
       markerByIdRef.current.set(pin.id, marker);
-      if (pin.audited || saved) marker.bringToFront();
-    }
-
-    rebuildingMarkersRef.current = false;
-
-    // Restore popup after rebuild if this pin is still the focused selection (e.g. viewport refresh).
-    const focusedId = selectedIdRef.current;
-    if (focusedId && lastFocusedSelectRef.current === focusedId) {
-      const focusedMarker = markerByIdRef.current.get(focusedId);
-      const focusedPin = pinsRef.current.find((p) => p.id === focusedId);
-      if (focusedMarker && focusedPin) {
-        ensurePopup(focusedMarker, focusedPin);
-        requestAnimationFrame(() => {
-          if (selectedIdRef.current !== focusedId) return;
-          if (lastFocusedSelectRef.current !== focusedId) return;
-          markerByIdRef.current.get(focusedId)?.openPopup();
-        });
-      }
     }
 
     updateRadiiRef.current = () => {
@@ -550,8 +458,10 @@ export function RegionMap({
       if (!m) return;
       const z = m.getZoom();
       markerByIdRef.current.forEach((marker, id) => {
-        const bump = savedIdsRef.current.has(id) ? 1 : 0;
-        marker.setRadius(radiusForZoom(z, id === selectedIdRef.current) + bump);
+        if (!("setRadius" in marker)) return;
+        (marker as import("leaflet").CircleMarker).setRadius(
+          radiusForZoom(z, id === selectedIdRef.current)
+        );
       });
     };
 
@@ -576,7 +486,7 @@ export function RegionMap({
       }
     }
 
-    // Do not re-zoom / re-open popup on marker rebuild — that fights user zoom-out.
+    // Do not re-zoom on marker rebuild — that fights user zoom-out.
     if (viewportBrowse) return;
 
     const fitSignature = `${sorted.map((p) => p.id).join(",")}|${userLocation ? `${userLocation.lat},${userLocation.lon}` : ""}|${radiusKm ?? ""}`;
@@ -592,54 +502,7 @@ export function RegionMap({
   useEffect(() => {
     renderMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pins, mode, selectedPropertyId, userLocation, radiusKm, savedIds, onSelectProperty, autoFit, mapReady, contributor, t, viewportBrowse]);
-
-  useEffect(() => {
-    if (!selectedPropertyId) {
-      lastFocusedSelectRef.current = null;
-      return;
-    }
-    if (!mapReady) return;
-    // Wait until markers exist (renderMarkers runs in an earlier effect this tick).
-    const marker = markerByIdRef.current.get(selectedPropertyId);
-    const map = mapRef.current;
-    if (!marker || !map) return;
-    if (lastFocusedSelectRef.current === selectedPropertyId) return;
-    lastFocusedSelectRef.current = selectedPropertyId;
-
-    const openFocusedPopup = () => {
-      const current = markerByIdRef.current.get(selectedPropertyId);
-      if (!current || selectedIdRef.current !== selectedPropertyId) return;
-      const pin = pinsRef.current.find((p) => p.id === selectedPropertyId);
-      if (pin) ensurePopup(current, pin);
-      current.openPopup();
-    };
-
-    try {
-      const latLng = marker.getLatLng();
-      const selectedPin = pinsRef.current.find((pin) => pin.id === selectedPropertyId);
-      if (selectedPin) ensurePopup(marker, selectedPin);
-
-      const zoom = map.getZoom();
-      if (zoom < SELECT_ZOOM_FLOOR) {
-        // Zoom in once to neighborhood/street; popup restored after moveend / pin refresh.
-        map.setView(latLng, SELECT_ZOOM_FLOOR, { animate: true });
-        map.once("moveend", () => {
-          if (selectedIdRef.current !== selectedPropertyId) return;
-          openFocusedPopup();
-        });
-      } else {
-        // Keep zoom; always center the selected pin.
-        map.panTo(latLng, { animate: true });
-        map.once("moveend", () => {
-          if (selectedIdRef.current !== selectedPropertyId) return;
-          openFocusedPopup();
-        });
-      }
-    } catch {
-      // ignore
-    }
-  }, [selectedPropertyId, mapReady, pins]);
+  }, [pins, mode, selectedPropertyId, userLocation, radiusKm, savedIds, onSelectProperty, autoFit, mapReady, t, viewportBrowse]);
 
   const showMapShell = viewportBrowse || pins.length > 0 || useExternal;
 
@@ -649,16 +512,14 @@ export function RegionMap({
         <div className="fk-discovery-skeleton fk-discovery-skeleton--map" aria-hidden="true" />
       )}
 
-      {error && <p className="status-err">{error}</p>}
-
-      {zoomHint && viewportBrowse && (
-        <p className="status-muted" role="status">
-          {t("ui.mapZoomToSeePlaces")}
+      {error && (
+        <p className={`status-err${showMapShell ? " fk-map-inline-error" : ""}`} role="alert">
+          {error}
         </p>
       )}
 
       {coverageHint && viewportBrowse && !zoomHint && (
-        <p className="status-muted" role="status">
+        <p className="status-muted fk-map-coverage-hint" role="status">
           {t("ui.regionNotCovered")} — {t("ui.regionNotCoveredHint")}
         </p>
       )}
@@ -672,10 +533,53 @@ export function RegionMap({
 
       {showMapShell && (
         <div className="wt-map-frame fk-map-frame">
+          {zoomHint && viewportBrowse && (
+            <p className="fk-map-zoom-hint" role="status">
+              {t("ui.mapZoomToSeePlaces")}
+            </p>
+          )}
           {loading && (
-            <div className="fk-map-loading-overlay" aria-hidden="true">
-              <span className="fk-map-loading-spinner" />
+            <div className="fk-map-loading-overlay" role="status" aria-live="polite">
+              <span className="fk-map-loading-spinner" aria-hidden="true" />
+              <span className="fk-map-loading-label">{t("ui.searchingArea")}</span>
             </div>
+          )}
+          {!loading && locateLoading && (
+            <div className="fk-map-loading-overlay fk-map-loading-overlay--locate" role="status" aria-live="polite">
+              <span className="fk-map-loading-spinner" aria-hidden="true" />
+              <span className="fk-map-loading-label">{t("ui.locatingYou")}</span>
+            </div>
+          )}
+          {viewportBrowse && areaDirty && !zoomHint && !loading && !locateLoading && (
+            <button
+              type="button"
+              className="fk-map-search-area-btn"
+              onClick={() => {
+                void refreshViewport().then(() => setAreaDirty(false));
+              }}
+            >
+              {t("ui.searchThisArea")}
+            </button>
+          )}
+          {onLocateMe && (
+            <button
+              type="button"
+              className="fk-map-locate-btn"
+              onClick={onLocateMe}
+              disabled={locateLoading}
+              title={t("ui.searchNearMe")}
+              aria-label={t("ui.searchNearMe")}
+            >
+              {locateLoading ? (
+                <span className="fk-map-loading-spinner fk-map-loading-spinner--sm" />
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                  <circle cx="12" cy="12" r="8" />
+                </svg>
+              )}
+            </button>
           )}
           <div
             ref={containerRef}
@@ -683,31 +587,6 @@ export function RegionMap({
             aria-label={t("ui.mapViewProperty")}
             className="wt-map-container fk-map-container"
           />
-          <div className="wt-map-legend" aria-hidden="true">
-            <span className="wt-map-legend-item">
-              <span className="wt-map-legend-swatch wt-map-legend-swatch--audited" />
-              {t("ui.mapAudited")}
-            </span>
-            <span className="wt-map-legend-item">
-              <span className="wt-map-legend-swatch wt-map-legend-swatch--not-audited" />
-              {t("ui.mapNotAudited")}
-            </span>
-            {viewportBrowse && (
-              <span className="wt-map-legend-item">{t("ui.mapCoverageLegend")}</span>
-            )}
-            {savedIds && savedIds.size > 0 && (
-              <span className="wt-map-legend-item">
-                <span className="wt-map-legend-swatch wt-map-legend-swatch--saved" />
-                {t("ui.discoverySaved")}
-              </span>
-            )}
-            {userLocation && (
-              <span className="wt-map-legend-item">
-                <span className="wt-map-legend-swatch wt-map-legend-swatch--user" />
-                {t("ui.discoveryYouAreHere")}
-              </span>
-            )}
-          </div>
         </div>
       )}
     </div>

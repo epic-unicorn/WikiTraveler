@@ -1,4 +1,4 @@
-import { getFieldLabel, getRoomTypeLabel, LOCALE_LABELS, t, type Locale } from "./index";
+import { getFieldLabel, getFieldEnumLabel, getRoomTypeLabel, isFieldEnumValue, LOCALE_LABELS, t, type Locale } from "./index";
 
 export const PROSE_FIELD_NAMES = new Set([
   "notes",
@@ -74,12 +74,20 @@ export function formatFactValue(
   let displayValue = rawValue;
   if (rawValue === "yes") displayValue = t("ui.yes", locale);
   else if (rawValue === "no") displayValue = t("ui.no", locale);
+  else if (rawValue === "partial") displayValue = t("ui.partial", locale);
   else if (fieldName === "room_types_available") {
     displayValue = rawValue
       .split(",")
       .map((part) => part.trim())
       .filter(Boolean)
       .map((id) => getRoomTypeLabel(id, locale))
+      .join(", ");
+  } else if (isFieldEnumValue(fieldName, rawValue, locale)) {
+    displayValue = rawValue
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((token) => getFieldEnumLabel(fieldName, token, locale))
       .join(", ");
   } else {
     const unit = options.unit ?? FIELD_UNITS[fieldName];

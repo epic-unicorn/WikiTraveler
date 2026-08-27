@@ -25,45 +25,67 @@ export type FactSection = {
 };
 
 /** Audit-step scope for property-level photos (not room-specific). */
-export type AuditPhotoStepScope = "step:building_access" | "step:shared_facilities";
+export type AuditPhotoStepScope =
+  | "step:entrance"
+  | "step:mobility"
+  | "step:bathroom"
+  | "step:communication"
+  | "step:building_access"
+  | "step:shared_facilities";
 
 const SECTION_RULES: Array<{ id: string; labelKey: string; fields: string[]; prefixes?: string[] }> = [
   {
     id: "entrance",
     labelKey: "ui.propertySectionEntrance",
-    fields: ["step_free_entrance", "ramp_present", "door_width_cm", "tactile_paving"],
+    fields: [
+      "step_free_entrance",
+      "automatic_door",
+      "ramp_present",
+      "door_width_cm",
+      "path_to_entrance",
+    ],
   },
   {
-    id: "circulation",
+    id: "mobility",
     labelKey: "ui.propertySectionCirculation",
-    fields: ["elevator_present", "elevator_floor_count", "turning_circle_cm"],
+    fields: [
+      "elevator_present",
+      "elevator_width_cm",
+      "corridor_min_width_cm",
+      "parking_accessible",
+      "pool_lift",
+      "elevator_floor_count",
+    ],
   },
   {
     id: "room",
     labelKey: "ui.propertySectionRoom",
     fields: [
-      "accessible_room_count",
-      "accessible_room_description",
       "room_types_available",
+      "accessible_room_description",
+      "step_free_room",
+      "clear_space_beside_bed",
       "bed_height_cm",
-      "roll_in_shower",
+      "turning_circle_cm",
+      "accessible_room_count",
     ],
     prefixes: ["room-type:"],
   },
   {
     id: "bathroom",
     labelKey: "ui.propertySectionBathroom",
-    fields: ["accessible_bathroom", "grab_bars_bathroom"],
+    fields: ["accessible_bathroom", "roll_in_shower", "grab_bars_bathroom"],
   },
   {
-    id: "parking",
-    labelKey: "ui.propertySectionParking",
-    fields: ["parking_accessible", "pool_lift"],
-  },
-  {
-    id: "sensory",
+    id: "communication",
     labelKey: "ui.propertySectionSensory",
-    fields: ["hearing_loop", "braille_signage", "service_animal_policy"],
+    fields: [
+      "hearing_loop",
+      "braille_signage",
+      "tactile_paving",
+      "visual_alarms",
+      "service_animal_policy",
+    ],
   },
   {
     id: "notes",
@@ -73,22 +95,34 @@ const SECTION_RULES: Array<{ id: string; labelKey: string; fields: string[]; pre
 ];
 
 const SECTION_STEP_SCOPE: Record<string, AuditPhotoStepScope | null> = {
-  entrance: "step:building_access",
-  circulation: "step:building_access",
-  parking: "step:building_access",
-  notes: "step:building_access",
-  bathroom: "step:shared_facilities",
-  sensory: "step:shared_facilities",
-  other: "step:shared_facilities",
+  entrance: "step:entrance",
+  mobility: "step:mobility",
+  bathroom: "step:bathroom",
+  communication: "step:communication",
+  notes: "step:communication",
+  other: "step:communication",
   room: null,
 };
 
-export function stepScopeKey(step: "building_access" | "shared_facilities"): AuditPhotoStepScope {
-  return step === "building_access" ? "step:building_access" : "step:shared_facilities";
+const PHOTO_STEP_SCOPES = new Set<string>([
+  "step:entrance",
+  "step:mobility",
+  "step:bathroom",
+  "step:communication",
+  "step:building_access",
+  "step:shared_facilities",
+]);
+
+export function stepScopeKey(
+  step: "entrance" | "mobility" | "bathroom" | "communication" | "building_access" | "shared_facilities"
+): AuditPhotoStepScope {
+  if (step === "building_access") return "step:building_access";
+  if (step === "shared_facilities") return "step:shared_facilities";
+  return `step:${step}` as AuditPhotoStepScope;
 }
 
 export function isStepPhotoScope(scopeKey?: string | null): scopeKey is AuditPhotoStepScope {
-  return scopeKey === "step:building_access" || scopeKey === "step:shared_facilities";
+  return Boolean(scopeKey && PHOTO_STEP_SCOPES.has(scopeKey));
 }
 
 export function isRoomPhotoScope(scopeKey?: string | null): boolean {
@@ -182,7 +216,23 @@ export function photosForSection(
 
   const step = SECTION_STEP_SCOPE[section.id];
   if (!step) return [];
-  return photosForStepScope(photos, step).map((p) => ({ ...p, groupKey: step }));
+  const modern = photosForStepScope(photos, step).map((p) => ({ ...p, groupKey: step }));
+  // Also surface legacy building_access / shared_facilities photos under matching sections.
+  if (section.id === "entrance" || section.id === "mobility") {
+    const legacy = photosForStepScope(photos, "step:building_access").map((p) => ({
+      ...p,
+      groupKey: "step:building_access" as const,
+    }));
+    return [...modern, ...legacy];
+  }
+  if (section.id === "bathroom" || section.id === "communication") {
+    const legacy = photosForStepScope(photos, "step:shared_facilities").map((p) => ({
+      ...p,
+      groupKey: "step:shared_facilities" as const,
+    }));
+    return [...modern, ...legacy];
+  }
+  return modern;
 }
 
 /** Explicit field-linked photos only (strict match). Step/room photos are not per-fact. */
@@ -246,10 +296,12 @@ export function groupPhotosByStepScope(photos: AuditPhotoRef[]): PhotoStepGroup[
   }
 
   const order = (key: string) => {
-    if (key === "step:building_access") return 0;
-    if (key === "step:shared_facilities") return 1;
+    if (key === "step:entrance" || key === "step:building_access") return 0;
+    if (key === "step:mobility") return 1;
     if (key.startsWith("room-type:")) return 2;
-    return 3;
+    if (key === "step:bathroom" || key === "step:shared_facilities") return 3;
+    if (key === "step:communication") return 4;
+    return 5;
   };
 
   return Array.from(groups.values()).sort((a, b) => {

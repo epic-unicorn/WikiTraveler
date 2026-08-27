@@ -68,24 +68,31 @@ export async function searchProperties(
   const pageSize = options?.pageSize ?? 30;
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
-  const res = await fetch(`${nodeUrl}/api/properties?${params}`, {
-    signal,
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error("search failed");
-  const data = (await res.json()) as {
-    properties?: PropertySummary[];
-    total?: number;
-    page?: number;
-    pageSize?: number;
-  };
-  const properties = data.properties ?? [];
-  return {
-    properties,
-    total: typeof data.total === "number" ? data.total : properties.length,
-    page: typeof data.page === "number" ? data.page : page,
-    pageSize: typeof data.pageSize === "number" ? data.pageSize : pageSize,
-  };
+  const cacheKey = `search:${nodeUrl}:${params.toString()}`;
+  return dedupedFetch(
+    cacheKey,
+    async () => {
+      const res = await fetch(`${nodeUrl}/api/properties?${params}`, {
+        signal,
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("search failed");
+      const data = (await res.json()) as {
+        properties?: PropertySummary[];
+        total?: number;
+        page?: number;
+        pageSize?: number;
+      };
+      const properties = data.properties ?? [];
+      return {
+        properties,
+        total: typeof data.total === "number" ? data.total : properties.length,
+        page: typeof data.page === "number" ? data.page : page,
+        pageSize: typeof data.pageSize === "number" ? data.pageSize : pageSize,
+      };
+    },
+    3 * 60 * 1000
+  );
 }
 
 export async function fetchNearbyProperties(
@@ -310,6 +317,9 @@ export type PropertyAccessibilityResponse = {
     website?: string | null;
     sourceLinks?: Array<{ label: string; url: string }>;
     photos?: Array<{ url: string; caption?: string | null; source?: string }>;
+    claimedByUserId?: string | null;
+    claimedAt?: string | null;
+    isClaimedByMe?: boolean;
   };
   facts: Array<{
     fieldName: string;
@@ -431,4 +441,20 @@ export async function fetchContributorStats(nodeUrl: string) {
     signals: { submitted: number; resolved: number; open: number };
     auditsSubmitted: number;
   }>;
+}
+
+export async function claimProperty(nodeUrl: string, propertyId: string): Promise<void> {
+  const res = await fetch(`${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/claim`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("claim failed");
+}
+
+export async function unclaimProperty(nodeUrl: string, propertyId: string): Promise<void> {
+  const res = await fetch(`${nodeUrl}/api/properties/${encodeURIComponent(propertyId)}/claim`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("unclaim failed");
 }

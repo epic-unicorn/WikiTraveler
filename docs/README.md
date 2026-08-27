@@ -50,6 +50,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Voluntary bootstrap peer directory |
 | [LENS.md](./LENS.md) | Chrome extension distribution (Release zip / Store) |
 | [apps/README.md](../apps/README.md) | End-to-end flow walkthroughs (SDK, Access, Lens) |
+| [ACCESS-UX.md](./ACCESS-UX.md) | Access PWA IA, nav, and audit catalogue (redesign) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, API surface, gossip, auth, audit photo scopes |
 | [rfcs/](./rfcs/README.md) | RFC process for gossip / auth / schema changes |
 

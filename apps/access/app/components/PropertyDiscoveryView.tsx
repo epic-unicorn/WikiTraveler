@@ -8,6 +8,8 @@ import type { MapPin } from "../lib/accessApi";
 import { propertyHref } from "../lib/propertyHref";
 import { saveAccessReturn, type AccessReturnState } from "../lib/navigationReturn";
 import { useSavedPlaceIds } from "../lib/savedPlaces";
+import { AccessibilityIconRow } from "./AccessibilityIconRow";
+import { PropertyMapPreview } from "./PropertyMapPreview";
 import {
   getDiscoveryViewMode,
   pinsFromSummaries,
@@ -71,11 +73,17 @@ interface Props {
   returnState?: AccessReturnState;
   onViewModeChange?: (mode: DiscoveryViewMode) => void;
   initialViewMode?: DiscoveryViewMode | null;
-  /** Browse without a search query: viewport-scoped pins + coverage (RFC-0002 M3). */
+  /** Browse without a search query: viewport-scoped pins (RFC-0002 M3). */
   viewportBrowse?: boolean;
   onDataNodeUrlChange?: (url: string) => void;
   /** Viewport browse pins for list mode (map → list). */
   onViewportPinsChange?: (pins: MapPin[]) => void;
+  onLocateMe?: () => void;
+  locateLoading?: boolean;
+  /** Compact result counts / place hint / pagination under Map|List tabs. */
+  resultsMeta?: ReactNode;
+  /** Optional title shown at the top of list mode. */
+  listTitle?: string;
 }
 
 export function PropertyDiscoveryView({
@@ -97,9 +105,14 @@ export function PropertyDiscoveryView({
   viewportBrowse = false,
   onDataNodeUrlChange,
   onViewportPinsChange,
+  onLocateMe,
+  locateLoading = false,
+  resultsMeta,
+  listTitle,
 }: Props) {
   const { t, getTierLabel } = useLocale();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [viewMode, setViewMode] = useState<DiscoveryViewMode>("map");
   const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
   const listRef = useRef<HTMLDivElement>(null);
@@ -143,19 +156,25 @@ export function PropertyDiscoveryView({
 
   const handleSelect = useCallback((id: string | null) => {
     setSelectedId(id);
-    if (!id) return;
+    if (!id) {
+      setSelectedPin(null);
+      return;
+    }
     const el = itemRefs.current.get(id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, []);
 
-  const handleMapSelect = useCallback(
-    (pin: MapPin | null) => {
-      handleSelect(pin?.id ?? null);
-    },
-    [handleSelect]
-  );
+  const handleMapSelect = useCallback((pin: MapPin | null) => {
+    setSelectedPin(pin);
+    setSelectedId(pin?.id ?? null);
+  }, []);
+
+  const closeMapPreview = useCallback(() => {
+    setSelectedPin(null);
+    setSelectedId(null);
+  }, []);
 
   function changeViewMode(mode: DiscoveryViewMode) {
     setViewMode(mode);
@@ -169,187 +188,220 @@ export function PropertyDiscoveryView({
     <div className="fk-discovery">
       {headerExtra}
 
-      {showViewModeToggle && (
-        <div className="fk-discovery-view-toggle" role="tablist" aria-label={t("ui.discoveryViewMode")}>
-          {(["map", "list"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              role="tab"
-              aria-selected={viewMode === mode}
-              className={`fk-discovery-view-btn${viewMode === mode ? " fk-discovery-view-btn--active" : ""}`}
-              onClick={() => changeViewMode(mode)}
-            >
-              {mode === "map" ? t("ui.discoveryViewMap") : t("ui.discoveryViewList")}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="fk-discovery-chrome">
+        {showViewModeToggle && (
+          <div className="fk-discovery-tabs" role="tablist" aria-label={t("ui.discoveryViewMode")}>
+            {(["map", "list"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                id={`discovery-tab-${mode}`}
+                aria-selected={viewMode === mode}
+                aria-controls={`discovery-panel-${mode}`}
+                tabIndex={viewMode === mode ? 0 : -1}
+                className={`fk-discovery-tab${viewMode === mode ? " fk-discovery-tab--active" : ""}`}
+                onClick={() => changeViewMode(mode)}
+              >
+                {mode === "map" ? t("ui.discoveryViewMap") : t("ui.discoveryViewList")}
+              </button>
+            ))}
+          </div>
+        )}
+        {resultsMeta}
+      </div>
 
-      {hasMap ? (
-        <div
-          className={showMap ? "fk-discovery-map" : "fk-discovery-map fk-discovery-map--hidden"}
-          aria-hidden={!showMap}
-        >
-          <RegionMap
-            nodeUrl={propertyNodeUrl}
-            homeNodeUrl={homeNodeUrl}
-            active={active}
-            visible={showMap}
-            pins={viewportBrowse ? undefined : pins}
-            loading={loading}
-            error={error}
-            selectedPropertyId={selectedId}
-            onSelectProperty={handleMapSelect}
-            userLocation={userLocation}
-            radiusKm={radiusKm}
-            savedIds={savedIds}
-            interactionMode="select"
-            autoFit={mapAutoFit}
-            viewportBrowse={viewportBrowse}
-            onDataNodeUrlChange={onDataNodeUrlChange}
-            onViewportPinsChange={onViewportPinsChange}
-          />
-        </div>
-      ) : (
-        showMap &&
-        !loading &&
-        properties.length > 0 && (
-          <p className="status-muted fk-discovery-map-unavailable">{t("ui.discoveryMapUnavailable")}</p>
-        )
-      )}
+      <div className="fk-discovery-body">
+        {hasMap ? (
+          <div
+            id="discovery-panel-map"
+            role="tabpanel"
+            aria-labelledby="discovery-tab-map"
+            hidden={!showMap}
+            className={showMap ? "fk-discovery-map" : "fk-discovery-map fk-discovery-map--hidden"}
+            aria-hidden={!showMap}
+          >
+            <RegionMap
+              nodeUrl={propertyNodeUrl}
+              homeNodeUrl={homeNodeUrl}
+              active={active}
+              visible={showMap}
+              pins={viewportBrowse ? undefined : pins}
+              loading={loading}
+              error={error}
+              selectedPropertyId={selectedId}
+              onSelectProperty={handleMapSelect}
+              userLocation={userLocation}
+              radiusKm={radiusKm}
+              savedIds={savedIds}
+              autoFit={mapAutoFit}
+              viewportBrowse={viewportBrowse}
+              onDataNodeUrlChange={onDataNodeUrlChange}
+              onViewportPinsChange={onViewportPinsChange}
+              onLocateMe={onLocateMe}
+              locateLoading={locateLoading}
+            />
+            {showMap && selectedPin && (
+              <PropertyMapPreview
+                pin={selectedPin}
+                homeNodeUrl={homeNodeUrl}
+                propertyNodeUrl={propertyNodeUrl}
+                saved={savedIds.has(selectedPin.id)}
+                returnState={returnState}
+                onClose={closeMapPreview}
+              />
+            )}
+          </div>
+        ) : (
+          showMap &&
+          !loading &&
+          properties.length > 0 && (
+            <p className="status-muted fk-discovery-map-unavailable">{t("ui.discoveryMapUnavailable")}</p>
+          )
+        )}
 
-      {showList && (
-        <div className="fk-discovery-list" ref={listRef}>
-          {loading && (
-            <div className="fk-discovery-skeleton-list" aria-hidden="true">
-              {[1, 2, 3].map((n) => (
-                <div key={n} className="fk-discovery-skeleton fk-discovery-skeleton--card" />
-              ))}
-            </div>
-          )}
+        {showList && (
+          <div
+            id="discovery-panel-list"
+            role="tabpanel"
+            aria-labelledby="discovery-tab-list"
+            className="fk-discovery-list"
+            ref={listRef}
+          >
+            {listTitle && !loading && properties.length > 0 && (
+              <p className="fk-discovery-list-title">{listTitle}</p>
+            )}
+            {loading && (
+              <div className="fk-discovery-skeleton-list" aria-hidden="true">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="fk-discovery-skeleton fk-discovery-skeleton--card" />
+                ))}
+              </div>
+            )}
 
-          {error && <p className="status-err">{error}</p>}
+            {error && <p className="status-err">{error}</p>}
 
-          {!loading && properties.length === 0 && emptyState}
+            {!loading && properties.length === 0 && emptyState}
 
-          {!loading && properties.length > 0 && (
-            <ul className="fk-discovery-cards" aria-label={t("ui.searchFindProperties")}>
-              {properties.slice(0, visibleCount).map((property) => {
-                const selected = selectedId === property.id;
-                const saved = savedIds.has(property.id);
-                const a11y = accessibilitySummary(property.facts);
-                const dist = distanceLabel(property.distanceM);
-                const hasCoords =
-                  property.lat != null && property.lon != null && property.lat !== 0;
-                return (
-                  <li
-                    key={property.id}
-                    ref={(el) => {
-                      if (el) itemRefs.current.set(property.id, el);
-                      else itemRefs.current.delete(property.id);
-                    }}
-                    className={`fk-disco-item${selected ? " fk-disco-item--selected" : ""}${saved ? " fk-disco-item--saved" : ""}`}
-                  >
-                    <Link
-                      href={propertyHref(property.id, propertyNodeUrl, homeNodeUrl)}
-                      className="fk-disco-item-link"
-                      onClick={() => {
-                        if (returnState) saveAccessReturn(returnState);
-                        handleSelect(property.id);
+            {!loading && properties.length > 0 && (
+              <ul className="fk-discovery-cards" aria-label={t("ui.searchFindProperties")}>
+                {properties.slice(0, visibleCount).map((property) => {
+                  const selected = selectedId === property.id;
+                  const saved = savedIds.has(property.id);
+                  const a11y = accessibilitySummary(property.facts);
+                  const dist = distanceLabel(property.distanceM);
+                  const hasCoords =
+                    property.lat != null && property.lon != null && property.lat !== 0;
+                  return (
+                    <li
+                      key={property.id}
+                      ref={(el) => {
+                        if (el) itemRefs.current.set(property.id, el);
+                        else itemRefs.current.delete(property.id);
                       }}
+                      className={`fk-disco-item${selected ? " fk-disco-item--selected" : ""}${saved ? " fk-disco-item--saved" : ""}`}
                     >
-                      <span className="fk-disco-item-text">
-                        <span className="fk-disco-item-head">
-                          {saved && (
-                            <svg
-                              className="fk-disco-item-saved-icon"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              aria-hidden="true"
-                            >
-                              <path d="M6 2h12a1 1 0 0 1 1 1v18l-7-4-7 4V3a1 1 0 0 1 1-1z" />
-                            </svg>
-                          )}
-                          <span className="fk-disco-item-name">{property.name}</span>
-                        </span>
-                        <span className="fk-disco-item-meta">
-                          <span className="fk-disco-item-loc">{property.location}</span>
-                          {dist && <span className="fk-disco-item-dist">{dist}</span>}
-                        </span>
-                        <span className="fk-disco-item-a11y">
-                          {a11y ? (
-                            <span
-                              className="fk-disco-a11y-badge"
-                              style={getTierStyle(a11y.tier)}
-                              title={t("ui.discoveryA11yLevel", {
-                                tier: getTierLabel(a11y.tier),
-                              })}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="12" cy="4" r="2" />
-                                <path d="M6 8h12M12 8v6m0 0l-3 6m3-6l3 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-                              </svg>
-                              {t("ui.discoveryA11yCount", { count: a11y.count })}
-                            </span>
-                          ) : (
-                            <span className="fk-disco-a11y-none">{t("ui.discoveryA11yNone")}</span>
-                          )}
-                        </span>
-                      </span>
-                      <svg
-                        className="fk-disco-item-chevron"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <polyline points="9 6 15 12 9 18" />
-                      </svg>
-                    </Link>
-                    {hasCoords && (
-                      <button
-                        type="button"
-                        className="fk-disco-item-locate"
-                        title={t("ui.discoveryShowOnMap")}
-                        aria-label={t("ui.discoveryShowOnMap")}
-                        onClick={(e) => {
-                          e.stopPropagation();
+                      <Link
+                        href={propertyHref(property.id, propertyNodeUrl, homeNodeUrl)}
+                        className="fk-disco-item-link"
+                        onClick={() => {
+                          if (returnState) saveAccessReturn(returnState);
                           handleSelect(property.id);
-                          changeViewMode("map");
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                          <circle cx="12" cy="10" r="3" />
+                        <span className="fk-disco-item-text">
+                          <span className="fk-disco-item-head">
+                            {saved && (
+                              <svg
+                                className="fk-disco-item-saved-icon"
+                                width="15"
+                                height="15"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                              </svg>
+                            )}
+                            <span className="fk-disco-item-name">{property.name}</span>
+                          </span>
+                          <span className="fk-disco-item-meta">
+                            <span className="fk-disco-item-loc">{property.location}</span>
+                            {dist && <span className="fk-disco-item-dist">{dist}</span>}
+                          </span>
+                          <span className="fk-disco-item-a11y">
+                            {a11y ? (
+                              <span
+                                className="fk-disco-a11y-badge"
+                                style={getTierStyle(a11y.tier)}
+                                title={t("ui.discoveryA11yLevel", {
+                                  tier: getTierLabel(a11y.tier),
+                                })}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                  <circle cx="12" cy="4" r="2" />
+                                  <path d="M6 8h12M12 8v6m0 0l-3 6m3-6l3 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                </svg>
+                                {t("ui.discoveryA11yCount", { count: a11y.count })}
+                              </span>
+                            ) : (
+                              <span className="fk-disco-a11y-none">{t("ui.discoveryA11yNone")}</span>
+                            )}
+                          </span>
+                          <AccessibilityIconRow facts={property.facts} max={4} />
+                        </span>
+                        <svg
+                          className="fk-disco-item-chevron"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <polyline points="9 6 15 12 9 18" />
                         </svg>
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {!loading && hasMore && (
-            <div ref={sentinelRef} className="fk-discovery-sentinel" aria-hidden="true">
-              <span className="fk-discovery-loading-more">
-                {t("ui.discoveryLoadingMore", {
-                  shown: visibleCount,
-                  total: properties.length,
+                      </Link>
+                      {hasCoords && (
+                        <button
+                          type="button"
+                          className="fk-disco-item-locate"
+                          title={t("ui.discoveryShowOnMap")}
+                          aria-label={t("ui.discoveryShowOnMap")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelect(property.id);
+                            changeViewMode("map");
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </svg>
+                        </button>
+                      )}
+                    </li>
+                  );
                 })}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+              </ul>
+            )}
+
+            {!loading && hasMore && (
+              <div ref={sentinelRef} className="fk-discovery-sentinel" aria-hidden="true">
+                <span className="fk-discovery-loading-more">
+                  {t("ui.discoveryLoadingMore", {
+                    shown: visibleCount,
+                    total: properties.length,
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

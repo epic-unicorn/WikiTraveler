@@ -25,6 +25,7 @@ type CatalogInput = {
   tier: Partial<Catalog["tier"]> & Record<string, string>;
   source: Partial<Catalog["source"]> & Record<string, string>;
   roomTypes: Partial<Catalog["roomTypes"]> & Record<string, string>;
+  fieldEnums?: Partial<Catalog["fieldEnums"]> & Record<string, string>;
   photoSlots: Partial<Catalog["photoSlots"]> & Record<string, string>;
   ui: Partial<Catalog["ui"]> & Record<string, string>;
 };
@@ -37,6 +38,7 @@ function mergeCatalog(primary: CatalogInput, fallback: Catalog): Catalog {
     tier: { ...fallback.tier, ...primary.tier },
     source: { ...fallback.source, ...primary.source },
     roomTypes: { ...fallback.roomTypes, ...primary.roomTypes },
+    fieldEnums: { ...fallback.fieldEnums, ...(primary.fieldEnums ?? {}) },
     photoSlots: { ...fallback.photoSlots, ...primary.photoSlots },
     ui: { ...fallback.ui, ...primary.ui },
   };
@@ -114,16 +116,43 @@ export function getRoomTypeLabel(roomType: string, locale: string = DEFAULT_LOCA
   return getCatalog(locale).roomTypes[roomType as keyof Catalog["roomTypes"]] ?? roomType.replace(/_/g, " ");
 }
 
+/** Localized label for a field enum token (e.g. path_to_entrance + step_free). */
+export function getFieldEnumLabel(
+  fieldName: string,
+  value: string,
+  locale: string = DEFAULT_LOCALE
+): string {
+  return lookupFieldEnumLabel(fieldName, value, locale) ?? value.replace(/_/g, " ");
+}
+
+function lookupFieldEnumLabel(
+  fieldName: string,
+  value: string,
+  locale: string
+): string | null {
+  const key = `${fieldName}.${value}` as keyof Catalog["fieldEnums"];
+  return (
+    getCatalog(locale).fieldEnums[key] ??
+    (locale !== "en" ? getCatalog("en").fieldEnums[key] : undefined) ??
+    null
+  );
+}
+
+/** True when every comma-separated token has a catalog enum label. */
+export function isFieldEnumValue(fieldName: string, value: string, locale: string = DEFAULT_LOCALE): boolean {
+  const tokens = value.split(",").map((part) => part.trim()).filter(Boolean);
+  if (tokens.length === 0) return false;
+  return tokens.every((token) => lookupFieldEnumLabel(fieldName, token, locale) != null);
+}
+
 export function getPhotoSlotLabel(slot: string, locale: string = DEFAULT_LOCALE): string {
   return getCatalog(locale).photoSlots[slot as keyof Catalog["photoSlots"]] ?? slot;
 }
 
 export const STANDARD_ROOM_TYPES = [
+  "single",
   "double",
   "twin",
-  "single",
-  "accessible_king",
-  "accessible_queen",
   "suite",
   "family",
 ] as const;

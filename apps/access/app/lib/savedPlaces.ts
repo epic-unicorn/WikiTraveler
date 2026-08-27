@@ -6,6 +6,8 @@ export type SavedPlace = {
   location: string;
   nodeUrl: string;
   savedAt: string;
+  /** Hero / first audit photo URL; `null` means checked with no photo. */
+  imageUrl?: string | null;
 };
 
 const KEY = "wt_saved_places";
@@ -56,6 +58,15 @@ export function toggleSavedPlace(place: Omit<SavedPlace, "savedAt">): boolean {
 
 export function removeSavedPlace(id: string) {
   writeSavedPlaces(readSavedPlaces().filter((p) => p.id !== id));
+}
+
+/** Merge fields onto an existing saved place (e.g. hydrate imageUrl). */
+export function patchSavedPlace(id: string, patch: Partial<Omit<SavedPlace, "id" | "savedAt">>) {
+  const list = readSavedPlaces();
+  const idx = list.findIndex((p) => p.id === id);
+  if (idx < 0) return;
+  list[idx] = { ...list[idx], ...patch };
+  writeSavedPlaces(list);
 }
 
 /** Reactive set of saved property IDs that updates on save/remove (same tab + cross tab). */

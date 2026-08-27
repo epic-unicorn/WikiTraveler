@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   PropertySearchBar,
@@ -9,8 +9,14 @@ import {
   type SearchFeature,
   type PropertySummary,
 } from "@wikitraveler/ui";
-import { searchProperties, fetchSearchFields } from "../lib/accessApi";
+import {
+  searchProperties,
+  fetchSearchFields,
+  fetchNearbyProperties,
+  resolvePeerNode,
+} from "../lib/accessApi";
 import { PropertyDiscoveryView, mapPinsToSummaries } from "../components/PropertyDiscoveryView";
+import { AccessPageHero } from "../components/AccessPageHero";
 import {
   filtersFromSearchParams,
   parseDiscoveryView,
@@ -24,17 +30,21 @@ import {
 import { readSearchSession, writeSearchSession } from "../lib/searchSession";
 import type { DataRegionResolve } from "../hooks/useNodeContext";
 import type { MapPin } from "../lib/accessApi";
+import { geocodePlace, looksLikePlaceQuery } from "../lib/geocodePlace";
+import { readA11yPreferences } from "../lib/a11yPreferences";
+import { useNotificationBadgeCount } from "../hooks/useNotificationBadgeCount";
 
 interface Props {
-  /** Active data node (search / browse / property host). */
   dataNodeUrl: string;
   homeNodeUrl: string;
   dataRegion: DataRegionResolve | null;
   regionLabel?: string | null;
+  active?: boolean;
+  onOpenProfile?: () => void;
 }
 
-/** Match Admin dashboard search page size (API max 100). */
 const SEARCH_PAGE_SIZE = 100;
+const NEAR_ME_RADIUS_KM = 1;
 
 function initialSearchState(searchParams: URLSearchParams): {
   query: string;
@@ -51,7 +61,6 @@ function initialSearchState(searchParams: URLSearchParams): {
     searchParams.has("room") ||
     fromUrlView != null;
 
-  // SSR + first client paint must match — never read sessionStorage here.
   if (hasUrlState) {
     return {
       query: fromUrlQ ?? "",
@@ -69,8 +78,9 @@ function initialSearchState(searchParams: URLSearchParams): {
   };
 }
 
-export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
+export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfile }: Props) {
   const { locale, t } = useLocale();
+  const notificationCount = useNotificationBadgeCount(homeNodeUrl, active);
   const searchParams = useSearchParams();
   const [boot] = useState(() => initialSearchState(searchParams));
   const [query, setQuery] = useState(boot.query);
@@ -84,6 +94,10 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
   const [searchError, setSearchError] = useState("");
   const [mapDataNodeUrl, setMapDataNodeUrl] = useState(dataNodeUrl);
   const [viewportPins, setViewportPins] = useState<MapPin[]>([]);
+  const [nearMe, setNearMe] = useState(false);
+  const [nearCoords, setNearCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [nearLoading, setNearLoading] = useState(false);
+  const [placeHint, setPlaceHint] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const skipUrlHydrate = useRef(true);
 
@@ -91,7 +105,6 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
     setDiscoveryViewMode(discoveryView);
   }, []);
 
-  // Hydrate sessionStorage after mount (avoids SSR/client HTML mismatch).
   useEffect(() => {
     const fromUrlQ = searchParams.get("q");
     const fromUrlView = parseDiscoveryView(searchParams.get("view"));
@@ -120,7 +133,6 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
     }
   }, []);
 
-  // Restore search state when returning via back navigation (URL carries state).
   useEffect(() => {
     if (skipUrlHydrate.current) {
       skipUrlHydrate.current = false;
@@ -141,6 +153,16 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
   useEffect(() => {
     writeSearchSession({ query, filters, page, view: discoveryView });
   }, [query, filters, page, discoveryView]);
+
+  // Apply saved a11y preferences as default feature filters when empty.
+  useEffect(() => {
+    const prefs = readA11yPreferences();
+    if (prefs.length === 0) return;
+    setFilters((prev) => {
+      if (prev.features.length > 0) return prev;
+      return { ...prev, features: [...prefs] };
+    });
+  }, []);
 
   const returnState: AccessReturnState = useMemo(
     () => ({
@@ -171,39 +193,128 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
   }, [dataNodeUrl]);
 
   const hasActiveSearch =
-    query.trim().length > 0 ||
-    filters.features.length > 0 ||
-    filters.audited !== null ||
-    filters.hasAccessibleRoom === true;
+    !nearMe &&
+    (query.trim().length > 0 ||
+      filters.features.length > 0 ||
+      filters.audited !== null ||
+      filters.hasAccessibleRoom === true);
 
-  // Reset to page 1 when the query/filters change.
   useEffect(() => {
     setPage(1);
-  }, [query, filters, mapDataNodeUrl]);
+  }, [query, filters, mapDataNodeUrl, nearMe]);
+
+  const runNearMe = useCallback(async () => {
+    if (!nearCoords) return;
+    setNearLoading(true);
+    setSearchError("");
+    try {
+      let node = homeNodeUrl;
+      const peer = await resolvePeerNode(homeNodeUrl, nearCoords.lat, nearCoords.lon);
+      if (peer?.matched === "fallback") {
+        setResults([]);
+        setTotal(0);
+        setSearchError(t("ui.regionNotCovered"));
+        return;
+      }
+      if (peer?.url) node = peer.url;
+      setMapDataNodeUrl(node);
+      const properties = await fetchNearbyProperties(
+        node,
+        nearCoords.lat,
+        nearCoords.lon,
+        NEAR_ME_RADIUS_KM
+      );
+      setResults(properties);
+      setTotal(properties.length);
+    } catch {
+      setSearchError(t("ui.regionUnreachable"));
+      setResults(null);
+      setTotal(0);
+    } finally {
+      setNearLoading(false);
+    }
+  }, [nearCoords, homeNodeUrl, t]);
+
+  const startNearMe = useCallback(() => {
+    setNearMe(true);
+    setPlaceHint(null);
+    setDiscoveryView("map");
+    setDiscoveryViewMode("map");
+    if (!navigator.geolocation) {
+      setSearchError(t("ui.nearbyGpsDenied"));
+      setNearLoading(false);
+      return;
+    }
+    setSearchError("");
+    setNearLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNearCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setNearLoading(false);
+      },
+      (err) => {
+        setNearLoading(false);
+        setNearMe(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setSearchError(t("ui.nearbyGpsDenied"));
+        } else {
+          setSearchError(t("ui.nearbyGpsTimeout"));
+        }
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60_000 }
+    );
+  }, [t]);
+
+  useEffect(() => {
+    if (!nearMe || !nearCoords || !active) return;
+    void runNearMe();
+  }, [nearMe, nearCoords, active, runNearMe]);
 
   useEffect(() => {
     if (abortRef.current) abortRef.current.abort();
+    if (nearMe) return;
     if (!hasActiveSearch) {
       setResults(null);
       setTotal(0);
       setLoading(false);
       setSearchError("");
+      setPlaceHint(null);
       return;
     }
 
     const controller = new AbortController();
     abortRef.current = controller;
-    const delay = 350;
     const timer = setTimeout(async () => {
       setLoading(true);
       setSearchError("");
       try {
-        const data = await searchProperties(mapDataNodeUrl, query, filters, controller.signal, {
+        let searchQ = query;
+        let searchFilters = filters;
+        if (looksLikePlaceQuery(query) && filters.location.trim() === "") {
+          const place = await geocodePlace(query, controller.signal);
+          if (controller.signal.aborted) return;
+          if (place) {
+            setPlaceHint(place.locationLabel);
+            searchQ = "";
+            searchFilters = { ...filters, location: place.locationLabel };
+          } else {
+            setPlaceHint(null);
+          }
+        } else {
+          setPlaceHint(null);
+        }
+
+        const data = await searchProperties(mapDataNodeUrl, searchQ, searchFilters, controller.signal, {
           page,
           pageSize: SEARCH_PAGE_SIZE,
         });
         if (controller.signal.aborted) return;
-        setResults(data.properties);
+        const ranked = [...data.properties].sort((a, b) => {
+          const ac = a.facts?.length ?? 0;
+          const bc = b.facts?.length ?? 0;
+          return bc - ac;
+        });
+        setResults(ranked);
         setTotal(data.total);
       } catch (e) {
         if (controller.signal.aborted || (e as Error).name === "AbortError") return;
@@ -213,111 +324,173 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl }: Props) {
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
-    }, delay);
+    }, 350);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, filters, mapDataNodeUrl, hasActiveSearch, page, t]);
+  }, [query, filters, mapDataNodeUrl, hasActiveSearch, page, t, nearMe]);
 
   const browseListProperties = useMemo(
     () => mapPinsToSummaries(viewportPins),
     [viewportPins]
   );
-  const displayProperties: PropertySummary[] = hasActiveSearch
-    ? (results ?? [])
-    : browseListProperties;
+  const displayProperties: PropertySummary[] =
+    nearMe || hasActiveSearch ? (results ?? []) : browseListProperties;
   const totalPages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
   const rangeFrom = total === 0 ? 0 : (page - 1) * SEARCH_PAGE_SIZE + 1;
   const rangeTo = Math.min(page * SEARCH_PAGE_SIZE, total);
+  const showLoading = nearMe ? nearLoading : hasActiveSearch ? loading : false;
 
-  const emptyState = hasActiveSearch ? (
-    results !== null && results.length === 0 && !loading ? (
+  const emptyState =
+    nearMe || hasActiveSearch ? (
+      results !== null && results.length === 0 && !showLoading ? (
+        <div className="fk-empty">
+          <span className="fk-empty-icon">🔍</span>
+          <p className="fk-empty-title">{t("ui.searchNoResults")}</p>
+          <p className="fk-empty-body">
+            {nearMe
+              ? t("ui.nearbyNothing")
+              : query.trim()
+                ? t("ui.searchNoMatch", { query: query.trim() })
+                : t("ui.searchTryDifferent")}
+          </p>
+        </div>
+      ) : null
+    ) : (
       <div className="fk-empty">
         <span className="fk-empty-icon">🔍</span>
-        <p className="fk-empty-title">{t("ui.searchNoResults")}</p>
-        <p className="fk-empty-body">
-          {query.trim()
-            ? t("ui.searchNoMatch", { query: query.trim() })
-            : t("ui.searchTryDifferent")}
-        </p>
+        <p className="fk-empty-title">{t("ui.searchListEmptyTitle")}</p>
+        <p className="fk-empty-body">{t("ui.searchListEmptyBody")}</p>
       </div>
-    ) : null
-  ) : (
-    <div className="fk-empty">
-      <span className="fk-empty-icon">🔍</span>
-      <p className="fk-empty-title">{t("ui.searchListEmptyTitle")}</p>
-      <p className="fk-empty-body">{t("ui.searchListEmptyBody")}</p>
-    </div>
-  );
+    );
+
+  const showResultsMeta =
+    Boolean(placeHint) || (hasActiveSearch && results !== null && !loading);
 
   return (
     <div className="tab-content fk-search-tab">
-      <div className="fk-search-header">
-        <PropertySearchBar
-          query={query}
-          onQueryChange={setQuery}
-          filters={filters}
-          onFiltersChange={setFilters}
-          searchFeatures={searchFeatures}
-          alwaysShowFilters
-        />
-        {hasActiveSearch && results !== null && !loading && total > SEARCH_PAGE_SIZE && (
-          <p className="status-muted fk-search-pagination-notice" role="status">
-            {t("ui.searchPaginationNotice", {
-              total,
-              pageSize: SEARCH_PAGE_SIZE,
-              page,
-              totalPages,
-            })}
-          </p>
-        )}
-        {hasActiveSearch && results !== null && !loading && (
-          <p className="status-muted fk-search-result-count">
-            {total === 1
-              ? t("ui.searchSingleProperty")
-              : t("ui.searchShowingRange", { from: rangeFrom, to: rangeTo, total })}
-          </p>
-        )}
-        {hasActiveSearch && results !== null && !loading && totalPages > 1 && (
-          <div className="fk-search-pagination">
-            <button
-              type="button"
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              {t("ui.adminPrevPage")}
-            </button>
-            <span className="status-muted">
-              {t("ui.adminPageOf", { page, total: totalPages })}
-            </span>
-            <button
-              type="button"
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              {t("ui.adminNextPage")}
-            </button>
-          </div>
-        )}
-      </div>
+      <AccessPageHero
+        trailing={
+          <button
+            type="button"
+            className="fk-hero-notify-btn"
+            onClick={() => onOpenProfile?.()}
+            aria-label={
+              notificationCount > 0
+                ? t("ui.notificationsBadge", { count: notificationCount })
+                : t("ui.notificationsTitle")
+            }
+            title={t("ui.notificationsTitle")}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            {notificationCount > 0 && (
+              <span className="fk-hero-notify-badge" aria-hidden="true">
+                {notificationCount > 9 ? "9+" : notificationCount}
+              </span>
+            )}
+          </button>
+        }
+      >
+        <div className="fk-search-header">
+          <PropertySearchBar
+            query={query}
+            onQueryChange={(q) => {
+              setQuery(q);
+              if (nearMe) setNearMe(false);
+            }}
+            filters={filters}
+            onFiltersChange={(f) => {
+              setFilters(f);
+              if (nearMe) setNearMe(false);
+            }}
+            searchFeatures={searchFeatures}
+            alwaysShowFilters
+          />
+        </div>
+      </AccessPageHero>
 
       <PropertyDiscoveryView
         properties={displayProperties}
-        loading={hasActiveSearch ? loading : false}
-        error={hasActiveSearch ? searchError : ""}
+        loading={showLoading}
+        error={searchError}
         homeNodeUrl={homeNodeUrl}
         propertyNodeUrl={mapDataNodeUrl}
-        active
+        active={active}
         emptyState={emptyState}
-        mapAutoFit={hasActiveSearch}
+        mapAutoFit={nearMe || hasActiveSearch}
         returnState={returnState}
         onViewModeChange={setDiscoveryView}
         initialViewMode={discoveryView}
-        viewportBrowse={!hasActiveSearch}
+        viewportBrowse={!hasActiveSearch && !nearMe}
         onDataNodeUrlChange={setMapDataNodeUrl}
         onViewportPinsChange={setViewportPins}
+        userLocation={nearMe ? nearCoords : null}
+        radiusKm={nearMe && nearCoords ? NEAR_ME_RADIUS_KM : null}
+        onLocateMe={startNearMe}
+        locateLoading={nearLoading}
+        listTitle={
+          (nearMe || hasActiveSearch) && results && results.length > 0
+            ? t("ui.topAccessibleStays")
+            : undefined
+        }
+        resultsMeta={
+          showResultsMeta ? (
+            <div className="fk-discovery-meta">
+              {placeHint && (
+                <p className="fk-discovery-meta__place" role="status">
+                  {t("ui.searchPlaceFilter", { place: placeHint })}
+                </p>
+              )}
+              {hasActiveSearch && results !== null && !loading && (
+                <div className="fk-discovery-meta__row">
+                  <p className="fk-discovery-meta__count">
+                    {total === 1
+                      ? t("ui.searchSingleProperty")
+                      : t("ui.searchShowingRange", {
+                          from: rangeFrom,
+                          to: rangeTo,
+                          total,
+                        })}
+                  </p>
+                  {totalPages > 1 && (
+                    <div className="fk-discovery-meta__pages">
+                      <button
+                        type="button"
+                        disabled={page <= 1 || loading}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      >
+                        {t("ui.adminPrevPage")}
+                      </button>
+                      <span>{t("ui.adminPageOf", { page, total: totalPages })}</span>
+                      <button
+                        type="button"
+                        disabled={page >= totalPages || loading}
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      >
+                        {t("ui.adminNextPage")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {hasActiveSearch && results !== null && !loading && total > SEARCH_PAGE_SIZE && (
+                <p className="fk-discovery-meta__notice" role="status">
+                  {t("ui.searchPaginationNotice", {
+                    total,
+                    pageSize: SEARCH_PAGE_SIZE,
+                    page,
+                    totalPages,
+                  })}
+                </p>
+              )}
+            </div>
+          ) : null
+        }
       />
     </div>
   );

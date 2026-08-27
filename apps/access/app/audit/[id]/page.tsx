@@ -62,12 +62,6 @@ export default async function AuditPage({
     signatureHash?: string | null;
     timestamp?: string;
   }> = [];
-  let auditPhotos: {
-    submissionId: string;
-    capturedAt: string;
-    photos: string[];
-  } | null = null;
-  let hasAiGuess = false;
 
   try {
     const res = await fetch(
@@ -84,17 +78,9 @@ export default async function AuditPage({
           signatureHash?: string | null;
           timestamp?: string;
         }>;
-        auditPhotos: {
-          submissionId: string;
-          capturedAt: string;
-          photos: string[];
-        } | null;
-        hasAiGuess?: boolean;
       };
       property = data.property;
       existingFacts = data.facts ?? [];
-      auditPhotos = data.auditPhotos ?? null;
-      hasAiGuess = data.hasAiGuess ?? existingFacts.some((f) => f.tier === "AI_GUESS");
     }
   } catch {
     // node unreachable — will still render the form with fallback
@@ -106,8 +92,6 @@ export default async function AuditPage({
       propertyName={property?.name ?? "Unknown Property"}
       location={property?.location ?? "Unknown Location"}
       existingFacts={existingFacts}
-      auditPhotos={auditPhotos}
-      hasAiGuess={hasAiGuess}
       targetNodeUrl={resolvedSearchParams.node}
     />
   );
