@@ -90,7 +90,7 @@ export function hasExplicitSearch(
   filters: {
     features: readonly string[];
     audited: boolean | null;
-    hasAccessibleRoom?: boolean;
+    hasAccessibleRoom?: boolean | null;
   },
   profilePrefs: readonly string[]
 ): boolean {

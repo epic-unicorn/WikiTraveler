@@ -56,5 +56,6 @@ describe("hasExplicitSearch", () => {
     expect(hasExplicitSearch("hotel", emptyFilters, ["ramp_present"])).toBe(true);
     expect(hasExplicitSearch("", { ...emptyFilters, audited: true }, [])).toBe(true);
     expect(hasExplicitSearch("", { ...emptyFilters, hasAccessibleRoom: true }, [])).toBe(true);
+    expect(hasExplicitSearch("", { ...emptyFilters, hasAccessibleRoom: null }, [])).toBe(false);
   });
 });
