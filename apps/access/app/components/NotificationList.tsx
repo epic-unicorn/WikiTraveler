@@ -12,9 +12,11 @@ import {
 
 interface Props {
   homeNodeUrl: string;
+  /** Skip the page section header when shown inside the notification panel. */
+  embedded?: boolean;
 }
 
-export function NotificationList({ homeNodeUrl }: Props) {
+export function NotificationList({ homeNodeUrl, embedded = false }: Props) {
   const { t } = useLocale();
   const [items, setItems] = useState<
     Awaited<ReturnType<typeof fetchMySignals>>["signals"]
@@ -49,8 +51,12 @@ export function NotificationList({ homeNodeUrl }: Props) {
 
   return (
     <div id="access-notifications">
-      <p className="fk-section-header fk-section-header--compact">{t("ui.notificationsTitle")}</p>
-      <div className="card fk-settings-card">
+      {embedded ? (
+        <p className="fk-notify-panel__title">{t("ui.notificationsTitle")}</p>
+      ) : (
+        <p className="fk-section-header fk-section-header--compact">{t("ui.notificationsTitle")}</p>
+      )}
+      <div className={embedded ? "fk-notify-panel__body" : "card fk-settings-card"}>
         {loading && <p className="status-muted">{t("ui.loading")}</p>}
         {!loading && visible.length === 0 && (
           <p className="fk-settings-theme-hint">{t("ui.notificationsEmpty")}</p>

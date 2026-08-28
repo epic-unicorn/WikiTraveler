@@ -9,9 +9,18 @@ export const SEARCH_FEATURES = [
   { key: "parking_accessible", label: "Accessible parking" },
 ] as const;
 
-export type ThemeMode = "system" | "light" | "dark";
+export const THEME_MODES = ["light", "dark", "contrast", "calm"] as const;
+export type ThemeMode = (typeof THEME_MODES)[number];
 
 export const THEME_STORAGE_KEY = "wt-theme";
+
+/** Map stored values (including legacy `"system"`) onto a named theme. */
+export function parseThemeMode(value: string | null | undefined): ThemeMode {
+  if (value === "dark" || value === "contrast" || value === "calm" || value === "light") {
+    return value;
+  }
+  return "light";
+}
 
 export function fieldLabel(field: string): string {
   return field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

@@ -10,6 +10,7 @@ describe("navigationReturn", () => {
   it("parses valid tabs and defaults unknown values to search", () => {
     expect(parseAccessTab("saved")).toBe("saved");
     expect(parseAccessTab("profile")).toBe("profile");
+    expect(parseAccessTab("contribute")).toBe("contribute");
     expect(parseAccessTab("invalid")).toBe("search");
     expect(parseAccessTab(null)).toBe("search");
   });
@@ -17,7 +18,7 @@ describe("navigationReturn", () => {
   it("maps legacy tab ids onto the redesign IA", () => {
     expect(parseAccessTab("nearby")).toBe("search");
     expect(parseAccessTab("settings")).toBe("profile");
-    expect(parseAccessTab("contribute")).toBe("profile");
+    expect(parseAccessTab("contribute")).toBe("contribute");
   });
 
   it("parses discovery view mode", () => {

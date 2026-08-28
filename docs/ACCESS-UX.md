@@ -4,13 +4,16 @@ Product lock for the Access PWA redesign on branch `access-ui-redesign`. Impleme
 
 ## Information architecture
 
-**Bottom nav (shared for all roles):** Search | Saved | Profile
+**Bottom nav:** Search | Favorites | Contribute (AUDITOR/ADMIN only) | Profile
 
 | Former tab | New home |
 |------------|----------|
 | Near me | Action / chip inside Search |
-| Contribute | Removed — claim on property; add property via Profile (AUDITOR/ADMIN) |
+| Contribute | Contribute tab for auditors/admins; travelers add nothing here |
 | Settings | Profile (node, language, theme, account) |
+| Saved | Favorites (heart icon; search / sort / filter) |
+
+**Themes (named, no automatic/system):** Standard (WikiTraveler blue + white), Dark, High contrast, Calm.
 
 **Per-page chrome (no global sticky brand bar on home):**
 
@@ -18,7 +21,9 @@ Product lock for the Access PWA redesign on branch `access-ui-redesign`. Impleme
 - **Property:** full-screen route with back; View is primary, Audit secondary
 - **Audit:** wizard chrome (draft / cancel / next) only
 
-**Saved:** favorites only (local trip list). Traveler reports are not shown here.
+**Saved:** favorites only (local trip list). Traveler reports are not shown here. Search, sort, and category filters (stays / hotels / other) apply on this list.
+
+**Notifications:** bell in the Access hero opens a short popup with a link to updates (resolved/dismissed reports).
 
 ## Non-goals (this redesign)
 

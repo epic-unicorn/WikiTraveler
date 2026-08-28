@@ -6,9 +6,10 @@ import { useLocale } from "@wikitraveler/ui";
 import { useNodeContext } from "./hooks/useNodeContext";
 import { SearchTab } from "./tabs/SearchTab";
 import { SavedTab } from "./tabs/SavedTab";
+import { ContributeTab } from "./tabs/ContributeTab";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { readAuthToken } from "./lib/authStorage";
-import { roleFromToken } from "./lib/userRole";
+import { canContribute, roleFromToken } from "./lib/userRole";
 import { parseAccessTab, type AccessTabId } from "./lib/navigationReturn";
 import { OnboardingOverlay } from "./components/OnboardingOverlay";
 
@@ -23,7 +24,14 @@ const TAB_ICONS: Record<TabId, React.ReactNode> = {
   ),
   saved: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </svg>
+  ),
+  contribute: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/>
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
     </svg>
   ),
   profile: (
@@ -37,8 +45,12 @@ const TAB_ICONS: Record<TabId, React.ReactNode> = {
 export function AccessTabs() {
   const { t } = useLocale();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<TabId>(() => parseAccessTab(searchParams.get("tab")));
   const [role, setRole] = useState(() => roleFromToken(readAuthToken()));
+  const contributor = canContribute(role);
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const tab = parseAccessTab(searchParams.get("tab"));
+    return tab === "contribute" && !canContribute(roleFromToken(readAuthToken())) ? "profile" : tab;
+  });
   const {
     nodeUrl,
     dataNodeUrl,
@@ -54,17 +66,23 @@ export function AccessTabs() {
   }, []);
 
   useEffect(() => {
-    setActiveTab(parseAccessTab(searchParams.get("tab")));
-  }, [searchParams]);
+    const tab = parseAccessTab(searchParams.get("tab"));
+    if (tab === "contribute" && !contributor) {
+      setActiveTab("profile");
+    } else {
+      setActiveTab(tab);
+    }
+  }, [searchParams, contributor]);
 
-  const TABS: { id: TabId; label: string }[] = useMemo(
-    () => [
+  const TABS: { id: TabId; label: string }[] = useMemo(() => {
+    const tabs: { id: TabId; label: string }[] = [
       { id: "search", label: t("ui.tabSearch") },
       { id: "saved", label: t("ui.tabSaved") },
-      { id: "profile", label: t("ui.tabProfile") },
-    ],
-    [t]
-  );
+    ];
+    if (contributor) tabs.push({ id: "contribute", label: t("ui.tabContribute") });
+    tabs.push({ id: "profile", label: t("ui.tabProfile") });
+    return tabs;
+  }, [t, contributor]);
 
   const focusTab = useCallback((id: TabId) => {
     setActiveTab(id);
@@ -115,20 +133,20 @@ export function AccessTabs() {
             homeNodeUrl={nodeUrl}
             dataRegion={dataRegion}
             active={activeTab === "search"}
-            onOpenProfile={() => {
-              setActiveTab("profile");
-              window.setTimeout(() => {
-                document.getElementById("access-notifications")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-              }, 80);
-            }}
           />
         </div>
         <div hidden={activeTab !== "saved"} className="fk-tab-panel">
-          <SavedTab homeNodeUrl={nodeUrl} active={activeTab === "saved"} />
+          <SavedTab
+            homeNodeUrl={nodeUrl}
+            active={activeTab === "saved"}
+            onAddLocation={() => setActiveTab("search")}
+          />
         </div>
+        {contributor && (
+          <div hidden={activeTab !== "contribute"} className="fk-tab-panel">
+            <ContributeTab homeNodeUrl={nodeUrl} />
+          </div>
+        )}
         <div hidden={activeTab !== "profile"} className="fk-tab-panel">
           <ProfileTab
             nodeUrl={nodeUrl}
@@ -136,7 +154,6 @@ export function AccessTabs() {
             nodeReachable={nodeReachable}
             onSaveNodeUrl={setNodeUrl}
             onResetNodeUrl={resetNodeUrl}
-            role={role}
           />
         </div>
       </main>

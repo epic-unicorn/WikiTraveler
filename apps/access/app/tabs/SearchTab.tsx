@@ -32,7 +32,6 @@ import type { DataRegionResolve } from "../hooks/useNodeContext";
 import type { MapPin } from "../lib/accessApi";
 import { geocodePlace, looksLikePlaceQuery } from "../lib/geocodePlace";
 import { readA11yPreferences } from "../lib/a11yPreferences";
-import { useNotificationBadgeCount } from "../hooks/useNotificationBadgeCount";
 
 interface Props {
   dataNodeUrl: string;
@@ -40,7 +39,6 @@ interface Props {
   dataRegion: DataRegionResolve | null;
   regionLabel?: string | null;
   active?: boolean;
-  onOpenProfile?: () => void;
 }
 
 const SEARCH_PAGE_SIZE = 100;
@@ -78,9 +76,8 @@ function initialSearchState(searchParams: URLSearchParams): {
   };
 }
 
-export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfile }: Props) {
+export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
   const { locale, t } = useLocale();
-  const notificationCount = useNotificationBadgeCount(homeNodeUrl, active);
   const searchParams = useSearchParams();
   const [boot] = useState(() => initialSearchState(searchParams));
   const [query, setQuery] = useState(boot.query);
@@ -371,31 +368,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
 
   return (
     <div className="tab-content fk-search-tab">
-      <AccessPageHero
-        trailing={
-          <button
-            type="button"
-            className="fk-hero-notify-btn"
-            onClick={() => onOpenProfile?.()}
-            aria-label={
-              notificationCount > 0
-                ? t("ui.notificationsBadge", { count: notificationCount })
-                : t("ui.notificationsTitle")
-            }
-            title={t("ui.notificationsTitle")}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-            {notificationCount > 0 && (
-              <span className="fk-hero-notify-badge" aria-hidden="true">
-                {notificationCount > 9 ? "9+" : notificationCount}
-              </span>
-            )}
-          </button>
-        }
-      >
+      <AccessPageHero notifyNodeUrl={homeNodeUrl}>
         <div className="fk-search-header">
           <PropertySearchBar
             query={query}

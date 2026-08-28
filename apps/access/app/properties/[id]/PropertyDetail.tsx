@@ -18,6 +18,7 @@ import { resolveFactDisplay, getTierLabel } from "../../lib/factDisplay";
 import { readAuthToken } from "../../lib/authStorage";
 import { roleFromToken, canContribute } from "../../lib/userRole";
 import { toggleSavedPlace, isPlaceSaved } from "../../lib/savedPlaces";
+import { inferSavedCategory } from "../../lib/savedCategory";
 import { cachePropertyDetail, readCachedPropertyDetail } from "../../lib/offlineCache";
 import {
   groupFactsBySection,
@@ -256,6 +257,8 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
       location: data.property.location,
       nodeUrl: targetNodeUrl,
       imageUrl: heroPhotos[0]?.url ?? null,
+      category: inferSavedCategory(data.property.name, data.property.location),
+      facts: (data.facts ?? []).map((f) => ({ fieldName: f.fieldName, value: f.value })),
     });
     setSaved(nowSaved);
   }

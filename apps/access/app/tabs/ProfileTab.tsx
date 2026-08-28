@@ -1,20 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { ThemeToggle, LocalePicker, useLocale } from "@wikitraveler/ui";
 import { DISPLAY_ENV_NODE_URL, toDisplayNodeUrl } from "../lib/accessApi";
 import { clearAuth } from "../lib/authStorage";
 import { AccessAccountBadge } from "../AccessAccountBadge";
 import { useUpgradeHints } from "../hooks/useUpgradeHints";
-import { canContribute } from "../lib/userRole";
-import type { AppRole } from "../lib/authStorage";
 import { AccessibilityPreferencesEditor } from "../components/AccessibilityPreferencesEditor";
-import { NotificationList } from "../components/NotificationList";
-import { RecentPropertiesSection } from "../components/RecentPropertiesSection";
-import { readRecentAudits } from "../lib/recentAudits";
 import { AccessPageHero } from "../components/AccessPageHero";
-import { useNotificationBadgeCount } from "../hooks/useNotificationBadgeCount";
 
 interface Props {
   nodeUrl: string;
@@ -22,7 +15,6 @@ interface Props {
   nodeReachable: boolean | null;
   onSaveNodeUrl: (url: string) => void;
   onResetNodeUrl: () => void;
-  role: AppRole;
 }
 
 function CheckIcon() {
@@ -47,15 +39,12 @@ export function ProfileTab({
   nodeReachable,
   onSaveNodeUrl,
   onResetNodeUrl,
-  role,
 }: Props) {
   const { t } = useLocale();
   const { clientVersion, hints } = useUpgradeHints(nodeInfo?.version);
-  const notificationCount = useNotificationBadgeCount(nodeUrl, true);
   const [settingsUrl, setSettingsUrl] = useState(() => toDisplayNodeUrl(nodeUrl));
   const [settingsError, setSettingsError] = useState("");
-  const contributor = canContribute(role);
-  const recentCount = readRecentAudits().length;
+  const [nodeOpen, setNodeOpen] = useState(false);
 
   useEffect(() => {
     setSettingsUrl(toDisplayNodeUrl(nodeUrl));
@@ -82,156 +71,122 @@ export function ProfileTab({
   return (
     <div className="tab-content fk-settings-tab fk-profile-tab">
       <AccessPageHero
-        sectionTitle={t("ui.profileTitle")}
-        sectionSubtitle={t("ui.profileSubtitle")}
-        trailing={
-          <button
-            type="button"
-            className="fk-hero-notify-btn"
-            onClick={() => {
-              document.getElementById("access-notifications")?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
+        notifyNodeUrl={nodeUrl}
+        identity={
+          <AccessAccountBadge
+            variant="hero"
+            onSignOut={() => {
+              clearAuth();
+              window.location.href = "/login";
             }}
-            aria-label={
-              notificationCount > 0
-                ? t("ui.notificationsBadge", { count: notificationCount })
-                : t("ui.notificationsTitle")
-            }
-            title={t("ui.notificationsTitle")}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-            {notificationCount > 0 && (
-              <span className="fk-hero-notify-badge" aria-hidden="true">
-                {notificationCount > 9 ? "9+" : notificationCount}
-              </span>
-            )}
-          </button>
+          />
         }
       />
 
       <div className="fk-page-body">
-      <p className="fk-section-header fk-section-header--compact">{t("ui.settingsAccount")}</p>
-      <div className="card fk-settings-card">
-        <AccessAccountBadge compact={false} />
-        <button
-          type="button"
-          className="btn-secondary fk-settings-signout"
-          onClick={() => {
-            clearAuth();
-            window.location.href = "/login";
-          }}
-        >
-          {t("ui.signOut")}
-        </button>
-      </div>
+        <section className="card fk-settings-card fk-profile-block">
+          <h2 className="fk-profile-block__title">
+            <span className="fk-profile-block__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            </span>
+            {t("ui.a11yPreferencesTitle")}
+          </h2>
+          <AccessibilityPreferencesEditor summary />
+        </section>
 
-      <p className="fk-section-header fk-section-header--compact">{t("ui.a11yPreferencesTitle")}</p>
-      <div className="card fk-settings-card">
-        <AccessibilityPreferencesEditor />
-      </div>
-
-      <NotificationList homeNodeUrl={nodeUrl} />
-
-      {contributor && (
-        <>
-          <p className="fk-section-header fk-section-header--compact">{t("ui.profileContribute")}</p>
-          <div className="card fk-settings-card">
-            <p className="fk-settings-theme-hint">{t("ui.profileAddPropertyHint")}</p>
-            <Link href="/properties/new" className="btn-primary">
-              {t("ui.addProperty")}
-            </Link>
-          </div>
-          {recentCount > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <p className="fk-section-header fk-section-header--compact">{t("ui.tabRecent")}</p>
-              <RecentPropertiesSection homeNodeUrl={nodeUrl} compact maxItems={5} />
+        <section className="card fk-settings-card fk-profile-block">
+          <h2 className="fk-profile-block__title">
+            <span className="fk-profile-block__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/><path d="M2 8.82a16 16 0 0 1 20 0"/></svg>
+            </span>
+            {t("ui.settingsNodeConnection")}
+          </h2>
+          <button
+            type="button"
+            className="fk-node-row"
+            onClick={() => setNodeOpen((v) => !v)}
+            aria-expanded={nodeOpen}
+          >
+            <span className="fk-node-row__status">
+              {nodeInfo && nodeReachable ? (
+                <>
+                  <span className="fk-chip fk-chip--ok"><CheckIcon /> {t("ui.connected")}</span>
+                  <span className="fk-settings-meta">
+                    {t("ui.settingsNodeVersion", { version: nodeInfo.version ?? "?" })}
+                  </span>
+                </>
+              ) : nodeReachable === false ? (
+                <span className="fk-chip fk-chip--err"><XIcon /> {t("ui.unreachable")}</span>
+              ) : (
+                <span className="fk-chip fk-chip--neutral">{t("ui.checking")}</span>
+              )}
+            </span>
+            <svg className={`fk-chevron${nodeOpen ? " fk-chevron--open" : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+              <polyline points="9 6 15 12 9 18" />
+            </svg>
+          </button>
+          <p className="fk-settings-version-row">
+            {t("ui.settingsClientVersion", { version: clientVersion })}
+          </p>
+          {hints.map((hint, index) => (
+            <p
+              key={index}
+              className={hint.level === "warn" ? "status-err fk-settings-hint" : "fk-settings-hint fk-settings-hint--info"}
+              role="status"
+            >
+              {hint.message}
+            </p>
+          ))}
+          {nodeOpen && (
+            <div className="fk-node-advanced">
+              <p className="fk-settings-theme-hint fk-settings-advanced__hint">
+                {t("ui.settingsHomeNodeAdvancedHint")}
+              </p>
+              <label htmlFor="node-url" className="fk-settings-label">{t("ui.settingsHomeNodeUrl")}</label>
+              <input
+                id="node-url"
+                type="url"
+                className="fk-settings-input"
+                value={settingsUrl}
+                onChange={(e) => setSettingsUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && save()}
+                placeholder="https://..."
+              />
+              {settingsError && <p className="status-err">{settingsError}</p>}
+              <div className="fk-settings-actions">
+                <button type="button" className="btn-primary fk-settings-save" onClick={save}>
+                  {t("ui.save")}
+                </button>
+                <button type="button" className="btn-secondary fk-settings-reset" onClick={reset}>
+                  {t("ui.reset")}
+                </button>
+              </div>
             </div>
           )}
-        </>
-      )}
+        </section>
 
-      <p className="fk-section-header fk-section-header--compact">{t("ui.settingsNodeConnection")}</p>
-      <div className="card fk-settings-card">
-        <div className="fk-settings-status">
-          {nodeInfo && nodeReachable ? (
-            <>
-              <span className="fk-chip fk-chip--ok"><CheckIcon /> {t("ui.connected")}</span>
-              <span className="fk-settings-meta">
-                {t("ui.settingsNodeVersion", { version: nodeInfo.version ?? "?" })}
-              </span>
-            </>
-          ) : nodeReachable === false ? (
-            <span className="fk-chip fk-chip--err"><XIcon /> {t("ui.unreachable")}</span>
-          ) : (
-            <span className="fk-chip fk-chip--neutral">{t("ui.checking")}</span>
-          )}
-        </div>
-
-        <p className="fk-settings-version-row">
-          {t("ui.settingsClientVersion", { version: clientVersion })}
-        </p>
-
-        {hints.map((hint, index) => (
-          <p
-            key={index}
-            className={hint.level === "warn" ? "status-err fk-settings-hint" : "fk-settings-hint fk-settings-hint--info"}
-            role="status"
-          >
-            {hint.message}
-          </p>
-        ))}
-      </div>
-
-      <details className="fk-settings-advanced">
-        <summary className="fk-settings-advanced__summary">{t("ui.settingsAdvanced")}</summary>
-        <div className="card fk-settings-card">
-          <p className="fk-settings-theme-hint fk-settings-advanced__hint">
-            {t("ui.settingsHomeNodeAdvancedHint")}
-          </p>
-          <label htmlFor="node-url" className="fk-settings-label">{t("ui.settingsHomeNodeUrl")}</label>
-          <input
-            id="node-url"
-            type="url"
-            className="fk-settings-input"
-            value={settingsUrl}
-            onChange={(e) => setSettingsUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && save()}
-            placeholder="https://..."
-          />
-
-          {settingsError && <p className="status-err">{settingsError}</p>}
-
-          <div className="fk-settings-actions">
-            <button type="button" className="btn-primary fk-settings-save" onClick={save}>
-              {t("ui.save")}
-            </button>
-            <button type="button" className="btn-secondary fk-settings-reset" onClick={reset}>
-              {t("ui.reset")}
-            </button>
+        <section className="card fk-settings-card fk-profile-block fk-profile-block--settings">
+          <h2 className="fk-profile-block__title">
+            <span className="fk-profile-block__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            </span>
+            {t("ui.tabSettings")}
+          </h2>
+          <div className="fk-settings-row">
+            <span className="fk-settings-row__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+            </span>
+            <span className="fk-settings-row__label">{t("ui.language")}</span>
+            <LocalePicker compact />
           </div>
-        </div>
-      </details>
-
-      <p className="fk-section-header fk-section-header--compact">{t("ui.settingsLanguage")}</p>
-      <div className="card fk-settings-card fk-settings-card--compact">
-        <LocalePicker />
-      </div>
-
-      <p className="fk-section-header fk-section-header--compact">{t("ui.settingsAppearance")}</p>
-      <div className="card fk-settings-card fk-settings-card--compact">
-        <div className="fk-settings-theme-row">
-          <div>
-            <p className="fk-settings-theme-title">{t("ui.theme")}</p>
-            <p className="fk-settings-theme-hint">{t("ui.settingsThemeHint")}</p>
+          <div className="fk-settings-row">
+            <span className="fk-settings-row__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            </span>
+            <span className="fk-settings-row__label">{t("ui.theme")}</span>
+            <ThemeToggle compact variant="page" />
           </div>
-          <ThemeToggle compact variant="page" />
-        </div>
-      </div>
+        </section>
       </div>
     </div>
   );
