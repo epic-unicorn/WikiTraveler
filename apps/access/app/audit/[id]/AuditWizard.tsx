@@ -21,8 +21,15 @@ import { type ExistingFact } from "./ExistingDataPanel";
 import { RoomAuditSection } from "./RoomAuditSection";
 import { mergeKnownCustomRoomTypes } from "./roomTypes";
 import { AuditPhotoGallery } from "../../components/AuditPhotoGallery";
+import { ExistingStepPhotos } from "../../components/ExistingStepPhotos";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
-import { stepScopeKey, groupPhotosByStepScope } from "../../lib/propertyFacts";
+import {
+  stepScopeKey,
+  groupPhotosByStepScope,
+  existingPhotosForAuditStep,
+  photosForRoomScope,
+  type AuditPhotoRef,
+} from "../../lib/propertyFacts";
 import { invalidateMapPins } from "../../lib/accessApi";
 import { propertyHref } from "../../lib/propertyHref";
 import {
@@ -51,6 +58,7 @@ interface Props {
   locale: string;
   fieldDefs: FieldDef[];
   loadedFacts: ExistingFact[];
+  existingPhotos?: AuditPhotoRef[];
   onSuccess: () => void;
   onError: (msg: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -198,6 +206,7 @@ export function AuditWizard({
   locale,
   fieldDefs,
   loadedFacts,
+  existingPhotos = [],
   onSuccess,
   onError,
   t,
@@ -478,9 +487,7 @@ export function AuditWizard({
     const reviewNote = stepNotes.review?.trim();
     if (reviewNote) noteParts.push(reviewNote);
     if (noteParts.length > 0) {
-      const joined = noteParts.join("\n\n");
-      const appended = existingNotes ? `${existingNotes.trim()}\n\n${joined}` : joined;
-      facts.push({ fieldName: "notes", value: appended, scopeKey: "property" });
+      facts.push({ fieldName: "notes", value: noteParts.join("\n\n"), scopeKey: "property" });
     }
 
     if (selectedRoomTypes.length > 0) {
@@ -581,8 +588,10 @@ export function AuditWizard({
 
   function renderPropertyPhotoSection(step: PhotoStepId) {
     const stepPhotos = photosForStep(step);
+    const prior = existingPhotosForAuditStep(existingPhotos, step);
     return (
       <div style={{ marginTop: 16 }}>
+        <ExistingStepPhotos photos={prior} />
         <p style={{ fontSize: 13, fontWeight: 600 }}>{t("ui.auditStepPhotos")}</p>
         <p className="existing-data-panel-hint" style={{ marginTop: 4 }}>
           {t("ui.auditStepPhotosHint")}
@@ -897,6 +906,7 @@ export function AuditWizard({
               setRoomDescriptions((prev) => ({ ...prev, [typeId]: value }))
             }
             hideBathroomFields
+            existingPhotos={existingPhotos}
             roomPhotos={roomPhotos}
             onRoomPhotosChange={(typeId, photos) =>
               setRoomPhotos((prev) => ({
@@ -942,6 +952,7 @@ export function AuditWizard({
               }
               bathroomOnly
               showTypePicker={false}
+              existingPhotos={existingPhotos}
               renderRoomField={(field, scopeKey) =>
                 renderFieldRow({ ...field, scope: "ROOM" }, scopeKey)
               }

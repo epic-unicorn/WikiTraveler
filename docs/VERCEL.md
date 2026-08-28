@@ -134,14 +134,18 @@ Default (unset): base64 in Postgres. Set `PHOTO_STORAGE_PROVIDER` for object sto
 | `R2_ACCESS_KEY_ID` | provider=`r2` | R2 access key |
 | `R2_SECRET_ACCESS_KEY` | provider=`r2` | R2 secret key |
 | `R2_BUCKET` | provider=`r2` | Bucket name |
-| `R2_PUBLIC_URL` | provider=`r2` | Public URL (e.g. `https://pub-xxx.r2.dev`) |
+| `R2_PUBLIC_URL` | provider=`r2` | Public URL (e.g. `https://pub-xxx.r2.dev` or `https://photos-eu.wikitraveler.org`) |
+| `R2_JURISDICTION` | provider=`r2` | `eu`, `us`, or `fedramp` for jurisdiction-locked buckets (EU buckets need `eu`) |
+| `R2_ENDPOINT` | provider=`r2` | Optional full S3 endpoint override |
 | `SUPABASE_URL` | provider=`supabase` | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | provider=`supabase` | Service role key |
 | `SUPABASE_STORAGE_BUCKET` | provider=`supabase` | Bucket name (default `photos`) |
 
 Cloudflare R2 free tier: 10 GB / 1 M writes per month. Supabase Storage free tier: 1 GB.
 
-After switching from base64, migrate existing photos once from your machine:
+Set these on the **node** Vercel project (Access only displays public photo URLs; it does not need R2 keys). EU-jurisdiction buckets also need `R2_JURISDICTION=eu`.
+
+After switching from base64, migrate existing photos once from your machine (rewrites `AuditPhoto.url` and legacy `photoUrls`):
 
 ```bash
 PHOTO_STORAGE_PROVIDER=r2 R2_ACCOUNT_ID=... R2_BUCKET=... \

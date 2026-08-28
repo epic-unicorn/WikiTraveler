@@ -11,6 +11,8 @@ import {
 } from "@wikitraveler/i18n";
 import { useLocale } from "@wikitraveler/ui";
 import { AuditPhotoGallery } from "../../components/AuditPhotoGallery";
+import { ExistingStepPhotos } from "../../components/ExistingStepPhotos";
+import { photosForRoomScope, type AuditPhotoRef } from "../../lib/propertyFacts";
 import { isStandardRoomType } from "./roomTypes";
 
 export interface RoomFieldDef {
@@ -37,6 +39,7 @@ interface Props {
   /** When true, hide bathroom fields (room wizard step). */
   hideBathroomFields?: boolean;
   roomPhotos?: Record<string, AuditPhotoInput[]>;
+  existingPhotos?: AuditPhotoRef[];
   onRoomPhotosChange?: (typeId: string, photos: AuditPhotoInput[]) => void;
   totalPhotoCount?: number;
   photoLabel?: string;
@@ -70,6 +73,7 @@ export function RoomAuditSection({
   bathroomOnly = false,
   hideBathroomFields = false,
   roomPhotos = {},
+  existingPhotos = [],
   onRoomPhotosChange,
   totalPhotoCount = 0,
   photoLabel,
@@ -224,6 +228,7 @@ export function RoomAuditSection({
 
         {onRoomPhotosChange && !bathroomOnly && (
           <div style={{ marginTop: 12 }}>
+            <ExistingStepPhotos photos={photosForRoomScope(existingPhotos, roomScopeKey(typeId))} />
             <label htmlFor={`photos-${typeId}`} style={{ fontSize: 13, fontWeight: 600 }}>
               {t("ui.auditStepPhotos")}
             </label>

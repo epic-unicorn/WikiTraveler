@@ -43,6 +43,15 @@ export function PhotoLightbox({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, index, photos.length, onClose, onNavigate]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open || !current) return null;
 
   return (

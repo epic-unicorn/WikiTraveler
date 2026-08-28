@@ -167,6 +167,71 @@ export function groupFactsBySection(facts: DisplayFact[]): FactSection[] {
   return sections;
 }
 
+const ROOM_FACT_ORDER = [
+  "step_free_room",
+  "clear_space_beside_bed",
+  "bed_height_cm",
+  "turning_circle_cm",
+  "accessible_room_description",
+  "roll_in_shower",
+  "grab_bars_bathroom",
+];
+
+function sortRoomFacts(facts: DisplayFact[]): DisplayFact[] {
+  return [...facts].sort((a, b) => {
+    const ai = ROOM_FACT_ORDER.indexOf(a.fieldName);
+    const bi = ROOM_FACT_ORDER.indexOf(b.fieldName);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+}
+
+export type RoomTypeFactGroup = {
+  typeId: string;
+  facts: DisplayFact[];
+};
+
+/** Split the Rooms section into property-level overview vs per-room-type groups. */
+export function splitRoomSectionFacts(facts: DisplayFact[]): {
+  overview: DisplayFact[];
+  groups: RoomTypeFactGroup[];
+} {
+  const overview: DisplayFact[] = [];
+  const byType = new Map<string, DisplayFact[]>();
+
+  for (const fact of facts) {
+    const scope = fact.scopeKey ?? "property";
+    if (isRoomPhotoScope(scope)) {
+      const typeId = scope.slice("room-type:".length);
+      const list = byType.get(typeId) ?? [];
+      list.push(fact);
+      byType.set(typeId, list);
+    } else {
+      overview.push(fact);
+    }
+  }
+
+  const orderFact = overview.find((f) => f.fieldName === "room_types_available");
+  const preferred = (orderFact?.value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const groups: RoomTypeFactGroup[] = [];
+  const seen = new Set<string>();
+  for (const typeId of preferred) {
+    const grouped = byType.get(typeId);
+    if (!grouped) continue;
+    groups.push({ typeId, facts: sortRoomFacts(grouped) });
+    seen.add(typeId);
+  }
+  for (const [typeId, grouped] of byType) {
+    if (seen.has(typeId)) continue;
+    groups.push({ typeId, facts: sortRoomFacts(grouped) });
+  }
+
+  return { overview, groups };
+}
+
 function toDisplayPhoto(p: AuditPhotoRef): { url: string; caption: string | null; id?: string } {
   return { url: p.url, caption: p.caption ?? null, id: p.id };
 }
@@ -176,6 +241,30 @@ export function photosForStepScope(
   scopeKey: AuditPhotoStepScope
 ): Array<{ url: string; caption: string | null; id?: string }> {
   return photos.filter((p) => (p.scopeKey ?? "") === scopeKey).map(toDisplayPhoto);
+}
+
+/** Live property photos to show read-only on an audit wizard step. */
+export function existingPhotosForAuditStep(
+  photos: AuditPhotoRef[],
+  step: "entrance" | "mobility" | "bathroom" | "communication"
+): Array<{ url: string; caption: string | null; id?: string }> {
+  const primary = stepScopeKey(step);
+  const legacy: AuditPhotoStepScope | null =
+    step === "entrance"
+      ? "step:building_access"
+      : step === "bathroom"
+        ? "step:shared_facilities"
+        : null;
+  const seen = new Set<string>();
+  const out: Array<{ url: string; caption: string | null; id?: string }> = [];
+  for (const p of photos) {
+    const scope = p.scopeKey ?? "";
+    if (scope !== primary && scope !== legacy) continue;
+    if (seen.has(p.url)) continue;
+    seen.add(p.url);
+    out.push(toDisplayPhoto(p));
+  }
+  return out;
 }
 
 export function photosForRoomScope(

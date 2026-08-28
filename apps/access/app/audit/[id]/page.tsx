@@ -62,6 +62,15 @@ export default async function AuditPage({
     signatureHash?: string | null;
     timestamp?: string;
   }> = [];
+  let existingPhotos: Array<{
+    id: string;
+    url: string;
+    caption: string | null;
+    fieldName: string | null;
+    scopeKey: string | null;
+    width: number | null;
+    height: number | null;
+  }> = [];
 
   try {
     const res = await fetch(
@@ -78,9 +87,21 @@ export default async function AuditPage({
           signatureHash?: string | null;
           timestamp?: string;
         }>;
+        auditPhotos?: {
+          photos?: Array<{
+            id: string;
+            url: string;
+            caption: string | null;
+            fieldName: string | null;
+            scopeKey: string | null;
+            width: number | null;
+            height: number | null;
+          }>;
+        } | null;
       };
       property = data.property;
       existingFacts = data.facts ?? [];
+      existingPhotos = data.auditPhotos?.photos ?? [];
     }
   } catch {
     // node unreachable — will still render the form with fallback
@@ -92,6 +113,7 @@ export default async function AuditPage({
       propertyName={property?.name ?? "Unknown Property"}
       location={property?.location ?? "Unknown Location"}
       existingFacts={existingFacts}
+      existingPhotos={existingPhotos}
       targetNodeUrl={resolvedSearchParams.node}
     />
   );

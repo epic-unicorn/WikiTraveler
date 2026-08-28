@@ -7,7 +7,7 @@ import {
   pinsFromSummaries,
   propertySummaryToMapPin,
 } from "../app/lib/discoveryUtils";
-import { groupFactsBySection, photosForFact, unassignedPhotos, photosForSection, photosForStepScope } from "../app/lib/propertyFacts";
+import { groupFactsBySection, photosForFact, unassignedPhotos, photosForSection, photosForStepScope, existingPhotosForAuditStep, splitRoomSectionFacts } from "../app/lib/propertyFacts";
 
 describe("buildSearchParams", () => {
   it("includes trimmed query", () => {
@@ -143,5 +143,46 @@ describe("propertyFacts", () => {
     ]);
     const entrance = sections.find((s) => s.id === "entrance")!;
     expect(photosForSection(photos, entrance)).toHaveLength(1);
+  });
+
+  it("maps live + legacy scopes onto the matching audit wizard step", () => {
+    const photos = [
+      { url: "https://example.com/entry.jpg", fieldName: null, scopeKey: "step:entrance" },
+      { url: "https://example.com/old-entry.jpg", fieldName: null, scopeKey: "step:building_access" },
+      { url: "https://example.com/bath.jpg", fieldName: null, scopeKey: "step:bathroom" },
+    ];
+    expect(existingPhotosForAuditStep(photos, "entrance").map((p) => p.url)).toEqual([
+      "https://example.com/entry.jpg",
+      "https://example.com/old-entry.jpg",
+    ]);
+    expect(existingPhotosForAuditStep(photos, "bathroom")).toHaveLength(1);
+    expect(existingPhotosForAuditStep(photos, "mobility")).toHaveLength(0);
+  });
+
+  it("splits room facts into per-type groups", () => {
+    const { overview, groups } = splitRoomSectionFacts([
+      { fieldName: "room_types_available", value: "twin,double", tier: "VERIFIED" },
+      {
+        fieldName: "step_free_room",
+        value: "yes",
+        tier: "VERIFIED",
+        scopeKey: "room-type:twin",
+      },
+      {
+        fieldName: "roll_in_shower",
+        value: "yes",
+        tier: "VERIFIED",
+        scopeKey: "room-type:double",
+      },
+      {
+        fieldName: "step_free_room",
+        value: "no",
+        tier: "VERIFIED",
+        scopeKey: "room-type:double",
+      },
+    ]);
+    expect(overview.map((f) => f.fieldName)).toEqual(["room_types_available"]);
+    expect(groups.map((g) => g.typeId)).toEqual(["twin", "double"]);
+    expect(groups[1]?.facts.map((f) => f.fieldName)).toEqual(["step_free_room", "roll_in_shower"]);
   });
 });

@@ -322,6 +322,7 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET=wikitraveler-photos
 R2_PUBLIC_URL=https://pub-xxx.r2.dev    # public bucket URL or custom domain
+R2_JURISDICTION=eu                      # required for EU-locked buckets (eu | us | fedramp)
 ```
 
 ### Supabase Storage

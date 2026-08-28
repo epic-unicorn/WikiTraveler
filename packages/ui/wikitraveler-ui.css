@@ -685,7 +685,31 @@ button.wt-toolbar-back {
   gap: 8px;
 }
 
+.wt-search-filter-group + .wt-search-filter-group {
+  margin-top: 12px;
+}
+
+.wt-search-filter-group__label {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--wt-text-muted);
+}
+
+.wt-search-filter-group__hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--wt-text-muted);
+}
+
 .wt-search-filter-popover .wt-search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
   border: 1px solid var(--wt-border);
   border-radius: 999px;
@@ -706,7 +730,23 @@ button.wt-toolbar-back {
   border-color: var(--wt-primary);
 }
 
+.wt-search-chip-profile-mark {
+  flex-shrink: 0;
+}
+
+.wt-search-chip--from-profile:not(.wt-search-chip--active) {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--wt-primary) 8%, var(--wt-bg));
+}
+
+.wt-search-chip--from-profile.wt-search-chip--active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 40%, transparent);
+}
+
 .wt-search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
   border: 1px solid var(--wt-border);
   border-radius: 999px;

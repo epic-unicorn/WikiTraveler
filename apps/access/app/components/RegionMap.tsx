@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme, useLocale } from "@wikitraveler/ui";
 import {
   fetchMapPins,
@@ -9,6 +9,7 @@ import {
   toClientNodeUrl,
   type MapPin,
 } from "../lib/accessApi";
+import { filterPinsByFeatures } from "../lib/mapPinFeatures";
 import { readMapCamera, saveMapCamera } from "../lib/mapCameraSession";
 
 /** Below this zoom, no property pins — ask the traveler to zoom in. */
@@ -42,6 +43,8 @@ interface Props {
   onDataNodeUrlChange?: (url: string) => void;
   /** Viewport browse: current pins for list mode. */
   onViewportPinsChange?: (pins: MapPin[]) => void;
+  /** Viewport browse: keep only pins matching these boolean features (profile chips). */
+  viewportFeatureFilters?: readonly string[];
   /** When false, keep the Leaflet instance but hide the shell (preserves zoom). */
   visible?: boolean;
   /** GPS locate control — pan/zoom to user and notify parent (Near me). */
@@ -171,6 +174,7 @@ export function RegionMap({
   autoFit = true,
   className,
   viewportBrowse = false,
+  viewportFeatureFilters = [],
   onDataNodeUrlChange,
   onViewportPinsChange,
   visible = true,
@@ -194,7 +198,11 @@ export function RegionMap({
   dataNodeUrlRef.current = nodeUrl;
 
   const useExternal = externalPins !== undefined && !viewportBrowse;
-  const pins = useExternal ? (externalPins ?? []) : internalPins;
+  const visibleInternalPins = useMemo(
+    () => filterPinsByFeatures(internalPins, viewportFeatureFilters),
+    [internalPins, viewportFeatureFilters]
+  );
+  const pins = useExternal ? (externalPins ?? []) : visibleInternalPins;
   const loading = useExternal ? (externalLoading ?? false) : internalLoading;
   const error = useExternal ? (externalError ?? "") : internalError;
 
@@ -223,8 +231,8 @@ export function RegionMap({
       onViewportPinsChange?.([]);
       return;
     }
-    onViewportPinsChange?.(internalPins);
-  }, [viewportBrowse, internalPins, onViewportPinsChange]);
+    onViewportPinsChange?.(visibleInternalPins);
+  }, [viewportBrowse, visibleInternalPins, onViewportPinsChange]);
 
   const refreshViewport = useCallback(async () => {
     if (!viewportBrowse || useExternal) return;

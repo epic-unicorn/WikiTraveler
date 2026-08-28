@@ -9,7 +9,6 @@ import {
   removeSavedPlace,
   SAVED_PLACES_EVENT,
   type SavedPlace,
-  type SavedPlaceCategory,
 } from "../lib/savedPlaces";
 import { propertyHref } from "../lib/propertyHref";
 import { fetchPropertyAccessibility } from "../lib/accessApi";
@@ -20,7 +19,6 @@ import { AccessibilityIconRow } from "../components/AccessibilityIconRow";
 const PLACEHOLDER_SRC = "/images/property-hero-placeholder.png";
 
 type SavedSort = "recent" | "nameAsc" | "nameDesc";
-type SavedFilter = "all" | SavedPlaceCategory;
 
 interface Props {
   homeNodeUrl: string;
@@ -43,7 +41,6 @@ export function SavedTab({ homeNodeUrl, active = true, onAddLocation }: Props) {
   const [saved, setSaved] = useState<SavedPlace[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SavedSort>("recent");
-  const [filter, setFilter] = useState<SavedFilter>("all");
   const [menuId, setMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,33 +110,15 @@ export function SavedTab({ homeNodeUrl, active = true, onAddLocation }: Props) {
     };
   }, [active, homeNodeUrl, locale]);
 
-  const counts = useMemo(() => {
-    const stay = saved.filter((p) => p.category === "stay").length;
-    const hotel = saved.filter((p) => p.category === "hotel").length;
-    const other = saved.filter((p) => p.category === "other").length;
-    return { all: saved.length, stay, hotel, other };
-  }, [saved]);
-
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = saved.filter((p) => {
-      if (!matchesQuery(p, q)) return false;
-      if (filter === "all") return true;
-      return p.category === filter;
-    });
+    const filtered = saved.filter((p) => matchesQuery(p, q));
     const sorted = [...filtered];
     if (sort === "nameAsc") sorted.sort((a, b) => a.name.localeCompare(b.name, locale));
     else if (sort === "nameDesc") sorted.sort((a, b) => b.name.localeCompare(a.name, locale));
     else sorted.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
     return sorted;
-  }, [saved, query, sort, filter, locale]);
-
-  const FILTERS: { id: SavedFilter; label: string; count: number }[] = [
-    { id: "all", label: t("ui.savedFilterAll"), count: counts.all },
-    { id: "stay", label: t("ui.savedFilterStays"), count: counts.stay },
-    { id: "hotel", label: t("ui.savedFilterHotels"), count: counts.hotel },
-    { id: "other", label: t("ui.savedFilterOther"), count: counts.other },
-  ];
+  }, [saved, query, sort, locale]);
 
   return (
     <div className="tab-content fk-saved-tab">
@@ -147,55 +126,39 @@ export function SavedTab({ homeNodeUrl, active = true, onAddLocation }: Props) {
         notifyNodeUrl={homeNodeUrl}
         sectionTitle={t("ui.savedTitle")}
         sectionSubtitle={t("ui.savedSubtitle")}
-      />
+      >
+        {saved.length > 0 && (
+          <div className="fk-saved-toolbar">
+            <label className="fk-saved-search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("ui.savedSearchPlaceholder")}
+                aria-label={t("ui.savedSearchPlaceholder")}
+              />
+            </label>
+            <label className="fk-saved-sort">
+              <span className="wt-sr-only">{t("ui.savedSort")}</span>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SavedSort)}
+                aria-label={t("ui.savedSort")}
+              >
+                <option value="recent">{t("ui.savedSortRecent")}</option>
+                <option value="nameAsc">{t("ui.savedSortNameAsc")}</option>
+                <option value="nameDesc">{t("ui.savedSortNameDesc")}</option>
+              </select>
+            </label>
+          </div>
+        )}
+      </AccessPageHero>
 
       <div className="fk-page-body">
-        {saved.length > 0 && (
-          <>
-            <div className="fk-saved-toolbar">
-              <label className="fk-saved-search">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t("ui.savedSearchPlaceholder")}
-                  aria-label={t("ui.savedSearchPlaceholder")}
-                />
-              </label>
-              <label className="fk-saved-sort">
-                <span className="wt-sr-only">{t("ui.savedSort")}</span>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as SavedSort)}
-                  aria-label={t("ui.savedSort")}
-                >
-                  <option value="recent">{t("ui.savedSortRecent")}</option>
-                  <option value="nameAsc">{t("ui.savedSortNameAsc")}</option>
-                  <option value="nameDesc">{t("ui.savedSortNameDesc")}</option>
-                </select>
-              </label>
-            </div>
-            <div className="fk-saved-filters" role="tablist" aria-label={t("ui.savedTitle")}>
-              {FILTERS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === f.id}
-                  className={`fk-saved-filter${filter === f.id ? " fk-saved-filter--active" : ""}`}
-                  onClick={() => setFilter(f.id)}
-                >
-                  {f.label} ({f.count})
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
         {saved.length === 0 ? (
           <p className="fk-saved-empty">{t("ui.savedEmpty")}</p>
         ) : visible.length === 0 ? (

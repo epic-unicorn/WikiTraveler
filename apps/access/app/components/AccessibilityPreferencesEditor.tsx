@@ -24,11 +24,11 @@ export function AccessibilityPreferencesEditor({ summary = false }: Props) {
   }, []);
 
   function toggle(key: A11yPreferenceKey) {
-    setSelected((prev) => {
-      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-      writeA11yPreferences(next);
-      return next;
-    });
+    const next = selected.includes(key)
+      ? selected.filter((k) => k !== key)
+      : [...selected, key];
+    setSelected(next);
+    writeA11yPreferences(next);
   }
 
   const chips = editing ? A11Y_PREFERENCE_OPTIONS : selected;

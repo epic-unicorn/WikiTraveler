@@ -8,6 +8,8 @@ export type SearchSessionState = {
   filters: SearchFilters;
   page: number;
   view: DiscoveryViewMode;
+  /** Profile preference keys turned off for this search session. */
+  prefOverridesOff?: string[];
 };
 
 function defaultFilters(): SearchFilters {
@@ -35,6 +37,9 @@ export function readSearchSession(): SearchSessionState | null {
       },
       page: typeof parsed.page === "number" && parsed.page > 0 ? parsed.page : 1,
       view,
+      prefOverridesOff: Array.isArray(parsed.prefOverridesOff)
+        ? parsed.prefOverridesOff.filter((k): k is string => typeof k === "string")
+        : undefined,
     };
   } catch {
     return null;

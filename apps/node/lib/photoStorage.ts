@@ -36,6 +36,16 @@ function createBase64Adapter(): PhotoStorageAdapter {
 // Required env vars: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
 //                    R2_BUCKET, R2_PUBLIC_URL
 
+export function r2S3Endpoint(accountId: string): string {
+  const explicit = process.env.R2_ENDPOINT?.replace(/\/$/, "");
+  if (explicit) return explicit;
+  const jurisdiction = (process.env.R2_JURISDICTION ?? "").trim().toLowerCase();
+  if (jurisdiction === "eu" || jurisdiction === "us" || jurisdiction === "fedramp") {
+    return `https://${accountId}.${jurisdiction}.r2.cloudflarestorage.com`;
+  }
+  return `https://${accountId}.r2.cloudflarestorage.com`;
+}
+
 async function createR2Adapter(): Promise<PhotoStorageAdapter> {
   const { S3Client, PutObjectCommand, DeleteObjectCommand } = await import(
     "@aws-sdk/client-s3"
@@ -53,7 +63,10 @@ async function createR2Adapter(): Promise<PhotoStorageAdapter> {
 
   const client = new S3Client({
     region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    endpoint: r2S3Endpoint(accountId),
+    forcePathStyle: true,
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
     credentials: {
       accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",

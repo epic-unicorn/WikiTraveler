@@ -10,10 +10,12 @@ import {
   fetchPropertyAccessibility,
   fetchPropertySignals,
   ENV_NODE_URL,
+  type AuditNoteEntry,
   type AuditPhotosPayload,
 } from "../../lib/accessApi";
 import { auditHref } from "../../lib/auditHref";
 import { propertyHref } from "../../lib/propertyHref";
+import { getRoomTypeLabel } from "@wikitraveler/i18n";
 import { resolveFactDisplay, getTierLabel } from "../../lib/factDisplay";
 import { readAuthToken } from "../../lib/authStorage";
 import { roleFromToken, canContribute } from "../../lib/userRole";
@@ -24,12 +26,18 @@ import {
   groupFactsBySection,
   photosForFact,
   photosForSection,
+  photosForRoomScope,
+  splitRoomSectionFacts,
   unassignedPhotos,
   type DisplayFact,
   type FactSection,
 } from "../../lib/propertyFacts";
 import { AccessibilityIconRow } from "../../components/AccessibilityIconRow";
 import { PropertyMiniMap } from "../../components/PropertyMiniMap";
+import { TaggedNotes } from "../../components/TaggedNotes";
+import { AuditNotesList } from "../../components/AuditNotesList";
+import { PhotoLightbox } from "../../components/PhotoLightbox";
+import { parseTaggedNotes } from "../../lib/taggedNotes";
 
 interface Props {
   propertyId: string;
@@ -49,20 +57,136 @@ const CATEGORY_EXPECTED: Array<{
   { id: "communication", labelKey: "ui.auditStepCommunication", sectionIds: ["communication"], expected: 5 },
 ];
 
+function FactList({
+  facts,
+  allPhotos,
+  locale,
+  t,
+  onReport,
+  openPhoto,
+}: {
+  facts: DisplayFact[];
+  allPhotos: Array<{
+    url: string;
+    caption: string | null;
+    fieldName?: string | null;
+    scopeKey?: string | null;
+  }>;
+  locale: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  onReport: (fact: DisplayFact) => void;
+  openPhoto: (url: string) => void;
+}) {
+  if (facts.length === 0) return null;
+  return (
+    <ul className="fk-property-facts">
+      {facts.map((fact) => {
+        const { label, displayValue } = resolveFactDisplay(
+          {
+            fieldName: fact.fieldName,
+            value: fact.value,
+            tier: fact.tier,
+            valueLocale: fact.valueLocale,
+            translatedValue:
+              fact.machineTranslated && fact.displayValue ? fact.displayValue : undefined,
+            machineTranslated: fact.machineTranslated,
+          },
+          locale
+        );
+        const factPhotos = photosForFact(allPhotos, fact);
+        return (
+          <li
+            key={`${fact.scopeKey ?? "property"}-${fact.fieldName}`}
+            className={`fk-property-fact${fact.fieldName === "notes" ? " fk-property-fact--notes" : ""}`}
+          >
+            <div className="fk-property-fact-row">
+              <span className="fk-property-fact-label">{label}</span>
+              {fact.fieldName === "notes" ? (
+                <TaggedNotes text={displayValue} />
+              ) : (
+                <span className="fk-property-fact-value">{displayValue}</span>
+              )}
+            </div>
+            <div className="fk-property-fact-meta">
+              <span className="fk-property-fact-tier">{getTierLabel(fact.tier, locale)}</span>
+              <button
+                type="button"
+                className="fk-property-fact-report"
+                onClick={() => onReport(fact)}
+              >
+                {t("ui.signalReportField")}
+              </button>
+            </div>
+            {factPhotos.length > 0 && (
+              <PhotoStrip
+                photos={factPhotos}
+                label={label}
+                openLabel={t("ui.propertyOpenPhoto")}
+                onOpen={openPhoto}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function uniqueGallery(
+  photos: Array<{ url: string; caption: string | null }>
+): Array<{ url: string; caption: string | null }> {
+  const seen = new Set<string>();
+  const out: Array<{ url: string; caption: string | null }> = [];
+  for (const photo of photos) {
+    if (!photo.url || seen.has(photo.url)) continue;
+    seen.add(photo.url);
+    out.push(photo);
+  }
+  return out;
+}
+
+function notesFromResponse(
+  notes: AuditNoteEntry[] | undefined,
+  facts: Array<{ fieldName: string; value: string; timestamp?: string }>
+): AuditNoteEntry[] {
+  if (notes && notes.length > 0) return notes;
+  const fact = facts.find((f) => f.fieldName === "notes" && f.value.trim());
+  if (!fact) return [];
+  return [
+    {
+      submissionId: "legacy-notes",
+      createdAt: fact.timestamp ?? new Date().toISOString(),
+      auditorToken: null,
+      text: fact.value,
+    },
+  ];
+}
+
 function PhotoStrip({
   photos,
   label,
+  openLabel,
+  onOpen,
 }: {
   photos: Array<{ url: string; caption: string | null }>;
   label?: string;
+  openLabel: string;
+  onOpen: (url: string) => void;
 }) {
   if (photos.length === 0) return null;
   return (
     <div className="fk-property-photos" aria-label={label}>
       {photos.map((photo, i) => (
         <figure key={`${photo.url}-${i}`} className="fk-property-photo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt={photo.caption ?? label ?? ""} loading="lazy" />
+          <button
+            type="button"
+            className="fk-property-photo-btn"
+            onClick={() => onOpen(photo.url)}
+            aria-label={openLabel}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo.url} alt={photo.caption ?? label ?? ""} />
+          </button>
           {photo.caption && <figcaption>{photo.caption}</figcaption>}
         </figure>
       ))}
@@ -117,7 +241,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
     tier: string;
   } | null>(null);
   const [offline, setOffline] = useState(false);
-  const [heroIndex, setHeroIndex] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [scoreHelpOpen, setScoreHelpOpen] = useState(false);
 
   const role = roleFromToken(readAuthToken());
@@ -154,7 +278,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
         ]);
         if (cancelled) return;
         setData(access);
-        setHeroIndex(0);
+        setLightboxIndex(null);
         setOpenCount(signals.openCount);
         cachePropertyDetail({
           propertyId,
@@ -168,7 +292,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
         const cached = readCachedPropertyDetail(propertyId, locale);
         if (cached?.payload) {
           setData(cached.payload as Awaited<ReturnType<typeof fetchPropertyAccessibility>>);
-          setHeroIndex(0);
+          setLightboxIndex(null);
           setOffline(true);
         } else {
           setError(t("ui.propertyLoadFailed"));
@@ -198,7 +322,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
         })),
       ]);
       setData(access);
-      setHeroIndex(0);
+      setLightboxIndex(null);
       setOpenCount(signals.openCount);
       cachePropertyDetail({
         propertyId,
@@ -244,10 +368,30 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
       fieldName: p.fieldName,
       scopeKey: p.scopeKey,
     })) ?? [];
+  const historyPhotos =
+    data?.auditPhotoHistory?.flatMap((group) =>
+      group.photos.map((p) => ({
+        url: p.url,
+        caption: p.caption,
+        fieldName: p.fieldName,
+        scopeKey: p.scopeKey,
+      }))
+    ) ?? [];
 
   const heroPhotos =
     data?.property.photos?.map((p) => ({ url: p.url, caption: p.caption ?? null })) ??
     allPhotos.slice(0, 4).map((p) => ({ url: p.url, caption: p.caption }));
+
+  const galleryPhotos = uniqueGallery([
+    ...heroPhotos,
+    ...allPhotos.map((p) => ({ url: p.url, caption: p.caption })),
+    ...historyPhotos.map((p) => ({ url: p.url, caption: p.caption })),
+  ]);
+
+  function openPhoto(url: string) {
+    const index = galleryPhotos.findIndex((p) => p.url === url);
+    setLightboxIndex(index >= 0 ? index : 0);
+  }
 
   function handleSave() {
     if (!data?.property) return;
@@ -263,7 +407,9 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
     setSaved(nowSaved);
   }
 
-  const displayFacts: DisplayFact[] = (data?.facts ?? []).map((f) => ({
+  const displayFacts: DisplayFact[] = (data?.facts ?? [])
+    .filter((f) => f.fieldName !== "notes")
+    .map((f) => ({
     fieldName: f.fieldName,
     scopeKey: f.scopeKey,
     value: f.value,
@@ -276,6 +422,10 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
   }));
 
   const sections = groupFactsBySection(displayFacts);
+  const hideTaggedDescription = Boolean(
+    data?.property.description && parseTaggedNotes(data.property.description)
+  );
+  const auditNoteList = notesFromResponse(data?.auditNotes, data?.facts ?? []);
   const orphanPhotos = unassignedPhotos(allPhotos, displayFacts);
   const shownStepScopes = new Set<string>();
 
@@ -288,8 +438,8 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
     (data?.confidenceSummary?.officialCount ?? 0);
   const factsPresent = displayFacts.length;
 
-  const safeHeroIndex = heroPhotos.length > 0 ? Math.min(heroIndex, heroPhotos.length - 1) : 0;
-  const heroPhoto = heroPhotos[safeHeroIndex] ?? null;
+  const safeHeroIndex = 0;
+  const heroPhoto = heroPhotos[0] ?? null;
   const propertyLat = data?.property.lat;
   const propertyLon = data?.property.lon;
   const hasCoords =
@@ -318,14 +468,18 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
               {heroPhoto ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  className={`fk-property-hero-img${heroPhotos.length > 1 ? " fk-property-hero-img--cycle" : ""}`}
+                  className="fk-property-hero-img fk-property-hero-img--open"
                   src={heroPhoto.url}
                   alt={heroPhoto.caption ?? data.property.name}
-                  onClick={
-                    heroPhotos.length > 1
-                      ? () => setHeroIndex((i) => (i + 1) % heroPhotos.length)
-                      : undefined
-                  }
+                  onClick={() => openPhoto(heroPhoto.url)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openPhoto(heroPhoto.url);
+                    }
+                  }}
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -380,9 +534,9 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                 </div>
               </div>
 
-              {heroPhotos.length > 1 && (
+              {galleryPhotos.length > 1 && (
                 <span className="fk-property-hero-counter" aria-live="polite">
-                  {safeHeroIndex + 1} / {heroPhotos.length}
+                  {safeHeroIndex + 1} / {galleryPhotos.length}
                 </span>
               )}
             </div>
@@ -416,7 +570,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                     />
                   )}
                 </div>
-                {data.property.description && (
+                {data.property.description && !hideTaggedDescription && (
                   <p className="fk-property-description">{data.property.description}</p>
                 )}
                 {data.property.sourceLinks && data.property.sourceLinks.length > 0 && (
@@ -596,71 +750,99 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                   {sections.map((section) => {
                     const sectionPhotosRaw = photosForSection(allPhotos, section);
                     const sectionPhotos = sectionPhotosRaw.filter((p) => {
-                      if (section.id === "room") return true;
+                      if (section.id === "room") return false;
                       const stepKey = p.groupKey ?? section.id;
                       if (shownStepScopes.has(stepKey)) return false;
                       shownStepScopes.add(stepKey);
                       return true;
                     });
+                    const roomSplit =
+                      section.id === "room" ? splitRoomSectionFacts(section.facts) : null;
+                    const reportFact = (fact: DisplayFact) => {
+                      setReportField({
+                        fieldName: fact.fieldName,
+                        value: fact.value,
+                        tier: fact.tier,
+                      });
+                      setReportOpen(true);
+                    };
                     return (
                       <section key={section.id} className="fk-property-section">
                         <h2 className="fk-property-section-title">{t(section.labelKey)}</h2>
-                        <ul className="fk-property-facts">
-                          {section.facts.map((fact) => {
-                            const { label, displayValue } = resolveFactDisplay(
-                              {
-                                fieldName: fact.fieldName,
-                                value: fact.value,
-                                tier: fact.tier,
-                                valueLocale: fact.valueLocale,
-                                translatedValue:
-                                  fact.machineTranslated && fact.displayValue ? fact.displayValue : undefined,
-                                machineTranslated: fact.machineTranslated,
-                              },
-                              locale
-                            );
-                            const factPhotos = photosForFact(allPhotos, fact);
-                            return (
-                              <li
-                                key={`${fact.scopeKey ?? "property"}-${fact.fieldName}`}
-                                className={`fk-property-fact${fact.fieldName === "notes" ? " fk-property-fact--notes" : ""}`}
-                              >
-                                <div className="fk-property-fact-row">
-                                  <span className="fk-property-fact-label">{label}</span>
-                                  <span className="fk-property-fact-value">{displayValue}</span>
+                        {roomSplit ? (
+                          <>
+                            <FactList
+                              facts={roomSplit.overview}
+                              allPhotos={allPhotos}
+                              locale={locale}
+                              t={t}
+                              onReport={reportFact}
+                              openPhoto={openPhoto}
+                            />
+                            {roomSplit.groups.map((group) => {
+                              const roomPhotos = photosForRoomScope(
+                                allPhotos,
+                                `room-type:${group.typeId}`
+                              );
+                              return (
+                                <div key={group.typeId} className="fk-property-room-type">
+                                  <p className="fk-property-room-type-kicker">
+                                    {t("ui.propertyAuditedRoomType")}
+                                  </p>
+                                  <h3 className="fk-property-room-type-title">
+                                    {getRoomTypeLabel(group.typeId, locale)}
+                                  </h3>
+                                  <FactList
+                                    facts={group.facts}
+                                    allPhotos={allPhotos}
+                                    locale={locale}
+                                    t={t}
+                                    onReport={reportFact}
+                                    openPhoto={openPhoto}
+                                  />
+                                  {roomPhotos.length > 0 && (
+                                    <PhotoStrip
+                                      photos={roomPhotos}
+                                      label={getRoomTypeLabel(group.typeId, locale)}
+                                      openLabel={t("ui.propertyOpenPhoto")}
+                                      onOpen={openPhoto}
+                                    />
+                                  )}
                                 </div>
-                                <div className="fk-property-fact-meta">
-                                  <span className="fk-property-fact-tier">
-                                    {getTierLabel(fact.tier, locale)}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="fk-property-fact-report"
-                                    onClick={() => {
-                                      setReportField({
-                                        fieldName: fact.fieldName,
-                                        value: fact.value,
-                                        tier: fact.tier,
-                                      });
-                                      setReportOpen(true);
-                                    }}
-                                  >
-                                    {t("ui.signalReportField")}
-                                  </button>
-                                </div>
-                                {factPhotos.length > 0 && (
-                                  <PhotoStrip photos={factPhotos} label={label} />
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        {sectionPhotos.length > 0 && (
-                          <PhotoStrip photos={sectionPhotos} label={t(section.labelKey)} />
+                              );
+                            })}
+                          </>
+                        ) : (
+                          <>
+                            <FactList
+                              facts={section.facts}
+                              allPhotos={allPhotos}
+                              locale={locale}
+                              t={t}
+                              onReport={(fact) => {
+                                setReportField({
+                                  fieldName: fact.fieldName,
+                                  value: fact.value,
+                                  tier: fact.tier,
+                                });
+                                setReportOpen(true);
+                              }}
+                              openPhoto={openPhoto}
+                            />
+                            {sectionPhotos.length > 0 && (
+                              <PhotoStrip
+                                photos={sectionPhotos}
+                                label={t(section.labelKey)}
+                                openLabel={t("ui.propertyOpenPhoto")}
+                                onOpen={openPhoto}
+                              />
+                            )}
+                          </>
                         )}
                       </section>
                     );
                   })}
+                  <AuditNotesList notes={auditNoteList} />
                   <div className="fk-property-report-row">
                     <p className="fk-property-report-prompt">{t("ui.signalReportPrompt")}</p>
                     <button
@@ -680,13 +862,44 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
               {orphanPhotos.length > 0 && (
                 <section className="fk-property-section">
                   <h2 className="fk-property-section-title">{t("ui.propertyAuditPhotos")}</h2>
-                  <PhotoStrip photos={orphanPhotos} label={t("ui.propertyAuditPhotos")} />
+                  <PhotoStrip
+                    photos={orphanPhotos}
+                    label={t("ui.propertyAuditPhotos")}
+                    openLabel={t("ui.propertyOpenPhoto")}
+                    onOpen={openPhoto}
+                  />
+                </section>
+              )}
+              {historyPhotos.length > 0 && (
+                <section className="fk-property-section">
+                  <details className="fk-property-earlier">
+                    <summary className="fk-property-section-title">{t("ui.propertyEarlierPhotos")}</summary>
+                    <PhotoStrip
+                      photos={historyPhotos.map((p) => ({ url: p.url, caption: p.caption }))}
+                      label={t("ui.propertyEarlierPhotos")}
+                      openLabel={t("ui.propertyOpenPhoto")}
+                      onOpen={openPhoto}
+                    />
+                  </details>
                 </section>
               )}
             </div>
           </>
         )}
       </main>
+      <PhotoLightbox
+        photos={galleryPhotos.map((p, i) => ({
+          url: p.url,
+          caption: p.caption,
+          alt: p.caption ?? `${t("ui.propertyOpenPhoto")} ${i + 1}`,
+        }))}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onNavigate={setLightboxIndex}
+        closeLabel={t("ui.closePhoto")}
+        prevLabel={t("ui.photoPrev")}
+        nextLabel={t("ui.photoNext")}
+      />
     </div>
   );
 }

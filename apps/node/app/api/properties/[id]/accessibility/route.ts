@@ -6,6 +6,12 @@ import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import { pushFactsToPeers } from "@/lib/push";
 import { getPhotoStorage, photoToDisplayUrl } from "@/lib/photoStorage";
+import {
+  extractAuditNotes,
+  mergeAuditPhotosBySlot,
+  type EvidencePhoto,
+  type EvidenceSubmission,
+} from "@/lib/auditEvidence";
 import { validateAuditFacts, getFieldRegistryMap, factValuesMatch } from "@/lib/fieldRegistry";
 import { enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
 import { buildPropertyDetail, buildConfidenceSummary } from "@/lib/propertyEnrichment";
@@ -111,19 +117,46 @@ export async function GET(
 
   const enrichedFacts = await enrichFactsForDisplay(collapsedFacts, viewerLocale);
 
-  const latestAudit = await prisma.auditSubmission.findFirst({
-    where: {
-      propertyId: property.id,
-      OR: [
-        { NOT: { photoUrls: { equals: [] } } },
-        { photos: { some: {} } },
-      ],
-    },
+  const submissionsRaw = await prisma.auditSubmission.findMany({
+    where: { propertyId: property.id },
     orderBy: { createdAt: "desc" },
     include: {
       photos: { orderBy: { sortOrder: "asc" } },
     },
   });
+
+  const evidenceSubs: EvidenceSubmission[] = submissionsRaw.map((sub) => {
+    const structured: EvidencePhoto[] = sub.photos.map((p) => ({
+      id: p.id,
+      url: photoToDisplayUrl(p.url),
+      caption: p.caption,
+      fieldName: p.fieldName,
+      scopeKey: p.scopeKey,
+      width: p.width,
+      height: p.height,
+    }));
+    const legacy: EvidencePhoto[] = structured.length
+      ? []
+      : normalizeLegacyPhotos(sub.photoUrls).map((url, i) => ({
+          id: `legacy-${sub.id}-${i}`,
+          url,
+          caption: null,
+          fieldName: null,
+          scopeKey: null,
+          width: null,
+          height: null,
+        }));
+    return {
+      id: sub.id,
+      createdAt: sub.createdAt,
+      auditorToken: sub.auditorToken,
+      facts: sub.facts,
+      photos: structured.length > 0 ? structured : legacy,
+    };
+  });
+
+  const mergedPhotos = mergeAuditPhotosBySlot(evidenceSubs);
+  const auditNotes = extractAuditNotes(evidenceSubs);
 
   let auditPhotos: {
     submissionId: string;
@@ -136,38 +169,17 @@ export async function GET(
       scopeKey: string | null;
       width: number | null;
       height: number | null;
+      submissionId?: string;
     }>;
     photoOriginNode: string | null;
   } | null = null;
 
-  if (latestAudit) {
-    const structured = latestAudit.photos.map((p) => ({
-      id: p.id,
-      url: photoToDisplayUrl(p.url),
-      caption: p.caption,
-      fieldName: p.fieldName,
-      scopeKey: p.scopeKey,
-      width: p.width,
-      height: p.height,
-    }));
-
-    const legacy = normalizeLegacyPhotos(latestAudit.photoUrls).map((url, i) => ({
-      id: `legacy-${i}`,
-      url,
-      caption: null as string | null,
-      fieldName: null as string | null,
-      scopeKey: null as string | null,
-      width: null as number | null,
-      height: null as number | null,
-    }));
-
-    const photos = structured.length > 0 ? structured : legacy;
-    const firstUrl = photos[0]?.url ?? null;
-
+  if (mergedPhotos.live.length > 0 && mergedPhotos.newestSubmissionId && mergedPhotos.newestCapturedAt) {
+    const firstUrl = mergedPhotos.live[0]?.url ?? null;
     auditPhotos = {
-      submissionId: latestAudit.id,
-      capturedAt: latestAudit.createdAt.toISOString(),
-      photos,
+      submissionId: mergedPhotos.newestSubmissionId,
+      capturedAt: mergedPhotos.newestCapturedAt,
+      photos: mergedPhotos.live,
       photoOriginNode: firstUrl ? photoOriginNode(firstUrl) : null,
     };
   }
@@ -194,10 +206,6 @@ export async function GET(
     me && propertyDetail.claimedByUserId && propertyDetail.claimedByUserId === me
   );
 
-  const notesFact = collapsedFacts.find((f) => f.fieldName === "notes");
-  if (notesFact?.value) {
-    propertyDetail.description = notesFact.value;
-  }
 
   const confidenceSummary = buildConfidenceSummary(
     collapsedFacts,
@@ -209,6 +217,8 @@ export async function GET(
     property: propertyDetail,
     facts: enrichedFacts,
     auditPhotos,
+    auditPhotoHistory: mergedPhotos.history,
+    auditNotes,
     hasAiGuess,
     confidenceSummary,
   });
