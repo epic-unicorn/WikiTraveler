@@ -37,7 +37,9 @@ Product lock for the Access PWA redesign on branch `access-ui-redesign`. Impleme
 
 Wizard steps: `entrance` → `mobility` → `room` → `bathroom` → `communication` → `review`
 
-Boolean answers use **Yes / Partial / No / N/A** toggles (green/red accents). Each audit may **append** a new note (no confirm-other-people’s-notes). Photos: camera or gallery per step.
+Boolean answers use **Yes / Partial / No / N/A** toggles (green/red accents). Stored tokens are `yes` / `partial` / `no` / `n/a` (OSM `true`/`false`/`limited` are canonicalized on load and submit). Each audit may **append** a new note (no confirm-other-people’s-notes). Photos: camera or gallery per step.
+
+A field audit writes **Verified**. **Confirmed** is only when ≥3 independent auditors agree on the same value — agreeing with an OSM prefill does not skip that threshold.
 
 | Step | Fields |
 |------|--------|
@@ -50,7 +52,7 @@ Boolean answers use **Yes / Partial / No / N/A** toggles (green/red accents). Ea
 
 **Removed from active catalogue:** `accessible_room_count`, `elevator_floor_count` (simplify).
 
-**Standard room types (short):** `single`, `double`, `twin`, `suite`, `family`. Auditors may add custom room type ids/labels.
+**Standard room types (short):** `single`, `double`, `twin`, `suite`, `family`. Auditors may add custom room type ids/labels. Deselecting a custom type keeps the chip so it can be re-selected; the API accepts slug ids outside the five standards.
 
 ## Related docs
 

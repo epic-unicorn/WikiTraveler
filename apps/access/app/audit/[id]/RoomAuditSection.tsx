@@ -11,6 +11,7 @@ import {
 } from "@wikitraveler/i18n";
 import { useLocale } from "@wikitraveler/ui";
 import { AuditPhotoGallery } from "../../components/AuditPhotoGallery";
+import { isStandardRoomType } from "./roomTypes";
 
 export interface RoomFieldDef {
   fieldName: string;
@@ -25,6 +26,8 @@ interface Props {
   roomFields: RoomFieldDef[];
   selectedTypes: string[];
   onTypesChange: (types: string[]) => void;
+  /** Custom type ids to keep as chips even when unselected. */
+  knownCustomTypes?: string[];
   roomValues: Record<string, string>;
   onRoomValueChange: (scopeKey: string, fieldName: string, value: string) => void;
   roomDescriptions: Record<string, string>;
@@ -59,6 +62,7 @@ export function RoomAuditSection({
   roomFields,
   selectedTypes,
   onTypesChange,
+  knownCustomTypes = [],
   roomValues,
   onRoomValueChange,
   roomDescriptions,
@@ -103,8 +107,12 @@ export function RoomAuditSection({
     const label = customLabel.trim();
     if (!label) return;
     let id = slugifyCustomType(label);
-    if ((STANDARD_ROOM_TYPES as readonly string[]).includes(id) || selectedTypes.includes(id)) {
+    if (isStandardRoomType(id)) {
       id = `${id}_${Date.now().toString(36)}`;
+    } else if (knownCustomTypes.includes(id) || selectedTypes.includes(id)) {
+      if (!selectedTypes.includes(id)) onTypesChange([...selectedTypes, id]);
+      setCustomLabel("");
+      return;
     }
     onTypesChange([...selectedTypes, id]);
     setCustomLabel("");
@@ -251,9 +259,10 @@ export function RoomAuditSection({
     );
   }
 
-  const customSelected = selectedTypes.filter(
-    (id) => !(STANDARD_ROOM_TYPES as readonly string[]).includes(id)
-  );
+  const customChips = [
+    ...knownCustomTypes,
+    ...selectedTypes.filter((id) => !isStandardRoomType(id)),
+  ].filter((id, index, all) => all.indexOf(id) === index);
 
   return (
     <div>
@@ -277,17 +286,20 @@ export function RoomAuditSection({
                   {getRoomTypeLabel(typeId, locale)}
                 </button>
               ))}
-              {customSelected.map((typeId) => (
-                <button
-                  key={typeId}
-                  type="button"
-                  onClick={() => toggleType(typeId)}
-                  aria-pressed
-                  className="fk-room-type-chip fk-room-type-chip--active"
-                >
-                  {getRoomTypeLabel(typeId, locale)}
-                </button>
-              ))}
+              {customChips.map((typeId) => {
+                const selected = selectedTypes.includes(typeId);
+                return (
+                  <button
+                    key={typeId}
+                    type="button"
+                    onClick={() => toggleType(typeId)}
+                    aria-pressed={selected}
+                    className={`fk-room-type-chip${selected ? " fk-room-type-chip--active" : ""}`}
+                  >
+                    {getRoomTypeLabel(typeId, locale)}
+                  </button>
+                );
+              })}
             </div>
           </fieldset>
 

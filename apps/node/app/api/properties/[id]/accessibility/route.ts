@@ -6,7 +6,7 @@ import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import { pushFactsToPeers } from "@/lib/push";
 import { getPhotoStorage, photoToDisplayUrl } from "@/lib/photoStorage";
-import { validateAuditFacts, getFieldRegistryMap } from "@/lib/fieldRegistry";
+import { validateAuditFacts, getFieldRegistryMap, factValuesMatch } from "@/lib/fieldRegistry";
 import { enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
 import { buildPropertyDetail, buildConfidenceSummary } from "@/lib/propertyEnrichment";
 import { loadOverridesForCanonicalIds, resolveOne } from "@/lib/propertyMetadata";
@@ -311,38 +311,36 @@ export async function POST(
       .map((f) => [factKey(f), f])
   );
 
-  for (const fact of body.facts) {
-    if (fact.confirm) {
-      const scopeKey = fact.scopeKey ?? "property";
-      const key = factKey({ fieldName: fact.fieldName, scopeKey });
-      const meshFact = meshByKey.get(key);
-      if (!meshFact) {
-        return NextResponse.json(
-          { message: `Cannot confirm ${fact.fieldName}: no existing value` },
-          { status: 422 }
-        );
-      }
-      if (meshFact.value.trim() !== fact.value.trim()) {
-        return NextResponse.json(
-          { message: `Confirm value for ${fact.fieldName} must match existing value` },
-          { status: 422 }
-        );
-      }
-    }
+  const validation = await validateAuditFacts(
+    body.facts.map((f) => ({
+      fieldName: f.fieldName,
+      value: f.value,
+      scopeKey: f.scopeKey ?? "property",
+      confirm: f.confirm,
+    })),
+    submissionLocale ?? undefined
+  );
+  if (!validation.ok) {
+    return NextResponse.json({ message: validation.message }, { status: 422 });
   }
+  const facts = validation.facts;
 
-  const factsToValidate = body.facts.filter((f) => !f.confirm);
-  if (factsToValidate.length > 0) {
-    const validation = await validateAuditFacts(
-      factsToValidate.map((f) => ({
-        fieldName: f.fieldName,
-        value: f.value,
-        scopeKey: f.scopeKey ?? "property",
-      })),
-      submissionLocale ?? undefined
-    );
-    if (!validation.ok) {
-      return NextResponse.json({ message: validation.message }, { status: 422 });
+  for (const fact of facts) {
+    if (!fact.confirm) continue;
+    const scopeKey = fact.scopeKey ?? "property";
+    const key = factKey({ fieldName: fact.fieldName, scopeKey });
+    const meshFact = meshByKey.get(key);
+    if (!meshFact) {
+      return NextResponse.json(
+        { message: `Cannot confirm ${fact.fieldName}: no existing value` },
+        { status: 422 }
+      );
+    }
+    if (!factValuesMatch(fieldRegistry.get(fact.fieldName), meshFact.value, fact.value)) {
+      return NextResponse.json(
+        { message: `Confirm value for ${fact.fieldName} must match existing value` },
+        { status: 422 }
+      );
     }
   }
 
@@ -394,7 +392,7 @@ export async function POST(
     data: {
       propertyId,
       auditorToken: submitter,
-      facts: body.facts,
+      facts,
       photoUrls: storedPhotos.map((p) => p.url),
       locale: body.locale ?? null,
       photos: storedPhotos.length
@@ -404,16 +402,21 @@ export async function POST(
   });
 
   await Promise.all(
-    body.facts.map(async (fact) => {
+    facts.map(async (fact) => {
       const scopeKey = fact.scopeKey ?? "property";
       const key = factKey({ fieldName: fact.fieldName, scopeKey });
       const def = fieldRegistry.get(fact.fieldName);
       const isText = def?.valueType === "TEXT";
-      const tier = fact.confirm ? ("CONFIRMED" as const) : ("VERIFIED" as const);
+      // A field audit is always VERIFIED. CONFIRMED is only via evaluateConfirmed (≥3 auditors).
+      const tier = "VERIFIED" as const;
       const localExisting = localByKey.get(key);
       const meshFact = meshByKey.get(key);
 
-      if (!fact.confirm && localExisting && localExisting.value.trim() !== fact.value.trim()) {
+      if (
+        !fact.confirm &&
+        localExisting &&
+        !factValuesMatch(def, localExisting.value, fact.value)
+      ) {
         await invalidateFactTranslations(localExisting.id);
       }
 
@@ -486,13 +489,13 @@ export async function POST(
           wheelmapId: property.wheelmapId,
         },
       ],
-      body.facts.map((fact) => ({
+      facts.map((fact) => ({
         id: `${NODE_ID}-${propertyId}-${fact.scopeKey ?? "property"}-${fact.fieldName}`,
         propertyId,
         fieldName: fact.fieldName,
         scopeKey: fact.scopeKey ?? "property",
         value: fact.value,
-        tier: (fact.confirm ? "CONFIRMED" : "VERIFIED") as Tier,
+        tier: "VERIFIED" as Tier,
         sourceType: "AUDITOR" as SourceType,
         sourceNodeId: NODE_ID,
         submittedBy: submitter,

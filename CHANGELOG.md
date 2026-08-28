@@ -38,6 +38,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Access PWA `manifest.webmanifest` / icons no longer redirect to `/login` for unauthenticated requests
 - Access Search tab no longer hydrates search state from `sessionStorage` during SSR (fixes hydration mismatch)
 - Access defers `IonApp` until after mount so Ionic’s `md`/`hydrated` classes no longer cause a hydration mismatch
+- Access audit wizard: Yes/Partial/No/N/A (and OSM `true`/`false`) map to canonical boolean tokens; custom room type chips stay after deselect; custom slugs such as `twin_room_disability_access` are accepted ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Audit POST writes **Verified** for a field audit; **Confirmed** is only ≥3 independent auditors — unchanged OSM prefills no longer jump to Confirmed ([ARCHITECTURE.md](docs/ARCHITECTURE.md))
 
 - Large `node:import` / Admin gzip imports no longer hit Postgres bind-variable limits or per-row upsert timeouts; imports batch with `createMany`, retry transient disconnects, and support `--limit` for smoke tests
 - Vercel node builds prebuild workspace packages (`core` / `i18n` / `ui` / `ai-agent`) before Next so `@wikitraveler/i18n` resolves ([VERCEL.md](docs/VERCEL.md))
