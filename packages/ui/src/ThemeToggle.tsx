@@ -2,14 +2,13 @@
 
 import { useTheme } from "./ThemeProvider";
 import { useLocale } from "./LocaleProvider";
-import type { ThemeMode } from "./constants";
-
-const CYCLE: ThemeMode[] = ["system", "light", "dark"];
+import { THEME_MODES, type ThemeMode } from "./constants";
 
 const ICON: Record<ThemeMode, string> = {
-  system: "◐",
-  light: "☀",
-  dark: "☾",
+  light: "🌤️",
+  dark: "🌙",
+  contrast: "☀️",
+  calm: "🌿",
 };
 
 interface Props {
@@ -17,65 +16,40 @@ interface Props {
   variant?: "header" | "toolbar" | "page";
 }
 
-export function ThemeToggle({ compact, variant = "toolbar" }: Props) {
+export function ThemeToggle({ variant = "toolbar" }: Props) {
   const { mode, setMode } = useTheme();
   const { t } = useLocale();
 
   const LABEL: Record<ThemeMode, string> = {
-    system: t("ui.themeAuto"),
-    light: t("ui.themeLight"),
+    light: t("ui.themeStandard"),
     dark: t("ui.themeDark"),
+    contrast: t("ui.themeContrast"),
+    calm: t("ui.themeCalm"),
   };
 
-  function cycle() {
-    const idx = CYCLE.indexOf(mode);
-    setMode(CYCLE[(idx + 1) % CYCLE.length]);
-  }
-
   const label = `${t("ui.theme")}: ${LABEL[mode]}`;
-
-  if (variant === "toolbar") {
-    return (
-      <button
-        type="button"
-        onClick={cycle}
-        className="wt-toolbar-btn"
-        title={label}
-        aria-label={`${label}. Click to change.`}
-      >
-        {ICON[mode]}
-        {!compact && <span>{LABEL[mode]}</span>}
-      </button>
-    );
-  }
-
   const isPage = variant === "page";
 
   return (
-    <button
-      type="button"
-      onClick={cycle}
-      title={label}
-      aria-label={`${label}. Click to change.`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: compact ? 0 : 5,
-        fontSize: 13,
-        fontWeight: 500,
-        lineHeight: 1,
-        borderRadius: 7,
-        padding: "5px 10px",
-        cursor: "pointer",
-        transition: "opacity 0.12s",
-        whiteSpace: "nowrap",
-        color: isPage ? "var(--wt-text)" : "rgba(255,255,255,0.82)",
-        background: isPage ? "var(--wt-bg-secondary)" : "rgba(255,255,255,0.08)",
-        border: isPage ? "1px solid var(--wt-border)" : "1px solid rgba(255,255,255,0.16)",
-      }}
-    >
-      {ICON[mode]}
-      {!compact && <span>{LABEL[mode]}</span>}
-    </button>
+    <label className={isPage ? "wt-theme-toggle wt-theme-toggle--page" : "wt-theme-toggle"}>
+      <span className="wt-sr-only">{label}</span>
+      <select
+        value={mode}
+        onChange={(e) => setMode(e.target.value as ThemeMode)}
+        aria-label={label}
+        title={label}
+        className={
+          variant === "toolbar"
+            ? "wt-toolbar-btn wt-theme-toggle__select wt-theme-toggle__select--toolbar"
+            : "wt-theme-toggle__select"
+        }
+      >
+        {THEME_MODES.map((id) => (
+          <option key={id} value={id}>
+            {`${ICON[id]} ${LABEL[id]}`}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

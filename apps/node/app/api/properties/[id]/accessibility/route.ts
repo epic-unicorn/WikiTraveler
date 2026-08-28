@@ -6,7 +6,13 @@ import { NODE_ID, NODE_URL } from "@/lib/nodeInfo";
 import { runAiAnalysis } from "@/lib/aiAnalyze";
 import { pushFactsToPeers } from "@/lib/push";
 import { getPhotoStorage, photoToDisplayUrl } from "@/lib/photoStorage";
-import { validateAuditFacts, getFieldRegistryMap } from "@/lib/fieldRegistry";
+import {
+  extractAuditNotes,
+  mergeAuditPhotosBySlot,
+  type EvidencePhoto,
+  type EvidenceSubmission,
+} from "@/lib/auditEvidence";
+import { validateAuditFacts, getFieldRegistryMap, factValuesMatch } from "@/lib/fieldRegistry";
 import { enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
 import { buildPropertyDetail, buildConfidenceSummary } from "@/lib/propertyEnrichment";
 import { loadOverridesForCanonicalIds, resolveOne } from "@/lib/propertyMetadata";
@@ -111,19 +117,46 @@ export async function GET(
 
   const enrichedFacts = await enrichFactsForDisplay(collapsedFacts, viewerLocale);
 
-  const latestAudit = await prisma.auditSubmission.findFirst({
-    where: {
-      propertyId: property.id,
-      OR: [
-        { NOT: { photoUrls: { equals: [] } } },
-        { photos: { some: {} } },
-      ],
-    },
+  const submissionsRaw = await prisma.auditSubmission.findMany({
+    where: { propertyId: property.id },
     orderBy: { createdAt: "desc" },
     include: {
       photos: { orderBy: { sortOrder: "asc" } },
     },
   });
+
+  const evidenceSubs: EvidenceSubmission[] = submissionsRaw.map((sub) => {
+    const structured: EvidencePhoto[] = sub.photos.map((p) => ({
+      id: p.id,
+      url: photoToDisplayUrl(p.url),
+      caption: p.caption,
+      fieldName: p.fieldName,
+      scopeKey: p.scopeKey,
+      width: p.width,
+      height: p.height,
+    }));
+    const legacy: EvidencePhoto[] = structured.length
+      ? []
+      : normalizeLegacyPhotos(sub.photoUrls).map((url, i) => ({
+          id: `legacy-${sub.id}-${i}`,
+          url,
+          caption: null,
+          fieldName: null,
+          scopeKey: null,
+          width: null,
+          height: null,
+        }));
+    return {
+      id: sub.id,
+      createdAt: sub.createdAt,
+      auditorToken: sub.auditorToken,
+      facts: sub.facts,
+      photos: structured.length > 0 ? structured : legacy,
+    };
+  });
+
+  const mergedPhotos = mergeAuditPhotosBySlot(evidenceSubs);
+  const auditNotes = extractAuditNotes(evidenceSubs);
 
   let auditPhotos: {
     submissionId: string;
@@ -136,38 +169,17 @@ export async function GET(
       scopeKey: string | null;
       width: number | null;
       height: number | null;
+      submissionId?: string;
     }>;
     photoOriginNode: string | null;
   } | null = null;
 
-  if (latestAudit) {
-    const structured = latestAudit.photos.map((p) => ({
-      id: p.id,
-      url: photoToDisplayUrl(p.url),
-      caption: p.caption,
-      fieldName: p.fieldName,
-      scopeKey: p.scopeKey,
-      width: p.width,
-      height: p.height,
-    }));
-
-    const legacy = normalizeLegacyPhotos(latestAudit.photoUrls).map((url, i) => ({
-      id: `legacy-${i}`,
-      url,
-      caption: null as string | null,
-      fieldName: null as string | null,
-      scopeKey: null as string | null,
-      width: null as number | null,
-      height: null as number | null,
-    }));
-
-    const photos = structured.length > 0 ? structured : legacy;
-    const firstUrl = photos[0]?.url ?? null;
-
+  if (mergedPhotos.live.length > 0 && mergedPhotos.newestSubmissionId && mergedPhotos.newestCapturedAt) {
+    const firstUrl = mergedPhotos.live[0]?.url ?? null;
     auditPhotos = {
-      submissionId: latestAudit.id,
-      capturedAt: latestAudit.createdAt.toISOString(),
-      photos,
+      submissionId: mergedPhotos.newestSubmissionId,
+      capturedAt: mergedPhotos.newestCapturedAt,
+      photos: mergedPhotos.live,
       photoOriginNode: firstUrl ? photoOriginNode(firstUrl) : null,
     };
   }
@@ -194,10 +206,6 @@ export async function GET(
     me && propertyDetail.claimedByUserId && propertyDetail.claimedByUserId === me
   );
 
-  const notesFact = collapsedFacts.find((f) => f.fieldName === "notes");
-  if (notesFact?.value) {
-    propertyDetail.description = notesFact.value;
-  }
 
   const confidenceSummary = buildConfidenceSummary(
     collapsedFacts,
@@ -209,6 +217,8 @@ export async function GET(
     property: propertyDetail,
     facts: enrichedFacts,
     auditPhotos,
+    auditPhotoHistory: mergedPhotos.history,
+    auditNotes,
     hasAiGuess,
     confidenceSummary,
   });
@@ -311,38 +321,36 @@ export async function POST(
       .map((f) => [factKey(f), f])
   );
 
-  for (const fact of body.facts) {
-    if (fact.confirm) {
-      const scopeKey = fact.scopeKey ?? "property";
-      const key = factKey({ fieldName: fact.fieldName, scopeKey });
-      const meshFact = meshByKey.get(key);
-      if (!meshFact) {
-        return NextResponse.json(
-          { message: `Cannot confirm ${fact.fieldName}: no existing value` },
-          { status: 422 }
-        );
-      }
-      if (meshFact.value.trim() !== fact.value.trim()) {
-        return NextResponse.json(
-          { message: `Confirm value for ${fact.fieldName} must match existing value` },
-          { status: 422 }
-        );
-      }
-    }
+  const validation = await validateAuditFacts(
+    body.facts.map((f) => ({
+      fieldName: f.fieldName,
+      value: f.value,
+      scopeKey: f.scopeKey ?? "property",
+      confirm: f.confirm,
+    })),
+    submissionLocale ?? undefined
+  );
+  if (!validation.ok) {
+    return NextResponse.json({ message: validation.message }, { status: 422 });
   }
+  const facts = validation.facts;
 
-  const factsToValidate = body.facts.filter((f) => !f.confirm);
-  if (factsToValidate.length > 0) {
-    const validation = await validateAuditFacts(
-      factsToValidate.map((f) => ({
-        fieldName: f.fieldName,
-        value: f.value,
-        scopeKey: f.scopeKey ?? "property",
-      })),
-      submissionLocale ?? undefined
-    );
-    if (!validation.ok) {
-      return NextResponse.json({ message: validation.message }, { status: 422 });
+  for (const fact of facts) {
+    if (!fact.confirm) continue;
+    const scopeKey = fact.scopeKey ?? "property";
+    const key = factKey({ fieldName: fact.fieldName, scopeKey });
+    const meshFact = meshByKey.get(key);
+    if (!meshFact) {
+      return NextResponse.json(
+        { message: `Cannot confirm ${fact.fieldName}: no existing value` },
+        { status: 422 }
+      );
+    }
+    if (!factValuesMatch(fieldRegistry.get(fact.fieldName), meshFact.value, fact.value)) {
+      return NextResponse.json(
+        { message: `Confirm value for ${fact.fieldName} must match existing value` },
+        { status: 422 }
+      );
     }
   }
 
@@ -394,7 +402,7 @@ export async function POST(
     data: {
       propertyId,
       auditorToken: submitter,
-      facts: body.facts,
+      facts,
       photoUrls: storedPhotos.map((p) => p.url),
       locale: body.locale ?? null,
       photos: storedPhotos.length
@@ -404,16 +412,21 @@ export async function POST(
   });
 
   await Promise.all(
-    body.facts.map(async (fact) => {
+    facts.map(async (fact) => {
       const scopeKey = fact.scopeKey ?? "property";
       const key = factKey({ fieldName: fact.fieldName, scopeKey });
       const def = fieldRegistry.get(fact.fieldName);
       const isText = def?.valueType === "TEXT";
-      const tier = fact.confirm ? ("CONFIRMED" as const) : ("VERIFIED" as const);
+      // A field audit is always VERIFIED. CONFIRMED is only via evaluateConfirmed (≥3 auditors).
+      const tier = "VERIFIED" as const;
       const localExisting = localByKey.get(key);
       const meshFact = meshByKey.get(key);
 
-      if (!fact.confirm && localExisting && localExisting.value.trim() !== fact.value.trim()) {
+      if (
+        !fact.confirm &&
+        localExisting &&
+        !factValuesMatch(def, localExisting.value, fact.value)
+      ) {
         await invalidateFactTranslations(localExisting.id);
       }
 
@@ -486,13 +499,13 @@ export async function POST(
           wheelmapId: property.wheelmapId,
         },
       ],
-      body.facts.map((fact) => ({
+      facts.map((fact) => ({
         id: `${NODE_ID}-${propertyId}-${fact.scopeKey ?? "property"}-${fact.fieldName}`,
         propertyId,
         fieldName: fact.fieldName,
         scopeKey: fact.scopeKey ?? "property",
         value: fact.value,
-        tier: (fact.confirm ? "CONFIRMED" : "VERIFIED") as Tier,
+        tier: "VERIFIED" as Tier,
         sourceType: "AUDITOR" as SourceType,
         sourceNodeId: NODE_ID,
         submittedBy: submitter,

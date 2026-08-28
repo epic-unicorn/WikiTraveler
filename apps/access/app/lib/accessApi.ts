@@ -295,6 +295,20 @@ export type AuditPhotosPayload = {
   photoOriginNode: string | null;
 };
 
+export type AuditPhotoHistoryGroup = {
+  submissionId: string;
+  capturedAt: string;
+  auditorToken: string | null;
+  photos: AuditPhotoItem[];
+};
+
+export type AuditNoteEntry = {
+  submissionId: string;
+  createdAt: string;
+  auditorToken: string | null;
+  text: string;
+};
+
 export type PropertyEnrichment = {
   description?: string | null;
   website?: string | null;
@@ -333,6 +347,8 @@ export type PropertyAccessibilityResponse = {
     signatureHash?: string | null;
   }>;
   auditPhotos: AuditPhotosPayload | null;
+  auditPhotoHistory?: AuditPhotoHistoryGroup[];
+  auditNotes?: AuditNoteEntry[];
   enrichment?: PropertyEnrichment | null;
   hasAiGuess: boolean;
   confidenceSummary?: {

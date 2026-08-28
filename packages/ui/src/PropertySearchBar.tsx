@@ -38,6 +38,8 @@ interface Props {
   showFilters?: boolean;
   /** Search input + filter chips in one unified bar (Access). */
   alwaysShowFilters?: boolean;
+  /** Feature keys that came from the traveler's profile preferences (Access). */
+  preferenceKeys?: string[];
   searchFeatures?: SearchFeature[];
   suggestions?: SearchSuggestion[];
   onSuggestionSelect?: (id: string) => void;
@@ -57,6 +59,38 @@ function countAdvancedFilters(filters: SearchFilters): number {
   return n;
 }
 
+function sameStringSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((key) => set.has(key));
+}
+
+function isDefaultFilterState(filters: SearchFilters, preferenceKeys: readonly string[]): boolean {
+  if (filters.audited !== null) return false;
+  if (filters.hasAccessibleRoom) return false;
+  return sameStringSet(filters.features, preferenceKeys);
+}
+
+function ProfileChipMark() {
+  return (
+    <svg
+      className="wt-search-chip-profile-mark"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 19c1.2-3.2 3.6-5 7-5s5.8 1.8 7 5" />
+    </svg>
+  );
+}
+
 export function PropertySearchBar({
   query,
   onQueryChange,
@@ -66,11 +100,12 @@ export function PropertySearchBar({
   showFilters = true,
   alwaysShowFilters = false,
   searchFeatures,
+  preferenceKeys = [],
   suggestions,
   onSuggestionSelect,
   labels = {},
 }: Props) {
-  const { t } = useLocale();
+  const { t, getFieldLabel } = useLocale();
 
   const resolvedPlaceholder = placeholder ?? t("ui.searchPlaceholder");
   const features =
@@ -85,6 +120,14 @@ export function PropertySearchBar({
   };
 
   const activeAdvancedCount = countAdvancedFilters(filters);
+  const atFilterDefaults = isDefaultFilterState(filters, preferenceKeys);
+  const prefSet = new Set(preferenceKeys);
+  const featureByKey = new Map(features.map((f) => [f.key, f]));
+  const profileFeatures: SearchFeature[] = preferenceKeys.map((key) => {
+    const known = featureByKey.get(key);
+    return known ?? { key, label: getFieldLabel(key) };
+  });
+  const otherFeatures = features.filter((f) => !prefSet.has(f.key));
   const [advancedOpen, setAdvancedOpen] = useState(activeAdvancedCount > 0);
   const [focused, setFocused] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -151,7 +194,25 @@ export function PropertySearchBar({
     </button>
   );
 
-  const filterChips = (
+  function featureChip(f: SearchFeature, fromProfile: boolean) {
+    const active = filters.features.includes(f.key);
+    return (
+      <button
+        key={f.key}
+        type="button"
+        className={`wt-search-chip${active ? " wt-search-chip--active" : ""}${fromProfile ? " wt-search-chip--from-profile" : ""}`}
+        aria-pressed={active}
+        aria-label={fromProfile ? `${f.label} — ${t("ui.searchFiltersFromProfile")}` : undefined}
+        title={fromProfile ? t("ui.searchFiltersFromProfileHint") : undefined}
+        onClick={() => toggleFeature(f.key)}
+      >
+        {fromProfile && <ProfileChipMark />}
+        {f.label}
+      </button>
+    );
+  }
+
+  const extraFilterChips = (
     <>
       <button
         type="button"
@@ -179,19 +240,33 @@ export function PropertySearchBar({
           {resolvedLabels.hasAccessibleRoom}
         </button>
       )}
-      {features.map((f) => (
-        <button
-          key={f.key}
-          type="button"
-          className={`wt-search-chip${filters.features.includes(f.key) ? " wt-search-chip--active" : ""}`}
-          aria-pressed={filters.features.includes(f.key)}
-          onClick={() => toggleFeature(f.key)}
-        >
-          {f.label}
-        </button>
-      ))}
+      {otherFeatures.map((f) => featureChip(f, false))}
     </>
   );
+
+  const filterPanelBody =
+    profileFeatures.length > 0 ? (
+      <>
+        <div className="wt-search-filter-group">
+          <p className="wt-search-filter-group__label" id="wt-search-filter-profile-label">
+            {t("ui.searchFiltersFromProfile")}
+          </p>
+          <p className="wt-search-filter-group__hint">{t("ui.searchFiltersFromProfileHint")}</p>
+          <div
+            className="wt-search-filter-popover-chips"
+            role="group"
+            aria-labelledby="wt-search-filter-profile-label"
+          >
+            {profileFeatures.map((f) => featureChip(f, true))}
+          </div>
+        </div>
+        <div className="wt-search-filter-group">
+          <div className="wt-search-filter-popover-chips">{extraFilterChips}</div>
+        </div>
+      </>
+    ) : (
+      <div className="wt-search-filter-popover-chips">{extraFilterChips}</div>
+    );
 
   if (alwaysShowFilters && showFilters) {
     return (
@@ -248,19 +323,24 @@ export function PropertySearchBar({
           >
             <div className="wt-search-filter-popover-head">
               <span>{resolvedLabels.advancedFilters}</span>
-              {activeAdvancedCount > 0 && (
+              {!atFilterDefaults && (
                 <button
                   type="button"
                   className="wt-search-filter-clear"
                   onClick={() =>
-                    onFiltersChange({ ...filters, features: [], audited: null, hasAccessibleRoom: null })
+                    onFiltersChange({
+                      ...filters,
+                      features: [...preferenceKeys],
+                      audited: null,
+                      hasAccessibleRoom: null,
+                    })
                   }
                 >
                   {t("ui.reset")}
                 </button>
               )}
             </div>
-            <div className="wt-search-filter-popover-chips">{filterChips}</div>
+            {filterPanelBody}
           </div>
         )}
         {showSuggestions && (

@@ -81,7 +81,7 @@ Photos attach to the **audit step** (or room type) where they were captured — 
 | `room-type:<id>` | Photos for a selected room type |
 | (none / general) | Legacy or unscoped photos |
 
-**Display:** Property detail and the existing-data panel show step/room photos once under the matching section. Per-fact strips only when a photo has an explicit `fieldName` (legacy / rare).
+**Display:** Property detail merges photos **per slot** (step / room type / unscoped). The newest visit that attached photos for a slot wins that slot; empty slots are not an overwrite. Superseded slot photos stay in `auditPhotoHistory`. Thumbnails open a fullscreen lightbox. Per-fact strips only when a photo has an explicit `fieldName` (legacy / rare). Notes come from each `AuditSubmission` (`auditNotes`): last two visits expanded, older collapsed.
 
 **Code:** `apps/access/app/audit/[id]/AuditWizard.tsx`, `apps/access/app/lib/propertyFacts.ts`. Object storage (R2 / Supabase) for production: [LOCAL.md](./LOCAL.md) · [DOCKER.md](./DOCKER.md).
 

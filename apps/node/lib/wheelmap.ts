@@ -46,9 +46,9 @@ interface WheelmapNodeResponse {
  */
 function ratingToValue(rating: WheelmapNode["wheelchair"] | WheelmapNode["wheelchair_toilet"]): string | null {
   switch (rating) {
-    case "yes":     return "true";
+    case "yes":     return "yes";
     case "limited": return "partial";
-    case "no":      return "false";
+    case "no":      return "no";
     default:        return null; // "unknown" / null — skip
   }
 }
@@ -65,7 +65,7 @@ function mapNodeToFacts(node: WheelmapNode): Array<{ fieldName: string; value: s
     facts.push({ fieldName: "step_free_entrance", value: stepFree });
     // If we know step-free entrance exists, also infer ramp_present for "yes"
     if (node.wheelchair === "yes") {
-      facts.push({ fieldName: "ramp_present", value: "true" });
+      facts.push({ fieldName: "ramp_present", value: "yes" });
     }
   }
 

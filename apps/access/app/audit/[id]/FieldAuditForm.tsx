@@ -9,7 +9,7 @@ import { AuditWizard } from "./AuditWizard";
 import { clearAuth, persistAuth, readAuthToken } from "../../lib/authStorage";
 import { canContribute, roleFromToken } from "../../lib/userRole";
 import { propertyHref } from "../../lib/propertyHref";
-import { ENV_NODE_URL } from "../../lib/accessApi";
+import { ENV_NODE_URL, type AuditPhotoItem } from "../../lib/accessApi";
 import { findRecentAudit, removeRecentAudit, upsertRecentAudit } from "../../lib/recentAudits";
 import { useLocale } from "@wikitraveler/ui";
 
@@ -20,9 +20,17 @@ interface Props {
   existingFacts: ExistingFact[];
   /** The node that hosts this property — may differ from the user's home node. */
   targetNodeUrl?: string;
+  existingPhotos?: AuditPhotoItem[];
 }
 
-export default function FieldAuditForm({ propertyId, propertyName, location, existingFacts, targetNodeUrl }: Props) {
+export default function FieldAuditForm({
+  propertyId,
+  propertyName,
+  location,
+  existingFacts,
+  targetNodeUrl,
+  existingPhotos: initialPhotos = [],
+}: Props) {
   const router = useRouter();
   const { locale, t, getTierLabel } = useLocale();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
@@ -112,6 +120,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [loadedFacts, setLoadedFacts] = useState(existingFacts);
+  const [existingPhotos, setExistingPhotos] = useState<AuditPhotoItem[]>(initialPhotos);
   const [displayName, setDisplayName] = useState(propertyName);
   const [displayLocation, setDisplayLocation] = useState(location);
   const [propertyMissing, setPropertyMissing] = useState(false);
@@ -146,6 +155,10 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
   }, [existingFacts]);
 
   useEffect(() => {
+    setExistingPhotos(initialPhotos);
+  }, [initialPhotos]);
+
+  useEffect(() => {
     if (!mounted) return;
     if (!token) {
       setPropertyLoading(false);
@@ -175,10 +188,12 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
         const data = (await res.json()) as {
           property?: { name?: string; location?: string };
           facts?: ExistingFact[];
+          auditPhotos?: { photos?: AuditPhotoItem[] } | null;
         };
         if (data.property?.name) setDisplayName(data.property.name);
         if (data.property?.location) setDisplayLocation(data.property.location);
         setLoadedFacts(data.facts ?? []);
+        setExistingPhotos(data.auditPhotos?.photos ?? []);
       })
       .catch(() => { /* keep SSR / cached props */ })
       .finally(() => {
@@ -323,6 +338,7 @@ export default function FieldAuditForm({ propertyId, propertyName, location, exi
               locale={locale}
               fieldDefs={fieldDefs}
               loadedFacts={loadedFacts}
+              existingPhotos={existingPhotos}
               t={t}
               getTierLabel={getTierLabel}
               onSuccess={() => {

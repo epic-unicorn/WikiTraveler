@@ -31,16 +31,21 @@ import { readSearchSession, writeSearchSession } from "../lib/searchSession";
 import type { DataRegionResolve } from "../hooks/useNodeContext";
 import type { MapPin } from "../lib/accessApi";
 import { geocodePlace, looksLikePlaceQuery } from "../lib/geocodePlace";
-import { readA11yPreferences } from "../lib/a11yPreferences";
-import { useNotificationBadgeCount } from "../hooks/useNotificationBadgeCount";
-
+import {
+  extrasFromFeatures,
+  featuresFromPrefs,
+  hasExplicitSearch,
+  overridesFromFeatures,
+  readA11yPreferences,
+  subscribeA11yPreferences,
+  type A11yPreferenceKey,
+} from "../lib/a11yPreferences";
 interface Props {
   dataNodeUrl: string;
   homeNodeUrl: string;
   dataRegion: DataRegionResolve | null;
   regionLabel?: string | null;
   active?: boolean;
-  onOpenProfile?: () => void;
 }
 
 const SEARCH_PAGE_SIZE = 100;
@@ -78,13 +83,14 @@ function initialSearchState(searchParams: URLSearchParams): {
   };
 }
 
-export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfile }: Props) {
+export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
   const { locale, t } = useLocale();
-  const notificationCount = useNotificationBadgeCount(homeNodeUrl, active);
   const searchParams = useSearchParams();
   const [boot] = useState(() => initialSearchState(searchParams));
   const [query, setQuery] = useState(boot.query);
   const [filters, setFilters] = useState<SearchFilters>(boot.filters);
+  const [profilePrefs, setProfilePrefs] = useState<A11yPreferenceKey[]>([]);
+  const [prefOverridesOff, setPrefOverridesOff] = useState<string[]>([]);
   const [discoveryView, setDiscoveryView] = useState<DiscoveryViewMode>(boot.view);
   const [searchFeatures, setSearchFeatures] = useState<SearchFeature[]>([]);
   const [results, setResults] = useState<PropertySummary[] | null>(null);
@@ -100,6 +106,10 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
   const [placeHint, setPlaceHint] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const skipUrlHydrate = useRef(true);
+  const profilePrefsRef = useRef<A11yPreferenceKey[]>([]);
+  profilePrefsRef.current = profilePrefs;
+  const prefOverridesOffRef = useRef<string[]>([]);
+  prefOverridesOffRef.current = prefOverridesOff;
 
   useEffect(() => {
     setDiscoveryViewMode(discoveryView);
@@ -114,16 +124,51 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
       searchParams.has("audited") ||
       searchParams.has("room") ||
       fromUrlView != null;
-    if (hasUrlState) return;
+    if (hasUrlState) {
+      const prefs = readA11yPreferences();
+      setProfilePrefs(prefs);
+      if (searchParams.has("features")) {
+        setPrefOverridesOff(overridesFromFeatures(boot.filters.features, prefs));
+      } else if (prefs.length > 0) {
+        setPrefOverridesOff([]);
+        setFilters((prev) => ({
+          ...prev,
+          features: featuresFromPrefs(prefs, extrasFromFeatures(prev.features, prefs), []),
+        }));
+      }
+      return;
+    }
 
     const session = readSearchSession();
     if (session) {
       setQuery(session.query);
-      setFilters(session.filters);
+      const prefs = readA11yPreferences();
+      setProfilePrefs(prefs);
+      const extras = extrasFromFeatures(session.filters.features, prefs);
+      const overrides =
+        session.prefOverridesOff ??
+        (session.filters.features.length > 0
+          ? overridesFromFeatures(session.filters.features, prefs)
+          : []);
+      setPrefOverridesOff(overrides);
+      setFilters({
+        ...session.filters,
+        features: featuresFromPrefs(prefs, extras, overrides),
+      });
       setPage(session.page);
       setDiscoveryView(session.view);
       setDiscoveryViewMode(session.view);
       return;
+    }
+
+    const prefs = readA11yPreferences();
+    setProfilePrefs(prefs);
+    if (prefs.length > 0) {
+      setPrefOverridesOff([]);
+      setFilters((prev) => ({
+        ...prev,
+        features: featuresFromPrefs(prefs, extrasFromFeatures(prev.features, prefs), []),
+      }));
     }
 
     const storedView = getDiscoveryViewMode();
@@ -143,6 +188,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
     const nextView = parseDiscoveryView(searchParams.get("view"));
     setQuery(nextQuery);
     setFilters(nextFilters);
+    setPrefOverridesOff(overridesFromFeatures(nextFilters.features, profilePrefsRef.current));
     setPage(1);
     if (nextView) {
       setDiscoveryView(nextView);
@@ -151,16 +197,26 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
   }, [searchParams]);
 
   useEffect(() => {
-    writeSearchSession({ query, filters, page, view: discoveryView });
-  }, [query, filters, page, discoveryView]);
+    writeSearchSession({ query, filters, page, view: discoveryView, prefOverridesOff });
+  }, [query, filters, page, discoveryView, prefOverridesOff]);
 
-  // Apply saved a11y preferences as default feature filters when empty.
   useEffect(() => {
-    const prefs = readA11yPreferences();
-    if (prefs.length === 0) return;
-    setFilters((prev) => {
-      if (prev.features.length > 0) return prev;
-      return { ...prev, features: [...prefs] };
+    return subscribeA11yPreferences(() => {
+      const prefs = readA11yPreferences();
+      const previousPrefs = profilePrefsRef.current;
+      const nextOverrides = prefOverridesOffRef.current.filter((key) =>
+        prefs.includes(key as A11yPreferenceKey)
+      );
+      setProfilePrefs(prefs);
+      setPrefOverridesOff(nextOverrides);
+      setFilters((prev) => ({
+        ...prev,
+        features: featuresFromPrefs(
+          prefs,
+          extrasFromFeatures(prev.features, previousPrefs),
+          nextOverrides
+        ),
+      }));
     });
   }, []);
 
@@ -192,12 +248,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
     setMapDataNodeUrl(dataNodeUrl);
   }, [dataNodeUrl]);
 
-  const hasActiveSearch =
-    !nearMe &&
-    (query.trim().length > 0 ||
-      filters.features.length > 0 ||
-      filters.audited !== null ||
-      filters.hasAccessibleRoom === true);
+  const hasActiveSearch = !nearMe && hasExplicitSearch(query, filters, profilePrefs);
 
   useEffect(() => {
     setPage(1);
@@ -371,31 +422,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
 
   return (
     <div className="tab-content fk-search-tab">
-      <AccessPageHero
-        trailing={
-          <button
-            type="button"
-            className="fk-hero-notify-btn"
-            onClick={() => onOpenProfile?.()}
-            aria-label={
-              notificationCount > 0
-                ? t("ui.notificationsBadge", { count: notificationCount })
-                : t("ui.notificationsTitle")
-            }
-            title={t("ui.notificationsTitle")}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-            {notificationCount > 0 && (
-              <span className="fk-hero-notify-badge" aria-hidden="true">
-                {notificationCount > 9 ? "9+" : notificationCount}
-              </span>
-            )}
-          </button>
-        }
-      >
+      <AccessPageHero notifyNodeUrl={homeNodeUrl}>
         <div className="fk-search-header">
           <PropertySearchBar
             query={query}
@@ -405,10 +432,12 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
             }}
             filters={filters}
             onFiltersChange={(f) => {
+              setPrefOverridesOff(overridesFromFeatures(f.features, profilePrefs));
               setFilters(f);
               if (nearMe) setNearMe(false);
             }}
             searchFeatures={searchFeatures}
+            preferenceKeys={profilePrefs}
             alwaysShowFilters
           />
         </div>
@@ -427,6 +456,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true, onOpenProfi
         onViewModeChange={setDiscoveryView}
         initialViewMode={discoveryView}
         viewportBrowse={!hasActiveSearch && !nearMe}
+        viewportFeatureFilters={hasActiveSearch || nearMe ? [] : filters.features}
         onDataNodeUrlChange={setMapDataNodeUrl}
         onViewportPinsChange={setViewportPins}
         userLocation={nearMe ? nearCoords : null}

@@ -75,6 +75,8 @@ interface Props {
   initialViewMode?: DiscoveryViewMode | null;
   /** Browse without a search query: viewport-scoped pins (RFC-0002 M3). */
   viewportBrowse?: boolean;
+  /** Feature keys applied to viewport pins (profile chips / browse filters). */
+  viewportFeatureFilters?: readonly string[];
   onDataNodeUrlChange?: (url: string) => void;
   /** Viewport browse pins for list mode (map → list). */
   onViewportPinsChange?: (pins: MapPin[]) => void;
@@ -103,6 +105,7 @@ export function PropertyDiscoveryView({
   onViewModeChange,
   initialViewMode = null,
   viewportBrowse = false,
+  viewportFeatureFilters,
   onDataNodeUrlChange,
   onViewportPinsChange,
   onLocateMe,
@@ -236,6 +239,7 @@ export function PropertyDiscoveryView({
               savedIds={savedIds}
               autoFit={mapAutoFit}
               viewportBrowse={viewportBrowse}
+              viewportFeatureFilters={viewportFeatureFilters}
               onDataNodeUrlChange={onDataNodeUrlChange}
               onViewportPinsChange={onViewportPinsChange}
               onLocateMe={onLocateMe}

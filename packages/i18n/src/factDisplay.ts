@@ -72,9 +72,12 @@ export function formatFactValue(
   }
 
   let displayValue = rawValue;
-  if (rawValue === "yes") displayValue = t("ui.yes", locale);
-  else if (rawValue === "no") displayValue = t("ui.no", locale);
+  if (rawValue === "yes" || rawValue === "true") displayValue = t("ui.yes", locale);
+  else if (rawValue === "no" || rawValue === "false") displayValue = t("ui.no", locale);
   else if (rawValue === "partial") displayValue = t("ui.partial", locale);
+  else if (rawValue === "n/a" || rawValue === "n.a." || rawValue === "na") {
+    displayValue = t("ui.notApplicable", locale);
+  }
   else if (fieldName === "room_types_available") {
     displayValue = rawValue
       .split(",")

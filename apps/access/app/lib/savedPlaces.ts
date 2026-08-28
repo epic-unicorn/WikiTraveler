@@ -1,4 +1,9 @@
 import { useEffect, useState } from "react";
+import { inferSavedCategory, type SavedPlaceCategory } from "./savedCategory";
+
+export type { SavedPlaceCategory };
+
+export type SavedPlaceFact = { fieldName: string; value: string };
 
 export type SavedPlace = {
   id: string;
@@ -8,6 +13,8 @@ export type SavedPlace = {
   savedAt: string;
   /** Hero / first audit photo URL; `null` means checked with no photo. */
   imageUrl?: string | null;
+  category?: SavedPlaceCategory;
+  facts?: SavedPlaceFact[];
 };
 
 const KEY = "wt_saved_places";
@@ -18,13 +25,20 @@ function emitSavedChange() {
   window.dispatchEvent(new Event(SAVED_PLACES_EVENT));
 }
 
+function normalizePlace(place: SavedPlace): SavedPlace {
+  return {
+    ...place,
+    category: place.category ?? inferSavedCategory(place.name, place.location),
+  };
+}
+
 export function readSavedPlaces(): SavedPlace[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as SavedPlace[];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizePlace) : [];
   } catch {
     return [];
   }
@@ -51,7 +65,11 @@ export function toggleSavedPlace(place: Omit<SavedPlace, "savedAt">): boolean {
     writeSavedPlaces(list);
     return false;
   }
-  list.unshift({ ...place, savedAt: new Date().toISOString() });
+  list.unshift({
+    ...place,
+    category: place.category ?? inferSavedCategory(place.name, place.location),
+    savedAt: new Date().toISOString(),
+  });
   writeSavedPlaces(list);
   return true;
 }

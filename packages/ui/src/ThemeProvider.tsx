@@ -1,40 +1,36 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { THEME_STORAGE_KEY, type ThemeMode } from "./constants";
+import { THEME_STORAGE_KEY, parseThemeMode, type ThemeMode } from "./constants";
 
-function resolveDark(mode: ThemeMode): boolean {
-  if (mode === "dark") return true;
-  if (mode === "light") return false;
-  return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
+const THEME_CLASSES = ["wt-dark", "wt-contrast", "wt-calm"] as const;
 
 function applyTheme(mode: ThemeMode) {
-  const dark = resolveDark(mode);
-  document.documentElement.classList.toggle("wt-dark", dark);
-  // Apply on both <html> and <body> — html activates our own CSS tokens,
-  // body is required for Ionic's built-in dark palette CSS to kick in.
-  document.documentElement.classList.toggle("ion-palette-dark", dark);
-  document.body.classList.toggle("ion-palette-dark", dark);
+  const root = document.documentElement;
+  const body = document.body;
+  for (const cls of THEME_CLASSES) root.classList.remove(cls);
+  root.classList.remove("ion-palette-dark");
+  body.classList.remove("ion-palette-dark");
+  root.dataset.theme = mode;
+
+  if (mode === "dark") {
+    root.classList.add("wt-dark");
+    root.classList.add("ion-palette-dark");
+    body.classList.add("ion-palette-dark");
+  } else if (mode === "contrast") {
+    root.classList.add("wt-contrast");
+  } else if (mode === "calm") {
+    root.classList.add("wt-calm");
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
-    const initial: ThemeMode =
-      stored === "light" || stored === "dark" || stored === "system" ? stored : "light";
+    const initial = parseThemeMode(localStorage.getItem(THEME_STORAGE_KEY));
     setModeState(initial);
     applyTheme(initial);
-
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      const current = localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
-      if (!current || current === "system") applyTheme("system");
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   const setMode = useCallback((next: ThemeMode) => {

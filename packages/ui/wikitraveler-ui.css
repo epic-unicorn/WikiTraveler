@@ -685,7 +685,31 @@ button.wt-toolbar-back {
   gap: 8px;
 }
 
+.wt-search-filter-group + .wt-search-filter-group {
+  margin-top: 12px;
+}
+
+.wt-search-filter-group__label {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--wt-text-muted);
+}
+
+.wt-search-filter-group__hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--wt-text-muted);
+}
+
 .wt-search-filter-popover .wt-search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
   border: 1px solid var(--wt-border);
   border-radius: 999px;
@@ -706,7 +730,23 @@ button.wt-toolbar-back {
   border-color: var(--wt-primary);
 }
 
+.wt-search-chip-profile-mark {
+  flex-shrink: 0;
+}
+
+.wt-search-chip--from-profile:not(.wt-search-chip--active) {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--wt-primary) 8%, var(--wt-bg));
+}
+
+.wt-search-chip--from-profile.wt-search-chip--active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 40%, transparent);
+}
+
 .wt-search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
   border: 1px solid var(--wt-border);
   border-radius: 999px;
@@ -818,4 +858,40 @@ button.wt-toolbar-back {
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
+}
+
+.wt-theme-toggle {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.wt-theme-toggle--page {
+  width: auto;
+  justify-content: flex-end;
+}
+
+.wt-theme-toggle__select {
+  appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: 7px;
+  padding: 6px 28px 6px 10px;
+  cursor: pointer;
+  color: var(--wt-text);
+  background-color: var(--wt-bg-secondary);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2364748b' d='M1 1l5 5 5-5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 1px solid var(--wt-border);
+  max-width: 100%;
+}
+
+.wt-theme-toggle__select--toolbar {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.08);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23ffffff' d='M1 1l5 5 5-5'/></svg>");
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  min-height: 36px;
 }

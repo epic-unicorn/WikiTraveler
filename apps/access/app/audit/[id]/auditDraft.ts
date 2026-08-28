@@ -5,6 +5,8 @@ export interface AuditDraft {
   step: number;
   propertyValues: Record<string, string>;
   selectedRoomTypes: string[];
+  /** Custom room type chips kept after deselect. */
+  knownCustomRoomTypes?: string[];
   roomValues: Record<string, string>;
   roomDescriptions: Record<string, string>;
   confirmedKeys: string[];
@@ -46,6 +48,7 @@ export function loadAuditDraft(propertyId: string): AuditDraft | null {
         step: parsed.step,
         propertyValues: parsed.propertyValues,
         selectedRoomTypes: parsed.selectedRoomTypes,
+        knownCustomRoomTypes: [],
         roomValues: parsed.roomValues,
         roomDescriptions: parsed.roomDescriptions,
         confirmedKeys: parsed.confirmedKeys,

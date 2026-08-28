@@ -3,6 +3,7 @@ import {
   getPhotoStorage,
   photoToVisionInput,
   resetPhotoStorageCache,
+  r2S3Endpoint,
 } from "./photoStorage";
 
 describe("photoToVisionInput", () => {
@@ -33,6 +34,8 @@ describe("getPhotoStorage", () => {
     delete process.env.R2_ACCOUNT_ID;
     delete process.env.R2_BUCKET;
     delete process.env.R2_PUBLIC_URL;
+    delete process.env.R2_JURISDICTION;
+    delete process.env.R2_ENDPOINT;
   });
 
   it("uses base64 passthrough by default", async () => {
@@ -50,5 +53,23 @@ describe("getPhotoStorage", () => {
   it("throws when supabase provider is set without credentials", async () => {
     process.env.PHOTO_STORAGE_PROVIDER = "supabase";
     await expect(getPhotoStorage()).rejects.toThrow(/Supabase storage requires/);
+  });
+});
+
+describe("r2S3Endpoint", () => {
+  afterEach(() => {
+    delete process.env.R2_JURISDICTION;
+    delete process.env.R2_ENDPOINT;
+  });
+
+  it("uses the EU jurisdiction hostname", () => {
+    process.env.R2_JURISDICTION = "eu";
+    expect(r2S3Endpoint("abc")).toBe("https://abc.eu.r2.cloudflarestorage.com");
+  });
+
+  it("prefers an explicit endpoint override", () => {
+    process.env.R2_JURISDICTION = "eu";
+    process.env.R2_ENDPOINT = "https://custom.example/r2/";
+    expect(r2S3Endpoint("abc")).toBe("https://custom.example/r2");
   });
 });

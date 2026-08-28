@@ -22,9 +22,10 @@ const FACT_LABELS: Record<string, string> = {
 };
 
 function formatFactStatus(value: string): string {
-  if (value === "yes") return "Yes";
-  if (value === "no") return "No";
+  if (value === "yes" || value === "true") return "Yes";
+  if (value === "no" || value === "false") return "No";
   if (value === "partial") return "Partial";
+  if (value === "n/a" || value === "n.a." || value === "na") return "N/A";
   return value || "Unknown";
 }
 

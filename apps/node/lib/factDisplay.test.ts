@@ -7,6 +7,12 @@ describe("formatFactValue", () => {
     expect(formatFactValue("ramp_present", "no", { locale: "fr" }).displayValue).toBe("Non");
   });
 
+  it("treats OSM true/false and n/a as boolean tokens", () => {
+    expect(formatFactValue("ramp_present", "true", { locale: "nl" }).displayValue).toBe("Ja");
+    expect(formatFactValue("ramp_present", "false", { locale: "nl" }).displayValue).toBe("Nee");
+    expect(formatFactValue("pool_lift", "n/a", { locale: "nl" }).displayValue).toBe("n.v.t.");
+  });
+
   it("translates path_to_entrance enum tokens", () => {
     expect(formatFactValue("path_to_entrance", "step_free", { locale: "nl" }).displayValue).toBe(
       "Drempelloos"

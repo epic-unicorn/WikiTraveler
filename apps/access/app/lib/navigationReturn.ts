@@ -3,7 +3,7 @@ import type { DiscoveryViewMode } from "./discoveryUtils";
 
 export const ACCESS_RETURN_KEY = "wt_access_return";
 
-export type AccessTabId = "search" | "saved" | "profile";
+export type AccessTabId = "search" | "saved" | "contribute" | "profile";
 
 export interface AccessReturnState {
   tab?: AccessTabId;
@@ -12,12 +12,11 @@ export interface AccessReturnState {
   filters?: Pick<SearchFilters, "features" | "audited" | "hasAccessibleRoom">;
 }
 
-const VALID_TABS = new Set<AccessTabId>(["search", "saved", "profile"]);
+const VALID_TABS = new Set<AccessTabId>(["search", "saved", "contribute", "profile"]);
 
 /** Legacy tab ids from older deep links map onto the redesign IA. */
 const LEGACY_TAB_MAP: Record<string, AccessTabId> = {
   nearby: "search",
-  contribute: "profile",
   settings: "profile",
 };
 

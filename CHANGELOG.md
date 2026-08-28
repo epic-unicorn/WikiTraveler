@@ -38,6 +38,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Access PWA `manifest.webmanifest` / icons no longer redirect to `/login` for unauthenticated requests
 - Access Search tab no longer hydrates search state from `sessionStorage` during SSR (fixes hydration mismatch)
 - Access defers `IonApp` until after mount so Ionic’s `md`/`hydrated` classes no longer cause a hydration mismatch
+- Access Profile: toggling accessibility preferences no longer triggers a React “setState while rendering SearchTab” error
+- Access property notes: Wheelmap `[Bathroom]` / `[Communication]` dumps render as headings and bullets instead of bracket soup
+- Photo migrate (`pnpm db:migrate-photos`) also rewrites `AuditPhoto` rows; R2 supports EU jurisdiction via `R2_JURISDICTION=eu` ([VERCEL.md](docs/VERCEL.md))
+- Access audit wizard: Yes/Partial/No/N/A (and OSM `true`/`false`) map to canonical boolean tokens; custom room type chips stay after deselect; custom slugs such as `twin_room_disability_access` are accepted ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Audit POST writes **Verified** for a field audit; **Confirmed** is only ≥3 independent auditors — unchanged OSM prefills no longer jump to Confirmed ([ARCHITECTURE.md](docs/ARCHITECTURE.md))
 
 - Large `node:import` / Admin gzip imports no longer hit Postgres bind-variable limits or per-row upsert timeouts; imports batch with `createMany`, retry transient disconnects, and support `--limit` for smoke tests
 - Vercel node builds prebuild workspace packages (`core` / `i18n` / `ui` / `ai-agent`) before Next so `@wikitraveler/i18n` resolves ([VERCEL.md](docs/VERCEL.md))
@@ -54,12 +59,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Access Favorites tab (was Saved): heart icon, search/sort, richer cards; Contribute tab restored for auditors/admins; profile identity in the hero with node + Access versions; notification bell popup; named themes Standard / Dark / High contrast / Calm (automatic removed); PWA icons use bright WikiTraveler-blue with a white mark ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Access UX polish: map locate (1 km Near me), property detail hero/sheet + accessibility score + claim card, minimal a11y icons, audit label/control rows + per-step notes/photos + title/address margin + scroll-to-top on step next/back; custom room type stacked input/button; add-property/audit toolbars without role chip + single back; Saved → property back returns to Saved tab; removed Check availability; Saved list cards with property photos ([ACCESS-UX.md](docs/ACCESS-UX.md))
-- Access Search: shared navy Access hero (WikiTraveler · Access + Saved/Profile subsection), sticky Map/List tabs with full-height map/list, full-bleed search + filter icon, hero notification bell → Profile with badge, result meta under tabs, locate permission/progress feedback; property claim UI hidden; property sheet mini-map + a11y icons left-aligned under address; property hero photo placeholder; property facts label/value rows with single tier badge (notes left-aligned for reading); accessibility score from category coverage with help explainer; map legend removed (unified pins, saved as hearts, coverage message only — no shaded regions); zoom-in hint clears so Search this area can show; map pin opens bottom summary sheet with photo thumb; map camera restored after View property back ([ACCESS-UX.md](docs/ACCESS-UX.md))
-- Access: Near me and Settings fold into Search / Profile; Contribute tab removed (claim + add property from Profile); Saved shows favorites only; global region chip removed from toolbar; `accessible_room_count` retired from active audit catalogue ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access Search: shared navy Access hero (WikiTraveler · Access + Saved/Profile subsection), sticky Map/List tabs with full-height map/list, full-bleed search + filter icon, hero notification bell → Profile with badge, result meta under tabs, locate permission/progress feedback; property claim UI hidden; property sheet mini-map + a11y icons left-aligned under address; property hero photo placeholder; property facts label/value rows with single tier badge (notes left-aligned for reading); accessibility score from category coverage with help explainer; map legend removed (unified pins, saved as hearts, coverage message only — no shaded regions); zoom-in hint clears so Search this area can show; map pin opens bottom summary sheet with photo thumb; map camera restored after View property back; profile a11y preferences appear as marked chips in Advanced filters (on by default, session-off) ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access: Near me and Settings fold into Search / Profile; Favorites shows saved places only; global region chip removed from toolbar; `accessible_room_count` retired from active audit catalogue ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Vercel gossip cron runs daily (`0 1 * * *`) so Hobby plan deploys work; Pro can restore a sub-daily schedule in `vercel.json` ([VERCEL.md](docs/VERCEL.md))
 - Removed legacy `vercel.json` `@secret` env block — set node env vars in the Vercel project (include `CLIENT_ORIGINS`; do not ship `CORS_ORIGINS=*`) ([VERCEL.md](docs/VERCEL.md))
-- Access mobile header is compact (no toolbar “+”; add property stays on Contribute); search state persists across property navigation; list empty copy is a search hint; browse list shows map viewport pins; dark map uses OSM tiles with a CSS filter (no Carto API key); home node URL lives under Settings → Advanced
+- Access property detail: re-audit photos merge per step/room slot (later visit overwrites a slot only if it photographed it); visit notes listed (last two open, older collapsed); thumbnails open fullscreen ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access property detail groups room facts in a labeled card per audited room type; audit wizard shows existing step photos read-only ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access Profile hero: username avatar and name sit smaller than the WikiTraveler logo/title
 
 ---
 

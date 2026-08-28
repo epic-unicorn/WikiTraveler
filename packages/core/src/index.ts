@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./booleanValue";
 export * from "./merge";
 export * from "./metadataMerge";
 export * from "./auditSteps";

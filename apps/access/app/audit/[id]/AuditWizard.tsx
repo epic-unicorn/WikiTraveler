@@ -6,6 +6,7 @@ import {
   AUDIT_WIZARD_STEPS,
   fieldsForStep,
   FIELD_AUDIT_STEP,
+  normalizeBooleanValue,
   type AuditStepId,
 } from "@wikitraveler/core";
 import {
@@ -18,9 +19,17 @@ import {
 } from "@wikitraveler/i18n";
 import { type ExistingFact } from "./ExistingDataPanel";
 import { RoomAuditSection } from "./RoomAuditSection";
+import { mergeKnownCustomRoomTypes } from "./roomTypes";
 import { AuditPhotoGallery } from "../../components/AuditPhotoGallery";
+import { ExistingStepPhotos } from "../../components/ExistingStepPhotos";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
-import { stepScopeKey, groupPhotosByStepScope } from "../../lib/propertyFacts";
+import {
+  stepScopeKey,
+  groupPhotosByStepScope,
+  existingPhotosForAuditStep,
+  photosForRoomScope,
+  type AuditPhotoRef,
+} from "../../lib/propertyFacts";
 import { invalidateMapPins } from "../../lib/accessApi";
 import { propertyHref } from "../../lib/propertyHref";
 import {
@@ -49,6 +58,7 @@ interface Props {
   locale: string;
   fieldDefs: FieldDef[];
   loadedFacts: ExistingFact[];
+  existingPhotos?: AuditPhotoRef[];
   onSuccess: () => void;
   onError: (msg: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -81,15 +91,19 @@ const PATH_TO_ENTRANCE_PILL_CLASS: Record<string, string> = {
   steep: "fk-bool-pill--no",
 };
 
-function normalizeFieldValue(fieldName: string, value: string): string {
+function normalizeFieldValue(fieldName: string, value: string, valueType?: string): string {
   const trimmed = value.trim();
+  if (valueType === "BOOLEAN") {
+    return normalizeBooleanValue(trimmed) ?? trimmed;
+  }
   if (fieldName === "path_to_entrance" && trimmed.includes(",")) {
     return trimmed.split(",")[0]?.trim() ?? trimmed;
   }
   return trimmed;
 }
 
-function formValuesFromFacts(facts: ExistingFact[]) {
+function formValuesFromFacts(facts: ExistingFact[], fieldDefs: FieldDef[]) {
+  const valueTypeByName = new Map(fieldDefs.map((d) => [d.fieldName, d.valueType]));
   const propVals: Record<string, string> = {};
   const rooms: string[] = [];
   const rVals: Record<string, string> = {};
@@ -102,13 +116,21 @@ function formValuesFromFacts(facts: ExistingFact[]) {
       } else if (f.fieldName === "notes") {
         // Append-only: do not prefill notes into the editor.
       } else {
-        propVals[f.fieldName] = normalizeFieldValue(f.fieldName, f.value);
+        propVals[f.fieldName] = normalizeFieldValue(
+          f.fieldName,
+          f.value,
+          valueTypeByName.get(f.fieldName)
+        );
       }
     } else if (f.fieldName === "accessible_room_description") {
       const typeId = scope.replace("room-type:", "");
       rDesc[typeId] = f.value;
     } else {
-      rVals[factRowKey(f.fieldName, scope)] = normalizeFieldValue(f.fieldName, f.value);
+      rVals[factRowKey(f.fieldName, scope)] = normalizeFieldValue(
+        f.fieldName,
+        f.value,
+        valueTypeByName.get(f.fieldName)
+      );
     }
   }
   return { propVals, rooms, rVals, rDesc };
@@ -184,6 +206,7 @@ export function AuditWizard({
   locale,
   fieldDefs,
   loadedFacts,
+  existingPhotos = [],
   onSuccess,
   onError,
   t,
@@ -196,6 +219,7 @@ export function AuditWizard({
   const [stepIndex, setStepIndex] = useState(0);
   const [propertyValues, setPropertyValues] = useState<Record<string, string>>({});
   const [selectedRoomTypes, setSelectedRoomTypes] = useState<string[]>([]);
+  const [knownCustomRoomTypes, setKnownCustomRoomTypes] = useState<string[]>([]);
   const [roomValues, setRoomValues] = useState<Record<string, string>>({});
   const [roomDescriptions, setRoomDescriptions] = useState<Record<string, string>>({});
   const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
@@ -245,6 +269,7 @@ export function AuditWizard({
         ),
       },
       selectedRoomTypes,
+      knownCustomRoomTypes,
       roomValues: nonEmptyStringMap(roomValues),
       roomDescriptions: nonEmptyStringMap(roomDescriptions),
       confirmedKeys: [...confirmedKeys],
@@ -267,6 +292,7 @@ export function AuditWizard({
     editingKeys,
     propertyPhotos,
     roomPhotos,
+    knownCustomRoomTypes,
     propertyId,
   ]);
 
@@ -283,7 +309,7 @@ export function AuditWizard({
     skipPersistRef.current = true;
     discardDraftRef.current = false;
 
-    const fromFacts = formValuesFromFacts(loadedFacts);
+    const fromFacts = formValuesFromFacts(loadedFacts, fieldDefs);
     const draft = loadAuditDraft(propertyId);
     if (draft) {
       setStepIndex(draft.step);
@@ -303,6 +329,13 @@ export function AuditWizard({
       setSelectedRoomTypes(
         draft.selectedRoomTypes.length > 0 ? draft.selectedRoomTypes : fromFacts.rooms
       );
+      setKnownCustomRoomTypes(
+        mergeKnownCustomRoomTypes(
+          fromFacts.rooms,
+          draft.selectedRoomTypes,
+          draft.knownCustomRoomTypes
+        )
+      );
       setRoomValues(mergeDraftStringMaps(fromFacts.rVals, draft.roomValues));
       setRoomDescriptions(mergeDraftStringMaps(fromFacts.rDesc, draft.roomDescriptions));
       setConfirmedKeys(new Set(draft.confirmedKeys));
@@ -313,6 +346,7 @@ export function AuditWizard({
       setStepIndex(0);
       setPropertyValues(fromFacts.propVals);
       setSelectedRoomTypes(fromFacts.rooms);
+      setKnownCustomRoomTypes(mergeKnownCustomRoomTypes(fromFacts.rooms));
       setRoomValues(fromFacts.rVals);
       setRoomDescriptions(fromFacts.rDesc);
       setConfirmedKeys(new Set());
@@ -328,12 +362,21 @@ export function AuditWizard({
   // When accessibility facts load async, fill defaults without overwriting draft/edits or step.
   useEffect(() => {
     if (!hydrated) return;
-    const fromFacts = formValuesFromFacts(loadedFacts);
+    const fromFacts = formValuesFromFacts(loadedFacts, fieldDefs);
     setPropertyValues((prev) => mergeDraftStringMaps(fromFacts.propVals, prev));
     setRoomValues((prev) => mergeDraftStringMaps(fromFacts.rVals, prev));
     setRoomDescriptions((prev) => mergeDraftStringMaps(fromFacts.rDesc, prev));
     setSelectedRoomTypes((prev) => (prev.length > 0 ? prev : fromFacts.rooms));
-  }, [loadedFacts, hydrated]);
+    setKnownCustomRoomTypes((prev) => mergeKnownCustomRoomTypes(prev, fromFacts.rooms));
+  }, [loadedFacts, hydrated, fieldDefs]);
+
+  useEffect(() => {
+    setKnownCustomRoomTypes((prev) => {
+      const next = mergeKnownCustomRoomTypes(prev, selectedRoomTypes);
+      if (next.length === prev.length && next.every((id, i) => id === prev[i])) return prev;
+      return next;
+    });
+  }, [selectedRoomTypes]);
 
   // Auto-save draft (debounced) on any change after hydration.
   useEffect(() => {
@@ -387,6 +430,11 @@ export function AuditWizard({
     return [...mapped, ...unmapped];
   }
 
+  function canonicalizeValue(fieldName: string, value: string): string {
+    const def = fieldDefs.find((f) => f.fieldName === fieldName);
+    return normalizeFieldValue(fieldName, value, def?.valueType);
+  }
+
   function buildSubmitFacts(): Array<{ fieldName: string; value: string; scopeKey?: string; confirm?: boolean }> {
     const facts: Array<{ fieldName: string; value: string; scopeKey?: string; confirm?: boolean }> = [];
 
@@ -398,10 +446,11 @@ export function AuditWizard({
     ): boolean => {
       const existing = existingByKey.get(key);
       if (!existing) return false;
-      const normalized = normalizeFieldValue(fieldName, value);
-      const existingNormalized = normalizeFieldValue(fieldName, existing.value);
+      const normalized = canonicalizeValue(fieldName, value);
+      const existingNormalized = canonicalizeValue(fieldName, existing.value);
       if (existingNormalized === normalized) {
-        facts.push({ fieldName, value: existing.value, scopeKey, confirm: true });
+        // Same answer as OSM/prior audit: store as VERIFIED, never auto-CONFIRMED.
+        facts.push({ fieldName, value: normalized, scopeKey });
         return true;
       }
       return false;
@@ -412,7 +461,11 @@ export function AuditWizard({
       if (fieldName === "notes") continue;
       const existing = existingByKey.get(key);
       if (!existing) continue;
-      facts.push({ fieldName, value: existing.value, scopeKey, confirm: true });
+      facts.push({
+        fieldName,
+        value: canonicalizeValue(fieldName, existing.value),
+        scopeKey,
+      });
     }
 
     for (const [fieldName, value] of Object.entries(propertyValues)) {
@@ -422,7 +475,7 @@ export function AuditWizard({
       const key = factRowKey(fieldName);
       if (confirmedKeys.has(key)) continue;
       if (pushIfUnchanged(key, fieldName, value, "property")) continue;
-      facts.push({ fieldName, value, scopeKey: "property" });
+      facts.push({ fieldName, value: canonicalizeValue(fieldName, value), scopeKey: "property" });
     }
 
     const noteParts: string[] = [];
@@ -434,9 +487,7 @@ export function AuditWizard({
     const reviewNote = stepNotes.review?.trim();
     if (reviewNote) noteParts.push(reviewNote);
     if (noteParts.length > 0) {
-      const joined = noteParts.join("\n\n");
-      const appended = existingNotes ? `${existingNotes.trim()}\n\n${joined}` : joined;
-      facts.push({ fieldName: "notes", value: appended, scopeKey: "property" });
+      facts.push({ fieldName: "notes", value: noteParts.join("\n\n"), scopeKey: "property" });
     }
 
     if (selectedRoomTypes.length > 0) {
@@ -456,7 +507,7 @@ export function AuditWizard({
         const fieldName = key.slice(scope.length + 2);
         if (confirmedKeys.has(key)) continue;
         if (pushIfUnchanged(key, fieldName, value, scope)) continue;
-        facts.push({ fieldName, value, scopeKey: scope });
+        facts.push({ fieldName, value: canonicalizeValue(fieldName, value), scopeKey: scope });
       }
     }
 
@@ -537,8 +588,10 @@ export function AuditWizard({
 
   function renderPropertyPhotoSection(step: PhotoStepId) {
     const stepPhotos = photosForStep(step);
+    const prior = existingPhotosForAuditStep(existingPhotos, step);
     return (
       <div style={{ marginTop: 16 }}>
+        <ExistingStepPhotos photos={prior} />
         <p style={{ fontSize: 13, fontWeight: 600 }}>{t("ui.auditStepPhotos")}</p>
         <p className="existing-data-panel-hint" style={{ marginTop: 4 }}>
           {t("ui.auditStepPhotosHint")}
@@ -719,7 +772,7 @@ export function AuditWizard({
       scopeKey === "property"
         ? (propertyValues[field.fieldName] ?? "")
         : (roomValues[key] ?? "");
-    val = normalizeFieldValue(field.fieldName, val);
+    val = normalizeFieldValue(field.fieldName, val, field.valueType);
 
     const onChange = (v: string) => {
       if (scopeKey === "property") setProp(field.fieldName, v);
@@ -845,6 +898,7 @@ export function AuditWizard({
             roomFields={roomFieldDefs}
             selectedTypes={selectedRoomTypes}
             onTypesChange={setSelectedRoomTypes}
+            knownCustomTypes={knownCustomRoomTypes}
             roomValues={roomValues}
             onRoomValueChange={setRoomValue}
             roomDescriptions={roomDescriptions}
@@ -852,6 +906,7 @@ export function AuditWizard({
               setRoomDescriptions((prev) => ({ ...prev, [typeId]: value }))
             }
             hideBathroomFields
+            existingPhotos={existingPhotos}
             roomPhotos={roomPhotos}
             onRoomPhotosChange={(typeId, photos) =>
               setRoomPhotos((prev) => ({
@@ -888,6 +943,7 @@ export function AuditWizard({
               roomFields={roomFieldDefs}
               selectedTypes={selectedRoomTypes}
               onTypesChange={setSelectedRoomTypes}
+              knownCustomTypes={knownCustomRoomTypes}
               roomValues={roomValues}
               onRoomValueChange={setRoomValue}
               roomDescriptions={roomDescriptions}
@@ -896,6 +952,7 @@ export function AuditWizard({
               }
               bathroomOnly
               showTypePicker={false}
+              existingPhotos={existingPhotos}
               renderRoomField={(field, scopeKey) =>
                 renderFieldRow({ ...field, scope: "ROOM" }, scopeKey)
               }
