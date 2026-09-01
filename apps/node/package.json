@@ -20,6 +20,7 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "@wikitraveler/ai-agent": "workspace:*",
+    "@wikitraveler/audit": "workspace:*",
     "@wikitraveler/core": "workspace:*",
     "@wikitraveler/i18n": "workspace:*",
     "@wikitraveler/ui": "workspace:*",

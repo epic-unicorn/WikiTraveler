@@ -18,6 +18,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Rate limiting accepts Vercel Marketplace Upstash aliases `KV_REST_API_URL` / `KV_REST_API_TOKEN` (same as `UPSTASH_REDIS_REST_*`) ([VERCEL.md](docs/VERCEL.md))
 - Access Vercel deploy: `vercel-build:access`, `apps/access/vercel.json`, and hub custom-domain steps ([VERCEL.md](docs/VERCEL.md))
 - Access installable PWA: web manifest, 192/512 icons, and Apple web-app metadata for Add to Home Screen (standalone; no offline SW yet)
+- Node admin property audit: full field-audit wizard (photos, room types, per-room fields), submission history, delete with safe fact rollback; admins can wipe all audit data (`@wikitraveler/audit`)
+
+### Changed
+
+- Node admin property audit: desktop layout polish (field rows, photo strip, danger zone, wider property page)
 
 ### Fixed
 

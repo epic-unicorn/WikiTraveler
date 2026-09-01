@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useLocale, ProseFactValue } from "@wikitraveler/ui";
+import { useCallback, useEffect, useState } from "react";
+import { ProseFactValue, useLocale } from "@wikitraveler/ui";
 import { formatFactValue, getSourceLabel, isProseField } from "@wikitraveler/i18n";
-import { canContribute, roleFromToken } from "@/lib/userRole";
+import { factKey } from "@wikitraveler/core";
+import { canContribute, roleFromToken, decodeJwtPayload } from "@/lib/userRole";
+import { readNodeClientToken } from "@/lib/clientAuthToken";
+import { groupFactsBySection, type DisplayFact } from "@/lib/propertyFacts";
+import { AuditWizard } from "./audit/AuditWizard";
+import { type ExistingFact } from "./audit/ExistingDataPanel";
+import "../../node-audit.css";
 
 const TIER_BADGE_CLASS: Record<string, string> = {
   OFFICIAL: "wt-fact-badge--official",
@@ -12,86 +18,98 @@ const TIER_BADGE_CLASS: Record<string, string> = {
   CONFIRMED: "wt-fact-badge--confirmed",
 };
 
-interface FieldDef {
+type TabId = "facts" | "audit" | "history" | "danger";
+
+type FieldDef = {
   fieldName: string;
   label: string;
   unit: string | null;
   scope: string;
-}
+  valueType: string;
+  enumValues?: string[];
+};
 
-interface Fact {
-  fieldName: string;
-  value: string;
-  displayValue?: string;
-  valueLocale?: string | null;
-  machineTranslated?: boolean;
-  tier: string;
-  sourceType: string;
-  submittedBy: string | null;
-  timestamp: string;
-}
+type SubmissionRow = {
+  id: string;
+  createdAt: string;
+  auditorToken: string | null;
+  factCount: number;
+  photoCount: number;
+};
+
+type AccessibilityPayload = {
+  facts: ExistingFact[];
+  auditPhotos?: {
+    photos: Array<{ url: string; caption: string | null; scopeKey: string | null }>;
+  } | null;
+  auditSubmissions?: SubmissionRow[];
+};
 
 interface Props {
   propertyId: string;
   propertyName: string;
-  initialFacts: Fact[];
 }
 
-export default function AuditPage({ propertyId, initialFacts }: Props) {
+export default function AuditPage({ propertyId, propertyName }: Props) {
   const { locale, t, getFieldLabel, getTierLabel } = useLocale();
-  const [facts, setFacts] = useState<Fact[]>(initialFacts);
-  const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [tab, setTab] = useState<TabId>("facts");
   const [token, setToken] = useState<string | null>(null);
   const [contributor, setContributor] = useState(false);
-  const [auditRows, setAuditRows] = useState<Array<{ fieldName: string; value: string }>>([
-    { fieldName: "door_width_cm", value: "" },
-  ]);
-  const [status, setStatus] = useState<{ type: "idle" | "loading" | "ok" | "error"; msg?: string }>({ type: "idle" });
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
+  const [payload, setPayload] = useState<AccessibilityPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<{ type: "idle" | "error" | "ok"; msg?: string }>({ type: "idle" });
+  const [wipeConfirm, setWipeConfirm] = useState("");
+
+  function canDeleteSubmission(sub: SubmissionRow): boolean {
+    if (!token) return false;
+    if (roleFromToken(token) === "ADMIN") return true;
+    const username = (decodeJwtPayload(token)?.sub as string | undefined)?.toLowerCase();
+    if (!username || !sub.auditorToken) return false;
+    return sub.auditorToken === username || sub.auditorToken.startsWith(`${username}@`);
+  }
+
+  const refresh = useCallback(async () => {
+    const auth = token ?? readNodeClientToken();
+    if (!auth) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/accessibility?locale=${locale}`, {
+        headers: { Authorization: `Bearer ${auth}` },
+      });
+      if (!res.ok) throw new Error("load failed");
+      const data = (await res.json()) as AccessibilityPayload;
+      setPayload(data);
+    } catch {
+      setStatus({ type: "error", msg: t("ui.signalsLoadFailed") });
+    } finally {
+      setLoading(false);
+    }
+  }, [propertyId, locale, token, t]);
 
   useEffect(() => {
-    const m = document.cookie.match(/(?:^|;\s*)wt_token=([^;]+)/);
-    if (!m) return;
-    const stored = decodeURIComponent(m[1]);
-    setToken(stored);
-    setContributor(canContribute(roleFromToken(stored)));
+    const stored = readNodeClientToken();
+    if (stored) {
+      setToken(stored);
+      setContributor(canContribute(roleFromToken(stored)));
+    }
   }, []);
 
   useEffect(() => {
     fetch(`/api/fields?locale=${locale}`)
       .then((r) => r.json())
-      .then((data: { fields?: FieldDef[] }) => {
-        const propertyFields = (data.fields ?? []).filter((f) => f.scope === "PROPERTY");
-        setFieldDefs(propertyFields);
-      })
+      .then((data: { fields?: FieldDef[] }) => setFieldDefs(data.fields ?? []))
       .catch(() => {});
   }, [locale]);
 
-  function fieldLabel(fieldName: string): string {
-    const def = fieldDefs.find((f) => f.fieldName === fieldName);
-    if (def) {
-      return def.unit ? `${def.label} (${def.unit})` : def.label;
-    }
-    return getFieldLabel(fieldName);
-  }
+  useEffect(() => {
+    if (token && contributor) void refresh();
+  }, [token, contributor, refresh]);
 
-  function formatFactDisplay(fact: Fact): string {
-    const formatted = formatFactValue(fact.fieldName, fact.value, {
-      locale,
-      valueLocale: fact.valueLocale,
-      translatedValue: fact.displayValue,
-      machineTranslated: fact.machineTranslated,
-    });
-    return formatted.displayValue;
-  }
-
-  function isProseFact(fact: Fact): boolean {
-    return isProseField(fact.fieldName);
-  }
-
-  async function getToken() {
-    setStatus({ type: "loading" });
+  async function login() {
+    setStatus({ type: "idle" });
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,246 +125,258 @@ export default function AuditPage({ propertyId, initialFacts }: Props) {
       setStatus({ type: "error", msg: t("ui.authRoleRequired") });
       return;
     }
-    setToken(data.token ?? null);
-    setContributor(true);
-    setStatus({ type: "idle" });
-  }
-
-  function addRow() {
-    setAuditRows((r) => [...r, { fieldName: "notes", value: "" }]);
-  }
-
-  function removeRow(i: number) {
-    setAuditRows((r) => r.filter((_, idx) => idx !== i));
-  }
-
-  async function submitAudit() {
-    if (!token) return;
-    const valid = auditRows.filter((r) => r.fieldName && r.value.trim());
-    if (valid.length === 0) {
-      setStatus({ type: "error", msg: t("ui.addOneFact") });
-      return;
+    if (data.token) {
+      document.cookie = `wt_token=${encodeURIComponent(data.token)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+      sessionStorage.setItem("wt_node_token", data.token);
+      setToken(data.token);
+      setContributor(true);
     }
-    setStatus({ type: "loading" });
-    const res = await fetch(`/api/properties/${propertyId}/accessibility`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ facts: valid, locale }),
-    });
-    const data = await res.json() as { message?: string };
-    if (!res.ok) {
-      setStatus({
-        type: "error",
-        msg: res.status === 403 ? t("ui.authRoleRequired") : (data.message ?? "Submit failed"),
-      });
-      return;
-    }
+  }
 
-    const refreshed = await fetch(`/api/properties/${propertyId}/accessibility?locale=${locale}`, {
+  async function deleteSubmission(id: string) {
+    if (!token || !window.confirm(t("ui.nodeAuditDeleteConfirm"))) return;
+    const res = await fetch(`/api/admin/audit-submissions/${id}`, {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-    const refreshedData = await refreshed.json() as { facts: Fact[] };
-    setFacts(refreshedData.facts ?? []);
-    setStatus({ type: "ok", msg: t("ui.auditSubmitted") });
-    setAuditRows([{ fieldName: "door_width_cm", value: "" }]);
+    if (!res.ok) {
+      const data = await res.json() as { message?: string };
+      setStatus({ type: "error", msg: data.message ?? t("ui.signalsUpdateFailed") });
+      return;
+    }
+    await refresh();
+    setStatus({ type: "ok", msg: t("ui.nodeAuditDeleted") });
   }
 
-  const selectOptions = fieldDefs.length > 0
-    ? fieldDefs
-    : [{ fieldName: "door_width_cm", label: getFieldLabel("door_width_cm"), unit: "cm", scope: "PROPERTY" }];
+  async function wipeAllAudits() {
+    if (!token) return;
+    const res = await fetch(
+      `/api/properties/${propertyId}/audits?confirm=${encodeURIComponent(wipeConfirm)}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json() as { message?: string };
+    if (!res.ok) {
+      setStatus({ type: "error", msg: data.message ?? t("ui.loadFailed") });
+      return;
+    }
+    setWipeConfirm("");
+    await refresh();
+    setStatus({ type: "ok", msg: t("ui.nodeAuditWiped") });
+  }
+
+  const facts = payload?.facts ?? [];
+  const photos = payload?.auditPhotos?.photos ?? [];
+  const submissions = payload?.auditSubmissions ?? [];
+
+  function fieldLabel(fieldName: string, scopeKey?: string): string {
+    const def = fieldDefs.find((f) => f.fieldName === fieldName);
+    const base = def ? (def.unit ? `${def.label} (${def.unit})` : def.label) : getFieldLabel(fieldName);
+    if (scopeKey?.startsWith("room-type:")) {
+      return `${base} · ${scopeKey.replace("room-type:", "")}`;
+    }
+    return base;
+  }
+
+  function formatFactDisplay(fact: ExistingFact): string {
+    return formatFactValue(fact.fieldName, fact.value, {
+      locale,
+      valueLocale: fact.valueLocale,
+      translatedValue: fact.displayValue,
+      machineTranslated: fact.machineTranslated,
+    }).displayValue;
+  }
+
+  const displayFacts: DisplayFact[] = facts.map((f) => ({
+    fieldName: f.fieldName,
+    scopeKey: (f as ExistingFact & { scopeKey?: string }).scopeKey,
+    value: f.value,
+    displayValue: f.displayValue,
+    tier: f.tier,
+    valueLocale: f.valueLocale,
+    machineTranslated: f.machineTranslated,
+  }));
+
+  const sections = groupFactsBySection(displayFacts);
+  const isAdmin = token ? roleFromToken(token) === "ADMIN" : false;
+
+  const tabs: { id: TabId; label: string }[] = [
+    { id: "facts", label: t("ui.currentFacts") },
+    { id: "audit", label: t("ui.submitAudit") },
+    { id: "history", label: t("ui.nodeAuditTabHistory") },
+    ...(isAdmin ? [{ id: "danger" as const, label: t("ui.nodeAuditTabDanger") }] : []),
+  ];
 
   return (
-    <div>
-      <p style={{ color: "var(--wt-text-muted)", fontSize: 14, marginBottom: 32 }}>
-        {t("ui.propertyId")}: <code>{propertyId}</code>
-      </p>
+    <div className="wt-node-audit">
+      <nav className="wt-node-audit-tabs" aria-label={t("ui.submitAudit")}>
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={tab === item.id ? "wt-node-audit-tabs__btn is-active" : "wt-node-audit-tabs__btn"}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
-      <section style={{ marginBottom: 40 }} aria-labelledby="facts-heading">
-        <h2 id="facts-heading" style={{ fontSize: 17, fontWeight: 600, marginBottom: 16 }}>
-          {t("ui.currentFacts")}
-        </h2>
-        {facts.length === 0 ? (
-          <p style={{ color: "var(--wt-text-muted)" }}>{t("ui.noFactsYet")}</p>
-        ) : (
-          <ul className="wt-facts-list" role="list">
-            {facts.map((f) => (
-              <li key={f.fieldName} className="wt-fact-row">
-                <div className="wt-fact-row-main">
-                  <span className="wt-fact-label">{fieldLabel(f.fieldName)}</span>
-                  <span className="wt-fact-value">
-                    {isProseFact(f) ? (
-                      <ProseFactValue
-                        displayValue={f.displayValue ?? formatFactDisplay(f)}
-                        rawValue={f.value}
-                        machineTranslated={f.machineTranslated}
-                        valueLocale={f.valueLocale}
-                      />
-                    ) : (
-                      formatFactDisplay(f)
-                    )}
-                  </span>
-                </div>
-                <div className="wt-fact-row-meta">
-                  <span className={`wt-fact-badge ${TIER_BADGE_CLASS[f.tier] ?? "wt-fact-badge--official"}`}>
-                    {getTierLabel(f.tier)}
-                  </span>
-                  <span className="wt-fact-badge wt-fact-badge--source">
-                    {getSourceLabel(f.sourceType, locale)}
-                  </span>
-                  <time className="wt-fact-when" dateTime={f.timestamp}>
-                    {new Date(f.timestamp).toLocaleDateString(locale, {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </time>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {status.type !== "idle" && status.msg && (
+        <p
+          role={status.type === "error" ? "alert" : "status"}
+          className={`wt-node-audit-status wt-node-audit-status--${status.type}`}
+        >
+          {status.msg}
+        </p>
+      )}
 
       {!token && (
-        <section
-          style={{
-            background: "var(--wt-bg-elevated)", border: "1px solid var(--wt-border)",
-            borderRadius: 12, padding: 24, marginBottom: 24,
-          }}
-          aria-labelledby="auth-heading"
-        >
-          <h2 id="auth-heading" style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>
-            {t("ui.authenticate")}
-          </h2>
-          <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 16 }}>
-            {t("ui.signInPrompt")}
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
-            <label htmlFor="audit-auth-username" className="wt-sr-only">{t("ui.username")}</label>
-            <input
-              id="audit-auth-username"
-              type="text"
-              placeholder={t("ui.username")}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              style={{ padding: "8px 12px", border: "1px solid var(--wt-border)", borderRadius: 8, fontSize: 14 }}
-            />
-            <div style={{ display: "flex", gap: 8 }}>
-              <label htmlFor="audit-auth-password" className="wt-sr-only">{t("ui.password")}</label>
-              <input
-                id="audit-auth-password"
-                type="password"
-                placeholder={t("ui.password")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && getToken()}
-                autoComplete="current-password"
-                style={{ flex: 1, padding: "8px 12px", border: "1px solid var(--wt-border)", borderRadius: 8, fontSize: 14 }}
-              />
-              <button
-                type="button"
-                onClick={getToken}
-                disabled={status.type === "loading"}
-                style={{ background: "var(--wt-bg-header)", color: "var(--wt-bg-header-contrast)", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontWeight: 600 }}
-              >
-                {t("ui.signIn")}
-              </button>
-            </div>
+        <section className="card wt-node-audit-auth">
+          <h2 className="wt-node-audit-auth__title">{t("ui.authenticate")}</h2>
+          <div className="wt-node-audit-auth__form">
+            <input type="text" placeholder={t("ui.username")} value={username} onChange={(e) => setUsername(e.target.value)} />
+            <input type="password" placeholder={t("ui.password")} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="button" className="btn-primary" onClick={() => void login()}>{t("ui.signIn")}</button>
           </div>
-          {status.type === "error" && <p role="alert" style={{ color: "var(--wt-danger)", fontSize: 13, marginTop: 8 }}>{status.msg}</p>}
         </section>
       )}
 
       {token && !contributor && (
-        <section
-          style={{
-            background: "var(--wt-bg-elevated)", border: "1px solid var(--wt-border)",
-            borderRadius: 12, padding: 24, marginBottom: 24,
-          }}
-          role="alert"
-        >
-          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{t("ui.authRoleRequired")}</h2>
-          <p style={{ fontSize: 13, color: "var(--wt-text-muted)", margin: 0 }}>
-            {t("ui.authSignInSubtitle")}
-          </p>
+        <p role="alert" style={{ marginTop: 16, color: "var(--wt-danger)" }}>{t("ui.authRoleRequired")}</p>
+      )}
+
+      {token && contributor && tab === "facts" && (
+        <section style={{ marginTop: 16 }}>
+          {loading && <p style={{ color: "var(--wt-text-muted)" }}>{t("ui.loading")}</p>}
+          {!loading && sections.length === 0 && (
+            <p style={{ color: "var(--wt-text-muted)" }}>{t("ui.noFactsYet")}</p>
+          )}
+          {sections.map((section) => (
+            <div key={section.id} style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>{t(section.labelKey)}</h3>
+              <ul className="wt-facts-list" role="list">
+                {section.facts.map((f) => (
+                  <li key={factKey({ fieldName: f.fieldName, scopeKey: f.scopeKey ?? "property" })} className="wt-fact-row">
+                    <div className="wt-fact-row-main">
+                      <span className="wt-fact-label">{fieldLabel(f.fieldName, f.scopeKey)}</span>
+                      <span className="wt-fact-value">
+                        {isProseField(f.fieldName) ? (
+                          <ProseFactValue
+                            displayValue={f.displayValue ?? formatFactDisplay(f as ExistingFact)}
+                            rawValue={f.value}
+                            machineTranslated={f.machineTranslated}
+                            valueLocale={f.valueLocale}
+                          />
+                        ) : (
+                          formatFactDisplay(f as ExistingFact)
+                        )}
+                      </span>
+                    </div>
+                    <div className="wt-fact-row-meta">
+                      <span className={`wt-fact-badge ${TIER_BADGE_CLASS[f.tier] ?? "wt-fact-badge--official"}`}>
+                        {getTierLabel(f.tier)}
+                      </span>
+                      <span className="wt-fact-badge wt-fact-badge--source">
+                        {getSourceLabel((f as ExistingFact).sourceType ?? "AUDITOR", locale)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {photos.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{t("ui.existingDataPhotos")}</h3>
+              <div className="wt-node-audit-photo-grid">
+                {photos.map((p) => (
+                  <figure key={p.url}>
+                    <img src={p.url} alt={p.caption ?? ""} />
+                    {p.scopeKey && <figcaption>{p.scopeKey}</figcaption>}
+                  </figure>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
-      {token && contributor && (
-        <section
-          style={{
-            background: "var(--wt-bg-elevated)", border: "1px solid var(--wt-border)",
-            borderRadius: 12, padding: 24,
-          }}
-        >
-          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>{t("ui.submitAudit")}</h2>
-          <p style={{ fontSize: 13, color: "var(--wt-text-muted)", marginBottom: 20 }}>
-            {t("ui.verifiedNote", { tier: getTierLabel("VERIFIED") })}
+      {token && contributor && tab === "audit" && (
+        <div style={{ marginTop: 16 }}>
+          <AuditWizard
+            propertyId={propertyId}
+            token={token}
+            locale={locale}
+            fieldDefs={fieldDefs}
+            loadedFacts={facts}
+            existingPhotos={photos}
+            onSuccess={() => {
+              void refresh();
+              setTab("facts");
+              setStatus({ type: "ok", msg: t("ui.auditSubmitted") });
+            }}
+            onCancel={() => setTab("facts")}
+            onError={(msg) => setStatus({ type: "error", msg })}
+            t={t}
+            getTierLabel={getTierLabel}
+          />
+        </div>
+      )}
+
+      {token && contributor && tab === "history" && (
+        <section style={{ marginTop: 16 }}>
+          {submissions.length === 0 ? (
+            <p style={{ color: "var(--wt-text-muted)" }}>{t("ui.nodeAuditNoHistory")}</p>
+          ) : (
+            <ul className="wt-node-audit-history">
+              {submissions.map((s) => {
+                const canDelete = canDeleteSubmission(s);
+                return (
+                  <li key={s.id} className="card wt-node-audit-history__item">
+                    <div className="wt-node-audit-history__row">
+                      <div>
+                        <strong style={{ fontSize: 14 }}>{new Date(s.createdAt).toLocaleString(locale)}</strong>
+                        <p className="wt-node-audit-history__meta">
+                          {s.auditorToken ?? "—"} · {s.factCount} {t("ui.nodeAuditFacts")} · {s.photoCount} {t("ui.existingDataPhotos")}
+                        </p>
+                      </div>
+                      {canDelete && (
+                        <button type="button" className="btn-secondary" onClick={() => void deleteSubmission(s.id)}>
+                          {t("ui.nodeAuditDeleteSubmission")}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {token && contributor && isAdmin && tab === "danger" && (
+        <section className="card wt-node-audit-danger">
+          <h2 className="wt-node-audit-danger__title">{t("ui.nodeAuditTabDanger")}</h2>
+          <p className="wt-node-audit-danger__hint">
+            {t("ui.nodeAuditWipeHint", { name: propertyName })}
           </p>
-
-          {auditRows.map((row, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              <label htmlFor={`audit-field-${i}`} className="wt-sr-only">{t("ui.fieldRow", { n: i + 1 })}</label>
-              <select
-                id={`audit-field-${i}`}
-                value={row.fieldName}
-                aria-label={t("ui.fieldRow", { n: i + 1 })}
-                onChange={(e) =>
-                  setAuditRows((rows) =>
-                    rows.map((r, idx) => idx === i ? { ...r, fieldName: e.target.value } : r)
-                  )
-                }
-                style={{ flex: 1, padding: "8px 10px", border: "1px solid var(--wt-border)", borderRadius: 8, fontSize: 13 }}
-              >
-                {selectOptions.map((f) => (
-                  <option key={f.fieldName} value={f.fieldName}>
-                    {f.unit ? `${f.label} (${f.unit})` : f.label}
-                  </option>
-                ))}
-              </select>
-              <label htmlFor={`audit-value-${i}`} className="wt-sr-only">{t("ui.valuePlaceholder")}</label>
-              <input
-                id={`audit-value-${i}`}
-                placeholder={t("ui.valuePlaceholder")}
-                aria-label={t("ui.valuePlaceholder")}
-                value={row.value}
-                onChange={(e) =>
-                  setAuditRows((rows) =>
-                    rows.map((r, idx) => idx === i ? { ...r, value: e.target.value } : r)
-                  )
-                }
-                style={{ flex: 1, padding: "8px 12px", border: "1px solid var(--wt-border)", borderRadius: 8, fontSize: 13 }}
-              />
-              <button
-                type="button"
-                aria-label={t("ui.removeRow", { n: i + 1 })}
-                onClick={() => removeRow(i)}
-                style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer", minWidth: 44, minHeight: 44 }}
-              >×</button>
-            </div>
-          ))}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <div className="wt-node-audit-danger__form">
+            <input
+              type="text"
+              className="wt-node-audit-danger__input"
+              value={wipeConfirm}
+              onChange={(e) => setWipeConfirm(e.target.value)}
+              placeholder={propertyName}
+            />
             <button
               type="button"
-              onClick={addRow}
-              style={{ background: "var(--wt-bg-secondary)", border: "1px solid var(--wt-border)", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}
-            >{t("ui.addField")}</button>
-            <button
-              type="button"
-              onClick={submitAudit}
-              disabled={status.type === "loading"}
-              style={{ background: "#059669", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontWeight: 600, fontSize: 14 }}
-            >{status.type === "loading" ? t("ui.submitting") : t("ui.submitAudit")}</button>
+              className="btn-secondary"
+              disabled={wipeConfirm !== propertyName}
+              onClick={() => void wipeAllAudits()}
+            >
+              {t("ui.nodeAuditWipeAll")}
+            </button>
           </div>
-
-          {status.type === "ok" && (
-            <p role="status" style={{ color: "#059669", fontSize: 13, marginTop: 12 }}>{status.msg}</p>
-          )}
-          {status.type === "error" && (
-            <p role="alert" style={{ color: "#ef4444", fontSize: 13, marginTop: 12 }}>{status.msg}</p>
-          )}
         </section>
       )}
     </div>

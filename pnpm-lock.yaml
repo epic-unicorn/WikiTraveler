@@ -50,6 +50,9 @@ importers:
       '@ionic/react':
         specifier: ^8.5.4
         version: 8.8.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@wikitraveler/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@wikitraveler/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -120,6 +123,9 @@ importers:
       '@wikitraveler/ai-agent':
         specifier: workspace:*
         version: link:../../packages/ai-agent
+      '@wikitraveler/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@wikitraveler/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -196,6 +202,19 @@ importers:
       openai:
         specifier: ^4.0.0
         version: 4.104.0(ws@8.21.0)(zod@4.4.3)
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(postcss@8.5.25)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/audit:
+    dependencies:
+      '@wikitraveler/i18n':
+        specifier: workspace:*
+        version: link:../i18n
     devDependencies:
       tsup:
         specifier: ^8.0.0

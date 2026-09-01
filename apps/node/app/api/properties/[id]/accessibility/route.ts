@@ -225,6 +225,14 @@ export async function GET(
     auditPhotos,
     auditPhotoHistory: mergedPhotos.history,
     auditNotes,
+    auditSubmissions: submissionsRaw.map((sub) => ({
+      id: sub.id,
+      createdAt: sub.createdAt.toISOString(),
+      auditorToken: sub.auditorToken,
+      locale: sub.locale,
+      factCount: Array.isArray(sub.facts) ? sub.facts.length : 0,
+      photoCount: sub.photos.length,
+    })),
     hasAiGuess,
     confidenceSummary,
   });
