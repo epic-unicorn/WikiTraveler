@@ -307,6 +307,9 @@ export type AuditNoteEntry = {
   createdAt: string;
   auditorToken: string | null;
   text: string;
+  sourceLocale?: string | null;
+  displayText?: string;
+  machineTranslated?: boolean;
 };
 
 export type PropertyEnrichment = {

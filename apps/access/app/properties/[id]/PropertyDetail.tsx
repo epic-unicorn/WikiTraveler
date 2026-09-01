@@ -147,17 +147,28 @@ function uniqueGallery(
 
 function notesFromResponse(
   notes: AuditNoteEntry[] | undefined,
-  facts: Array<{ fieldName: string; value: string; timestamp?: string }>
+  facts: Array<{
+    fieldName: string;
+    value: string;
+    displayValue?: string;
+    timestamp?: string;
+    valueLocale?: string | null;
+    machineTranslated?: boolean;
+  }>
 ): AuditNoteEntry[] {
   if (notes && notes.length > 0) return notes;
   const fact = facts.find((f) => f.fieldName === "notes" && f.value.trim());
   if (!fact) return [];
+  const displayText = fact.displayValue ?? fact.value;
   return [
     {
       submissionId: "legacy-notes",
       createdAt: fact.timestamp ?? new Date().toISOString(),
       auditorToken: null,
       text: fact.value,
+      displayText,
+      sourceLocale: fact.valueLocale ?? null,
+      machineTranslated: fact.machineTranslated,
     },
   ];
 }
@@ -198,14 +209,10 @@ function HeroCarousel({
   photos,
   name,
   onOpen,
-  prevLabel,
-  nextLabel,
 }: {
   photos: Array<{ url: string; caption: string | null }>;
   name: string;
   onOpen: (url: string) => void;
-  prevLabel: string;
-  nextLabel: string;
 }) {
   const [index, setIndex] = useState(0);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -247,7 +254,21 @@ function HeroCarousel({
       <div
         ref={scrollerRef}
         className="fk-property-hero-scroller"
+        role="group"
+        aria-roledescription="carousel"
+        aria-label={name}
+        tabIndex={photos.length > 1 ? 0 : undefined}
         onScroll={syncIndex}
+        onKeyDown={(e) => {
+          if (photos.length <= 1) return;
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            go(index - 1);
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            go(index + 1);
+          }
+        }}
       >
         {photos.map((photo, i) => (
           <button
@@ -268,31 +289,9 @@ function HeroCarousel({
         ))}
       </div>
       {photos.length > 1 && (
-        <>
-          {index > 0 && (
-            <button
-              type="button"
-              className="fk-property-hero-nav fk-property-hero-nav--prev"
-              onClick={() => go(index - 1)}
-              aria-label={prevLabel}
-            >
-              ‹
-            </button>
-          )}
-          {index < photos.length - 1 && (
-            <button
-              type="button"
-              className="fk-property-hero-nav fk-property-hero-nav--next"
-              onClick={() => go(index + 1)}
-              aria-label={nextLabel}
-            >
-              ›
-            </button>
-          )}
-          <span className="fk-property-hero-counter" aria-live="polite">
-            {index + 1} / {photos.length}
-          </span>
-        </>
+        <span className="fk-property-hero-counter" aria-live="polite">
+          {index + 1} / {photos.length}
+        </span>
       )}
     </>
   );
@@ -571,8 +570,6 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                 photos={galleryPhotos}
                 name={data.property.name}
                 onOpen={openPhoto}
-                prevLabel={t("ui.photoPrev")}
-                nextLabel={t("ui.photoNext")}
               />
 
               <div className="fk-property-hero-overlay">

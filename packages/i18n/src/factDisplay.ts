@@ -52,10 +52,12 @@ export function formatFactValue(
   if (isProse) {
     const localesDiffer =
       valueLocale != null && valueLocale !== locale && isSupportedLocalePair(valueLocale, locale);
-    const useTranslation =
+    const useTranslation = Boolean(
       options.machineTranslated &&
-      options.translatedValue &&
-      localesDiffer;
+        options.translatedValue &&
+        options.translatedValue.trim() &&
+        (localesDiffer || options.translatedValue.trim() !== rawValue)
+    );
 
     return {
       displayValue: useTranslation ? options.translatedValue! : rawValue,

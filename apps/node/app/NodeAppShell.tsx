@@ -13,6 +13,7 @@ import {
   type ToolbarLink,
 } from "@wikitraveler/ui";
 import { SignOutButton } from "./SignOutButton";
+import { useOpenSignalsBadgeCount } from "./hooks/useOpenSignalsBadgeCount";
 
 interface Props {
   lead?: string;
@@ -23,9 +24,18 @@ interface Props {
 
 function useNavLinks(activeNav: "map" | "signals" | "stats"): ToolbarLink[] {
   const { t } = useLocale();
+  const openSignals = useOpenSignalsBadgeCount(true);
+
   return [
     { href: "/", label: t("ui.navMap"), active: activeNav === "map" },
-    { href: "/signals", label: t("ui.navSignals"), active: activeNav === "signals" },
+    {
+      href: "/signals",
+      label: t("ui.navSignals"),
+      active: activeNav === "signals",
+      badgeCount: openSignals,
+      ariaLabel:
+        openSignals > 0 ? t("ui.signalsNavBadge", { count: openSignals }) : undefined,
+    },
     { href: "/stats", label: t("ui.navStats"), active: activeNav === "stats" },
   ];
 }
@@ -35,21 +45,29 @@ function nodeLinkWrap({
   className,
   children,
   external,
+  ariaLabel,
 }: {
   href: string;
   className: string;
   children: ReactNode;
   external?: boolean;
+  ariaLabel?: string;
 }) {
   if (external) {
     return (
-      <a href={href} className={className} target="_blank" rel="noopener noreferrer">
+      <a
+        href={href}
+        className={className}
+        aria-label={ariaLabel}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         {children}
       </a>
     );
   }
   return (
-    <Link href={href} className={className}>
+    <Link href={href} className={className} aria-label={ariaLabel}>
       {children}
     </Link>
   );

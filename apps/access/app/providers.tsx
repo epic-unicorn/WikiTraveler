@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { setupIonicReact, IonApp } from "@ionic/react";
 import { ThemeProvider, LocaleProvider } from "@wikitraveler/ui";
+import { AccessThemeSync, persistAccessTheme } from "./components/AccessThemeSync";
 
 let ionicBootstrapped = false;
 
@@ -26,8 +27,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeProvider>
+    <ThemeProvider onPersist={persistAccessTheme}>
       <LocaleProvider>
+        <AccessThemeSync />
         {mounted ? (
           <IonApp className="wt-ion-web">{children}</IonApp>
         ) : (

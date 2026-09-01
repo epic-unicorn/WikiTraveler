@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireRole } from "@/lib/auth";
-import { listSignalsForAdmin } from "@/lib/communitySignals";
+import { listSignalsForAdmin, countActionableSignalsForAdmin } from "@/lib/communitySignals";
 import type { SignalStatus } from "@prisma/client";
 
 
@@ -19,6 +19,11 @@ export async function GET(req: NextRequest) {
   if (authError) return authError;
 
   const statusParam = req.nextUrl.searchParams.get("status")?.toUpperCase();
+  if (req.nextUrl.searchParams.get("countOnly") === "1") {
+    const openCount = await countActionableSignalsForAdmin();
+    return NextResponse.json({ openCount });
+  }
+
   const status =
     statusParam && VALID_STATUS.has(statusParam as SignalStatus)
       ? (statusParam as SignalStatus)

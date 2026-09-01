@@ -133,6 +133,13 @@ export async function listSignalsForAdmin(status?: SignalStatus) {
   return signals;
 }
 
+/** Open + in-progress community signals awaiting operator action. */
+export async function countActionableSignalsForAdmin(): Promise<number> {
+  return prisma.communitySignal.count({
+    where: { status: { in: ["OPEN", "IN_PROGRESS"] } },
+  });
+}
+
 export async function listSignalsForProperty(propertyId: string, reporterIdFilter?: string) {
   const signals = await prisma.communitySignal.findMany({
     where: {

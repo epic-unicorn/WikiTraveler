@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useTheme, useLocale } from "@wikitraveler/ui";
+import { readMapPinColors } from "../lib/mapThemeColors";
 
 interface Props {
   lat: number;
@@ -45,10 +46,11 @@ export function PropertyMiniMap({ lat, lon, name }: Props) {
         maxZoom: 19,
       }).addTo(map);
 
+      const pinColors = readMapPinColors();
       L.circleMarker([lat, lon], {
         radius: 8,
-        color: "#1e40af",
-        fillColor: "#60a5fa",
+        color: pinColors.stroke,
+        fillColor: pinColors.fill,
         fillOpacity: 0.95,
         weight: 2,
       })

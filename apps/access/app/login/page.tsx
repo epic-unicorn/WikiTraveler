@@ -3,10 +3,11 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { WikiTravelerLogo } from "@wikitraveler/ui";
+import { WikiTravelerLogo, useLocale } from "@wikitraveler/ui";
 import { persistAuth } from "../lib/authStorage";
 import { DISPLAY_ENV_NODE_URL, toClientNodeUrl } from "../lib/accessApi";
 import { normalizeNodeBaseUrl } from "../lib/safeHttpUrl";
+import { useNodeOpenRegistration } from "../hooks/useNodeOpenRegistration";
 
 const ENV_NODE_URL = DISPLAY_ENV_NODE_URL;
 
@@ -35,11 +36,13 @@ const inputStyle: React.CSSProperties = {
 
 function LoginForm() {
   const searchParams = useSearchParams();
+  const { t } = useLocale();
   const [nodeUrl, setNodeUrl] = useState(ENV_NODE_URL);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const openRegistration = useNodeOpenRegistration(nodeUrl);
 
   useEffect(() => {
     const storedUrl = localStorage.getItem("wt_node_url");
@@ -90,31 +93,16 @@ function LoginForm() {
   }
 
   return (
-    <div style={{
-      minHeight: "100dvh",
-      background: "var(--wt-bg)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "20px 16px",
-    }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
+    <div className="fk-auth-page">
+      <div className="fk-auth-page__inner">
+        <div className="fk-auth-page__brand">
           <WikiTravelerLogo product="access" size={36} />
         </div>
-        <div style={{
-          background: "var(--wt-bg-elevated)",
-          borderRadius: "var(--wt-radius-lg)",
-          border: "1px solid var(--wt-border)",
-          padding: "36px 24px",
-          boxShadow: "var(--wt-shadow)",
-        }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>WikiTraveler Access</h1>
-            <p style={{ fontSize: 14, color: "var(--wt-text-muted)", marginTop: 6 }}>
-              Sign in to explore verified accessibility
-            </p>
-          </div>
+        <div className="fk-auth-card">
+          <h1 className="wt-sr-only">{t("ui.signIn")}</h1>
+          <p className="fk-auth-card__lead">
+            Sign in to explore verified accessibility
+          </p>
 
           <form onSubmit={handleSubmit}>
             <label htmlFor="fk-login-node-url" style={labelStyle}>Node URL</label>
@@ -176,15 +164,17 @@ function LoginForm() {
             </button>
           </form>
 
-          <p style={{ textAlign: "center", fontSize: 13, color: "var(--wt-text-muted)", marginTop: 20 }}>
-            No account?{" "}
-            <Link
-              href={`/register${searchParams.get("next") ? `?next=${searchParams.get("next")}` : ""}`}
-              style={{ color: "var(--wt-primary)", fontWeight: 600 }}
-            >
-              Register
-            </Link>
-          </p>
+          {openRegistration === true && (
+            <p style={{ textAlign: "center", fontSize: 13, color: "var(--wt-text-muted)", marginTop: 20 }}>
+              {t("ui.authNoAccount")}{" "}
+              <Link
+                href={`/register${searchParams.get("next") ? `?next=${searchParams.get("next")}` : ""}`}
+                style={{ color: "var(--wt-primary)", fontWeight: 600 }}
+              >
+                {t("ui.authCreateAccount")}
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>

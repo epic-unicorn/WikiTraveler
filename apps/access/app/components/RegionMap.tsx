@@ -10,6 +10,7 @@ import {
   type MapPin,
 } from "../lib/accessApi";
 import { filterPinsByFeatures } from "../lib/mapPinFeatures";
+import { readMapPinColors, readMapUserColors } from "../lib/mapThemeColors";
 import { readMapCamera, saveMapCamera } from "../lib/mapCameraSession";
 import { dataNodeFromResolve, isConfirmedUncovered } from "../lib/peerCoverage";
 
@@ -74,19 +75,15 @@ function radiusForZoom(zoom: number, selected: boolean): number {
   return selected ? base + 3 : base;
 }
 
-const PIN_COLOR = { color: "#1e40af", fillColor: "#60a5fa" };
-const PIN_COLOR_DARK = { color: "#3b82f6", fillColor: "#60a5fa" };
-
 function pinMarkerStyle(
-  themeMode: string,
+  colors: { stroke: string; fill: string },
   selected: boolean,
   zoom: number
 ): import("leaflet").CircleMarkerOptions {
-  const dark = themeMode === "dark";
-  const colors = dark ? PIN_COLOR_DARK : PIN_COLOR;
   return {
     radius: radiusForZoom(zoom, selected),
-    ...colors,
+    color: colors.stroke,
+    fillColor: colors.fill,
     fillOpacity: 0.9,
     weight: selected ? 4 : 2,
   };
@@ -470,6 +467,8 @@ export function RegionMap({
 
     const zoom = map.getZoom();
     const savedSet = savedIdsRef.current;
+    const pinColors = readMapPinColors();
+    const userColors = readMapUserColors();
 
     const sorted = [...pinsRef.current]
       .filter((p) => p.lat !== 0 && p.lon !== 0)
@@ -485,7 +484,7 @@ export function RegionMap({
       const saved = savedSet.has(pin.id);
       const marker: MapMarker = saved
         ? L.marker([pin.lat, pin.lon], { icon: savedPinIcon(L, selected), zIndexOffset: 400 })
-        : L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(mode, selected, zoom));
+        : L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(pinColors, selected, zoom));
       marker.on("click", () => {
         if (selectedIdRef.current === pin.id) {
           onSelectPropertyRef.current?.(null);
@@ -512,8 +511,8 @@ export function RegionMap({
     if (userLocation) {
       L.circleMarker([userLocation.lat, userLocation.lon], {
         radius: 9,
-        color: "#7c3aed",
-        fillColor: "#a78bfa",
+        color: userColors.stroke,
+        fillColor: userColors.fill,
         fillOpacity: 1,
         weight: 3,
       }).addTo(userGroup);
@@ -521,8 +520,8 @@ export function RegionMap({
       if (radiusKm != null && radiusKm > 0) {
         L.circle([userLocation.lat, userLocation.lon], {
           radius: radiusKm * 1000,
-          color: "#7c3aed",
-          fillColor: "#7c3aed",
+          color: userColors.stroke,
+          fillColor: userColors.stroke,
           fillOpacity: 0.08,
           weight: 1.5,
           dashArray: "4 6",

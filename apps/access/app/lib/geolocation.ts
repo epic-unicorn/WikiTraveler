@@ -37,7 +37,10 @@ export async function requestUserLocation(): Promise<GeoResult> {
     return { ok: false, reason: "unsupported" };
   }
 
-  await permissionState();
+  const perm = await permissionState();
+  if (perm === "denied") {
+    return { ok: false, reason: "denied" };
+  }
 
   try {
     const pos = await getPosition({

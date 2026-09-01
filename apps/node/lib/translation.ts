@@ -82,7 +82,7 @@ export async function getOrTranslateFactText(
     return { text: trimmed, machineTranslated: false };
   }
 
-  if (!sourceLocale || sourceLocale === targetLocale) {
+  if (sourceLocale && sourceLocale === targetLocale) {
     return { text: trimmed, machineTranslated: false };
   }
 
@@ -121,6 +121,64 @@ export async function getOrTranslateFactText(
     update: {
       sourceLocale: sourceLocale ?? "auto",
       sourceHash,
+      translatedText: translated,
+      provider: "deepl",
+    },
+  });
+
+  return { text: translated, machineTranslated: true };
+}
+
+export async function getOrTranslateCachedText(
+  cacheKey: string,
+  sourceText: string,
+  sourceLocale: string | null,
+  targetLocale: string
+): Promise<{ text: string; machineTranslated: boolean }> {
+  const trimmed = sourceText.trim();
+  if (!trimmed || !isTranslationEnabled()) {
+    return { text: trimmed, machineTranslated: false };
+  }
+
+  if (sourceLocale && sourceLocale === targetLocale) {
+    return { text: trimmed, machineTranslated: false };
+  }
+
+  if (!isSupportedLocale(targetLocale)) {
+    return { text: trimmed, machineTranslated: false };
+  }
+
+  const sourceHash = hashSourceText(trimmed);
+  const cached = await prisma.textTranslationCache.findUnique({
+    where: {
+      cacheKey_targetLocale: { cacheKey, targetLocale },
+    },
+  });
+
+  if (cached && cached.sourceHash === sourceHash) {
+    return { text: cached.translatedText, machineTranslated: true };
+  }
+
+  const translated = await translateWithDeepL(trimmed, targetLocale, sourceLocale);
+  if (!translated || translated.trim() === trimmed) {
+    return { text: trimmed, machineTranslated: false };
+  }
+
+  await prisma.textTranslationCache.upsert({
+    where: {
+      cacheKey_targetLocale: { cacheKey, targetLocale },
+    },
+    create: {
+      cacheKey,
+      targetLocale,
+      sourceHash,
+      sourceLocale,
+      translatedText: translated,
+      provider: "deepl",
+    },
+    update: {
+      sourceHash,
+      sourceLocale,
       translatedText: translated,
       provider: "deepl",
     },

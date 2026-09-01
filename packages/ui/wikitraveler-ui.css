@@ -285,6 +285,27 @@ button.wt-toolbar-back:hover {
   text-underline-offset: 4px;
 }
 
+.wt-toolbar-link-label {
+  display: inline-block;
+}
+
+.wt-toolbar-link-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+
 .wt-toolbar-back,
 button.wt-toolbar-back {
   font-weight: 600;

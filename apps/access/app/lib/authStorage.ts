@@ -1,5 +1,6 @@
 import { ENV_NODE_URL } from "./accessApi";
 import { normalizeNodeBaseUrl } from "./safeHttpUrl";
+import { resetAccessThemeForLogin } from "./themePreference";
 
 const AUTH_COOKIE = "wt_token";
 const NODE_URL_COOKIE = "wt_node_url";
@@ -66,6 +67,7 @@ export function clearAuth() {
   sessionStorage.removeItem(AUTH_SESSION_KEY);
   localStorage.removeItem(USERNAME_KEY);
   emitAuthChanged();
+  resetAccessThemeForLogin();
 }
 
 export function readAuthToken(): string | null {

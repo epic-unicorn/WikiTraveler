@@ -22,6 +22,7 @@ export type EvidenceSubmission = {
   id: string;
   createdAt: Date | string;
   auditorToken: string | null;
+  locale?: string | null;
   facts: unknown;
   photos: EvidencePhoto[];
 };
@@ -40,6 +41,9 @@ export type AuditNoteEntry = {
   createdAt: string;
   auditorToken: string | null;
   text: string;
+  sourceLocale?: string | null;
+  displayText?: string;
+  machineTranslated?: boolean;
 };
 
 export function photoSlotKey(photo: Pick<EvidencePhoto, "fieldName" | "scopeKey">): string {
@@ -80,6 +84,7 @@ export function extractAuditNotes(submissions: EvidenceSubmission[]): AuditNoteE
       createdAt: iso(sub.createdAt),
       auditorToken: sub.auditorToken,
       text,
+      sourceLocale: sub.locale ?? null,
     });
   }
   return notes;

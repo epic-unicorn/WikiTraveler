@@ -148,7 +148,10 @@ export function PropertyMapPreview({
           />
           <div className="fk-map-preview__intro">
             <div className="fk-map-preview__head">
-              <h2 id={`map-preview-title-${pin.id}`} className="fk-map-preview__title">
+              <h2
+                id={`map-preview-title-${pin.id}`}
+                className="fk-property-title fk-property-title--section fk-map-preview__title"
+              >
                 <span className="fk-map-preview__title-text">{pin.name}</span>
                 {saved && (
                   <span className="fk-map-preview__saved" title={t("ui.discoverySaved")}>

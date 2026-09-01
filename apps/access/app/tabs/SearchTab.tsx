@@ -102,6 +102,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [geoError, setGeoError] = useState("");
   const [mapDataNodeUrl, setMapDataNodeUrl] = useState(dataNodeUrl);
   const [viewportPins, setViewportPins] = useState<MapPin[]>([]);
   const [nearMe, setNearMe] = useState(false);
@@ -289,10 +290,14 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
 
   const startNearMe = useCallback(() => {
     setNearMe(true);
+    setNearCoords(null);
+    setResults(null);
+    setTotal(0);
     setPlaceHint(null);
     setDiscoveryView("map");
     setDiscoveryViewMode("map");
     setSearchError("");
+    setGeoError("");
     setNearLoading(true);
     void requestUserLocation().then((result) => {
       if (result.ok) {
@@ -302,8 +307,12 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
       }
       setNearLoading(false);
       setNearMe(false);
-      setSearchError(
-        result.reason === "denied" ? t("ui.nearbyGpsDenied") : t("ui.nearbyGpsTimeout")
+      setGeoError(
+        result.reason === "denied"
+          ? t("ui.nearbyGpsDenied")
+          : result.reason === "unsupported"
+            ? t("ui.gpsUnsupported")
+            : t("ui.nearbyGpsTimeout")
       );
     });
   }, [t]);
@@ -316,6 +325,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
     setResults(null);
     setTotal(0);
     setSearchError("");
+    setGeoError("");
     setPrefOverridesOff([]);
     setFilters((prev) => ({
       ...prev,
@@ -456,7 +466,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
       <PropertyDiscoveryView
         properties={displayProperties}
         loading={showLoading}
-        error={searchError}
+        error={searchError || geoError}
         homeNodeUrl={homeNodeUrl}
         propertyNodeUrl={mapDataNodeUrl}
         active={active}

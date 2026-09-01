@@ -63,6 +63,7 @@ export function SignalsPanel({ token, showTitle = true }: { token: string; showT
         setError(data.message ?? t("ui.signalsUpdateFailed"));
         return;
       }
+      window.dispatchEvent(new Event("wt-signals-updated"));
       load();
     } finally {
       setSaving(null);

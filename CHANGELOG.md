@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Access favorites and accessibility preferences are stored per signed-in account (no longer shared after switching users)
+- Access login crash (`THEME_CLASSES is not defined`) when resetting theme on the sign-in screen
 - Access map GPS locate asks for permission, then shows a 1 km radius around the traveler
 - Access “Search this area” returns after panning/zooming a search (and after clearing the query)
 - Access notification popup sits above the map and lists updates immediately
@@ -65,8 +66,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Access map bottom sheet property title uses the same typography as the property detail sheet
+- Access theme preference is per account (Profile → Access app); login/register always use the standard theme after sign-out
+- Access login hides the register link when the node has closed open registration; `/register` shows a closed message instead of the form
+- Access login: removed duplicate title under the logo; sign-in block vertically centered in the viewport
+- Node toolbar Signals tab shows a red badge with the count of open and in-progress community signals
+- Access map property pins and GPS marker follow the active color theme (Standard / Dark / High contrast / Calm)
+- Access property visit notes translate to the traveler’s selected language (DeepL when configured), with show-original toggle
 - Access property photo placeholder is a simple illustration instead of a photorealistic hotel
-- Access property detail hero photos swipe/scroll, with prev/next controls
+- Access property detail hero photos swipe/scroll (keyboard arrows when focused; counter for position)
+- Access GPS button shows a clear message when location is blocked or disabled (no silent fallback)
 - Access Profile hero matches the larger avatar / name / outlined sign-out layout
 - Access version moved out of Node connection into its own Profile section
 - Access map bottom sheet shows an audited badge and a short audit summary
