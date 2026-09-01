@@ -125,18 +125,6 @@ export function ProfileTab({
               <polyline points="9 6 15 12 9 18" />
             </svg>
           </button>
-          <p className="fk-settings-version-row">
-            {t("ui.settingsClientVersion", { version: clientVersion })}
-          </p>
-          {hints.map((hint, index) => (
-            <p
-              key={index}
-              className={hint.level === "warn" ? "status-err fk-settings-hint" : "fk-settings-hint fk-settings-hint--info"}
-              role="status"
-            >
-              {hint.message}
-            </p>
-          ))}
           {nodeOpen && (
             <div className="fk-node-advanced">
               <p className="fk-settings-theme-hint fk-settings-advanced__hint">
@@ -163,6 +151,27 @@ export function ProfileTab({
               </div>
             </div>
           )}
+        </section>
+
+        <section className="card fk-settings-card fk-profile-block">
+          <h2 className="fk-profile-block__title">
+            <span className="fk-profile-block__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+            </span>
+            {t("ui.settingsAccessApp")}
+          </h2>
+          <p className="fk-settings-version-row">
+            {t("ui.settingsClientVersion", { version: clientVersion })}
+          </p>
+          {hints.map((hint, index) => (
+            <p
+              key={index}
+              className={hint.level === "warn" ? "status-err fk-settings-hint" : "fk-settings-hint fk-settings-hint--info"}
+              role="status"
+            >
+              {hint.message}
+            </p>
+          ))}
         </section>
 
         <section className="card fk-settings-card fk-profile-block fk-profile-block--settings">

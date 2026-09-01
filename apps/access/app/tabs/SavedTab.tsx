@@ -16,7 +16,7 @@ import { saveAccessReturn } from "../lib/navigationReturn";
 import { AccessPageHero } from "../components/AccessPageHero";
 import { AccessibilityIconRow } from "../components/AccessibilityIconRow";
 
-const PLACEHOLDER_SRC = "/images/property-hero-placeholder.png";
+const PLACEHOLDER_SRC = "/images/property-hero-placeholder.svg";
 
 type SavedSort = "recent" | "nameAsc" | "nameDesc";
 

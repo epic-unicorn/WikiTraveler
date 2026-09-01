@@ -7,7 +7,10 @@ import {
   getStoredRadiusKm,
   setStoredRadiusKm,
   resolvePeerNode,
+  toClientNodeUrl,
 } from "../lib/accessApi";
+import { requestUserLocation } from "../lib/geolocation";
+import { dataNodeFromResolve, isConfirmedUncovered } from "../lib/peerCoverage";
 import { PropertyDiscoveryView } from "../components/PropertyDiscoveryView";
 
 interface Props {
@@ -44,20 +47,17 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
     setLoading(true);
     setError("");
     try {
-      let node = homeNodeUrl;
       const peer = await resolvePeerNode(homeNodeUrl, coords.lat, coords.lon);
       if (signal?.aborted) return;
-      if (peer?.matched === "fallback") {
-        setNodeForSearch(homeNodeUrl);
-        setResults([]);
-        setError(t("ui.regionNotCovered"));
-        return;
-      }
-      if (peer?.url) node = peer.url;
+      const resolved = dataNodeFromResolve(peer, homeNodeUrl);
+      const node = toClientNodeUrl(resolved.url);
       setNodeForSearch(node);
       const properties = await fetchNearbyProperties(node, coords.lat, coords.lon, radiusKm, signal);
       if (signal?.aborted) return;
       setResults(properties);
+      if (isConfirmedUncovered(resolved.matched, properties.length)) {
+        setError(t("ui.regionNotCovered"));
+      }
     } catch {
       if (signal?.aborted) return;
       setError(t("ui.regionUnreachable"));
@@ -68,48 +68,27 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
   }, [coords, radiusKm, homeNodeUrl, t]);
 
   const requestGps = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGeoDenied(true);
-      setGeoTimeout(false);
-      return;
-    }
     setGpsLoading(true);
     setError("");
     setGeoDenied(false);
     setGeoTimeout(false);
-
-    const onSuccess = (pos: GeolocationPosition) => {
-      setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-      setGeoDenied(false);
-      setGeoTimeout(false);
-      setGpsLoading(false);
-    };
-
-    const onError = (err: GeolocationPositionError, retried: boolean) => {
-      if (err.code === err.PERMISSION_DENIED) {
-        setGeoDenied(true);
+    void requestUserLocation().then((result) => {
+      if (result.ok) {
+        setCoords(result.coords);
+        setGeoDenied(false);
         setGeoTimeout(false);
         setGpsLoading(false);
         return;
       }
-      if (!retried) {
-        navigator.geolocation.getCurrentPosition(
-          onSuccess,
-          (retryErr) => onError(retryErr, true),
-          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-        );
-        return;
-      }
-      setGeoTimeout(true);
-      setGeoDenied(false);
       setGpsLoading(false);
-    };
-
-    navigator.geolocation.getCurrentPosition(
-      onSuccess,
-      (err) => onError(err, false),
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60_000 }
-    );
+      if (result.reason === "denied" || result.reason === "unsupported") {
+        setGeoDenied(true);
+        setGeoTimeout(false);
+      } else {
+        setGeoTimeout(true);
+        setGeoDenied(false);
+      }
+    });
   }, []);
 
   useEffect(() => {

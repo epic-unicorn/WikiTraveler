@@ -21,6 +21,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Access favorites and accessibility preferences are stored per signed-in account (no longer shared after switching users)
+- Access map GPS locate asks for permission, then shows a 1 km radius around the traveler
+- Access “Search this area” returns after panning/zooming a search (and after clearing the query)
+- Access notification popup sits above the map and lists updates immediately
+- Access no longer shows “region not covered” when the home node still has data (resolve fallback / login GPS)
+- Access map and property-sheet favorite hearts use the theme accent color
 - Access property detail facts: field name left / value right (audit-style row), tier label + “Dit veld melden” on the line below
 - Access audit: Annuleren (and successful submit) discards the session draft instead of re-saving on exit
 - Access property detail title and Saved list card names use Saved/Profile hero section title typography (e.g. “Opgeslagen locaties”); audit property header and toolbar page titles (e.g. “Ter plaatse verifiëren”) match
@@ -59,6 +65,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Access property photo placeholder is a simple illustration instead of a photorealistic hotel
+- Access property detail hero photos swipe/scroll, with prev/next controls
+- Access Profile hero matches the larger avatar / name / outlined sign-out layout
+- Access version moved out of Node connection into its own Profile section
+- Access map bottom sheet shows an audited badge and a short audit summary
 - Access Favorites tab (was Saved): heart icon, search/sort, richer cards; Contribute tab restored for auditors/admins; profile identity in the hero with node + Access versions; notification bell popup; named themes Standard / Dark / High contrast / Calm (automatic removed); PWA icons use bright WikiTraveler-blue with a white mark ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Access UX polish: map locate (1 km Near me), property detail hero/sheet + accessibility score + claim card, minimal a11y icons, audit label/control rows + per-step notes/photos + title/address margin + scroll-to-top on step next/back; custom room type stacked input/button; add-property/audit toolbars without role chip + single back; Saved → property back returns to Saved tab; removed Check availability; Saved list cards with property photos ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Access Search: shared navy Access hero (WikiTraveler · Access + Saved/Profile subsection), sticky Map/List tabs with full-height map/list, full-bleed search + filter icon, hero notification bell → Profile with badge, result meta under tabs, locate permission/progress feedback; property claim UI hidden; property sheet mini-map + a11y icons left-aligned under address; property hero photo placeholder; property facts label/value rows with single tier badge (notes left-aligned for reading); accessibility score from category coverage with help explainer; map legend removed (unified pins, saved as hearts, coverage message only — no shaded regions); zoom-in hint clears so Search this area can show; map pin opens bottom summary sheet with photo thumb; map camera restored after View property back; profile a11y preferences appear as marked chips in Advanced filters (on by default, session-off) ([ACCESS-UX.md](docs/ACCESS-UX.md))
@@ -67,7 +78,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Removed legacy `vercel.json` `@secret` env block — set node env vars in the Vercel project (include `CLIENT_ORIGINS`; do not ship `CORS_ORIGINS=*`) ([VERCEL.md](docs/VERCEL.md))
 - Access property detail: re-audit photos merge per step/room slot (later visit overwrites a slot only if it photographed it); visit notes listed (last two open, older collapsed); thumbnails open fullscreen ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Access property detail groups room facts in a labeled card per audited room type; audit wizard shows existing step photos read-only ([ACCESS-UX.md](docs/ACCESS-UX.md))
-- Access Profile hero: username avatar and name sit smaller than the WikiTraveler logo/title
 
 ---
 

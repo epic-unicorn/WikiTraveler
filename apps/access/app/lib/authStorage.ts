@@ -8,6 +8,14 @@ const NODE_URL_KEY = "wt_node_url";
 const USERNAME_KEY = "wt_username";
 const MAX_AGE_SEC = 30 * 24 * 60 * 60;
 
+/** Fired after login / logout so per-user local state can reload. */
+export const AUTH_CHANGED_EVENT = "wt-auth-changed";
+
+function emitAuthChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+}
+
 /** Mirror configured node URL into a cookie so SSR audit pages hit the right node. */
 export function persistNodeUrlCookie(nodeUrl: string) {
   const safe = normalizeNodeBaseUrl(nodeUrl);
@@ -49,6 +57,7 @@ export function persistAuth(token: string, username: string, nodeUrl: string) {
   sessionStorage.setItem(AUTH_SESSION_KEY, token);
   localStorage.setItem(NODE_URL_KEY, safeNodeUrl);
   localStorage.setItem(USERNAME_KEY, username);
+  emitAuthChanged();
 }
 
 export function clearAuth() {
@@ -56,6 +65,7 @@ export function clearAuth() {
   document.cookie = `${NODE_URL_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
   sessionStorage.removeItem(AUTH_SESSION_KEY);
   localStorage.removeItem(USERNAME_KEY);
+  emitAuthChanged();
 }
 
 export function readAuthToken(): string | null {

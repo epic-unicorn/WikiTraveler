@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { AUTH_CHANGED_EVENT } from "./authStorage";
 import { inferSavedCategory, type SavedPlaceCategory } from "./savedCategory";
+import { readUserScoped, writeUserScoped } from "./userScopedStorage";
 
 export type { SavedPlaceCategory };
 
@@ -32,20 +34,17 @@ function normalizePlace(place: SavedPlace): SavedPlace {
   };
 }
 
+function isSavedPlaceList(value: unknown): value is SavedPlace[] {
+  return Array.isArray(value);
+}
+
 export function readSavedPlaces(): SavedPlace[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as SavedPlace[];
-    return Array.isArray(parsed) ? parsed.map(normalizePlace) : [];
-  } catch {
-    return [];
-  }
+  return readUserScoped<SavedPlace[]>(KEY, [], isSavedPlaceList).map(normalizePlace);
 }
 
 export function writeSavedPlaces(places: SavedPlace[]) {
-  localStorage.setItem(KEY, JSON.stringify(places.slice(0, 100)));
+  writeUserScoped(KEY, places.slice(0, 100));
   emitSavedChange();
 }
 
@@ -95,9 +94,11 @@ export function useSavedPlaceIds(): Set<string> {
     const sync = () => setIds(readSavedPlaceIds());
     sync();
     window.addEventListener(SAVED_PLACES_EVENT, sync);
+    window.addEventListener(AUTH_CHANGED_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener(SAVED_PLACES_EVENT, sync);
+      window.removeEventListener(AUTH_CHANGED_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
