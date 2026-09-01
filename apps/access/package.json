@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ionic/react": "^8.5.4",
+    "@wikitraveler/audit": "workspace:*",
     "@wikitraveler/core": "workspace:*",
     "@wikitraveler/i18n": "workspace:*",
     "@wikitraveler/ui": "workspace:*",
