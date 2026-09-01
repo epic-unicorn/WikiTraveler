@@ -10,7 +10,9 @@ import {
   type MapPin,
 } from "../lib/accessApi";
 import { filterPinsByFeatures } from "../lib/mapPinFeatures";
+import { readMapPinColors, readMapUserColors } from "../lib/mapThemeColors";
 import { readMapCamera, saveMapCamera } from "../lib/mapCameraSession";
+import { dataNodeFromResolve, isConfirmedUncovered } from "../lib/peerCoverage";
 
 /** Below this zoom, no property pins — ask the traveler to zoom in. */
 export const MAP_PIN_MIN_ZOOM = 10;
@@ -50,6 +52,8 @@ interface Props {
   /** GPS locate control — pan/zoom to user and notify parent (Near me). */
   onLocateMe?: () => void;
   locateLoading?: boolean;
+  /** Clear the typed search so this map can browse the visible area. */
+  onBrowseThisArea?: () => void;
 }
 
 function getTileConfig() {
@@ -71,19 +75,15 @@ function radiusForZoom(zoom: number, selected: boolean): number {
   return selected ? base + 3 : base;
 }
 
-const PIN_COLOR = { color: "#1e40af", fillColor: "#60a5fa" };
-const PIN_COLOR_DARK = { color: "#3b82f6", fillColor: "#60a5fa" };
-
 function pinMarkerStyle(
-  themeMode: string,
+  colors: { stroke: string; fill: string },
   selected: boolean,
   zoom: number
 ): import("leaflet").CircleMarkerOptions {
-  const dark = themeMode === "dark";
-  const colors = dark ? PIN_COLOR_DARK : PIN_COLOR;
   return {
     radius: radiusForZoom(zoom, selected),
-    ...colors,
+    color: colors.stroke,
+    fillColor: colors.fill,
     fillOpacity: 0.9,
     weight: selected ? 4 : 2,
   };
@@ -180,6 +180,7 @@ export function RegionMap({
   visible = true,
   onLocateMe,
   locateLoading = false,
+  onBrowseThisArea,
 }: Props) {
   const { mode } = useTheme();
   const { t } = useLocale();
@@ -217,6 +218,9 @@ export function RegionMap({
   const selectedIdRef = useRef<string | null>(null);
   const savedIdsRef = useRef<Set<string>>(new Set());
   const lastFitSignatureRef = useRef<string | null>(null);
+  const suppressAreaDirtyRef = useRef(false);
+  const pendingViewportRefreshRef = useRef(false);
+  const wasViewportBrowseRef = useRef(viewportBrowse);
   const updateRadiiRef = useRef<(() => void) | null>(null);
   const viewportFetchRef = useRef(0);
   const onSelectPropertyRef = useRef(onSelectProperty);
@@ -262,20 +266,15 @@ export function RegionMap({
       const peer = await resolvePeerNode(homeNodeUrlRef.current, center.lat, center.lng);
       if (fetchId !== viewportFetchRef.current) return;
 
-      if (!peer || peer.matched === "fallback") {
-        setCoverageHint(true);
-        setInternalPins([]);
-        return;
-      }
-
-      setCoverageHint(false);
-      const dataUrl = toClientNodeUrl(peer.url);
+      const resolved = dataNodeFromResolve(peer, homeNodeUrlRef.current);
+      const dataUrl = toClientNodeUrl(resolved.url);
       dataNodeUrlRef.current = dataUrl;
       onDataNodeUrlChange?.(dataUrl);
 
       const nextPins = await fetchMapPins(dataUrl, { bbox, signal: AbortSignal.timeout(12_000) });
       if (fetchId !== viewportFetchRef.current) return;
       setInternalPins(nextPins);
+      setCoverageHint(isConfirmedUncovered(resolved.matched, nextPins.length));
     } catch (e) {
       if (fetchId !== viewportFetchRef.current) return;
       if (e instanceof MapPinsError && e.code === "BBOX_TOO_LARGE") {
@@ -389,39 +388,71 @@ export function RegionMap({
   }, [visible, mapReady]);
 
   useEffect(() => {
-    if (!mapReady || !viewportBrowse || useExternal) return;
+    if (!mapReady) return;
     const map = mapRef.current;
     if (!map) return;
 
     const syncChromeAfterMove = () => {
-      if (!initialViewportSearchDone.current) return;
       persistMapCamera(map);
+      if (suppressAreaDirtyRef.current) {
+        suppressAreaDirtyRef.current = false;
+        setAreaDirty(false);
+        return;
+      }
       const zoom = map.getZoom();
       if (zoom < MAP_PIN_MIN_ZOOM) {
         setZoomHint(true);
         setAreaDirty(false);
         setCoverageHint(false);
-        setInternalPins([]);
+        if (viewportBrowse) setInternalPins([]);
         return;
       }
-      // Zoomed in far enough: drop the zoom hint so “Search this area” can appear.
       setZoomHint(false);
-      setAreaDirty(true);
+      if (initialViewportSearchDone.current || !viewportBrowse) {
+        setAreaDirty(true);
+      }
     };
 
     map.on("moveend", syncChromeAfterMove);
     map.on("zoomend", syncChromeAfterMove);
 
-    if (!initialViewportSearchDone.current) {
-      initialViewportSearchDone.current = true;
-      void refreshViewport().then(() => setAreaDirty(false));
-    }
-
     return () => {
       map.off("moveend", syncChromeAfterMove);
       map.off("zoomend", syncChromeAfterMove);
     };
+  }, [mapReady, viewportBrowse]);
+
+  useEffect(() => {
+    if (!mapReady || !viewportBrowse || useExternal) return;
+
+    const enteredBrowse = !wasViewportBrowseRef.current;
+    wasViewportBrowseRef.current = true;
+
+    if (pendingViewportRefreshRef.current) {
+      pendingViewportRefreshRef.current = false;
+      initialViewportSearchDone.current = true;
+      void refreshViewport().then(() => setAreaDirty(false));
+      return;
+    }
+
+    if (!initialViewportSearchDone.current) {
+      initialViewportSearchDone.current = true;
+      if (enteredBrowse) {
+        setAreaDirty(true);
+        return;
+      }
+      void refreshViewport().then(() => setAreaDirty(false));
+      return;
+    }
+
+    if (enteredBrowse) {
+      setAreaDirty(true);
+    }
   }, [mapReady, viewportBrowse, useExternal, refreshViewport]);
+
+  useEffect(() => {
+    if (!viewportBrowse) wasViewportBrowseRef.current = false;
+  }, [viewportBrowse]);
 
   function renderMarkers() {
     const L = leafletRef.current;
@@ -436,6 +467,8 @@ export function RegionMap({
 
     const zoom = map.getZoom();
     const savedSet = savedIdsRef.current;
+    const pinColors = readMapPinColors();
+    const userColors = readMapUserColors();
 
     const sorted = [...pinsRef.current]
       .filter((p) => p.lat !== 0 && p.lon !== 0)
@@ -451,7 +484,7 @@ export function RegionMap({
       const saved = savedSet.has(pin.id);
       const marker: MapMarker = saved
         ? L.marker([pin.lat, pin.lon], { icon: savedPinIcon(L, selected), zIndexOffset: 400 })
-        : L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(mode, selected, zoom));
+        : L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(pinColors, selected, zoom));
       marker.on("click", () => {
         if (selectedIdRef.current === pin.id) {
           onSelectPropertyRef.current?.(null);
@@ -478,8 +511,8 @@ export function RegionMap({
     if (userLocation) {
       L.circleMarker([userLocation.lat, userLocation.lon], {
         radius: 9,
-        color: "#7c3aed",
-        fillColor: "#a78bfa",
+        color: userColors.stroke,
+        fillColor: userColors.fill,
         fillOpacity: 1,
         weight: 3,
       }).addTo(userGroup);
@@ -487,8 +520,8 @@ export function RegionMap({
       if (radiusKm != null && radiusKm > 0) {
         L.circle([userLocation.lat, userLocation.lon], {
           radius: radiusKm * 1000,
-          color: "#7c3aed",
-          fillColor: "#7c3aed",
+          color: userColors.stroke,
+          fillColor: userColors.stroke,
           fillOpacity: 0.08,
           weight: 1.5,
           dashArray: "4 6",
@@ -502,6 +535,7 @@ export function RegionMap({
     const fitSignature = `${sorted.map((p) => p.id).join(",")}|${userLocation ? `${userLocation.lat},${userLocation.lon}` : ""}|${radiusKm ?? ""}`;
     if (autoFit && fitSignature !== lastFitSignatureRef.current) {
       lastFitSignatureRef.current = fitSignature;
+      suppressAreaDirtyRef.current = true;
       requestAnimationFrame(() => {
         if (!mapRef.current || !layerGroupRef.current) return;
         safeFitToPins(map, group, pinsRef.current, userLocation);
@@ -560,12 +594,17 @@ export function RegionMap({
               <span className="fk-map-loading-label">{t("ui.locatingYou")}</span>
             </div>
           )}
-          {viewportBrowse && areaDirty && !zoomHint && !loading && !locateLoading && (
+          {(viewportBrowse || onBrowseThisArea) && areaDirty && !zoomHint && !loading && !locateLoading && (
             <button
               type="button"
               className="fk-map-search-area-btn"
               onClick={() => {
-                void refreshViewport().then(() => setAreaDirty(false));
+                if (viewportBrowse) {
+                  void refreshViewport().then(() => setAreaDirty(false));
+                  return;
+                }
+                pendingViewportRefreshRef.current = true;
+                onBrowseThisArea?.();
               }}
             >
               {t("ui.searchThisArea")}

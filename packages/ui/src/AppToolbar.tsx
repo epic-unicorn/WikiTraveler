@@ -12,10 +12,12 @@ export const defaultToolbarLinkWrap: ToolbarLinkWrap = ({
   className,
   children,
   external,
+  ariaLabel,
 }) => (
   <a
     href={href}
     className={className}
+    aria-label={ariaLabel}
     {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
   >
     {children}
@@ -70,7 +72,20 @@ export function AppToolbar({
                   href: link.href,
                   className: toolbarLinkClass(link.active),
                   external: link.external,
-                  children: link.label,
+                  ariaLabel:
+                    link.badgeCount != null && link.badgeCount > 0
+                      ? link.ariaLabel
+                      : undefined,
+                  children: (
+                    <>
+                      <span className="wt-toolbar-link-label">{link.label}</span>
+                      {link.badgeCount != null && link.badgeCount > 0 && (
+                        <span className="wt-toolbar-link-badge" aria-hidden="true">
+                          {link.badgeCount > 9 ? "9+" : link.badgeCount}
+                        </span>
+                      )}
+                    </>
+                  ),
                 })}
               </Fragment>
             ))}

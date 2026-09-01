@@ -44,6 +44,16 @@ describe("formatFactValue", () => {
     expect(result.displayValue).toBe("Hallo");
     expect(result.machineTranslated).toBe(true);
   });
+
+  it("uses translated prose without valueLocale when machine translated", () => {
+    const result = formatFactValue("notes", "Hello world", {
+      locale: "nl",
+      translatedValue: "Hallo wereld",
+      machineTranslated: true,
+    });
+    expect(result.displayValue).toBe("Hallo wereld");
+    expect(result.machineTranslated).toBe(true);
+  });
 });
 
 describe("resolveFactDisplay", () => {

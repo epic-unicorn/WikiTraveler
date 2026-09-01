@@ -1,3 +1,6 @@
+import { AUTH_CHANGED_EVENT } from "./authStorage";
+import { isStringArray, readUserScoped, writeUserScoped } from "./userScopedStorage";
+
 /** Persistent accessibility search preferences (client + sync hook for Profile). */
 
 export const A11Y_PREFERENCE_OPTIONS = [
@@ -18,22 +21,15 @@ const PREFS_EVENT = "wt-a11y-preferences";
 
 export function readA11yPreferences(): A11yPreferenceKey[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((k): k is A11yPreferenceKey =>
-      (A11Y_PREFERENCE_OPTIONS as readonly string[]).includes(k)
-    );
-  } catch {
-    return [];
-  }
+  const parsed = readUserScoped<string[]>(STORAGE_KEY, [], isStringArray);
+  return parsed.filter((k): k is A11yPreferenceKey =>
+    (A11Y_PREFERENCE_OPTIONS as readonly string[]).includes(k)
+  );
 }
 
 export function writeA11yPreferences(keys: A11yPreferenceKey[]): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+  writeUserScoped(STORAGE_KEY, keys);
   window.dispatchEvent(new CustomEvent(PREFS_EVENT));
 }
 
@@ -44,9 +40,11 @@ export function subscribeA11yPreferences(onChange: () => void): () => void {
     if (e.key === STORAGE_KEY) notify();
   };
   window.addEventListener(PREFS_EVENT, notify);
+  window.addEventListener(AUTH_CHANGED_EVENT, notify);
   window.addEventListener("storage", onStorage);
   return () => {
     window.removeEventListener(PREFS_EVENT, notify);
+    window.removeEventListener(AUTH_CHANGED_EVENT, notify);
     window.removeEventListener("storage", onStorage);
   };
 }

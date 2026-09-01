@@ -1,5 +1,6 @@
 import { formatFactValue, isProseField, type Locale } from "@wikitraveler/i18n";
-import { getOrTranslateFactText } from "@/lib/translation";
+import { getOrTranslateCachedText, getOrTranslateFactText } from "@/lib/translation";
+import type { AuditNoteEntry } from "@/lib/auditEvidence";
 
 export interface RawFactForDisplay {
   id: string;
@@ -61,6 +62,33 @@ export async function enrichFactsForDisplay(
         displayValue: formatted.displayValue,
         displayMode: formatted.displayMode,
         machineTranslated: formatted.machineTranslated,
+      };
+    })
+  );
+}
+
+export async function enrichAuditNotesForDisplay(
+  notes: AuditNoteEntry[],
+  viewerLocale: string,
+  fallbackSourceLocale?: string | null
+): Promise<AuditNoteEntry[]> {
+  const locale = viewerLocale as Locale;
+
+  return Promise.all(
+    notes.map(async (note) => {
+      const sourceLocale = note.sourceLocale ?? fallbackSourceLocale ?? null;
+      const { text, machineTranslated } = await getOrTranslateCachedText(
+        `audit-note:${note.submissionId}`,
+        note.text,
+        sourceLocale,
+        locale
+      );
+
+      return {
+        ...note,
+        displayText: text,
+        machineTranslated,
+        sourceLocale,
       };
     })
   );

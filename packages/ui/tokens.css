@@ -45,6 +45,12 @@
   --wt-shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.12);
   --wt-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --wt-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+
+  /* Map markers (Leaflet reads these via getComputedStyle) */
+  --wt-map-pin-stroke: var(--wt-primary);
+  --wt-map-pin-fill: color-mix(in srgb, var(--wt-primary) 62%, #ffffff);
+  --wt-map-user-stroke: var(--wt-accent);
+  --wt-map-user-fill: color-mix(in srgb, var(--wt-accent) 65%, #ffffff);
 }
 
 .ion-palette-dark,
@@ -85,6 +91,11 @@ html.wt-dark {
 
   --wt-shadow: 0 2px 16px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
   --wt-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --wt-map-pin-stroke: var(--wt-primary);
+  --wt-map-pin-fill: color-mix(in srgb, var(--wt-primary) 72%, var(--wt-bg-elevated));
+  --wt-map-user-stroke: var(--wt-accent);
+  --wt-map-user-fill: color-mix(in srgb, var(--wt-accent) 70%, var(--wt-bg-elevated));
 }
 
 html.wt-contrast {
@@ -113,6 +124,11 @@ html.wt-contrast {
   --wt-tier-confirmed-text: #001a80;
   --wt-shadow: 0 0 0 2px #000000;
   --wt-shadow-lg: 0 0 0 3px #000000;
+
+  --wt-map-pin-stroke: var(--wt-primary);
+  --wt-map-pin-fill: color-mix(in srgb, var(--wt-primary) 40%, #ffffff);
+  --wt-map-user-stroke: var(--wt-accent);
+  --wt-map-user-fill: color-mix(in srgb, var(--wt-accent) 40%, #ffffff);
 }
 
 html.wt-calm {
@@ -141,6 +157,11 @@ html.wt-calm {
   --wt-tier-confirmed-text: #2a5a62;
   --wt-shadow: 0 2px 16px rgba(28, 43, 40, 0.06), 0 1px 3px rgba(28, 43, 40, 0.04);
   --wt-shadow-lg: 0 8px 32px rgba(28, 43, 40, 0.1);
+
+  --wt-map-pin-stroke: var(--wt-primary);
+  --wt-map-pin-fill: color-mix(in srgb, var(--wt-primary) 58%, #ffffff);
+  --wt-map-user-stroke: var(--wt-accent);
+  --wt-map-user-fill: color-mix(in srgb, var(--wt-accent) 60%, #ffffff);
 }
 
 body {

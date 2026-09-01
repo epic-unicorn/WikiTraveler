@@ -13,7 +13,7 @@ import {
   type EvidenceSubmission,
 } from "@/lib/auditEvidence";
 import { validateAuditFacts, getFieldRegistryMap, factValuesMatch } from "@/lib/fieldRegistry";
-import { enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
+import { enrichAuditNotesForDisplay, enrichFactsForDisplay } from "@/lib/enrichFactsForDisplay";
 import { buildPropertyDetail, buildConfidenceSummary } from "@/lib/propertyEnrichment";
 import { loadOverridesForCanonicalIds, resolveOne } from "@/lib/propertyMetadata";
 import { invalidateFactTranslations } from "@/lib/translation";
@@ -150,13 +150,19 @@ export async function GET(
       id: sub.id,
       createdAt: sub.createdAt,
       auditorToken: sub.auditorToken,
+      locale: sub.locale,
       facts: sub.facts,
       photos: structured.length > 0 ? structured : legacy,
     };
   });
 
   const mergedPhotos = mergeAuditPhotosBySlot(evidenceSubs);
-  const auditNotes = extractAuditNotes(evidenceSubs);
+  const notesFact = enrichedFacts.find((f) => f.fieldName === "notes");
+  const auditNotes = await enrichAuditNotesForDisplay(
+    extractAuditNotes(evidenceSubs),
+    viewerLocale,
+    notesFact?.valueLocale ?? null
+  );
 
   let auditPhotos: {
     submissionId: string;

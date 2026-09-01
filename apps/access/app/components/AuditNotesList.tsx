@@ -9,6 +9,9 @@ export type AuditNoteItem = {
   createdAt: string;
   auditorToken: string | null;
   text: string;
+  sourceLocale?: string | null;
+  displayText?: string;
+  machineTranslated?: boolean;
 };
 
 const VISIBLE = 2;
@@ -17,6 +20,34 @@ function auditorLabel(token: string | null): string | null {
   if (!token) return null;
   const at = token.indexOf("@");
   return at > 0 ? token.slice(0, at) : token;
+}
+
+function NoteBody({ note }: { note: AuditNoteItem }) {
+  const { t } = useLocale();
+  const [showOriginal, setShowOriginal] = useState(false);
+  const displayText = note.displayText ?? note.text;
+  const body = showOriginal ? note.text : displayText;
+  const showToggle = Boolean(note.machineTranslated && note.text.trim() !== displayText.trim());
+
+  return (
+    <>
+      <TaggedNotes text={body} />
+      {showToggle ? (
+        <div className="wt-prose-fact fk-audit-note-translation">
+          {!showOriginal ? (
+            <span className="wt-prose-fact-badge">{t("ui.machineTranslation")}</span>
+          ) : null}
+          <button
+            type="button"
+            className="wt-prose-fact-toggle"
+            onClick={() => setShowOriginal((open) => !open)}
+          >
+            {showOriginal ? t("ui.showTranslation") : t("ui.showOriginal")}
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 function NoteCard({
@@ -33,7 +64,7 @@ function NoteCard({
       <p className="fk-audit-note-meta">
         {who ? `${who} · ${when}` : when}
       </p>
-      <TaggedNotes text={note.text} />
+      <NoteBody note={note} />
     </article>
   );
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { WikiTravelerLogo, useLocale } from "@wikitraveler/ui";
 import { DISPLAY_ENV_NODE_URL, toClientNodeUrl } from "../lib/accessApi";
 import { normalizeNodeBaseUrl } from "../lib/safeHttpUrl";
+import { useNodeOpenRegistration } from "../hooks/useNodeOpenRegistration";
 
 const ENV_NODE_URL = DISPLAY_ENV_NODE_URL;
 
@@ -42,6 +43,7 @@ function RegisterForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const openRegistration = useNodeOpenRegistration(nodeUrl);
 
   useEffect(() => {
     const storedUrl = localStorage.getItem("wt_node_url");
@@ -79,6 +81,43 @@ function RegisterForm() {
   }
 
   const loginHref = `/login${searchParams.get("next") ? `?next=${searchParams.get("next")}` : ""}`;
+
+  if (openRegistration === false) {
+    return (
+      <div style={{
+        minHeight: "100dvh",
+        background: "var(--wt-bg)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px 16px",
+      }}>
+        <div style={{ width: "100%", maxWidth: 400 }}>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <WikiTravelerLogo product="access" size={36} />
+          </div>
+          <div style={{
+            background: "var(--wt-bg-elevated)",
+            borderRadius: "var(--wt-radius-lg)",
+            border: "1px solid var(--wt-border)",
+            padding: "36px 24px",
+            boxShadow: "var(--wt-shadow)",
+            textAlign: "center",
+          }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{t("ui.authRegisterTitle")}</h1>
+            <p style={{ fontSize: 14, color: "var(--wt-text-muted)", marginTop: 16, lineHeight: 1.6 }}>
+              {t("ui.authRegistrationClosed")}
+            </p>
+            <p style={{ fontSize: 13, marginTop: 20 }}>
+              <Link href={loginHref} style={{ color: "var(--wt-primary)", fontWeight: 600 }}>
+                {t("ui.signIn")}
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (done) {
     return (

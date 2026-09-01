@@ -24,7 +24,15 @@ function applyTheme(mode: ThemeMode) {
   }
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export { applyTheme };
+
+export function ThemeProvider({
+  children,
+  onPersist,
+}: {
+  children: React.ReactNode;
+  onPersist?: (mode: ThemeMode) => void;
+}) {
   const [mode, setModeState] = useState<ThemeMode>("light");
 
   useEffect(() => {
@@ -35,9 +43,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setMode = useCallback((next: ThemeMode) => {
     localStorage.setItem(THEME_STORAGE_KEY, next);
+    onPersist?.(next);
     setModeState(next);
     applyTheme(next);
-  }, []);
+  }, [onPersist]);
 
   return (
     <ThemeContext.Provider value={{ mode, setMode }}>

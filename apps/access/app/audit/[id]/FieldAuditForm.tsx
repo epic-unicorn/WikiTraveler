@@ -11,6 +11,7 @@ import { canContribute, roleFromToken } from "../../lib/userRole";
 import { propertyHref } from "../../lib/propertyHref";
 import { ENV_NODE_URL, type AuditPhotoItem } from "../../lib/accessApi";
 import { findRecentAudit, removeRecentAudit, upsertRecentAudit } from "../../lib/recentAudits";
+import { useNodeOpenRegistration } from "../../hooks/useNodeOpenRegistration";
 import { useLocale } from "@wikitraveler/ui";
 
 interface Props {
@@ -43,6 +44,7 @@ export default function FieldAuditForm({
   const [loggedInAs, setLoggedInAs] = useState<string | null>(null);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const openRegistration = useNodeOpenRegistration(nodeUrl);
 
   useEffect(() => {
     const storedUrl = localStorage.getItem("wt_node_url");
@@ -280,7 +282,31 @@ export default function FieldAuditForm({
             </button>
             <p style={{ fontSize: 12, color: "var(--wt-text-muted)", marginTop: 12, textAlign: "center" }}>
               {authMode === "login" ? (
-                <>{t("ui.authNoAccount")}{" "}<button onClick={() => { setAuthMode("register"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>{t("ui.authCreateAccount")}</button></>
+                <>
+                  {openRegistration === true ? (
+                    <>
+                      {t("ui.authNoAccount")}{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode("register");
+                          setAuthError("");
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--wt-primary)",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          padding: 0,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t("ui.authCreateAccount")}
+                      </button>
+                    </>
+                  ) : null}
+                </>
               ) : (
                 <>{t("ui.authHasAccount")}{" "}<button onClick={() => { setAuthMode("login"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--wt-primary)", cursor: "pointer", fontSize: 12, padding: 0, fontWeight: 600 }}>{t("ui.signIn")}</button></>
               )}

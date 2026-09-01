@@ -5,7 +5,6 @@ import {
   DISPLAY_ENV_NODE_URL,
   ENV_NODE_URL,
   getStoredNodeUrl,
-  resolvePeerNode,
   toClientNodeUrl,
   toDisplayNodeUrl,
 } from "../lib/accessApi";
@@ -60,45 +59,10 @@ export function useNodeContext() {
 
   useEffect(() => {
     setDataNodeUrl(nodeUrl);
-    setDataRegion(null);
-    if (!navigator.geolocation) {
-      setDataRegion({ region: null, matched: "self", url: nodeUrl });
-      return;
-    }
-
-    let cancelled = false;
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        if (cancelled) return;
-        const data = await resolvePeerNode(
-          nodeUrl,
-          pos.coords.latitude,
-          pos.coords.longitude
-        );
-        if (cancelled) return;
-        if (!data) {
-          setDataNodeUrl(nodeUrl);
-          setDataRegion({ region: null, matched: "fallback", url: nodeUrl });
-          return;
-        }
-        const clientUrl = toClientNodeUrl(data.url);
-        setDataNodeUrl(clientUrl);
-        setDataRegion({
-          region: data.region,
-          matched: (data.matched as DataRegionResolve["matched"]) || "fallback",
-          url: clientUrl,
-        });
-      },
-      () => {
-        if (cancelled) return;
-        // GPS denied: stay on home as data node
-        setDataNodeUrl(nodeUrl);
-        setDataRegion({ region: null, matched: "self", url: nodeUrl });
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
+    // Stay on the home node until the traveler locates or pans the map.
+    // Auto-GPS on login caused false "region not covered" banners when
+    // permission was pending or the fix sat just outside the node bbox.
+    setDataRegion({ region: null, matched: "self", url: nodeUrl });
   }, [nodeUrl]);
 
   const setNodeUrl = useCallback((url: string) => {

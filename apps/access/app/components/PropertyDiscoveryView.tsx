@@ -82,6 +82,8 @@ interface Props {
   onViewportPinsChange?: (pins: MapPin[]) => void;
   onLocateMe?: () => void;
   locateLoading?: boolean;
+  /** Leave a typed search and browse the visible map area. */
+  onBrowseThisArea?: () => void;
   /** Compact result counts / place hint / pagination under Map|List tabs. */
   resultsMeta?: ReactNode;
   /** Optional title shown at the top of list mode. */
@@ -110,6 +112,7 @@ export function PropertyDiscoveryView({
   onViewportPinsChange,
   onLocateMe,
   locateLoading = false,
+  onBrowseThisArea,
   resultsMeta,
   listTitle,
 }: Props) {
@@ -244,6 +247,7 @@ export function PropertyDiscoveryView({
               onViewportPinsChange={onViewportPinsChange}
               onLocateMe={onLocateMe}
               locateLoading={locateLoading}
+              onBrowseThisArea={onBrowseThisArea}
             />
             {showMap && selectedPin && (
               <PropertyMapPreview

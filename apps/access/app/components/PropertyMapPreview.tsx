@@ -13,7 +13,7 @@ import { canContribute, roleFromToken } from "../lib/userRole";
 import { readSavedPlaces } from "../lib/savedPlaces";
 import { AccessibilityIconRow } from "./AccessibilityIconRow";
 
-const PLACEHOLDER_SRC = "/images/property-hero-placeholder.png";
+const PLACEHOLDER_SRC = "/images/property-hero-placeholder.svg";
 
 const TIER_RANK: Record<string, number> = {
   OFFICIAL: 0,
@@ -148,7 +148,10 @@ export function PropertyMapPreview({
           />
           <div className="fk-map-preview__intro">
             <div className="fk-map-preview__head">
-              <h2 id={`map-preview-title-${pin.id}`} className="fk-map-preview__title">
+              <h2
+                id={`map-preview-title-${pin.id}`}
+                className="fk-property-title fk-property-title--section fk-map-preview__title"
+              >
                 <span className="fk-map-preview__title-text">{pin.name}</span>
                 {saved && (
                   <span className="fk-map-preview__saved" title={t("ui.discoverySaved")}>
@@ -158,12 +161,23 @@ export function PropertyMapPreview({
                   </span>
                 )}
               </h2>
+              <span className={`fk-map-preview__audit-badge${pin.audited ? " fk-map-preview__audit-badge--yes" : ""}`}>
+                {pin.audited ? t("ui.mapAudited") : t("ui.mapNotAudited")}
+              </span>
             </div>
             <p className="fk-map-preview__loc">{pin.location}</p>
           </div>
         </div>
 
         <AccessibilityIconRow facts={pin.facts} max={5} />
+
+        {pin.audited && (
+          <p className="fk-map-preview__audit-summary">
+            {highlights.length > 0
+              ? t("ui.mapAuditSummary", { count: Object.keys(pin.facts ?? {}).length })
+              : t("ui.mapAuditedOpen")}
+          </p>
+        )}
 
         {highlights.length > 0 ? (
           <ul className="fk-map-preview__facts">
@@ -187,10 +201,8 @@ export function PropertyMapPreview({
               );
             })}
           </ul>
-        ) : pin.audited ? (
-          <p className="fk-map-preview__audited">{t("ui.mapAuditedOpen")}</p>
         ) : (
-          <p className="fk-map-preview__empty">{t("ui.discoveryA11yNone")}</p>
+          !pin.audited && <p className="fk-map-preview__empty">{t("ui.discoveryA11yNone")}</p>
         )}
 
         <div className="fk-map-preview__actions">

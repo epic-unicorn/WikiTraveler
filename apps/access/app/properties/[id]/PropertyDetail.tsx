@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useLocale } from "@wikitraveler/ui";
@@ -147,17 +147,28 @@ function uniqueGallery(
 
 function notesFromResponse(
   notes: AuditNoteEntry[] | undefined,
-  facts: Array<{ fieldName: string; value: string; timestamp?: string }>
+  facts: Array<{
+    fieldName: string;
+    value: string;
+    displayValue?: string;
+    timestamp?: string;
+    valueLocale?: string | null;
+    machineTranslated?: boolean;
+  }>
 ): AuditNoteEntry[] {
   if (notes && notes.length > 0) return notes;
   const fact = facts.find((f) => f.fieldName === "notes" && f.value.trim());
   if (!fact) return [];
+  const displayText = fact.displayValue ?? fact.value;
   return [
     {
       submissionId: "legacy-notes",
       createdAt: fact.timestamp ?? new Date().toISOString(),
       auditorToken: null,
       text: fact.value,
+      displayText,
+      sourceLocale: fact.valueLocale ?? null,
+      machineTranslated: fact.machineTranslated,
     },
   ];
 }
@@ -191,6 +202,98 @@ function PhotoStrip({
         </figure>
       ))}
     </div>
+  );
+}
+
+function HeroCarousel({
+  photos,
+  name,
+  onOpen,
+}: {
+  photos: Array<{ url: string; caption: string | null }>;
+  name: string;
+  onOpen: (url: string) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const photoKey = photos.map((p) => p.url).join("|");
+
+  useEffect(() => {
+    setIndex(0);
+    scrollerRef.current?.scrollTo({ left: 0 });
+  }, [photoKey]);
+
+  function syncIndex() {
+    const el = scrollerRef.current;
+    if (!el || el.clientWidth === 0) return;
+    const next = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+    setIndex(Math.min(photos.length - 1, Math.max(0, next)));
+  }
+
+  function go(next: number) {
+    const clamped = Math.min(photos.length - 1, Math.max(0, next));
+    setIndex(clamped);
+    const child = scrollerRef.current?.children[clamped] as HTMLElement | undefined;
+    child?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+  }
+
+  if (photos.length === 0) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        className="fk-property-hero-img fk-property-hero-img--placeholder"
+        src="/images/property-hero-placeholder.svg"
+        alt=""
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return (
+    <>
+      <div
+        ref={scrollerRef}
+        className="fk-property-hero-scroller"
+        role="group"
+        aria-roledescription="carousel"
+        aria-label={name}
+        tabIndex={photos.length > 1 ? 0 : undefined}
+        onScroll={syncIndex}
+        onKeyDown={(e) => {
+          if (photos.length <= 1) return;
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            go(index - 1);
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            go(index + 1);
+          }
+        }}
+      >
+        {photos.map((photo, i) => (
+          <button
+            key={`${photo.url}-${i}`}
+            type="button"
+            className="fk-property-hero-slide"
+            onClick={() => onOpen(photo.url)}
+            aria-label={photo.caption ?? name}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="fk-property-hero-img fk-property-hero-img--open"
+              src={photo.url}
+              alt={photo.caption ?? name}
+              draggable={false}
+            />
+          </button>
+        ))}
+      </div>
+      {photos.length > 1 && (
+        <span className="fk-property-hero-counter" aria-live="polite">
+          {index + 1} / {photos.length}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -438,8 +541,6 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
     (data?.confidenceSummary?.officialCount ?? 0);
   const factsPresent = displayFacts.length;
 
-  const safeHeroIndex = 0;
-  const heroPhoto = heroPhotos[0] ?? null;
   const propertyLat = data?.property.lat;
   const propertyLon = data?.property.lon;
   const hasCoords =
@@ -464,32 +565,12 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
 
         {data && (
           <>
-            <div className={`fk-property-hero-bleed${heroPhoto ? "" : " fk-property-hero-bleed--empty"}`}>
-              {heroPhoto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  className="fk-property-hero-img fk-property-hero-img--open"
-                  src={heroPhoto.url}
-                  alt={heroPhoto.caption ?? data.property.name}
-                  onClick={() => openPhoto(heroPhoto.url)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      openPhoto(heroPhoto.url);
-                    }
-                  }}
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  className="fk-property-hero-img fk-property-hero-img--placeholder"
-                  src="/images/property-hero-placeholder.png"
-                  alt=""
-                  aria-hidden="true"
-                />
-              )}
+            <div className={`fk-property-hero-bleed${galleryPhotos.length > 0 ? "" : " fk-property-hero-bleed--empty"}`}>
+              <HeroCarousel
+                photos={galleryPhotos}
+                name={data.property.name}
+                onOpen={openPhoto}
+              />
 
               <div className="fk-property-hero-overlay">
                 <button
@@ -533,12 +614,6 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                   </button>
                 </div>
               </div>
-
-              {galleryPhotos.length > 1 && (
-                <span className="fk-property-hero-counter" aria-live="polite">
-                  {safeHeroIndex + 1} / {galleryPhotos.length}
-                </span>
-              )}
             </div>
 
             <div className="fk-property-sheet">

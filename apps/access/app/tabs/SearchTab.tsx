@@ -14,6 +14,7 @@ import {
   fetchSearchFields,
   fetchNearbyProperties,
   resolvePeerNode,
+  toClientNodeUrl,
 } from "../lib/accessApi";
 import { PropertyDiscoveryView, mapPinsToSummaries } from "../components/PropertyDiscoveryView";
 import { AccessPageHero } from "../components/AccessPageHero";
@@ -31,6 +32,8 @@ import { readSearchSession, writeSearchSession } from "../lib/searchSession";
 import type { DataRegionResolve } from "../hooks/useNodeContext";
 import type { MapPin } from "../lib/accessApi";
 import { geocodePlace, looksLikePlaceQuery } from "../lib/geocodePlace";
+import { requestUserLocation } from "../lib/geolocation";
+import { dataNodeFromResolve, isConfirmedUncovered } from "../lib/peerCoverage";
 import {
   extrasFromFeatures,
   featuresFromPrefs,
@@ -40,6 +43,7 @@ import {
   subscribeA11yPreferences,
   type A11yPreferenceKey,
 } from "../lib/a11yPreferences";
+
 interface Props {
   dataNodeUrl: string;
   homeNodeUrl: string;
@@ -98,6 +102,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [geoError, setGeoError] = useState("");
   const [mapDataNodeUrl, setMapDataNodeUrl] = useState(dataNodeUrl);
   const [viewportPins, setViewportPins] = useState<MapPin[]>([]);
   const [nearMe, setNearMe] = useState(false);
@@ -259,15 +264,9 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
     setNearLoading(true);
     setSearchError("");
     try {
-      let node = homeNodeUrl;
       const peer = await resolvePeerNode(homeNodeUrl, nearCoords.lat, nearCoords.lon);
-      if (peer?.matched === "fallback") {
-        setResults([]);
-        setTotal(0);
-        setSearchError(t("ui.regionNotCovered"));
-        return;
-      }
-      if (peer?.url) node = peer.url;
+      const resolved = dataNodeFromResolve(peer, homeNodeUrl);
+      const node = toClientNodeUrl(resolved.url);
       setMapDataNodeUrl(node);
       const properties = await fetchNearbyProperties(
         node,
@@ -277,6 +276,9 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
       );
       setResults(properties);
       setTotal(properties.length);
+      if (isConfirmedUncovered(resolved.matched, properties.length)) {
+        setSearchError(t("ui.regionNotCovered"));
+      }
     } catch {
       setSearchError(t("ui.regionUnreachable"));
       setResults(null);
@@ -288,33 +290,51 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
 
   const startNearMe = useCallback(() => {
     setNearMe(true);
+    setNearCoords(null);
+    setResults(null);
+    setTotal(0);
     setPlaceHint(null);
     setDiscoveryView("map");
     setDiscoveryViewMode("map");
-    if (!navigator.geolocation) {
-      setSearchError(t("ui.nearbyGpsDenied"));
-      setNearLoading(false);
-      return;
-    }
     setSearchError("");
+    setGeoError("");
     setNearLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setNearCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+    void requestUserLocation().then((result) => {
+      if (result.ok) {
+        setNearCoords(result.coords);
         setNearLoading(false);
-      },
-      (err) => {
-        setNearLoading(false);
-        setNearMe(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setSearchError(t("ui.nearbyGpsDenied"));
-        } else {
-          setSearchError(t("ui.nearbyGpsTimeout"));
-        }
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60_000 }
-    );
+        return;
+      }
+      setNearLoading(false);
+      setNearMe(false);
+      setGeoError(
+        result.reason === "denied"
+          ? t("ui.nearbyGpsDenied")
+          : result.reason === "unsupported"
+            ? t("ui.gpsUnsupported")
+            : t("ui.nearbyGpsTimeout")
+      );
+    });
   }, [t]);
+
+  const browseThisArea = useCallback(() => {
+    setQuery("");
+    setPlaceHint(null);
+    setNearMe(false);
+    setNearCoords(null);
+    setResults(null);
+    setTotal(0);
+    setSearchError("");
+    setGeoError("");
+    setPrefOverridesOff([]);
+    setFilters((prev) => ({
+      ...prev,
+      location: "",
+      audited: null,
+      hasAccessibleRoom: null,
+      features: featuresFromPrefs(profilePrefsRef.current, [], []),
+    }));
+  }, []);
 
   useEffect(() => {
     if (!nearMe || !nearCoords || !active) return;
@@ -446,7 +466,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
       <PropertyDiscoveryView
         properties={displayProperties}
         loading={showLoading}
-        error={searchError}
+        error={searchError || geoError}
         homeNodeUrl={homeNodeUrl}
         propertyNodeUrl={mapDataNodeUrl}
         active={active}
@@ -463,6 +483,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
         radiusKm={nearMe && nearCoords ? NEAR_ME_RADIUS_KM : null}
         onLocateMe={startNearMe}
         locateLoading={nearLoading}
+        onBrowseThisArea={browseThisArea}
         listTitle={
           (nearMe || hasActiveSearch) && results && results.length > 0
             ? t("ui.topAccessibleStays")

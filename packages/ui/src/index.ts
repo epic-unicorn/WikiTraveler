@@ -9,7 +9,7 @@ export { defaultToolbarLinkWrap } from "./AppToolbar";
 export { AppShell } from "./AppShell";
 export { WikiTravelerLogo, LogoMark } from "./logos/WikiTravelerLogo";
 export { TierBadge } from "./TierBadge";
-export { ThemeProvider, useTheme } from "./ThemeProvider";
+export { ThemeProvider, useTheme, applyTheme } from "./ThemeProvider";
 export { ThemeToggle } from "./ThemeToggle";
 export { PropertySearchBar, EMPTY_FILTERS } from "./PropertySearchBar";
 export type { SearchFilters } from "./PropertySearchBar";

@@ -118,6 +118,21 @@ model AccessibilityFact {
   @@index([scopeKey])
 }
 
+model TextTranslationCache {
+  id             String   @id @default(cuid())
+  cacheKey       String
+  targetLocale   String
+  sourceHash     String
+  sourceLocale   String?
+  translatedText String
+  provider       String   @default("deepl")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([cacheKey, targetLocale])
+  @@index([cacheKey])
+}
+
 model FactTranslation {
   id             String   @id @default(cuid())
   factId         String
