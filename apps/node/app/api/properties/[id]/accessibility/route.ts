@@ -157,7 +157,7 @@ export async function GET(
   });
 
   const mergedPhotos = mergeAuditPhotosBySlot(evidenceSubs);
-  const notesFact = collapsedFacts.find((f) => f.fieldName === "notes");
+  const notesFact = enrichedFacts.find((f) => f.fieldName === "notes");
   const auditNotes = await enrichAuditNotesForDisplay(
     extractAuditNotes(evidenceSubs),
     viewerLocale,
