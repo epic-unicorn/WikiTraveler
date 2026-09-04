@@ -375,15 +375,38 @@ function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
 
   const freshInput = input.cloneNode(true);
   freshInput.placeholder = wtT("ui.searchPlaceholder", locale);
+  freshInput.classList.remove("is-searching");
+  freshInput.removeAttribute("aria-busy");
   input.parentNode.replaceChild(freshInput, input);
 
   let searchTimer;
+  let searchSeq = 0;
+
+  function setSearching(active) {
+    freshInput.classList.toggle("is-searching", active);
+    freshInput.setAttribute("aria-busy", active ? "true" : "false");
+    if (active) {
+      results.innerHTML = "";
+      const loading = document.createElement("div");
+      loading.className = "search-loading";
+      loading.setAttribute("role", "status");
+      loading.innerHTML = `<span class="spinner" aria-hidden="true"></span>`;
+      loading.appendChild(document.createTextNode(wtT("ui.searching", locale)));
+      results.appendChild(loading);
+    }
+  }
+
   freshInput.addEventListener("input", () => {
     clearTimeout(searchTimer);
     const q = freshInput.value.trim();
     results.innerHTML = "";
+    freshInput.classList.remove("is-searching");
+    freshInput.setAttribute("aria-busy", "false");
 
     if (q.length < 2) return;
+
+    setSearching(true);
+    const seq = ++searchSeq;
 
     searchTimer = setTimeout(async () => {
       try {
@@ -391,10 +414,21 @@ function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
           headers: authHeaders,
           timeoutMs: 6000,
         });
-        if (!res.ok) return;
+        if (seq !== searchSeq) return;
+        if (!res.ok) {
+          setSearching(false);
+          results.innerHTML = "";
+          const err = document.createElement("p");
+          err.className = "search-empty";
+          err.textContent = wtT("ui.searchNoResults", locale);
+          results.appendChild(err);
+          return;
+        }
         const data = await res.json();
+        if (seq !== searchSeq) return;
         const properties = data.properties ?? [];
 
+        setSearching(false);
         results.innerHTML = "";
 
         if (properties.length === 0) {
@@ -429,7 +463,13 @@ function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
           results.appendChild(btn);
         });
       } catch {
-        // silent
+        if (seq !== searchSeq) return;
+        setSearching(false);
+        results.innerHTML = "";
+        const err = document.createElement("p");
+        err.className = "search-empty";
+        err.textContent = wtT("ui.searchNoResults", locale);
+        results.appendChild(err);
       }
     }, 350);
   });
