@@ -2056,7 +2056,7 @@ html.wt-dark .fk-map-preview__audit-badge--yes {
 }
 
 .fk-search-header {
-  padding-top: 12px;
+  padding-top: 0;
 }
 
 /* Search tab — tighter spacing around the search field only (not logo/header row) */
@@ -2422,20 +2422,41 @@ html.wt-dark .fk-map-preview__audit-badge--yes {
 }
 
 .fk-property-skeleton {
-  padding: 0 0 24px;
+  padding: 0;
+  width: 100%;
 }
 
 .fk-property-skeleton-hero {
-  height: min(42dvh, 320px);
+  height: var(--fk-property-hero-h, min(42dvh, 320px));
+  min-height: var(--fk-property-hero-min-h, 220px);
   margin: 0;
   border-radius: 0;
+}
+
+.fk-property-skeleton-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px 24px;
+}
+
+.fk-property-skeleton-line {
+  height: 14px;
+  width: 72%;
+  border-radius: 8px;
+}
+
+.fk-property-skeleton-line--title {
+  height: 28px;
+  width: 55%;
+  margin-bottom: 4px;
 }
 
 .fk-property-hero-bleed {
   position: relative;
   width: 100%;
-  height: min(42dvh, 320px);
-  min-height: 220px;
+  height: var(--fk-property-hero-h, min(42dvh, 320px));
+  min-height: var(--fk-property-hero-min-h, 220px);
   background: var(--wt-bg-secondary, var(--wt-border));
   overflow: hidden;
 }
@@ -3612,6 +3633,21 @@ html.wt-dark .leaflet-control-zoom a {
   padding: 16px 16px 24px;
 }
 
+/* Match AccessPageHero chrome on subpages (audit / add property). */
+.wt-toolbar.wt-toolbar--access {
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, #fff 8%, var(--wt-bg-header)) 0%,
+      var(--wt-bg-header) 48%,
+      color-mix(in srgb, #000 22%, var(--wt-bg-header)) 100%
+    );
+  box-shadow: none;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .fk-new-property__intro {
   margin-bottom: 12px;
 }
@@ -3625,9 +3661,11 @@ html.wt-dark .leaflet-control-zoom a {
 }
 
 .fk-access-hero {
+  --fk-access-hero-pad-x: 16px;
+  --fk-access-hero-brand-h: 42px;
   flex-shrink: 0;
   margin: 0 !important;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) 0 8px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 0 12px;
   overflow: visible;
   position: relative;
   z-index: 1200;
@@ -3651,7 +3689,8 @@ html.wt-dark .leaflet-control-zoom a {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 8px 0 16px;
+  min-height: var(--fk-access-hero-brand-h);
+  padding: 0 var(--fk-access-hero-pad-x);
   width: 100%;
   box-sizing: border-box;
   overflow: visible;
@@ -3689,7 +3728,15 @@ html.wt-dark .leaflet-control-zoom a {
 }
 
 .fk-access-hero__section {
-  padding: 8px 16px 6px;
+  padding: 10px var(--fk-access-hero-pad-x) 4px;
+}
+
+.fk-access-hero__body {
+  padding: 8px var(--fk-access-hero-pad-x) 0;
+}
+
+.fk-access-hero__identity {
+  padding: 8px var(--fk-access-hero-pad-x) 4px;
 }
 
 .fk-access-hero__section-title,
@@ -4064,10 +4111,7 @@ html.wt-dark .leaflet-control-zoom a {
   gap: 8px;
   align-items: stretch;
   margin: 0;
-  padding: 4px 16px 10px;
-}
-.fk-saved-tab .fk-access-hero__section {
-  padding: 2px 16px 0;
+  padding: 0;
 }
 .fk-saved-tab .fk-page-body {
   padding-top: 12px;
@@ -4296,7 +4340,7 @@ html.wt-dark .leaflet-control-zoom a {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 16px 20px;
+  padding: 4px 0 8px;
 }
 .fk-profile-identity__avatar {
   width: 56px;
@@ -4530,7 +4574,8 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
     min-height: 0;
   }
 
-  .fk-property-layout > .fk-property-hero-bleed {
+  .fk-property-layout > .fk-property-hero-bleed,
+  .fk-property-skeleton > .fk-property-skeleton-hero {
     flex: 1 1 50%;
     width: 50%;
     height: auto;
@@ -4538,7 +4583,8 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
     max-height: none;
   }
 
-  .fk-property-layout > .fk-property-sheet {
+  .fk-property-layout > .fk-property-sheet,
+  .fk-property-skeleton > .fk-property-skeleton-sheet {
     flex: 1 1 50%;
     width: 50%;
     margin-top: 0;
@@ -4551,10 +4597,23 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
     padding: 28px 28px 40px;
   }
 
-  .fk-property-detail > .fk-property-error,
-  .fk-property-detail > .fk-property-skeleton {
+  .fk-property-skeleton > .fk-property-skeleton-sheet {
+    gap: 16px;
+  }
+
+  .fk-property-skeleton .fk-discovery-skeleton--card {
+    height: 96px;
+  }
+
+  .fk-property-detail > .fk-property-error {
     flex: 1;
     width: 100%;
+  }
+
+  .fk-property-detail > .fk-property-skeleton.fk-property-layout {
+    flex: 1;
+    width: 100%;
+    height: 100%;
   }
 
   /* Discovery map | list split */

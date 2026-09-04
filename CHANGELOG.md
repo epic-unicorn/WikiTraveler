@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Access profile sync: favorites, accessibility preferences, and theme sync to the home-node account (`GET`/`PUT /api/auth/preferences`, `/api/auth/favorites`); localStorage remains a per-user cache ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Access desktop layout (≥900px): icon rail, map|list split, map pin bottom sheet in the map column, list↔map hover/selection, denser Favorites grid ([ACCESS-UX.md](docs/ACCESS-UX.md))
 
+### Changed
+
+- Access heroes use shared padding/logo sizing (tabs + toolbar); property detail loading skeleton matches mobile stack vs desktop photo|sheet split ([ACCESS-UX.md](docs/ACCESS-UX.md))
+
 ### Fixed
 
 - Docker node/Access images build `@wikitraveler/audit` (release images no longer fail module-not-found)

@@ -30,11 +30,11 @@ export function AccessPageHero({
     <header className={`fk-access-hero${identity ? " fk-access-hero--identity" : ""}`}>
       <div className="fk-access-hero__top">
         <div className="fk-access-hero__brand">
-          <WikiTravelerLogo product="access" size={36} />
+          <WikiTravelerLogo product="access" size={32} />
         </div>
         {notifyNodeUrl ? <NotificationBell homeNodeUrl={notifyNodeUrl} /> : trailing}
       </div>
-      {identity}
+      {identity ? <div className="fk-access-hero__identity">{identity}</div> : null}
       {(sectionTitle || sectionSubtitle) && (
         <div className="fk-access-hero__section">
           {sectionTitle && <h1 className="fk-access-hero__section-title">{sectionTitle}</h1>}
@@ -43,7 +43,7 @@ export function AccessPageHero({
           )}
         </div>
       )}
-      {children}
+      {children ? <div className="fk-access-hero__body">{children}</div> : null}
     </header>
   );
 }
