@@ -2,7 +2,9 @@
 
 WikiTraveler Lens injects accessibility facts on booking sites (Chrome MV3).
 
-**Home node** = identity (register / JWT). **Data node** = regional facts via `/api/peers/resolve`. Federation stays invisible; uncovered listings show “No WikiTraveler coverage here.” ([RFC-0002](./rfcs/0002-global-hub-access.md) M4)
+**Home node** = identity (register / JWT). Default in a fresh install: `https://node-eu.wikitraveler.org`. **Data node** = regional facts via `/api/peers/resolve`. Federation stays invisible; uncovered listings show “No WikiTraveler coverage here.” ([RFC-0002](./rfcs/0002-global-hub-access.md) M4)
+
+Popup: accessibility score + feature highlights; **View details** / **Report issue** open Access (report uses `?report=1`). Client cache: TTL + in-flight dedupe for health, search, and accessibility ([`lensCache.js`](../apps/lens/lensCache.js)); listing tooltips use a short miss TTL.
 
 ## How Lens talks to nodes
 
@@ -60,4 +62,4 @@ pnpm --filter @wikitraveler/lens test
 - [apps/README.md](../apps/README.md) Flow 3  
 - [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) — same JWT rules when Lens talks to nodes  
 - [OPERATORS.md](./OPERATORS.md) — hub vs node; trusted client origins  
-- [ROADMAP.md](./ROADMAP.md) — Lens reach / Phase 6
+- [ROADMAP.md](./ROADMAP.md) — Lens reach / Store listing / offline Access

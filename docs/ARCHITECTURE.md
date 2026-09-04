@@ -87,12 +87,13 @@ Photos attach to the **audit step** (or room type) where they were captured — 
 
 ### `apps/lens`
 
-Chrome MV3 extension. Injects hover tooltips on listing pages and shows accessibility data in the toolbar popup on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step.
+Chrome MV3 extension. Injects hover tooltips on listing pages and shows accessibility data in the toolbar popup on Booking.com, Expedia, and Hotels.com. Also detects `<meta name="wt-property-id">` for first-party sites (no SDK required). No build step. Default home node for fresh installs: `https://node-eu.wikitraveler.org`.
 
 **Auth:** The popup shows a login form when no token is stored. On successful login the RS256 JWT is saved to `chrome.storage.sync`. A register link opens the home node's `/register` page in a new browser tab — after account creation (and admin approval to AUDITOR), the user returns to the popup to sign in.
 
-- Listing pages: hover tooltips (350 ms delay) with the top 8 accessibility facts per hotel card; coverage warning when resolve falls back (“No WikiTraveler coverage here.”).
-- Detail pages: click the Lens icon to open the popup with all facts; falls back to name-search + coordinate scoring when only a slug-style ID is available.
+- Listing pages: hover tooltips (350 ms delay) with the top accessibility facts per hotel card; TTL cache for hits/misses; coverage warning when resolve falls back (“No WikiTraveler coverage here.”).
+- Detail pages / popup: score + feature highlights; **View details** and **Report issue** deep-link to Access; fuzzy hotel-name match when OTA titles differ; falls back to name-search + coordinate scoring when only a slug-style ID is available.
+- Client cache (`lensCache.js`): TTL + in-flight dedupe for health, search, and accessibility in the popup; invalidated when node URL or token changes.
 - `background.js`: resolves the best regional node via `/api/peers/resolve` and **proxies all Node API fetches** (`NODE_FETCH`) so content scripts are not subject to OTA page CORS. Optional HTTPS host permissions cover production mesh peers. See [LENS.md](./LENS.md).
 
 ### `apps/agency-demo`
@@ -280,7 +281,7 @@ This means a user registered on Node A can submit audits to Node B (e.g. while t
 |------|-------------|
 | `USER` | Read API (search, accessibility, stats), use Lens |
 | `AUDITOR` | All USER permissions + submit field audits, import properties, trigger AI analysis |
-| `ADMIN` | All AUDITOR permissions + manage users, backup/restore, view admin panel |
+| `ADMIN` | All AUDITOR permissions + manage users, backup/restore, view admin panel, hard-delete / bulk-clear community signals |
 
 New registrations default to `USER`. An admin promotes users via the Stats page → Users panel or `PATCH /api/admin/users/:username`.
 
@@ -322,6 +323,8 @@ Cron endpoints are protected by `Authorization: Bearer <CRON_SECRET>` (injected 
 | GET | `/api/admin/users` | ADMIN | List all users |
 | PATCH | `/api/admin/users/:username` | ADMIN | Change user role |
 | DELETE | `/api/admin/users/:username` | ADMIN | Delete user |
+| DELETE | `/api/admin/signals/[id]` | ADMIN | Permanently delete a community signal |
+| POST | `/api/admin/signals/cleanup` | ADMIN | Bulk-delete RESOLVED/DISMISSED signals |
 | GET | `/api/admin/backup` | ADMIN | Export full backup JSON |
 | POST | `/api/admin/restore` | ADMIN | Import backup JSON |
 | POST | `/api/inbox` | Node Sig | Receive signed fact push from peer |

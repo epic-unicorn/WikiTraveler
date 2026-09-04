@@ -44,7 +44,7 @@ Orchestrator: `pnpm gossip:hardening` (runs the five above in order).
 
 Orchestrator: `pnpm gossip:tier-b`. Lab: `pnpm dev:gossip-lab-mesh3`.
 
-### Tier C — Client federation / RFC-0002 (before M6 ships)
+### Tier C — Client federation / RFC-0002 (M0–M5)
 
 API-scripted on mesh-3 (Playwright Access UI still optional later). Mesh-3 keeps host-facing `NODE_URL` (`localhost:3000/3010/3020`); `GOSSIP_DEV` rewrites those to docker DNS for federated JWT pubkey fetch and inbox peer upsert. `CLIENT_ORIGINS` allowlists the lab Lens origin.
 

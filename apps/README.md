@@ -75,11 +75,11 @@ pnpm dev
 ```
 
 1. Chrome → `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select `apps/lens/`.
-2. Right-click the Lens icon → **Options** — set your node URL and sign in (or use the popup login).
+2. Right-click the Lens icon → **Options** — set your node URL (fresh installs default to `https://node-eu.wikitraveler.org`) and sign in (or use the popup login).
    - First time? Click **Create account** to register on the node, get promoted to AUDITOR by the node admin, then sign in.
 3. Navigate to a Booking.com or Expedia hotel page for a property in your node.
 
-**Verify:** Click the Lens icon — the popup shows field values and tier badges. On listing pages, hover a hotel card to see a tooltip after 350 ms. The node map at `http://localhost:3000` shows all properties; use the search filters to narrow by tier.
+**Verify:** Click the Lens icon — the popup shows score, feature highlights, and tier badges; **View details** / **Report issue** open Access. On listing pages, hover a hotel card to see a tooltip after 350 ms. Reopening the same property should feel fast (client TTL cache). The node map at `http://localhost:3000` shows all properties; use the search filters to narrow by tier.
 
 ---
 
