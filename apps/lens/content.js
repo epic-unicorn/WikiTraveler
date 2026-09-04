@@ -134,11 +134,86 @@ function isListingPage() {
 // ---------------------------------------------------------------------------
 
 async function searchForProperty(name, nodeUrl, coords, headers = {}) {
-  const words = name.split(/\s+/);
-  let bestCandidates = null; // { results, q } from the most specific query that returned anything
+  // Matching rules live in lensLogic.js (normalizeHotelName / pickBestPropertyMatch) —
+  // keep this loop behaviour aligned when changing fuzzy name logic.
+  const queries = [];
+  const push = (q) => {
+    const t = String(q ?? "").trim().replace(/\s+/g, " ");
+    if (t.length >= 2 && !queries.some((x) => x.toLowerCase() === t.toLowerCase())) {
+      queries.push(t);
+    }
+  };
+  const noise = new Set([
+    "hotel", "hotels", "hostel", "hostels", "motel", "apartment", "apartments",
+    "apt", "villa", "resort", "inn", "lodge", "guesthouse", "boutique", "suites",
+    "suite", "the", "a", "an", "le", "la", "les", "de", "het", "der", "die", "das",
+  ]);
+  function normalizeHotelName(n) {
+    let tokens = String(n ?? "")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+    while (tokens.length > 1 && noise.has(tokens[0])) tokens = tokens.slice(1);
+    while (tokens.length > 1 && noise.has(tokens[tokens.length - 1])) tokens = tokens.slice(0, -1);
+    return tokens.join(" ").trim();
+  }
+  function hotelNamesLooselyEqual(a, b) {
+    const na = normalizeHotelName(a);
+    const nb = normalizeHotelName(b);
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    const aTok = na.split(/\s+/);
+    const bTok = nb.split(/\s+/);
+    const [shortTok, longTok] = aTok.length <= bTok.length ? [aTok, bTok] : [bTok, aTok];
+    if (shortTok.join(" ").length < 4) return false;
+    for (let i = 0; i <= longTok.length - shortTok.length; i++) {
+      if (shortTok.every((t, j) => longTok[i + j] === t)) return true;
+    }
+    return false;
+  }
+  function pickBestPropertyMatch(queryName, results) {
+    const list = Array.isArray(results) ? results : [];
+    if (list.length === 0) return null;
+    const lower = String(queryName ?? "").trim().toLowerCase();
+    const exact = list.find((p) => String(p.name ?? "").toLowerCase() === lower);
+    if (exact) return exact;
+    const loose = list.filter((p) => hotelNamesLooselyEqual(queryName, p.name));
+    if (loose.length === 1) return loose[0];
+    if (loose.length > 1) {
+      const strict = loose.filter(
+        (p) => normalizeHotelName(queryName) === normalizeHotelName(p.name)
+      );
+      if (strict.length === 1) return strict[0];
+    }
+    const prefixMatches = list.filter((p) => {
+      const n = String(p.name ?? "").toLowerCase();
+      return n.length >= 4 && (lower.startsWith(n) || n.startsWith(lower));
+    });
+    if (prefixMatches.length === 1) return prefixMatches[0];
+    return null;
+  }
 
-  for (let len = words.length; len >= 2; len--) {
-    const q = words.slice(0, len).join(" ");
+  const raw = String(name ?? "").trim().replace(/\s+/g, " ");
+  push(raw);
+  const normalized = normalizeHotelName(raw);
+  if (normalized) push(normalized);
+  const words = raw.split(/\s+/).filter(Boolean);
+  for (let len = words.length; len >= 1; len--) {
+    push(words.slice(0, len).join(" "));
+    push(words.slice(-len).join(" "));
+  }
+  const normWords = normalized.split(/\s+/).filter(Boolean);
+  for (let len = normWords.length; len >= 1; len--) {
+    push(normWords.slice(0, len).join(" "));
+    push(normWords.slice(-len).join(" "));
+  }
+
+  let bestCandidates = null;
+
+  for (const q of queries) {
     try {
       const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
         headers,
@@ -149,32 +224,21 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
       const results = data.properties ?? [];
       if (results.length === 0) continue;
 
-      const lower = name.toLowerCase();
-      // 1. Exact name match — always wins immediately
-      const exact = results.find((p) => p.name.toLowerCase() === lower);
+      const exact = pickBestPropertyMatch(name, results);
       if (exact) return { match: exact, candidates: null };
 
-      // 2. Stored name is a meaningful prefix of the extracted name
-      //    (only when there is exactly ONE such candidate — generic chain names
-      //     like "Holiday Inn" match too many hotels, so we fall through to
-      //     coordinate scoring instead)
-      const prefixMatches = results.filter((p) => lower.startsWith(p.name.toLowerCase()));
-      if (prefixMatches.length === 1) return { match: prefixMatches[0], candidates: null };
-
-      // Keep the most specific (longest query) set of candidates and stop —
-      // shorter queries would only produce noisier results.
       if (!bestCandidates) bestCandidates = { results, q };
-      break;
     } catch {
-      // network error — try shorter query
+      // network error — try next query
     }
   }
 
   if (!bestCandidates) return { match: null, candidates: null };
 
   const { results } = bestCandidates;
+  const picked = pickBestPropertyMatch(name, results);
+  if (picked) return { match: picked, candidates: null };
 
-  // 3. Use coordinates to pick the closest candidate
   if (coords?.lat != null && coords?.lon != null) {
     const scored = results
       .filter((p) => p.lat != null && p.lon != null)
@@ -185,20 +249,15 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
       .sort((a, b) => a.dist - b.dist);
 
     if (scored.length > 0 && scored[0].dist < 0.005) {
-      // Within ~500m — confident match
       return { match: scored[0].p, candidates: null };
     }
-    // Closest candidate is too far away — this is not the right property
     return { match: null, candidates: null };
   }
 
-  // 4. Single result but we reached here via a short/generic query — treat
-  //    as ambiguous unless it's a very close coordinate match (already handled).
   if (results.length === 1) {
     return { match: null, candidates: results };
   }
 
-  // Multiple candidates, no way to pick — surface them all
   return { match: null, candidates: results };
 }
 

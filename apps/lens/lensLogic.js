@@ -102,6 +102,154 @@ export function isAllowedNodeUrl(raw) {
   }
 }
 
+/** Common lodging / article tokens stripped when comparing hotel names. */
+const HOTEL_NAME_NOISE = new Set([
+  "hotel",
+  "hotels",
+  "hostel",
+  "hostels",
+  "motel",
+  "motels",
+  "apartment",
+  "apartments",
+  "appartment",
+  "appartments",
+  "apt",
+  "villa",
+  "villas",
+  "resort",
+  "resorts",
+  "inn",
+  "lodge",
+  "lodges",
+  "guesthouse",
+  "boutique",
+  "suites",
+  "suite",
+  "the",
+  "a",
+  "an",
+  "le",
+  "la",
+  "les",
+  "el",
+  "los",
+  "las",
+  "der",
+  "die",
+  "das",
+  "het",
+  "de",
+  "het",
+]);
+
+/**
+ * Normalize a hotel/property name for fuzzy matching
+ * (e.g. "Hotel the Match" → "match", "The Match" → "match").
+ */
+export function normalizeHotelName(name) {
+  let tokens = String(name ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  while (tokens.length > 1 && HOTEL_NAME_NOISE.has(tokens[0])) {
+    tokens = tokens.slice(1);
+  }
+  while (tokens.length > 1 && HOTEL_NAME_NOISE.has(tokens[tokens.length - 1])) {
+    tokens = tokens.slice(0, -1);
+  }
+  return tokens.join(" ").trim();
+}
+
+export function hotelNamesLooselyEqual(a, b) {
+  const na = normalizeHotelName(a);
+  const nb = normalizeHotelName(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+
+  const aTok = na.split(/\s+/);
+  const bTok = nb.split(/\s+/);
+  const [shortTok, longTok] = aTok.length <= bTok.length ? [aTok, bTok] : [bTok, aTok];
+  if (shortTok.join(" ").length < 4) return false;
+
+  // Contiguous token subsequence — avoids "match" ⊆ "matchroom"
+  for (let i = 0; i <= longTok.length - shortTok.length; i++) {
+    if (shortTok.every((t, j) => longTok[i + j] === t)) return true;
+  }
+  return false;
+}
+
+/** Query variants from longest/most specific to shortest. */
+export function buildHotelSearchQueries(name) {
+  const raw = String(name ?? "").trim().replace(/\s+/g, " ");
+  if (!raw) return [];
+
+  const queries = [];
+  const push = (q) => {
+    const t = String(q ?? "").trim().replace(/\s+/g, " ");
+    if (t.length >= 2 && !queries.some((x) => x.toLowerCase() === t.toLowerCase())) {
+      queries.push(t);
+    }
+  };
+
+  push(raw);
+  const normalized = normalizeHotelName(raw);
+  if (normalized) push(normalized);
+
+  const words = raw.split(/\s+/).filter(Boolean);
+  for (let len = words.length; len >= 1; len--) {
+    push(words.slice(0, len).join(" "));
+    push(words.slice(-len).join(" "));
+  }
+
+  const normWords = normalized.split(/\s+/).filter(Boolean);
+  for (let len = normWords.length; len >= 1; len--) {
+    push(normWords.slice(0, len).join(" "));
+    push(normWords.slice(-len).join(" "));
+  }
+
+  return queries;
+}
+
+/**
+ * Pick the best property from API search hits for a page/listing name.
+ * @returns {object | null}
+ */
+export function pickBestPropertyMatch(queryName, results) {
+  const list = Array.isArray(results) ? results : [];
+  if (list.length === 0) return null;
+
+  const lower = String(queryName ?? "").trim().toLowerCase();
+  const exact = list.find((p) => String(p.name ?? "").toLowerCase() === lower);
+  if (exact) return exact;
+
+  const loose = list.filter((p) => hotelNamesLooselyEqual(queryName, p.name));
+  if (loose.length === 1) return loose[0];
+  if (loose.length > 1) {
+    // Prefer exact normalized equality over containment
+    const strict = loose.filter(
+      (p) => normalizeHotelName(queryName) === normalizeHotelName(p.name)
+    );
+    if (strict.length === 1) return strict[0];
+  }
+
+  const prefixMatches = list.filter((p) => {
+    const n = String(p.name ?? "").toLowerCase();
+    return n.length >= 4 && (lower.startsWith(n) || n.startsWith(lower));
+  });
+  if (prefixMatches.length === 1) return prefixMatches[0];
+
+  if (list.length === 1 && hotelNamesLooselyEqual(queryName, list[0].name)) {
+    return list[0];
+  }
+
+  return null;
+}
+
 /** Strip OTA suffixes from a browser tab title to guess the hotel name. */
 export function extractHotelNameFromTitle(title) {
   return String(title ?? "")

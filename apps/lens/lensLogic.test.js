@@ -13,6 +13,10 @@ import {
   isAllowedNodeUrl,
   extractHotelNameFromTitle,
   featurePresence,
+  normalizeHotelName,
+  hotelNamesLooselyEqual,
+  pickBestPropertyMatch,
+  buildHotelSearchQueries,
 } from "./lensLogic.js";
 
 describe("Lens defaults", () => {
@@ -136,5 +140,29 @@ describe("extractHotelNameFromTitle", () => {
     expect(extractHotelNameFromTitle("The Match | Booking.com")).toBe("The Match");
     expect(extractHotelNameFromTitle("Hotel Foo – Expedia")).toBe("Hotel Foo");
     expect(extractHotelNameFromTitle("Grand Hotel, Amsterdam")).toBe("Grand Hotel");
+  });
+});
+
+describe("hotel name fuzzy match", () => {
+  it("normalizes Hotel the Match to the same core as The Match", () => {
+    expect(normalizeHotelName("Hotel the Match")).toBe("match");
+    expect(normalizeHotelName("The Match")).toBe("match");
+    expect(hotelNamesLooselyEqual("Hotel the Match", "The Match")).toBe(true);
+  });
+
+  it("picks The Match from mixed search hits for Hotel the Match", () => {
+    const picked = pickBestPropertyMatch("Hotel the Match", [
+      { id: "1", name: "Matchroom Country Club" },
+      { id: "2", name: "The Match" },
+    ]);
+    expect(picked?.id).toBe("2");
+  });
+
+  it("does not treat Matchroom as a match for Hotel the Match", () => {
+    expect(hotelNamesLooselyEqual("Hotel the Match", "Matchroom Country Club")).toBe(false);
+    const picked = pickBestPropertyMatch("Hotel the Match", [
+      { id: "1", name: "Matchroom Country Club" },
+    ]);
+    expect(picked).toBeNull();
   });
 });

@@ -10,6 +10,8 @@ import {
   overallAccessibilityScore,
   propertyViewUrl,
   extractHotelNameFromTitle,
+  buildHotelSearchQueries,
+  pickBestPropertyMatch,
 } from "./lensLogic.js";
 
 const TIER_CLASSES = {
@@ -53,11 +55,10 @@ function applyPopupStaticLabels(locale) {
 }
 
 async function searchForProperty(name, nodeUrl, coords, headers = {}) {
-  const words = name.split(/\s+/);
+  const queries = buildHotelSearchQueries(name);
   let bestCandidates = null;
 
-  for (let len = words.length; len >= 2; len--) {
-    const q = words.slice(0, len).join(" ");
+  for (const q of queries) {
     try {
       const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
         headers,
@@ -68,21 +69,21 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
       const results = data.properties ?? [];
       if (results.length === 0) continue;
 
-      const lower = name.toLowerCase();
-      const exact = results.find((p) => p.name.toLowerCase() === lower);
-      if (exact) return exact;
-
-      const prefixMatches = results.filter((p) => lower.startsWith(p.name.toLowerCase()));
-      if (prefixMatches.length === 1) return prefixMatches[0];
+      const picked = pickBestPropertyMatch(name, results);
+      if (picked) return picked;
 
       if (!bestCandidates) bestCandidates = results;
-      break;
+      // Keep scanning shorter/normalized queries — a later query may uniquely match.
     } catch {
-      // network error — try shorter
+      // network error — try next query
     }
   }
 
   if (!bestCandidates) return null;
+
+  const pickedFromBest = pickBestPropertyMatch(name, bestCandidates);
+  if (pickedFromBest) return pickedFromBest;
+
   if (bestCandidates.length === 1) return bestCandidates[0];
 
   if (coords?.lat != null && coords?.lon != null) {
