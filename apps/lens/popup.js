@@ -824,8 +824,14 @@ function openMenu() {
   document.getElementById("menu-overlay")?.classList.add("is-open");
 }
 
+function setNodeStatusBarVisible(visible) {
+  const bar = document.getElementById("node-status-bar");
+  if (bar) bar.style.display = visible ? "" : "none";
+}
+
 function showOnboarding(content, locale, onDone) {
   hideSearchUI();
+  setNodeStatusBarVisible(false);
   let step = 0;
   const steps = [
     { title: "lensOnboardingWelcomeTitle", body: "lensOnboardingWelcomeBody" },
@@ -838,6 +844,7 @@ function showOnboarding(content, locale, onDone) {
     await new Promise((resolve) =>
       chrome.storage.local.set({ [ONBOARDING_KEY]: true }, resolve)
     );
+    setNodeStatusBarVisible(true);
     onDone();
   }
 
@@ -933,6 +940,7 @@ async function init() {
     return;
   }
 
+  setNodeStatusBarVisible(true);
   showLoading(content, currentLocale);
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
