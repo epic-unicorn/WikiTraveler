@@ -109,6 +109,9 @@ jobs:
           pnpm --filter @wikitraveler/i18n build
           pnpm --filter @wikitraveler/sdk build
 
-      - name: Publish @wikitraveler/sdk
+      - name: Stage @wikitraveler/sdk for npm (OIDC)
         working-directory: packages/sdk
-        run: npm publish --access public
+        # Trusted Publisher is configured for "npm stage publish" only.
+        # After the tag workflow succeeds, approve on npmjs.com (Staged Packages) or:
+        #   npm stage approve @wikitraveler/sdk@<version>
+        run: npm stage publish --access public

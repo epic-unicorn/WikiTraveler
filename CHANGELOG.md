@@ -20,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Redeploy **Node + Access** (Access UX/PWA, claim API, audit catalogue; Node admin audit parity + signal cleanup).
 - Gossip protocol unchanged (`2`); mesh with `0.4.x` peers remains supported. `minRecommendedNode` is `0.5.0`.
 - Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.5.0`, `wikitraveler-access:0.5.0`.
-- GitHub Release attaches `manifest.json`, Lens zip (`0.5.0`), and SDK dist. npm `@wikitraveler/sdk@0.5.0` publishes when `NPM_PUBLISH=true` and Trusted Publishing is configured for `release.yml` ([RELEASES.md](docs/RELEASES.md)).
+- GitHub Release attaches `manifest.json`, Lens zip (`0.5.0`), and SDK dist. npm `@wikitraveler/sdk@0.5.0` was bootstrapped interactively; later tags use Trusted Publishing (`npm stage publish` → 2FA approve on npm). See [RELEASES.md](docs/RELEASES.md).
 - Chrome Web Store upload of the Lens zip remains a separate maintainer step ([LENS.md](docs/LENS.md)).
 
 ### Added
@@ -46,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Release workflow stages `@wikitraveler/sdk` with `npm stage publish` (OIDC Trusted Publisher); maintainer 2FA approve on npm before it goes live
 - Gossip lab `postAudit`: warm accessibility GET + exponential backoff so Turbopack HTML 404s do not flake Tier C hub-journey
 - Access Vercel deploy: build `@wikitraveler/audit` in `vercel-build:access` so audit wizard imports resolve
 - Access favorites and accessibility preferences are stored per signed-in account (no longer shared after switching users)

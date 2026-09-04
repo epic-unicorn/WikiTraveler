@@ -54,7 +54,7 @@ Each `v*` tag should produce:
 | **Docker images** | Self-hosters | `wikitraveler-node`, `wikitraveler-access` (GHCR) |
 | **Source tree** | Vercel / custom hosts | Git checkout at tag |
 | **Lens zip** | Auditors | Attached to GitHub Release |
-| **SDK bundles** | Agencies | `packages/sdk/dist` on Release + **npm** `@wikitraveler/sdk` when `NPM_PUBLISH=true` and [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) is configured for `release.yml` |
+| **SDK bundles** | Agencies | `packages/sdk/dist` on Release + **npm** `@wikitraveler/sdk` when `NPM_PUBLISH=true` and [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) is configured for `release.yml` (`npm stage publish` → maintainer 2FA approve) |
 | **Release manifest** | Operators | `manifest.json` on GitHub Release + [releases/manifest.json](../releases/manifest.json) on `main` |
 
 Tags and changelog are prepared with `scripts/release.mjs`. Docker GHCR images and GitHub Release assets publish automatically on tag push — see [Release automation](#release-automation-roadmap).
@@ -198,7 +198,7 @@ Maintainers announce the intended minor window in the changelog or an issue when
 | Gossip discovery + N/N-1 compat | `.github/workflows/gossip-compat.yml` | **Done** |
 | Docker publish on tag | `.github/workflows/release-docker.yml` | **Done** |
 | GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
-| npm `@wikitraveler/sdk` on tag | `release.yml` job `npm-publish` | **Ready** — repo variable `NPM_PUBLISH=true` + npm Trusted Publishing (OIDC) for `release.yml` (no long-lived `NPM_TOKEN`) |
+| npm `@wikitraveler/sdk` on tag | `release.yml` job `npm-publish` | **Done** — `NPM_PUBLISH=true` + Trusted Publishing OIDC (`npm stage publish`); maintainer approves staged package with 2FA |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
 | CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
 | Dependabot alerts | Settings → Code security | **Enabled** |

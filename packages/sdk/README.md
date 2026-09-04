@@ -10,7 +10,7 @@ npm install @wikitraveler/sdk
 pnpm add @wikitraveler/sdk
 ```
 
-Publishing runs on `v*` tags when repo variable `NPM_PUBLISH=true` and [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) is configured for `.github/workflows/release.yml`. Until then, use the **SDK files attached to the GitHub Release** or the UMD build below.
+Publishing runs on `v*` tags when repo variable `NPM_PUBLISH=true` and [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) is configured for `.github/workflows/release.yml`. CI runs `npm stage publish`; a maintainer then approves the staged package with 2FA on npmjs.com (or `npm stage approve`). Until then, use the **SDK files attached to the GitHub Release** or the UMD build below.
 
 ## Usage
 
