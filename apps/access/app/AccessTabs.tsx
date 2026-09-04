@@ -12,6 +12,7 @@ import { readAuthToken } from "./lib/authStorage";
 import { canContribute, roleFromToken } from "./lib/userRole";
 import { parseAccessTab, type AccessTabId } from "./lib/navigationReturn";
 import { OnboardingOverlay } from "./components/OnboardingOverlay";
+import { startProfileSync } from "./lib/profileSync";
 
 type TabId = AccessTabId;
 
@@ -64,6 +65,8 @@ export function AccessTabs() {
   useEffect(() => {
     setRole(roleFromToken(readAuthToken()));
   }, []);
+
+  useEffect(() => startProfileSync(), []);
 
   useEffect(() => {
     const tab = parseAccessTab(searchParams.get("tab"));

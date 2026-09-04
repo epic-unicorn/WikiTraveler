@@ -35,12 +35,15 @@ export function readAccessThemePreference(): ThemeMode {
   return DEFAULT_ACCESS_THEME;
 }
 
-export function writeAccessThemePreference(mode: ThemeMode): void {
+export function writeAccessThemePreference(mode: ThemeMode, opts?: { skipSync?: boolean }): void {
   if (readAuthToken()) {
     writeUserScoped(SCOPED_KEY, mode);
   }
   if (typeof localStorage !== "undefined") {
     localStorage.setItem(THEME_STORAGE_KEY, mode);
+  }
+  if (!opts?.skipSync && readAuthToken()) {
+    void import("./profileSync").then((m) => m.schedulePreferencesPush());
   }
 }
 

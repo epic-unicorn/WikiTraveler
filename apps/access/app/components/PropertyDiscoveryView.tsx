@@ -120,6 +120,7 @@ export function PropertyDiscoveryView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [viewMode, setViewMode] = useState<DiscoveryViewMode>("map");
+  const [desktopSplit, setDesktopSplit] = useState(false);
   const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLLIElement>>(new Map());
@@ -132,6 +133,15 @@ export function PropertyDiscoveryView({
     setDiscoveryViewMode(mode);
   }, [initialViewMode]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 900px)");
+    const sync = () => setDesktopSplit(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   const pins: MapPin[] = useMemo(() => pinsFromSummaries(properties), [properties]);
   const hasMap = pins.length > 0 || userLocation != null || viewportBrowse;
 
@@ -140,7 +150,7 @@ export function PropertyDiscoveryView({
     setVisibleCount(LIST_PAGE_SIZE);
   }, [properties]);
 
-  const showList = viewMode === "list";
+  const showList = desktopSplit || viewMode === "list";
   const hasMore = visibleCount < properties.length;
 
   // Grow the rendered window as the sentinel scrolls into view (lazy loading).
@@ -188,14 +198,14 @@ export function PropertyDiscoveryView({
     onViewModeChange?.(mode);
   }
 
-  const showMap = viewMode === "map";
+  const showMap = desktopSplit || viewMode === "map";
 
   return (
-    <div className="fk-discovery">
+    <div className={`fk-discovery${desktopSplit ? " fk-discovery--desktop-split" : ""}`}>
       {headerExtra}
 
       <div className="fk-discovery-chrome">
-        {showViewModeToggle && (
+        {showViewModeToggle && !desktopSplit && (
           <div className="fk-discovery-tabs" role="tablist" aria-label={t("ui.discoveryViewMode")}>
             {(["map", "list"] as const).map((mode) => (
               <button

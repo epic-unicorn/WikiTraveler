@@ -39,13 +39,16 @@ function isSavedPlaceList(value: unknown): value is SavedPlace[] {
 }
 
 export function readSavedPlaces(): SavedPlace[] {
-  if (typeof window === "undefined") return [];
+  if (typeof localStorage === "undefined") return [];
   return readUserScoped<SavedPlace[]>(KEY, [], isSavedPlaceList).map(normalizePlace);
 }
 
-export function writeSavedPlaces(places: SavedPlace[]) {
+export function writeSavedPlaces(places: SavedPlace[], opts?: { skipSync?: boolean }) {
   writeUserScoped(KEY, places.slice(0, 100));
   emitSavedChange();
+  if (!opts?.skipSync && typeof window !== "undefined") {
+    void import("./profileSync").then((m) => m.scheduleFavoritesPush());
+  }
 }
 
 export function readSavedPlaceIds(): Set<string> {

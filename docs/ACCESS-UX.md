@@ -4,7 +4,9 @@ Product lock for the Access PWA redesign (shipped on `main`). Installable web ma
 
 ## Information architecture
 
-**Bottom nav:** Search | Favorites | Contribute (AUDITOR/ADMIN only) | Profile
+**Bottom nav (mobile):** Search | Favorites | Contribute (AUDITOR/ADMIN only) | Profile
+
+**Desktop chrome (≥900px):** same tabs as a left side nav; Search shows map and list side-by-side; map pin preview and property detail use ~half-width panels; Favorites uses a multi-column grid. Property/audit routes keep focus chrome (no side nav) with wider content.
 
 | Former tab | New home |
 |------------|----------|
@@ -23,7 +25,9 @@ Product lock for the Access PWA redesign (shipped on `main`). Installable web ma
 - **Property:** full-screen route with back; View is primary, Audit secondary
 - **Audit:** wizard chrome (draft / cancel / next) only
 
-**Saved:** favorites only (local trip list). Traveler reports are not shown here. Search and sort apply on this list.
+**Saved / Favorites:** synced to the signed-in home-node account (localStorage is a per-user cache). Traveler reports are not shown here. Search and sort apply on this list.
+
+**Profile preferences:** accessibility chips and theme sync to the home node with the same local cache pattern.
 
 **Notifications:** bell in the Access hero opens a short popup with a link to updates (resolved/dismissed reports).
 
