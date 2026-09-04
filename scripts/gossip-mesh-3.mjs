@@ -15,6 +15,8 @@ import {
   NODE_A,
   NODE_B,
   NODE_C,
+  PEER_B,
+  PEER_C,
   LAB_TRUSTED_ORIGIN,
   LAB_EVIL_ORIGIN,
   waitForNode,
@@ -23,6 +25,7 @@ import {
   pollUntil,
   gossipStats,
   jsonFetch,
+  linkPeer,
   sleep,
 } from "./lib/gossip-lab.mjs";
 
@@ -57,7 +60,15 @@ async function main() {
   console.log("\n1. Direct bootstrap edges…");
   await waitForPeer(NODE_A, "node-b", "Node A");
   await waitForPeer(NODE_B, "node-a", "Node B");
-  await waitForPeer(NODE_B, "node-c", "Node B");
+  try {
+    await waitForPeer(NODE_B, "node-c", "Node B");
+  } catch {
+    // Cold start: B may have linked A first and historically stopped retrying C.
+    console.log("  B missing C after wait — repairing with /api/dev/link-peers…");
+    await linkPeer(NODE_B, PEER_C);
+    await linkPeer(NODE_C, PEER_B);
+    await waitForPeer(NODE_B, "node-c", "Node B");
+  }
   await waitForPeer(NODE_C, "node-b", "Node C");
 
   const aBefore = await gossipStats(NODE_A);
