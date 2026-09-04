@@ -10,7 +10,7 @@ Product lock for the Access PWA redesign (shipped on `main`). Installable web ma
 
 | Former tab | New home |
 |------------|----------|
-| Near me | Action / chip inside Search |
+| Near me | Locate control on Search map; requests location permission, then searches within **1 km** |
 | Contribute | Contribute tab for auditors/admins; travelers add nothing here |
 | Settings | Profile (node, language, theme, account) |
 | Saved | Favorites (heart icon; search / sort) |

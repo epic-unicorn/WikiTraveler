@@ -1,6 +1,6 @@
 export type GeoFix = { lat: number; lon: number };
 
-export type GeoFailure = "unsupported" | "denied" | "unavailable";
+export type GeoFailure = "unsupported" | "denied" | "unavailable" | "insecure";
 
 export type GeoResult =
   | { ok: true; coords: GeoFix }
@@ -33,6 +33,9 @@ function failureReason(err: GeolocationPositionError): GeoFailure {
  * once with high accuracy if the first reading times out.
  */
 export async function requestUserLocation(): Promise<GeoResult> {
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    return { ok: false, reason: "insecure" };
+  }
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return { ok: false, reason: "unsupported" };
   }

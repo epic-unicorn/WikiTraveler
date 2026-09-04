@@ -1482,6 +1482,32 @@ html.wt-dark .fk-map-container .leaflet-tile-pane {
   margin-top: 2px;
 }
 
+.fk-discovery-meta__notice {
+  line-height: 1.4;
+}
+
+.fk-discovery-meta__notice--err {
+  color: var(--wt-danger, #b42318);
+  font-weight: 600;
+}
+
+.fk-discovery-meta__retry {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--wt-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fk-discovery-meta__retry:hover {
+  color: var(--wt-primary-hover, var(--wt-primary));
+}
+
 .fk-discovery-meta__row {
   display: flex;
   flex-wrap: wrap;

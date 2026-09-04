@@ -82,6 +82,7 @@ interface Props {
   onViewportPinsChange?: (pins: MapPin[]) => void;
   onLocateMe?: () => void;
   locateLoading?: boolean;
+  locateLabel?: string;
   /** Leave a typed search and browse the visible map area. */
   onBrowseThisArea?: () => void;
   /** Compact result counts / place hint / pagination under Map|List tabs. */
@@ -112,6 +113,7 @@ export function PropertyDiscoveryView({
   onViewportPinsChange,
   onLocateMe,
   locateLoading = false,
+  locateLabel,
   onBrowseThisArea,
   resultsMeta,
   listTitle,
@@ -144,7 +146,7 @@ export function PropertyDiscoveryView({
   }, []);
 
   const pins: MapPin[] = useMemo(() => pinsFromSummaries(properties), [properties]);
-  const hasMap = pins.length > 0 || userLocation != null || viewportBrowse;
+  const hasMap = pins.length > 0 || userLocation != null || viewportBrowse || locateLoading || Boolean(onLocateMe);
 
   // Reset the lazy-render window whenever the result set changes.
   useEffect(() => {
@@ -276,6 +278,7 @@ export function PropertyDiscoveryView({
               onViewportPinsChange={onViewportPinsChange}
               onLocateMe={onLocateMe}
               locateLoading={locateLoading}
+              locateLabel={locateLabel}
               onBrowseThisArea={onBrowseThisArea}
             />
             {showMap && selectedPin && (

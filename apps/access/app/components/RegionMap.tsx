@@ -54,6 +54,8 @@ interface Props {
   /** GPS locate control — pan/zoom to user and notify parent (Near me). */
   onLocateMe?: () => void;
   locateLoading?: boolean;
+  /** Status text while locateLoading (permission / 1 km search). */
+  locateLabel?: string;
   /** Clear the typed search so this map can browse the visible area. */
   onBrowseThisArea?: () => void;
 }
@@ -192,6 +194,7 @@ export function RegionMap({
   visible = true,
   onLocateMe,
   locateLoading = false,
+  locateLabel,
   onBrowseThisArea,
 }: Props) {
   const { mode } = useTheme();
@@ -623,7 +626,7 @@ export function RegionMap({
           {!loading && locateLoading && (
             <div className="fk-map-loading-overlay fk-map-loading-overlay--locate" role="status" aria-live="polite">
               <span className="fk-map-loading-spinner" aria-hidden="true" />
-              <span className="fk-map-loading-label">{t("ui.locatingYou")}</span>
+              <span className="fk-map-loading-label">{locateLabel ?? t("ui.locatingYou")}</span>
             </div>
           )}
           {(viewportBrowse || onBrowseThisArea) && areaDirty && !zoomHint && !loading && !locateLoading && (
