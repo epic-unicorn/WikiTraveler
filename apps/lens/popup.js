@@ -1,8 +1,16 @@
 // popup.js
 
-const DEFAULT_NODE_URL = "https://node-eu.wikitraveler.org";
-const ACCESS_HUB_URL = "https://access.wikitraveler.org";
-const ONBOARDING_KEY = "lensOnboardingDone";
+import {
+  ACCESS_HUB_URL,
+  DEFAULT_NODE_URL,
+  ONBOARDING_KEY,
+  FEATURE_HIGHLIGHTS,
+  truthyFactValue,
+  computeCategoryBars,
+  overallAccessibilityScore,
+  propertyViewUrl,
+  extractHotelNameFromTitle,
+} from "./lensLogic.js";
 
 const TIER_CLASSES = {
   CONFIRMED: "tier--confirmed",
@@ -13,84 +21,8 @@ const TIER_CLASSES = {
 
 const CONFIDENCE_ONLY = new Set(["high", "medium", "low"]);
 
-/** Coverage categories — mirrors Access PropertyDetail score model. */
-const CATEGORY_EXPECTED = [
-  { id: "mobility", labelKey: "ui.auditStepMobility", steps: ["entrance", "mobility"], expected: 11 },
-  { id: "room", labelKey: "ui.auditStepRoom", steps: ["room"], expected: 7 },
-  { id: "bathroom", labelKey: "ui.auditStepBathroom", steps: ["bathroom"], expected: 3 },
-  { id: "communication", labelKey: "ui.auditStepCommunication", steps: ["communication"], expected: 5 },
-];
-
-const FIELD_STEP = {
-  step_free_entrance: "entrance",
-  automatic_door: "entrance",
-  ramp_present: "entrance",
-  door_width_cm: "entrance",
-  path_to_entrance: "entrance",
-  elevator_present: "mobility",
-  elevator_width_cm: "mobility",
-  corridor_min_width_cm: "mobility",
-  parking_accessible: "mobility",
-  pool_lift: "mobility",
-  room_types_available: "room",
-  accessible_room_description: "room",
-  step_free_room: "room",
-  clear_space_beside_bed: "room",
-  bed_height_cm: "room",
-  turning_circle_cm: "room",
-  accessible_bathroom: "bathroom",
-  roll_in_shower: "bathroom",
-  grab_bars_bathroom: "bathroom",
-  hearing_loop: "communication",
-  braille_signage: "communication",
-  tactile_paving: "communication",
-  visual_alarms: "communication",
-  service_animal_policy: "communication",
-};
-
-const FEATURE_HIGHLIGHTS = [
-  "step_free_entrance",
-  "accessible_bathroom",
-  "elevator_present",
-  "parking_accessible",
-];
-
 let currentLocale = "en";
 let menuContext = { nodeUrl: DEFAULT_NODE_URL, hasToken: false };
-
-function truthyFactValue(value) {
-  const v = String(value ?? "").trim().toLowerCase();
-  if (!v || v === "no" || v === "n/a" || v === "false" || v === "0") return false;
-  return true;
-}
-
-function computeCategoryBars(facts) {
-  const byStep = {};
-  for (const f of facts ?? []) {
-    const step = FIELD_STEP[f.fieldName];
-    if (!step) continue;
-    byStep[step] = (byStep[step] ?? 0) + 1;
-  }
-  return CATEGORY_EXPECTED.map((cat) => {
-    const count = cat.steps.reduce((sum, s) => sum + (byStep[s] ?? 0), 0);
-    const pct = Math.min(100, Math.round((count / cat.expected) * 100));
-    return { id: cat.id, labelKey: cat.labelKey, pct, count };
-  });
-}
-
-function overallAccessibilityScore(bars) {
-  let weighted = 0;
-  let expected = 0;
-  for (let i = 0; i < CATEGORY_EXPECTED.length; i++) {
-    const bar = bars[i];
-    if (!bar) continue;
-    weighted += bar.pct * CATEGORY_EXPECTED[i].expected;
-    expected += CATEGORY_EXPECTED[i].expected;
-  }
-  if (expected <= 0) return null;
-  if (bars.every((b) => b.pct === 0)) return null;
-  return Math.round(weighted / expected);
-}
 
 async function updateNodeStatusBar(nodeUrl, locale) {
   const bar = document.getElementById("node-status-bar");
@@ -165,11 +97,7 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
 }
 
 function extractHotelNameFromTab(tab) {
-  const title = tab.title ?? "";
-  return title
-    .replace(/\s*[|\u2013\u2014]\s*(Booking\.com|Expedia|Hotels\.com|Agoda).*$/i, "")
-    .replace(/,\s*[A-Z][^,]+.*$/, "")
-    .trim();
+  return extractHotelNameFromTitle(tab?.title);
 }
 
 function createTierBadge(tier, locale) {
@@ -373,10 +301,6 @@ function createAuditPhotosSection(auditPhotos, hasAiGuess, locale) {
   }
 
   return section;
-}
-
-function propertyViewUrl(nodeUrl, propertyId) {
-  return `${ACCESS_HUB_URL}/properties/${encodeURIComponent(propertyId)}?node=${encodeURIComponent(nodeUrl)}`;
 }
 
 function createScoreBlock(facts, locale) {

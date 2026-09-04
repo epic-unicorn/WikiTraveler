@@ -1,6 +1,6 @@
 // background.js — service worker
 
-const DEFAULT_NODE_URL = "https://node-eu.wikitraveler.org";
+import { DEFAULT_NODE_URL, isAllowedNodeUrl } from "./lensLogic.js";
 
 // ── Extension icon ────────────────────────────────────────────────────────────
 // Draw the WikiTraveler LogoMark (hexagon + chevron + bar) in white on brand
@@ -66,15 +66,6 @@ chrome.runtime.onInstalled.addListener(setExtensionIcon);
 chrome.runtime.onStartup.addListener(setExtensionIcon);
 
 // ── Node API fetch (service worker — host_permissions, not page CORS) ─────────
-
-function isAllowedNodeUrl(raw) {
-  try {
-    const u = new URL(raw);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 async function handleNodeFetch(msg) {
   if (!msg.url || !isAllowedNodeUrl(msg.url)) {

@@ -45,6 +45,16 @@ For fleets that cannot use the Web Store:
 
 Prefer updating [`packages/i18n`](../packages/i18n) and regenerating [`apps/lens/i18n.js`](../apps/lens/i18n.js) so locales do not drift (`pnpm --filter @wikitraveler/i18n build:browser`).
 
+## Tests
+
+Pure helpers live in [`apps/lens/lensLogic.js`](../apps/lens/lensLogic.js) (score, defaults, URL builders). Run:
+
+```bash
+pnpm --filter @wikitraveler/lens test
+```
+
+(also included in root `pnpm test`).
+
 ## Related
 
 - [apps/README.md](../apps/README.md) Flow 3  

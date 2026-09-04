@@ -83,6 +83,7 @@ async function getNodeUrl() {
       (res) => resolve(res ?? { nodeUrl: "https://node-eu.wikitraveler.org", regionMissing: false })
     );
   });
+  // Keep in sync with DEFAULT_NODE_URL in lensLogic.js (content scripts are classic scripts).
   _nodeUrl = result.nodeUrl ?? "https://node-eu.wikitraveler.org";
   _regionMissing = result.regionMissing === true && coords != null;
   return _nodeUrl;

@@ -1,6 +1,6 @@
 // options.js
 
-const DEFAULT_NODE_URL = "https://node-eu.wikitraveler.org";
+import { DEFAULT_NODE_URL } from "./lensLogic.js";
 
 const input = document.getElementById("nodeUrl");
 const localeSelect = document.getElementById("locale");

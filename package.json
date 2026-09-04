@@ -38,7 +38,7 @@
     "vercel-build:access": "pnpm --filter @wikitraveler/core build && pnpm run build:audit && pnpm --filter @wikitraveler/ui build && pnpm --filter @wikitraveler/access exec next build",
     "build:audit": "pnpm --filter @wikitraveler/i18n build && pnpm --filter @wikitraveler/audit build",
     "lint": "pnpm --recursive lint",
-    "test": "pnpm --filter @wikitraveler/node test && pnpm run build:audit && pnpm --filter @wikitraveler/access test",
+    "test": "pnpm --filter @wikitraveler/node test && pnpm run build:audit && pnpm --filter @wikitraveler/access test && pnpm --filter @wikitraveler/lens test",
     "test:a11y": "pnpm --filter @wikitraveler/node test:a11y",
     "lighthouse:prepare": "pnpm --filter @wikitraveler/node exec tsx ../../scripts/prepare-lighthouse.ts",
     "lighthouse:ci": "lhci autorun",
