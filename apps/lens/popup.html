@@ -9,7 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --wt-blue: #1e40af;
+      --wt-bg-header: #1e3a8a;
+      --wt-bg-header-contrast: #ffffff;
+      --wt-blue: #1d4ed8;
       --wt-blue-deep: #1e3a8a;
       --wt-blue-soft: #eff6ff;
       --wt-green: #059669;
@@ -37,16 +39,24 @@
       line-height: 1.45;
     }
 
+    /* Match Access .fk-access-hero / .fk-page-hero header wash */
     header {
-      background: linear-gradient(135deg, var(--wt-blue-deep) 0%, var(--wt-blue) 100%);
-      color: #fff;
-      padding: 12px 14px;
+      background:
+        linear-gradient(
+          165deg,
+          color-mix(in srgb, #fff 8%, var(--wt-bg-header)) 0%,
+          var(--wt-bg-header) 48%,
+          color-mix(in srgb, #000 22%, var(--wt-bg-header)) 100%
+        );
+      color: var(--wt-bg-header-contrast);
+      padding: 14px 14px 16px;
       display: flex;
       align-items: center;
       gap: 10px;
       position: sticky;
       top: 0;
       z-index: 20;
+      border-bottom: none;
     }
     header .logo { flex-shrink: 0; display: flex; align-items: center; }
     header .header-text { flex: 1; min-width: 0; }
@@ -54,23 +64,23 @@
     #user-line { font-size: 10px; opacity: 0.75; margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .header-btn {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.28);
-      color: #fff;
+      background: color-mix(in srgb, #fff 14%, transparent);
+      border: 1px solid color-mix(in srgb, #fff 32%, transparent);
+      color: var(--wt-bg-header-contrast);
       border-radius: var(--wt-radius);
       cursor: pointer;
       font-size: 11px;
       font-weight: 600;
       min-width: 40px;
       min-height: 40px;
-      padding: 8px;
+      padding: 8px 10px;
       flex-shrink: 0;
       font-family: inherit;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
-    .header-btn:hover { background: rgba(255,255,255,0.2); }
+    .header-btn:hover { background: color-mix(in srgb, #fff 22%, transparent); }
     .header-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
     #wt-signout { display: none; }
 
@@ -390,9 +400,15 @@
     #menu-overlay.is-open { display: flex; }
     .menu-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 14px; border-bottom: 1px solid var(--wt-border);
-      background: linear-gradient(135deg, var(--wt-blue-deep), var(--wt-blue));
-      color: #fff;
+      padding: 14px 14px 16px; border-bottom: none;
+      background:
+        linear-gradient(
+          165deg,
+          color-mix(in srgb, #fff 8%, var(--wt-bg-header)) 0%,
+          var(--wt-bg-header) 48%,
+          color-mix(in srgb, #000 22%, var(--wt-bg-header)) 100%
+        );
+      color: var(--wt-bg-header-contrast);
     }
     .menu-header h2 { font-size: 14px; font-weight: 700; margin: 0; }
     .menu-list { list-style: none; padding: 8px 0; overflow-y: auto; flex: 1; }
