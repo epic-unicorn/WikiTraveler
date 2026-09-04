@@ -8,32 +8,30 @@ This document is **directional**, not a commitment calendar. Items move up when 
 
 ## Recently completed
 
-### Next.js 16 + React 19 (node + Access)
+| Theme | Notes |
+|-------|--------|
+| **Next.js 16 + React 19** | Node + Access; App Router migration; CVE overrides where Dependabot could not unlock parents ([CHANGELOG.md](../CHANGELOG.md)) |
+| **RFC-0002 M0–M5** | Global hub Access & Lens; trusted CORS; viewport map; tracking [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) closed |
+| **Access UX + installable PWA** | Search / Favorites / Contribute / Profile; audit catalogue; web manifest + icons (no offline SW yet) — [ACCESS-UX.md](./ACCESS-UX.md) |
+| **Node admin audit parity** | Full field-audit wizard on the property page; wipe / history / safe rollback |
+| **Lens UX + client cache** | Score / features / onboarding; default `node-eu`; TTL + in-flight dedupe; View details / Report → Access — [LENS.md](./LENS.md) |
+| **Admin signal cleanup** | Hard-delete one signal; bulk-clear RESOLVED/DISMISSED |
+| **Phase 6 on `main`** | RFC process, public peers path, gossip discovery + Tier A–C E2E, protocol 2 — maintainer publish todos remain in [RELEASE-PHASES.md](./RELEASE-PHASES.md) |
 
-**Status:** Done (merged to `main`; see [CHANGELOG.md](../CHANGELOG.md)).
-
-Both apps run **Next.js 16.2.x** and **React 19**, with App Router migration (async `params` / `searchParams` / `cookies()`, inline `force-dynamic`, ESLint CLI). High/moderate transitive CVEs that Dependabot could not unlock were pinned via `pnpm.overrides` (`brace-expansion@1`/`@5`, `postcss`, `js-yaml@3`/`@4`, `sharp`, `ip-address`, `uuid`, `cookie`).
-
-**Ongoing:** Prefer coordinated app upgrades over Dependabot major bumps alone. Patch/minor Next within 16.x is welcome when CI stays green. Prefer retiring overrides by bumping parent packages when possible.
+**Ongoing stack hygiene:** Prefer coordinated app upgrades over Dependabot majors alone. Patch/minor Next within 16.x when CI stays green. Retire `pnpm.overrides` by bumping parents when possible.
 
 ---
 
-## Near-term: Phase 6 — community scale
+## Near-term: Phase 6 maintainer publish
 
-**Status:** Delivered on `main` — see [RELEASE-PHASES.md](./RELEASE-PHASES.md). Remaining maintainer actions: enable npm publish secrets, Chrome Web Store upload, first public peer entries.
+**Status:** Code delivered on `main` — see [RELEASE-PHASES.md](./RELEASE-PHASES.md). Remaining actions (not blockers for `main`):
 
 | Theme | Status |
 |-------|--------|
 | **npm SDK** | Workflow ready; enable `NPM_PUBLISH` + `NPM_TOKEN` |
 | **Lens distribution** | Release zip + [LENS.md](./LENS.md) checklist; Store listing pending |
-| **Release cadence** | Monthly minor documented in [RELEASES.md](./RELEASES.md) |
-| **RFC template** | [docs/rfcs/](./rfcs/README.md) + GitHub issue template |
 | **Peer directory** | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) (empty until operators opt in) |
-| **Discovery E2E** | `pnpm gossip:discovery` in CI |
-| **Federation hardening E2E** | `pnpm gossip:hardening` in CI (push/pull, auth, bbox, crud, reingest) — [FEDERATION-E2E.md](./FEDERATION-E2E.md) |
-| **Federation Tier B E2E** | `pnpm gossip:tier-b` in CI (mesh-3 + H2 CORS, CONFIRMED, peer resolve) |
-| **Federation Tier C E2E** | `pnpm gossip:tier-c` in CI after Tier B (hub journey, photoRefs, Lens Origin) |
-| **Gossip protocol 2** | Emit `2` / min `1` — [RFC-0001](./rfcs/0001-gossip-protocol-2.md) |
+| **GHCR visibility** | Confirm packages stay public for new operators |
 
 Ship tagged artifacts so operators and integrators do not clone `main`.
 
@@ -43,17 +41,17 @@ Ship tagged artifacts so operators and integrators do not clone `main`.
 
 ### Global hub Access & Lens (federation invisible)
 
-**Status:** Accepted — **M0–M5 shipped** ([RFC-0002](./rfcs/0002-global-hub-access.md); PRs [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50)–[#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55)). Close tracking [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51).
+**Status:** Accepted — **M0–M5 shipped** ([RFC-0002](./rfcs/0002-global-hub-access.md); PRs [#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50)–[#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55); [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) closed).
 
 Travelers use one Access (canonical hub e.g. `access.wikitraveler.org`) and Lens worldwide: home node = identity, regional nodes = data, mesh CORS for **trusted** hub origins only. Map is coverage + viewport pins — not home-node inventory.
 
 **Direction:** **M6** follow-ons (multi-node viewport fan-out, Admin peer client-origin UI, shorter JWT TTL, etc.). Keep rejecting home-node audit proxy and default regional Access redirect as the primary path.
 
-### Access as a field-ready PWA
+### Access offline / field resilience
 
-Access is marketed as a mobile PWA, but offline today is a small `localStorage` property cache ([`apps/access/app/lib/offlineCache.ts`](../apps/access/app/lib/offlineCache.ts)) — no installable web app manifest / service worker / queued mutations.
+**Status:** Installable PWA (manifest + icons) shipped; property detail still uses a small `localStorage` cache ([`offlineCache.ts`](../apps/access/app/lib/offlineCache.ts)). No service worker, offline shell, or queued mutations.
 
-**Direction:** Install prompt + offline shell; cache saved places and recent map results; queue community signals and (for auditors) draft audit steps when the node is unreachable; sync when back online.
+**Direction:** Offline shell; cache saved places and recent map results; queue community signals and (for auditors) draft audit steps when the node is unreachable; sync when back online.
 
 ### Photo storage as the default path
 
@@ -69,9 +67,9 @@ Gossip can carry optional `photoRefs`; step-level linking landed for Access. Cro
 
 ### Signals → audit → resolve loop
 
-Travelers can report issues; Admins triage signals. The loop back to the reporter and into a scheduled audit is thin.
+**Status:** Travelers report; Access notifications surface resolved/dismissed; Admins triage, hard-delete, and bulk-clear closed signals. The loop back into a scheduled audit / assign-to-auditor flow is still thin.
 
-**Direction:** Clear Access status when a report is acknowledged / resolved; optional assign-to-auditor flow; link signals to properties and audit steps without cluttering the traveler UI.
+**Direction:** Clearer Access status when a report is acknowledged; optional assign-to-auditor; link signals to properties and audit steps without cluttering the traveler UI.
 
 ### AI guesses auditors can trust
 
@@ -87,9 +85,9 @@ Promotion needs ≥3 distinct auditors (`evaluateConfirmed` in `@wikitraveler/co
 
 ### Lens reach
 
-Lens covers major OTAs + first-party `wt-property-id` meta. Distribution and host coverage limit traveler impact.
+**Status:** Major OTAs + `wt-property-id` meta; UX refresh, default EU home node, client TTL cache, and unit tests shipped ([LENS.md](./LENS.md)). Distribution and host coverage still limit traveler impact.
 
-**Direction:** Store listing (Phase 6); expand OTA or meta adoption; keep Lens i18n in sync with [`packages/i18n`](../packages/i18n) (avoid drift from [`apps/lens/i18n.js`](../apps/lens/i18n.js)).
+**Direction:** Chrome Web Store listing (Phase 6 maintainer todo); expand OTA or meta adoption; keep Lens i18n regenerated from [`packages/i18n`](../packages/i18n).
 
 ### SDK for agencies
 
@@ -203,9 +201,9 @@ Node and Access both ship Next standalone (Docker / Vercel).
 
 **Direction:** Track cold-start and image size for GHCR tags; avoid shipping unused AI/native deps into Access; keep monorepo build graph (`core → i18n → ui → …`) intentional rather than accidental.
 
-### Offline-friendly caching (ties to PWA)
+### Offline-friendly caching (ties to Access offline)
 
-Field auditors often have poor connectivity.
+**Status:** Lens popup/listing TTL cache shipped ([`lensCache.js`](../apps/lens/lensCache.js)); Access still relies on a small property-detail cache — no SW / tile cache / mutation queue.
 
 **Direction:** Cache map tiles / property shells where policy allows; avoid unbounded IndexedDB growth; prefer resumable audit drafts over full offline writes until sync semantics are solid.
 

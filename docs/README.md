@@ -33,9 +33,9 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [UPGRADE.md](./UPGRADE.md) | Version upgrades, migrations, rollback, gossip compatibility |
 | [RELEASES.md](./RELEASES.md) | Versioning model, release cadence, artifacts, federation policy |
 | [RELEASE-PHASES.md](./RELEASE-PHASES.md) | Archived phase 0–6 ledger + remaining maintainer publish todos |
-| [ROADMAP.md](./ROADMAP.md) | Public priorities (Phase 6, features, quality, community, strategy, performance) |
+| [ROADMAP.md](./ROADMAP.md) | Public priorities (maintainer publish todos, features, quality, community, strategy, performance) |
 | [COMPATIBILITY.md](./COMPATIBILITY.md) | N/N-1 mesh and protocol compatibility matrix |
-| [rfcs/](./rfcs/README.md) | RFC process; [RFC-0002](./rfcs/0002-global-hub-access.md) global hub Access (draft) |
+| [rfcs/](./rfcs/README.md) | RFC process; [RFC-0002](./rfcs/0002-global-hub-access.md) global hub Access (Accepted — M0–M5) |
 
 ### For developers (build & test)
 
@@ -46,7 +46,7 @@ Single entry point for the project. Pick the path that matches your role — eac
 | [GOSSIP-DEV.md](./GOSSIP-DEV.md) | Gossip lab for federation testing (`gossip:discovery`, `gossip:hardening`, `gossip:tier-b`, `gossip:compat`) |
 | [FEDERATION-E2E.md](./FEDERATION-E2E.md) | Gossip/federation E2E tiers A–D (kernel, topology, hub Access, photos) |
 | [FEDERATED-AUTH.md](./FEDERATED-AUTH.md) | Register on one node; browse/audit peers with RS256 JWT |
-| [RFC-0002](./rfcs/0002-global-hub-access.md) | Draft: global hub Access/Lens, mesh CORS trust, viewport map |
+| [RFC-0002](./rfcs/0002-global-hub-access.md) | Global hub Access/Lens, mesh CORS trust, viewport map (M0–M5 shipped; M6 follow-ons) |
 | [PUBLIC-PEERS.md](./PUBLIC-PEERS.md) | Voluntary bootstrap peer directory |
 | [LENS.md](./LENS.md) | Chrome extension distribution (Release zip / Store) |
 | [apps/README.md](../apps/README.md) | End-to-end flow walkthroughs (SDK, Access, Lens) |

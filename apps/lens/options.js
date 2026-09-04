@@ -1,5 +1,8 @@
 // options.js
 
+import { DEFAULT_NODE_URL } from "./lensLogic.js";
+import { invalidateCache } from "./lensCache.js";
+
 const input = document.getElementById("nodeUrl");
 const localeSelect = document.getElementById("locale");
 const status = document.getElementById("status");
@@ -56,16 +59,43 @@ function scheduleNodeStatusCheck() {
   healthCheckTimer = setTimeout(() => refreshNodeStatus(), 450);
 }
 
+let registrationOpen = true;
+
 function renderAuthState(username) {
   const signedIn = Boolean(username);
   loggedInBox.style.display = signedIn ? "block" : "none";
   loginFields.style.display = signedIn ? "none" : "block";
   loginBtn.style.display = signedIn ? "none" : "inline-block";
-  registerBtn.style.display = signedIn ? "none" : "inline-block";
+  registerBtn.style.display = signedIn || !registrationOpen ? "none" : "inline-block";
   logoutBtn.style.display = signedIn ? "inline-block" : "none";
   if (signedIn) {
     document.getElementById("logged-in-user").textContent = username;
   }
+  const note = document.getElementById("registration-closed-note");
+  if (note) {
+    note.style.display = !signedIn && !registrationOpen ? "block" : "none";
+    note.textContent = wtT("ui.lensRegisterClosedNote", currentLocale);
+  }
+}
+
+async function refreshRegistrationAvailability(url = getNodeUrl()) {
+  registrationOpen = true;
+  if (!url) {
+    renderAuthState(document.getElementById("logged-in-user")?.textContent || "");
+    return;
+  }
+  try {
+    const res = await nodeFetch(`${url}/api/auth/register`, { timeoutMs: 4000 });
+    if (res.ok) {
+      const data = await res.json();
+      registrationOpen = data.openRegistration !== false;
+    }
+  } catch {
+    registrationOpen = true;
+  }
+  chrome.storage.sync.get({ wtUsername: "" }, (items) => {
+    renderAuthState(items.wtUsername);
+  });
 }
 
 function applyOptionsStaticLabels(locale) {
@@ -94,11 +124,12 @@ async function bootstrap() {
 
   const localeKey = WtI18n.LOCALE_STORAGE_KEY;
   chrome.storage.sync.get(
-    { nodeUrl: "http://localhost:3000", wtUsername: "", [localeKey]: WtI18n.DEFAULT_LOCALE },
+    { nodeUrl: DEFAULT_NODE_URL, wtUsername: "", [localeKey]: WtI18n.DEFAULT_LOCALE },
     (items) => {
       input.value = items.nodeUrl;
       renderAuthState(items.wtUsername);
       refreshNodeStatus(items.nodeUrl);
+      refreshRegistrationAvailability(items.nodeUrl);
     }
   );
 }
@@ -125,7 +156,9 @@ saveBtn.addEventListener("click", async () => {
   }
 
   chrome.storage.sync.set({ nodeUrl: url }, async () => {
+    invalidateCache();
     const result = await refreshNodeStatus(url);
+    await refreshRegistrationAvailability(url);
     if (result.state === "online") {
       setStatus(wtT("ui.lensUrlSavedOk", currentLocale), "#059669");
     } else {
@@ -136,7 +169,7 @@ saveBtn.addEventListener("click", async () => {
 });
 
 async function doAuth(mode) {
-  const nodeUrl = getNodeUrl() || "http://localhost:3000";
+  const nodeUrl = getNodeUrl() || DEFAULT_NODE_URL;
   if (!validateNodeUrl(nodeUrl)) {
     refreshNodeStatus(nodeUrl);
     return;

@@ -24,7 +24,7 @@ Ship-facing history lives in [CHANGELOG.md](../CHANGELOG.md). Detailed phase wri
 
 ## Remaining maintainer actions (from Phase 6)
 
-Not blockers for `main` — enable when ready to publish externally:
+Not blockers for `main` — enable when ready to publish externally. Same list lives under [ROADMAP.md](./ROADMAP.md#near-term-phase-6-maintainer-publish).
 
 - [ ] Set Actions variable `NPM_PUBLISH=true` and secret `NPM_TOKEN` for first `@wikitraveler/sdk` npm publish
 - [ ] Upload Lens Release zip to the Chrome Web Store ([LENS.md](./LENS.md))

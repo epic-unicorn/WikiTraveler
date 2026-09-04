@@ -1,5 +1,7 @@
 // background.js — service worker
 
+import { DEFAULT_NODE_URL, isAllowedNodeUrl } from "./lensLogic.js";
+
 // ── Extension icon ────────────────────────────────────────────────────────────
 // Draw the WikiTraveler LogoMark (hexagon + chevron + bar) in white on brand
 // blue onto OffscreenCanvas, then set it as the action icon for all sizes.
@@ -7,8 +9,8 @@
 function drawLogoMark(ctx, size) {
   const s = size / 32;
 
-  // Brand-blue background
-  ctx.fillStyle = "#1e3a8a";
+  // Brand-blue background (matches Lens toolbar icons)
+  ctx.fillStyle = "#1e40af";
   ctx.fillRect(0, 0, size, size);
 
   ctx.strokeStyle = "#ffffff";
@@ -65,15 +67,6 @@ chrome.runtime.onStartup.addListener(setExtensionIcon);
 
 // ── Node API fetch (service worker — host_permissions, not page CORS) ─────────
 
-function isAllowedNodeUrl(raw) {
-  try {
-    const u = new URL(raw);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 async function handleNodeFetch(msg) {
   if (!msg.url || !isAllowedNodeUrl(msg.url)) {
     return { error: "Invalid node URL" };
@@ -117,7 +110,7 @@ async function handleNodeFetch(msg) {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "GET_NODE_URL") {
-    chrome.storage.sync.get({ nodeUrl: "http://localhost:3000" }, (items) => {
+    chrome.storage.sync.get({ nodeUrl: DEFAULT_NODE_URL }, (items) => {
       sendResponse({ nodeUrl: items.nodeUrl });
     });
     return true; // keep channel open for async response
@@ -131,7 +124,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "RESOLVE_NODE") {
     // Given { lat, lon }, ask this node's /api/peers/resolve for the best regional node.
     // Falls back to the stored nodeUrl if the call fails or no coordinates given.
-    chrome.storage.sync.get({ nodeUrl: "http://localhost:3000", wtToken: null }, async (items) => {
+    chrome.storage.sync.get({ nodeUrl: DEFAULT_NODE_URL, wtToken: null }, async (items) => {
       const { nodeUrl, wtToken } = items;
       if (msg.lat == null || msg.lon == null) {
         sendResponse({ nodeUrl, regionMissing: false });

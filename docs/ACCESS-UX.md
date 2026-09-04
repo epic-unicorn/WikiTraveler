@@ -1,6 +1,6 @@
 # Access UX redesign (IA + audit catalogue)
 
-Product lock for the Access PWA redesign on branch `access-ui-redesign`. Implementation follows milestones M0–M5 in the redesign plan.
+Product lock for the Access PWA redesign (shipped on `main`). Installable web manifest + icons landed; full offline SW / mutation queue remains a non-goal here — see [ROADMAP.md](./ROADMAP.md).
 
 ## Information architecture
 
@@ -60,4 +60,4 @@ A field audit writes **Verified**. **Confirmed** is only when ≥3 independent a
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Access hub, audit photo scopes
 - [RFC-0002](./rfcs/0002-global-hub-access.md) — home vs data node, viewport map
-- [ROADMAP.md](./ROADMAP.md) — offline / booking strategy
+- [ROADMAP.md](./ROADMAP.md) — offline Access / Store listing / signals loop

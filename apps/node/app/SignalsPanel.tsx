@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "@wikitraveler/ui";
+import { roleFromToken } from "@/lib/userRole";
 
 type SignalRow = {
   id: string;
@@ -20,11 +21,14 @@ type SignalRow = {
 
 export function SignalsPanel({ token, showTitle = true }: { token: string; showTitle?: boolean }) {
   const { t, getFieldLabel } = useLocale();
+  const isAdmin = roleFromToken(token) === "ADMIN";
   const [signals, setSignals] = useState<SignalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [filter, setFilter] = useState<"OPEN" | "IN_PROGRESS" | "all">("OPEN");
+  const [closedCount, setClosedCount] = useState(0);
+  const [clearing, setClearing] = useState(false);
 
   function load() {
     setLoading(true);
@@ -41,6 +45,19 @@ export function SignalsPanel({ token, showTitle = true }: { token: string; showT
         setError(t("ui.signalsLoadFailed"));
         setLoading(false);
       });
+
+    if (isAdmin) {
+      fetch(`/api/admin/signals/cleanup`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { count?: number } | null) => {
+          if (data?.count != null) setClosedCount(data.count);
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
   }
 
   useEffect(() => {
@@ -70,6 +87,49 @@ export function SignalsPanel({ token, showTitle = true }: { token: string; showT
     }
   }
 
+  async function deleteSignal(id: string) {
+    if (!window.confirm(t("ui.signalsDeleteConfirm"))) return;
+    setSaving(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/signals/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json() as { message?: string };
+        setError(data.message ?? t("ui.signalsDeleteFailed"));
+        return;
+      }
+      window.dispatchEvent(new Event("wt-signals-updated"));
+      load();
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function clearClosed() {
+    if (closedCount <= 0) return;
+    if (!window.confirm(t("ui.signalsClearClosedConfirm", { count: closedCount }))) return;
+    setClearing(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/signals/cleanup`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json() as { message?: string };
+        setError(data.message ?? t("ui.signalsClearFailed"));
+        return;
+      }
+      window.dispatchEvent(new Event("wt-signals-updated"));
+      load();
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <div
       style={{
@@ -84,7 +144,7 @@ export function SignalsPanel({ token, showTitle = true }: { token: string; showT
         {showTitle && (
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t("ui.signalsPanelTitle")}</h3>
         )}
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           {(["OPEN", "IN_PROGRESS", "all"] as const).map((f) => (
             <button
               key={f}
@@ -104,6 +164,23 @@ export function SignalsPanel({ token, showTitle = true }: { token: string; showT
               {f === "all" ? t("ui.signalsFilterAll") : t(`ui.signalsStatus${f}`)}
             </button>
           ))}
+          {isAdmin && (
+            <button
+              type="button"
+              disabled={clearing || closedCount <= 0}
+              onClick={() => clearClosed()}
+              title={t("ui.signalsClearClosedHint")}
+              style={{
+                ...actionBtnStyle,
+                color: closedCount > 0 ? "var(--wt-danger, #b91c1c)" : "var(--wt-text-muted)",
+                opacity: closedCount <= 0 ? 0.55 : 1,
+              }}
+            >
+              {clearing
+                ? t("ui.loading")
+                : t("ui.signalsClearClosed", { count: closedCount })}
+            </button>
+          )}
         </div>
       </div>
 
@@ -185,6 +262,16 @@ export function SignalsPanel({ token, showTitle = true }: { token: string; showT
               >
                 {t("ui.signalsDismiss")}
               </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  disabled={saving === s.id}
+                  onClick={() => deleteSignal(s.id)}
+                  style={{ ...actionBtnStyle, color: "var(--wt-danger, #b91c1c)" }}
+                >
+                  {t("ui.signalsDelete")}
+                </button>
+              )}
             </div>
           </div>
         ))}

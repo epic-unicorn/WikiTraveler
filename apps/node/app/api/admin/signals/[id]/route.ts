@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole, auditorId } from "@/lib/auth";
+import { deleteSignalById } from "@/lib/communitySignals";
 import type { SignalStatus } from "@prisma/client";
 
 
@@ -62,4 +63,20 @@ export async function PATCH(
   });
 
   return NextResponse.json({ ok: true, signal: updated });
+}
+
+// DELETE /api/admin/signals/:id — ADMIN hard-delete
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authError = await requireRole(req, "ADMIN");
+  if (authError) return authError;
+
+  const { id } = await params;
+  const deleted = await deleteSignalById(id);
+  if (!deleted) {
+    return NextResponse.json({ message: "Signal not found" }, { status: 404 });
+  }
+  return NextResponse.json({ ok: true });
 }

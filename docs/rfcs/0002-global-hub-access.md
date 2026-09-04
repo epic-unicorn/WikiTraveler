@@ -1,9 +1,9 @@
 # RFC-0002: Global hub Access & Lens (federation invisible)
 
-**Status:** Accepted — **M0–M5 shipped** (`rfc/accepted` on [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51); close that issue)  
+**Status:** Accepted — **M0–M5 shipped** (`rfc/accepted`; tracking [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) closed)  
 **Area:** Auth trust / Access·Lens peer resolve / operator CORS / map API  
 **Canonical hub (intended):** `https://access.wikitraveler.org` (domain owned by project)  
-**Tracking issue:** [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) — M1–M5 landed ([#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50)–[#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55)); close with those PR links. **M6** is follow-on only.  
+**Tracking issue:** [#51](https://github.com/ingmarstruijs/WikiTraveler/issues/51) — M1–M5 landed ([#50](https://github.com/ingmarstruijs/WikiTraveler/pull/50)–[#55](https://github.com/ingmarstruijs/WikiTraveler/pull/55)). **M6** is follow-on only ([ROADMAP.md](../ROADMAP.md)).  
 **Related:** [FEDERATED-AUTH.md](../FEDERATED-AUTH.md) · [PUBLIC-PEERS.md](../PUBLIC-PEERS.md) · [SECURITY.md](../../SECURITY.md) · [ROADMAP.md](../ROADMAP.md)
 
 ## Implementation progress

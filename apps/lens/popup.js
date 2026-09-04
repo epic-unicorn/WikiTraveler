@@ -1,5 +1,28 @@
 // popup.js
 
+import {
+  ACCESS_HUB_URL,
+  DEFAULT_NODE_URL,
+  ONBOARDING_KEY,
+  FEATURE_HIGHLIGHTS,
+  truthyFactValue,
+  computeCategoryBars,
+  overallAccessibilityScore,
+  propertyViewUrl,
+  extractHotelNameFromTitle,
+  buildHotelSearchQueries,
+  pickBestPropertyMatch,
+  propertyReportUrl,
+} from "./lensLogic.js";
+import {
+  cachedFetch,
+  invalidateCache,
+  accessibilityCacheKey,
+  searchCacheKey,
+  healthCacheKey,
+  CACHE_TTL,
+} from "./lensCache.js";
+
 const TIER_CLASSES = {
   CONFIRMED: "tier--confirmed",
   VERIFIED: "tier--verified",
@@ -10,15 +33,17 @@ const TIER_CLASSES = {
 const CONFIDENCE_ONLY = new Set(["high", "medium", "low"]);
 
 let currentLocale = "en";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Node status bar
-// ─────────────────────────────────────────────────────────────────────────────
+let menuContext = { nodeUrl: DEFAULT_NODE_URL, hasToken: false };
 
 async function updateNodeStatusBar(nodeUrl, locale) {
   const bar = document.getElementById("node-status-bar");
   setNodeStatusChecking(bar, locale);
-  const result = await checkNodeHealth(nodeUrl, locale);
+  const key = healthCacheKey(nodeUrl);
+  const result = await cachedFetch(
+    key,
+    () => checkNodeHealth(nodeUrl, locale),
+    CACHE_TTL.health
+  );
   applyNodeStatusEl(bar, result);
   return result;
 }
@@ -30,52 +55,59 @@ function applyPopupStaticLabels(locale) {
     signOut.title = wtT("ui.signOut", locale);
     signOut.textContent = wtT("ui.signOut", locale);
   }
+  const menuBtn = document.getElementById("wt-menu-btn");
+  if (menuBtn) {
+    menuBtn.title = wtT("ui.lensMenu", locale);
+    menuBtn.setAttribute("aria-label", wtT("ui.lensMenu", locale));
+  }
+  const menuTitle = document.getElementById("menu-title");
+  if (menuTitle) menuTitle.textContent = wtT("ui.lensMenu", locale);
   const searchLabel = document.querySelector(".search-label");
   if (searchLabel) searchLabel.textContent = wtT("ui.searchProperties", locale);
   const searchInput = document.getElementById("search-input");
   if (searchInput) searchInput.placeholder = wtT("ui.searchPlaceholder", locale);
-  const loadingEl = document.querySelector("#content > p");
-  if (loadingEl?.textContent === "Loading…" || loadingEl?.dataset?.wtLoading) {
-    loadingEl.textContent = wtT("ui.loading", locale);
-    loadingEl.dataset.wtLoading = "1";
-  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Search for a property by name with progressive truncation + coordinate scoring
-// ─────────────────────────────────────────────────────────────────────────────
-
 async function searchForProperty(name, nodeUrl, coords, headers = {}) {
-  const words = name.split(/\s+/);
+  const queries = buildHotelSearchQueries(name);
   let bestCandidates = null;
 
-  for (let len = words.length; len >= 2; len--) {
-    const q = words.slice(0, len).join(" ");
+  for (const q of queries) {
     try {
-      const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
-        headers,
-        timeoutMs: 6000,
-      });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const results = data.properties ?? [];
-      if (results.length === 0) continue;
+      const key = searchCacheKey(nodeUrl, q);
+      const results = await cachedFetch(
+        key,
+        async () => {
+          const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
+            headers,
+            timeoutMs: 6000,
+          });
+          if (!res.ok) {
+            const err = new Error("search failed");
+            err.status = res.status;
+            throw err;
+          }
+          const data = await res.json();
+          return data.properties ?? [];
+        },
+        CACHE_TTL.search
+      );
+      if (!results.length) continue;
 
-      const lower = name.toLowerCase();
-      const exact = results.find((p) => p.name.toLowerCase() === lower);
-      if (exact) return exact;
-
-      const prefixMatches = results.filter((p) => lower.startsWith(p.name.toLowerCase()));
-      if (prefixMatches.length === 1) return prefixMatches[0];
+      const picked = pickBestPropertyMatch(name, results);
+      if (picked) return picked;
 
       if (!bestCandidates) bestCandidates = results;
-      break;
     } catch {
-      // network error — try shorter
+      // network / HTTP error — try next query
     }
   }
 
   if (!bestCandidates) return null;
+
+  const pickedFromBest = pickBestPropertyMatch(name, bestCandidates);
+  if (pickedFromBest) return pickedFromBest;
+
   if (bestCandidates.length === 1) return bestCandidates[0];
 
   if (coords?.lat != null && coords?.lon != null) {
@@ -90,16 +122,8 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
 }
 
 function extractHotelNameFromTab(tab) {
-  const title = tab.title ?? "";
-  return title
-    .replace(/\s*[|\u2013\u2014]\s*(Booking\.com|Expedia|Hotels\.com|Agoda).*$/i, "")
-    .replace(/,\s*[A-Z][^,]+.*$/, "")
-    .trim();
+  return extractHotelNameFromTitle(tab?.title);
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DOM helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 function createTierBadge(tier, locale) {
   const badge = document.createElement("span");
@@ -173,8 +197,7 @@ function createFactsTable(facts, locale) {
   facts.forEach((f) => {
     const { tier, displayValue, confidence, evidence, rawValue } = resolveFactDisplay(f, locale);
     const label = wtFieldLabel(f.fieldName, locale);
-    const useStackedLayout =
-      f.fieldName === "notes" || displayValue.length > 48;
+    const useStackedLayout = f.fieldName === "notes" || displayValue.length > 48;
 
     const row = table.insertRow();
     if (useStackedLayout) {
@@ -305,35 +328,68 @@ function createAuditPhotosSection(auditPhotos, hasAiGuess, locale) {
   return section;
 }
 
-function createPropertyHeader(prop, displayName) {
-  const header = document.createElement("div");
-  header.className = "property-header";
+function createScoreBlock(facts, locale) {
+  const bars = computeCategoryBars(facts);
+  const score = overallAccessibilityScore(bars);
+  if (score == null) return null;
 
-  if (prop?.name) {
-    const name = document.createElement("p");
-    name.className = "property-name";
-    name.textContent = prop.name;
-    header.appendChild(name);
-  } else if (displayName) {
-    const name = document.createElement("p");
-    name.className = "property-name";
-    name.textContent = displayName;
-    header.appendChild(name);
-  }
+  const wrap = document.createElement("div");
+  wrap.className = "score-row";
 
-  if (prop?.location) {
-    const loc = document.createElement("p");
-    loc.className = "property-location";
-    loc.textContent = prop.location;
-    header.appendChild(loc);
-  }
+  const donut = document.createElement("div");
+  donut.className = "score-donut";
+  donut.style.setProperty("--pct", String(score));
+  donut.setAttribute("aria-label", `${score}%`);
+  const pctEl = document.createElement("span");
+  pctEl.textContent = `${score}%`;
+  donut.appendChild(pctEl);
+  wrap.appendChild(donut);
 
-  return header;
+  const barsEl = document.createElement("div");
+  barsEl.className = "score-bars";
+  bars.forEach((bar) => {
+    const row = document.createElement("div");
+    row.className = "score-bar-row";
+    const label = document.createElement("span");
+    label.className = "score-bar-label";
+    label.textContent = wtT(bar.labelKey, locale);
+    const pct = document.createElement("span");
+    pct.className = "score-bar-pct";
+    pct.textContent = `${bar.pct}%`;
+    const track = document.createElement("div");
+    track.className = "score-bar-track";
+    const fill = document.createElement("div");
+    fill.className = "score-bar-fill";
+    fill.style.width = `${bar.pct}%`;
+    track.appendChild(fill);
+    row.appendChild(label);
+    row.appendChild(pct);
+    row.appendChild(track);
+    barsEl.appendChild(row);
+  });
+  wrap.appendChild(barsEl);
+  return wrap;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Search section
-// ─────────────────────────────────────────────────────────────────────────────
+function createFeatureGrid(facts, locale) {
+  const byName = new Map((facts ?? []).map((f) => [f.fieldName, f]));
+  const grid = document.createElement("div");
+  grid.className = "feature-grid";
+
+  FEATURE_HIGHLIGHTS.forEach((fieldName) => {
+    const fact = byName.get(fieldName);
+    const present = fact && truthyFactValue(fact.value);
+    const tile = document.createElement("div");
+    tile.className = `feature-tile${present ? "" : " is-missing"}`;
+    tile.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const label = document.createElement("span");
+    label.textContent = wtFieldLabel(fieldName, locale);
+    tile.appendChild(label);
+    grid.appendChild(tile);
+  });
+
+  return grid;
+}
 
 function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
   const section = document.getElementById("search-section");
@@ -344,26 +400,62 @@ function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
 
   const freshInput = input.cloneNode(true);
   freshInput.placeholder = wtT("ui.searchPlaceholder", locale);
+  freshInput.classList.remove("is-searching");
+  freshInput.removeAttribute("aria-busy");
   input.parentNode.replaceChild(freshInput, input);
 
   let searchTimer;
+  let searchSeq = 0;
+
+  function setSearching(active) {
+    freshInput.classList.toggle("is-searching", active);
+    freshInput.setAttribute("aria-busy", active ? "true" : "false");
+    if (active) {
+      results.innerHTML = "";
+      const loading = document.createElement("div");
+      loading.className = "search-loading";
+      loading.setAttribute("role", "status");
+      loading.innerHTML = `<span class="spinner" aria-hidden="true"></span>`;
+      loading.appendChild(document.createTextNode(wtT("ui.searching", locale)));
+      results.appendChild(loading);
+    }
+  }
+
   freshInput.addEventListener("input", () => {
     clearTimeout(searchTimer);
     const q = freshInput.value.trim();
     results.innerHTML = "";
+    freshInput.classList.remove("is-searching");
+    freshInput.setAttribute("aria-busy", "false");
 
     if (q.length < 2) return;
 
+    setSearching(true);
+    const seq = ++searchSeq;
+
     searchTimer = setTimeout(async () => {
       try {
-        const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
-          headers: authHeaders,
-          timeoutMs: 6000,
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const properties = data.properties ?? [];
+        const key = searchCacheKey(nodeUrl, q);
+        const properties = await cachedFetch(
+          key,
+          async () => {
+            const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
+              headers: authHeaders,
+              timeoutMs: 6000,
+            });
+            if (!res.ok) {
+              const err = new Error("search failed");
+              err.status = res.status;
+              throw err;
+            }
+            const data = await res.json();
+            return data.properties ?? [];
+          },
+          CACHE_TTL.search
+        );
+        if (seq !== searchSeq) return;
 
+        setSearching(false);
         results.innerHTML = "";
 
         if (properties.length === 0) {
@@ -398,7 +490,13 @@ function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
           results.appendChild(btn);
         });
       } catch {
-        // silent — network or abort
+        if (seq !== searchSeq) return;
+        setSearching(false);
+        results.innerHTML = "";
+        const err = document.createElement("p");
+        err.className = "search-empty";
+        err.textContent = wtT("ui.searchNoResults", locale);
+        results.appendChild(err);
       }
     }, 350);
   });
@@ -432,11 +530,18 @@ function showSearchToggle(nodeUrl, authHeaders, locale, onSelect) {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Login form
-// ─────────────────────────────────────────────────────────────────────────────
+async function fetchOpenRegistration(nodeUrl) {
+  try {
+    const res = await nodeFetch(`${nodeUrl}/api/auth/register`, { timeoutMs: 4000 });
+    if (!res.ok) return true;
+    const data = await res.json();
+    return data.openRegistration !== false;
+  } catch {
+    return true;
+  }
+}
 
-function showLoginForm(content, locale, nodeUrl = "http://localhost:3000", nodeHealth = null) {
+function showLoginForm(content, locale, nodeUrl = DEFAULT_NODE_URL, nodeHealth = null) {
   hideSearchUI();
 
   const offlineMsg =
@@ -455,6 +560,7 @@ function showLoginForm(content, locale, nodeUrl = "http://localhost:3000", nodeH
       <button id="wt-login-btn" class="login-btn">${wtT("ui.signIn", locale)}</button>
       <p id="wt-login-error" class="login-error" role="alert"></p>
       <p class="login-footer">${wtT("ui.lensNoAccount", locale)} <a id="wt-register-link" href="#">${wtT("ui.lensRegisterLink", locale)}</a></p>
+      <p id="wt-register-note" class="login-note" style="display:none"></p>
     </div>
   `;
 
@@ -464,7 +570,18 @@ function showLoginForm(content, locale, nodeUrl = "http://localhost:3000", nodeH
   });
 
   chrome.storage.sync.get({ nodeUrl }, (items) => {
-    document.getElementById("wt-register-link")?.addEventListener("click", (e) => {
+    const registerLink = document.getElementById("wt-register-link");
+    const registerNote = document.getElementById("wt-register-note");
+
+    fetchOpenRegistration(items.nodeUrl).then((open) => {
+      if (!open && registerLink && registerNote) {
+        registerLink.textContent = wtT("ui.lensRegisterClosedLink", locale);
+        registerNote.textContent = wtT("ui.lensRegisterClosedNote", locale);
+        registerNote.style.display = "block";
+      }
+    });
+
+    registerLink?.addEventListener("click", (e) => {
       e.preventDefault();
       chrome.tabs.create({ url: `${items.nodeUrl}/register` });
     });
@@ -525,26 +642,51 @@ function hideSearchUI() {
 }
 
 function showLoading(content, locale, message) {
-  content.innerHTML = `<p style="color:#94a3b8;font-size:13px" data-wt-loading="1">${message ?? wtT("ui.loading", locale)}</p>`;
+  content.innerHTML = `
+    <div class="loading-wrap">
+      <div class="spinner" aria-hidden="true"></div>
+      <p style="color:var(--wt-muted);font-size:13px;font-weight:600" data-wt-loading="1">${message ?? wtT("ui.lensCheckingPage", locale)}</p>
+      <div class="skeleton skel-block"></div>
+      <div class="skeleton skel-row"></div>
+      <div class="skeleton skel-row" style="width:70%"></div>
+    </div>
+  `;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fetch and render property facts
-// ─────────────────────────────────────────────────────────────────────────────
-
 async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHeaders, locale, tab) {
-  const res = await nodeFetch(
-    `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
-    { headers: authHeaders, timeoutMs: 6000 }
-  );
+  let status;
+  let data = null;
+  try {
+    const key = accessibilityCacheKey(nodeUrl, resolvedId);
+    data = await cachedFetch(
+      key,
+      async () => {
+        const res = await nodeFetch(
+          `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
+          { headers: authHeaders, timeoutMs: 6000 }
+        );
+        if (!res.ok) {
+          const err = new Error("accessibility failed");
+          err.status = res.status;
+          throw err;
+        }
+        return res.json();
+      },
+      CACHE_TTL.accessibility
+    );
+    status = 200;
+  } catch (e) {
+    status = e?.status ?? 0;
+  }
 
-  if (res.status === 401 || res.status === 403) {
+  if (status === 401 || status === 403) {
     await new Promise((resolve) => chrome.storage.sync.remove(["wtToken"], resolve));
+    invalidateCache();
     showLoginForm(content, locale, nodeUrl);
     return;
   }
 
-  if (res.status === 404) {
+  if (status === 404) {
     if (tab) {
       const name = extractHotelNameFromTab(tab);
       if (name) {
@@ -554,29 +696,68 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
         }
       }
     }
-    renderNotFound(content, nodeUrl, authHeaders, locale, displayName);
+    renderNotFound(content, nodeUrl, authHeaders, locale, displayName, resolvedId);
     return;
   }
 
-  if (!res.ok) {
-    renderNotFound(content, nodeUrl, authHeaders, locale, displayName);
+  if (status !== 200 || !data) {
+    renderNotFound(content, nodeUrl, authHeaders, locale, displayName, resolvedId);
     return;
   }
 
-  const data = await res.json();
   const facts = data.facts ?? [];
   const prop = data.property;
+  const propertyId = prop?.id ?? resolvedId;
 
   content.innerHTML = "";
-  content.appendChild(createPropertyHeader(prop, displayName));
+
+  const hasFacts = facts.length > 0;
+  const pill = document.createElement("div");
+  if (hasFacts) {
+    pill.className = "status-pill";
+    pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    pill.appendChild(document.createTextNode(wtT("ui.lensInfoFound", locale)));
+  } else {
+    pill.className = "status-pill status-pill--matched";
+    pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    pill.appendChild(document.createTextNode(wtT("ui.lensPropertyMatched", locale)));
+  }
+  content.appendChild(pill);
+
+  const card = document.createElement("div");
+  card.className = "property-card";
+  const cardBody = document.createElement("div");
+  cardBody.className = "property-card-body";
+  const nameEl = document.createElement("p");
+  nameEl.className = "property-name";
+  nameEl.textContent = prop?.name ?? displayName ?? propertyId;
+  cardBody.appendChild(nameEl);
+  if (prop?.location) {
+    const loc = document.createElement("p");
+    loc.className = "property-location";
+    loc.textContent = prop.location;
+    cardBody.appendChild(loc);
+  }
+  card.appendChild(cardBody);
+  content.appendChild(card);
+
+  const scoreBlock = createScoreBlock(facts, locale);
+  if (scoreBlock) content.appendChild(scoreBlock);
+
+  if (hasFacts) {
+    content.appendChild(createFeatureGrid(facts, locale));
+  }
 
   const photosSection = createAuditPhotosSection(data.auditPhotos, data.hasAiGuess, locale);
   if (photosSection) content.appendChild(photosSection);
 
-  if (facts.length === 0) {
+  if (!hasFacts) {
     const empty = document.createElement("div");
     empty.className = "state-empty";
     empty.style.paddingTop = "8px";
+    const title = document.createElement("h2");
+    title.textContent = wtT("ui.lensNoInfoYet", locale);
+    empty.appendChild(title);
     const p = document.createElement("p");
     p.textContent = wtT("ui.lensNoFactsHint", locale);
     empty.appendChild(p);
@@ -585,23 +766,28 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
     content.appendChild(createFactsTable(facts, locale));
   }
 
-  const reportBar = document.createElement("div");
-  reportBar.style.marginTop = "14px";
-  reportBar.style.paddingTop = "12px";
-  reportBar.style.borderTop = "1px solid #e2e8f0";
+  const detailsBtn = document.createElement("button");
+  detailsBtn.type = "button";
+  detailsBtn.className = "btn-primary";
+  detailsBtn.textContent = wtT("ui.lensViewDetails", locale);
+  detailsBtn.addEventListener("click", () => {
+    chrome.tabs.create({ url: propertyViewUrl(nodeUrl, propertyId) });
+  });
+  content.appendChild(detailsBtn);
+
   const reportBtn = document.createElement("button");
   reportBtn.type = "button";
+  reportBtn.className = "btn-secondary";
   reportBtn.textContent = wtT("ui.lensReportIssue", locale);
-  reportBtn.style.cssText = "display:block;width:100%;font-size:13px;font-weight:600;color:#2563eb;background:none;border:none;padding:0;cursor:pointer;text-align:left";
   reportBtn.addEventListener("click", () => {
-    alert(wtT("ui.lensReportHint", locale));
+    chrome.tabs.create({ url: propertyReportUrl(nodeUrl, propertyId) });
   });
-  reportBar.appendChild(reportBtn);
-  const reportHint = document.createElement("p");
-  reportHint.textContent = wtT("ui.lensReportHint", locale);
-  reportHint.style.cssText = "font-size:11px;color:#94a3b8;margin:6px 0 0";
-  reportBar.appendChild(reportHint);
-  content.appendChild(reportBar);
+  content.appendChild(reportBtn);
+
+  const hint = document.createElement("p");
+  hint.className = "access-hint";
+  hint.textContent = wtT("ui.lensAccessAppHint", locale);
+  content.appendChild(hint);
 
   showSearchToggle(nodeUrl, authHeaders, locale, (id, name) => {
     showLoading(content, locale);
@@ -609,7 +795,7 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
   });
 }
 
-function renderNotFound(content, nodeUrl, authHeaders, locale, displayName) {
+function renderNotFound(content, nodeUrl, authHeaders, locale, displayName, propertyId) {
   content.innerHTML = "";
 
   const empty = document.createElement("div");
@@ -617,14 +803,40 @@ function renderNotFound(content, nodeUrl, authHeaders, locale, displayName) {
 
   const icon = document.createElement("div");
   icon.className = "state-icon";
-  icon.textContent = "🏨";
+  icon.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20" stroke-linecap="round"/></svg>`;
   empty.appendChild(icon);
+
+  const title = document.createElement("h2");
+  title.textContent = wtT("ui.lensNoInfoYet", locale);
+  empty.appendChild(title);
 
   const msg = document.createElement("p");
   msg.textContent = displayName
     ? wtT("ui.lensNoDataFor", locale, { name: displayName })
     : wtT("ui.lensNoDataProperty", locale);
   empty.appendChild(msg);
+
+  const requestBtn = document.createElement("button");
+  requestBtn.type = "button";
+  requestBtn.className = "btn-primary";
+  requestBtn.textContent = wtT("ui.lensRequestProperty", locale);
+  requestBtn.addEventListener("click", () => {
+    const target = propertyId && propertyId !== "unknown"
+      ? `${ACCESS_HUB_URL}/properties/${encodeURIComponent(propertyId)}?node=${encodeURIComponent(nodeUrl)}`
+      : `${ACCESS_HUB_URL}/?node=${encodeURIComponent(nodeUrl)}`;
+    chrome.tabs.create({ url: target });
+  });
+  empty.appendChild(requestBtn);
+
+  const learn = document.createElement("a");
+  learn.href = "#";
+  learn.style.cssText = "display:inline-block;margin-top:8px;font-size:12px;font-weight:600";
+  learn.textContent = wtT("ui.lensLearnHowData", locale);
+  learn.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: `${ACCESS_HUB_URL}/` });
+  });
+  empty.appendChild(learn);
 
   content.appendChild(empty);
 
@@ -634,9 +846,168 @@ function renderNotFound(content, nodeUrl, authHeaders, locale, displayName) {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Initialise popup
-// ─────────────────────────────────────────────────────────────────────────────
+function closeMenu() {
+  document.getElementById("menu-overlay")?.classList.remove("is-open");
+}
+
+function openMenu() {
+  const list = document.getElementById("menu-list");
+  const locale = currentLocale;
+  const { nodeUrl, hasToken } = menuContext;
+  if (!list) return;
+
+  const items = [
+    { key: "lensMenuHome", url: `${ACCESS_HUB_URL}/` },
+    { key: "lensMenuSearch", url: `${ACCESS_HUB_URL}/` },
+    { key: "lensMenuFavorites", url: `${ACCESS_HUB_URL}/` },
+    { key: "lensMenuRecent", url: `${ACCESS_HUB_URL}/` },
+    { divider: true },
+    { key: "lensMenuHowItWorks", url: `${ACCESS_HUB_URL}/` },
+    { key: "lensMenuHelp", url: `${ACCESS_HUB_URL}/` },
+    { key: "lensMenuReport", url: `${ACCESS_HUB_URL}/` },
+    { key: "lensMenuSettings", action: "settings" },
+    {
+      key: hasToken ? "signOut" : "lensMenuSignIn",
+      action: hasToken ? "signout" : "signin",
+    },
+  ];
+
+  list.innerHTML = "";
+  items.forEach((item) => {
+    if (item.divider) {
+      const d = document.createElement("li");
+      d.className = "menu-divider";
+      d.setAttribute("aria-hidden", "true");
+      list.appendChild(d);
+      return;
+    }
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = wtT(`ui.${item.key}`, locale);
+    btn.addEventListener("click", async () => {
+      closeMenu();
+      if (item.action === "settings") {
+        chrome.runtime.openOptionsPage();
+        return;
+      }
+      if (item.action === "signout") {
+        await new Promise((resolve) =>
+          chrome.storage.sync.remove(["wtToken", "wtUsername"], resolve)
+        );
+        init();
+        return;
+      }
+      if (item.action === "signin") {
+        const content = document.getElementById("content");
+        showLoginForm(content, locale, nodeUrl);
+        return;
+      }
+      if (item.url) chrome.tabs.create({ url: item.url });
+    });
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+
+  document.getElementById("menu-overlay")?.classList.add("is-open");
+}
+
+function setNodeStatusBarVisible(visible) {
+  const bar = document.getElementById("node-status-bar");
+  if (bar) bar.style.display = visible ? "" : "none";
+}
+
+function showOnboarding(content, locale, onDone) {
+  hideSearchUI();
+  setNodeStatusBarVisible(false);
+  let step = 0;
+  const steps = [
+    { title: "lensOnboardingWelcomeTitle", body: "lensOnboardingWelcomeBody" },
+    { title: "lensOnboardingHowTitle", body: "lensOnboardingHowBody" },
+    { title: "lensOnboardingDoTitle", body: "lensOnboardingDoBody" },
+    { title: "lensOnboardingReadyTitle", body: "lensOnboardingReadyBody" },
+  ];
+
+  async function finish() {
+    await new Promise((resolve) =>
+      chrome.storage.local.set({ [ONBOARDING_KEY]: true }, resolve)
+    );
+    setNodeStatusBarVisible(true);
+    onDone();
+  }
+
+  function render() {
+    const s = steps[step];
+    content.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "onboard";
+
+    const art = document.createElement("div");
+    art.className = "onboard-art";
+    art.innerHTML = `<svg width="40" height="40" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2L28 9v14L16 30 4 23V9L16 2z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M16 9l4 6H12l4-6z" fill="currentColor"/><path d="M10 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+    wrap.appendChild(art);
+
+    const h = document.createElement("h2");
+    h.textContent = wtT(`ui.${s.title}`, locale);
+    wrap.appendChild(h);
+
+    const p = document.createElement("p");
+    p.textContent = wtT(`ui.${s.body}`, locale);
+    wrap.appendChild(p);
+
+    const dots = document.createElement("div");
+    dots.className = "onboard-dots";
+    steps.forEach((_, i) => {
+      const d = document.createElement("span");
+      if (i === step) d.className = "is-active";
+      dots.appendChild(d);
+    });
+    wrap.appendChild(dots);
+
+    const actions = document.createElement("div");
+    actions.className = "onboard-actions";
+
+    if (step > 0) {
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "btn-secondary";
+      back.textContent = wtT("ui.lensOnboardingBack", locale);
+      back.addEventListener("click", () => {
+        step -= 1;
+        render();
+      });
+      actions.appendChild(back);
+    }
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "btn-primary";
+    next.textContent =
+      step === steps.length - 1
+        ? wtT("ui.lensOnboardingGotIt", locale)
+        : wtT("ui.lensOnboardingNext", locale);
+    next.addEventListener("click", () => {
+      if (step >= steps.length - 1) finish();
+      else {
+        step += 1;
+        render();
+      }
+    });
+    actions.appendChild(next);
+    wrap.appendChild(actions);
+
+    const skip = document.createElement("button");
+    skip.type = "button";
+    skip.className = "onboard-skip";
+    skip.textContent = wtT("ui.lensOnboardingSkip", locale);
+    skip.addEventListener("click", finish);
+    wrap.appendChild(skip);
+
+    content.appendChild(wrap);
+  }
+
+  render();
+}
 
 async function init() {
   currentLocale = await wtGetLocale();
@@ -644,7 +1015,20 @@ async function init() {
 
   const content = document.getElementById("content");
   hideSearchUI();
+  closeMenu();
 
+  const onboarded = await new Promise((resolve) =>
+    chrome.storage.local.get({ [ONBOARDING_KEY]: false }, (items) =>
+      resolve(Boolean(items[ONBOARDING_KEY]))
+    )
+  );
+
+  if (!onboarded) {
+    showOnboarding(content, currentLocale, () => init());
+    return;
+  }
+
+  setNodeStatusBarVisible(true);
   showLoading(content, currentLocale);
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -653,10 +1037,12 @@ async function init() {
   const { wtToken, wtUsername: storedUsername, nodeUrl: storedNodeUrl } =
     await new Promise((resolve) =>
       chrome.storage.sync.get(
-        { wtToken: null, wtUsername: "", nodeUrl: "http://localhost:3000" },
+        { wtToken: null, wtUsername: "", nodeUrl: DEFAULT_NODE_URL },
         resolve
       )
     );
+
+  menuContext = { nodeUrl: storedNodeUrl, hasToken: Boolean(wtToken) };
 
   const nodeHealth = await updateNodeStatusBar(storedNodeUrl, currentLocale);
 
@@ -705,10 +1091,11 @@ async function init() {
     )
   );
 
+  document.querySelectorAll(".warning-banner").forEach((el) => el.remove());
   if (regionMissing && coords != null) {
     const banner = document.createElement("div");
     banner.className = "warning-banner";
-    banner.innerHTML = `<span aria-hidden="true">⚠️</span><span>${wtT("ui.lensRegionalWarning", currentLocale)}</span>`;
+    banner.innerHTML = `<span aria-hidden="true">!</span><span>${wtT("ui.lensRegionalWarning", currentLocale)}</span>`;
     document.getElementById("node-status-bar").after(banner);
   }
 
@@ -728,7 +1115,7 @@ async function init() {
     }
   }
 
-  content.innerHTML = `<p style="color:#94a3b8;font-size:13px">${wtT("ui.lensFetchingFrom", currentLocale, { node: nodeUrl })}</p>`;
+  showLoading(content, currentLocale, wtT("ui.lensFetchingFrom", currentLocale, { node: nodeUrl }));
 
   const authHeaders = { Authorization: `Bearer ${wtToken}` };
 
@@ -738,7 +1125,7 @@ async function init() {
     content.innerHTML = "";
     const empty = document.createElement("div");
     empty.className = "state-empty";
-    empty.innerHTML = `<div class="state-icon">⚡</div><p>${wtT("ui.lensCouldNotReachNode", currentLocale)}<br><a href="#" id="wt-settings-link2">${wtT("ui.lensCheckSettings", currentLocale)}</a></p>`;
+    empty.innerHTML = `<div class="state-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke-linejoin="round"/></svg></div><p>${wtT("ui.lensCouldNotReachNode", currentLocale)}<br><a href="#" id="wt-settings-link2">${wtT("ui.lensCheckSettings", currentLocale)}</a></p>`;
     content.appendChild(empty);
     document.getElementById("wt-settings-link2")?.addEventListener("click", (e) => {
       e.preventDefault();
@@ -751,9 +1138,13 @@ async function init() {
   }
 }
 
+document.getElementById("wt-menu-btn")?.addEventListener("click", openMenu);
+document.getElementById("wt-menu-close")?.addEventListener("click", closeMenu);
+
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && changes[WtI18n.LOCALE_STORAGE_KEY]) {
-    init();
+  if (area === "sync") {
+    if (changes.nodeUrl || changes.wtToken) invalidateCache();
+    if (changes[WtI18n.LOCALE_STORAGE_KEY]) init();
   }
 });
 

@@ -337,7 +337,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(() => searchParams.get("report") === "1");
   const [reportField, setReportField] = useState<{
     fieldName: string;
     value: string;
