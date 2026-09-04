@@ -289,31 +289,38 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
   }, [nearCoords, homeNodeUrl, t]);
 
   const startNearMe = useCallback(() => {
-    setNearMe(true);
-    setNearCoords(null);
-    setResults(null);
-    setTotal(0);
-    setPlaceHint(null);
     setDiscoveryView("map");
     setDiscoveryViewMode("map");
     setSearchError("");
     setGeoError("");
     setNearLoading(true);
-    void requestUserLocation().then((result) => {
-      if (result.ok) {
-        setNearCoords(result.coords);
+    // Keep browse map mounted until GPS succeeds (nearMe would hide viewport pins).
+    void requestUserLocation().then(async (result) => {
+      if (!result.ok) {
         setNearLoading(false);
+        setNearMe(false);
+        setNearCoords(null);
+        setResults(null);
+        setTotal(0);
+        setGeoError(
+          result.reason === "denied"
+            ? t("ui.nearbyGpsDenied")
+            : result.reason === "unsupported"
+              ? t("ui.gpsUnsupported")
+              : result.reason === "insecure"
+                ? t("ui.nearbyGpsInsecure")
+                : t("ui.nearbyGpsTimeout")
+        );
         return;
       }
-      setNearLoading(false);
-      setNearMe(false);
-      setGeoError(
-        result.reason === "denied"
-          ? t("ui.nearbyGpsDenied")
-          : result.reason === "unsupported"
-            ? t("ui.gpsUnsupported")
-            : t("ui.nearbyGpsTimeout")
-      );
+
+      setQuery("");
+      setPlaceHint(null);
+      setNearMe(true);
+      setNearCoords(result.coords);
+      setResults(null);
+      setTotal(0);
+      // nearLoading stays true until runNearMe finishes via the effect below.
     });
   }, [t]);
 
@@ -422,7 +429,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
           <p className="fk-empty-title">{t("ui.searchNoResults")}</p>
           <p className="fk-empty-body">
             {nearMe
-              ? t("ui.nearbyNothing")
+              ? t("ui.nearbyNothing", { km: NEAR_ME_RADIUS_KM })
               : query.trim()
                 ? t("ui.searchNoMatch", { query: query.trim() })
                 : t("ui.searchTryDifferent")}
@@ -438,7 +445,10 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
     );
 
   const showResultsMeta =
-    Boolean(placeHint) || (hasActiveSearch && results !== null && !loading);
+    Boolean(placeHint) ||
+    Boolean(geoError) ||
+    (nearMe && Boolean(nearCoords)) ||
+    (hasActiveSearch && results !== null && !loading);
 
   return (
     <div className="tab-content fk-search-tab">
@@ -466,7 +476,7 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
       <PropertyDiscoveryView
         properties={displayProperties}
         loading={showLoading}
-        error={searchError || geoError}
+        error={searchError}
         homeNodeUrl={homeNodeUrl}
         propertyNodeUrl={mapDataNodeUrl}
         active={active}
@@ -483,6 +493,11 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
         radiusKm={nearMe && nearCoords ? NEAR_ME_RADIUS_KM : null}
         onLocateMe={startNearMe}
         locateLoading={nearLoading}
+        locateLabel={
+          nearCoords
+            ? t("ui.nearbySearchingRadius", { km: NEAR_ME_RADIUS_KM })
+            : t("ui.nearbyRequestingAccess")
+        }
         onBrowseThisArea={browseThisArea}
         listTitle={
           (nearMe || hasActiveSearch) && results && results.length > 0
@@ -492,6 +507,19 @@ export function SearchTab({ dataNodeUrl, homeNodeUrl, active = true }: Props) {
         resultsMeta={
           showResultsMeta ? (
             <div className="fk-discovery-meta">
+              {geoError && (
+                <p className="fk-discovery-meta__notice fk-discovery-meta__notice--err" role="alert">
+                  {geoError}{" "}
+                  <button type="button" className="fk-discovery-meta__retry" onClick={startNearMe}>
+                    {t("ui.nearbyRetryLocation")}
+                  </button>
+                </p>
+              )}
+              {nearMe && nearCoords && !geoError && (
+                <p className="fk-discovery-meta__place" role="status">
+                  {t("ui.nearbyActiveRadius", { km: NEAR_ME_RADIUS_KM })}
+                </p>
+              )}
               {placeHint && (
                 <p className="fk-discovery-meta__place" role="status">
                   {t("ui.searchPlaceFilter", { place: placeHint })}

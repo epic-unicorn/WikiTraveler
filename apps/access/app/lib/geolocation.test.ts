@@ -11,6 +11,7 @@ describe("requestUserLocation", () => {
         query: vi.fn().mockResolvedValue({ state: "prompt" }),
       },
     });
+    vi.stubGlobal("window", { isSecureContext: true });
     getCurrentPosition.mockReset();
   });
 
@@ -33,5 +34,14 @@ describe("requestUserLocation", () => {
     const result = await requestUserLocation();
 
     expect(result).toEqual({ ok: false, reason: "unsupported" });
+  });
+
+  it("returns insecure when the page is not a secure context", async () => {
+    vi.stubGlobal("window", { isSecureContext: false });
+
+    const result = await requestUserLocation();
+
+    expect(result).toEqual({ ok: false, reason: "insecure" });
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 });

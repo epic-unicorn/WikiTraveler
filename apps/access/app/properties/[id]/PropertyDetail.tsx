@@ -555,10 +555,15 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
     <div className="fk-shell">
       <main className="page fk-main fk-property-detail">
         {loading && (
-          <div className="fk-property-skeleton" aria-busy="true">
-            <div className="fk-discovery-skeleton fk-discovery-skeleton--hero fk-property-skeleton-hero" />
-            <div className="fk-discovery-skeleton fk-discovery-skeleton--card" />
-            <div className="fk-discovery-skeleton fk-discovery-skeleton--card" />
+          <div className="fk-property-skeleton fk-property-layout" aria-busy="true">
+            <div className="fk-discovery-skeleton fk-property-skeleton-hero" />
+            <div className="fk-property-skeleton-sheet">
+              <div className="fk-discovery-skeleton fk-property-skeleton-line fk-property-skeleton-line--title" />
+              <div className="fk-discovery-skeleton fk-property-skeleton-line" />
+              <div className="fk-discovery-skeleton fk-discovery-skeleton--card" />
+              <div className="fk-discovery-skeleton fk-discovery-skeleton--card" />
+              <div className="fk-discovery-skeleton fk-discovery-skeleton--card" />
+            </div>
           </div>
         )}
         {error && <p className="status-err fk-property-error">{error}</p>}

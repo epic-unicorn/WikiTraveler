@@ -133,7 +133,7 @@ export function AccessToolbar({
 
   const titleContent =
     title === undefined ? (
-      <WikiTravelerLogo product="access" size={26} className="wt-logo--access-toolbar" />
+      <WikiTravelerLogo product="access" size={32} className="wt-logo--access-toolbar" />
     ) : typeof title === "string" ? (
       <span className="fk-toolbar-page-title">{title}</span>
     ) : (

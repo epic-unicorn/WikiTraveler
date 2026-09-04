@@ -191,7 +191,7 @@ export function NearbyTab({ searchNodeUrl, homeNodeUrl, active }: Props) {
     !loading && results !== null && results.length === 0 ? (
       <div className="fk-empty">
         <span className="fk-empty-icon">📍</span>
-        <p className="fk-empty-title">{t("ui.nearbyNothing")}</p>
+        <p className="fk-empty-title">{t("ui.nearbyNothing", { km: radiusKm })}</p>
         <p className="fk-empty-body">{t("ui.discoveryNearbyEmpty", { radius: radiusKm })}</p>
         {radiusKm < 5 && (
           <button

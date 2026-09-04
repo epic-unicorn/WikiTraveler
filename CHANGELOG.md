@@ -13,10 +13,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Access profile sync: favorites, accessibility preferences, and theme sync to the home-node account (`GET`/`PUT /api/auth/preferences`, `/api/auth/favorites`); localStorage remains a per-user cache ([ACCESS-UX.md](docs/ACCESS-UX.md))
-- Access desktop layout (≥900px): side nav, half-width map/property panels, map|list split, denser Favorites grid ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access desktop layout (≥900px): icon rail, map|list split, map pin bottom sheet in the map column, list↔map hover/selection, denser Favorites grid ([ACCESS-UX.md](docs/ACCESS-UX.md))
+
+### Changed
+
+- Access heroes use shared padding/logo sizing (tabs + toolbar); property detail loading skeleton matches mobile stack vs desktop photo|sheet split ([ACCESS-UX.md](docs/ACCESS-UX.md))
 
 ### Fixed
 
+- Access “near me” GPS: keep the map visible while requesting location, clear permission/HTTPS errors with retry, then search within 1 km ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Docker node/Access images build `@wikitraveler/audit` (release images no longer fail module-not-found)
 - Release npm OIDC job: drop `setup-node` `registry-url` / empty `_authToken` so Trusted Publishing can authenticate ([RELEASES.md](docs/RELEASES.md))
 

@@ -1385,9 +1385,17 @@ html.wt-dark .fk-map-container .leaflet-tile-pane {
   stroke-width: 1.5;
 }
 
+.wt-map-pin--selected .wt-map-pin__heart {
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--wt-primary) 70%, transparent));
+}
+
 .wt-map-pin--selected .wt-map-pin__heart-svg {
   fill: var(--wt-primary);
   stroke-width: 2;
+}
+
+.wt-map-pin--hovered .wt-map-pin__heart {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--wt-primary) 45%, transparent));
 }
 
 /* ——— Discovery layout ——— */
@@ -1472,6 +1480,32 @@ html.wt-dark .fk-map-container .leaflet-tile-pane {
   font-weight: 700;
   color: var(--wt-text);
   margin-top: 2px;
+}
+
+.fk-discovery-meta__notice {
+  line-height: 1.4;
+}
+
+.fk-discovery-meta__notice--err {
+  color: var(--wt-danger, #b42318);
+  font-weight: 600;
+}
+
+.fk-discovery-meta__retry {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--wt-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fk-discovery-meta__retry:hover {
+  color: var(--wt-primary-hover, var(--wt-primary));
 }
 
 .fk-discovery-meta__row {
@@ -1842,22 +1876,43 @@ html.wt-dark .fk-map-preview__audit-badge--yes {
   border: 1px solid var(--wt-border);
   border-radius: 12px;
   overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
 }
 
-.fk-disco-item:hover {
-  border-color: var(--wt-primary);
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+.fk-disco-item:hover,
+.fk-disco-item--hovered {
+  border-color: color-mix(in srgb, var(--wt-primary) 70%, var(--wt-border));
+  background: color-mix(in srgb, var(--wt-primary) 7%, var(--wt-bg-elevated));
+  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.08);
 }
 
 .fk-disco-item--selected {
   border-color: var(--wt-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--wt-primary) 35%, transparent);
+  background: color-mix(in srgb, var(--wt-primary) 14%, var(--wt-bg-elevated));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--wt-primary) 30%, transparent),
+    0 2px 10px rgba(15, 23, 42, 0.1);
+}
+
+.fk-disco-item--selected::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--wt-primary);
+  z-index: 1;
 }
 
 .fk-disco-item--saved {
   border-color: #e11d48;
   background: color-mix(in srgb, #e11d48 7%, var(--wt-bg-elevated));
+}
+
+.fk-disco-item--saved.fk-disco-item--selected {
+  border-color: var(--wt-primary);
+  background: color-mix(in srgb, var(--wt-primary) 12%, var(--wt-bg-elevated));
 }
 
 .fk-disco-item--saved::before {
@@ -1868,6 +1923,11 @@ html.wt-dark .fk-map-preview__audit-badge--yes {
   bottom: 0;
   width: 4px;
   background: #e11d48;
+  z-index: 1;
+}
+
+.fk-disco-item--saved.fk-disco-item--selected::before {
+  display: none;
 }
 
 /* Primary action: the whole row navigates to the property */
@@ -2022,7 +2082,7 @@ html.wt-dark .fk-map-preview__audit-badge--yes {
 }
 
 .fk-search-header {
-  padding-top: 12px;
+  padding-top: 0;
 }
 
 /* Search tab — tighter spacing around the search field only (not logo/header row) */
@@ -2388,20 +2448,41 @@ html.wt-dark .fk-map-preview__audit-badge--yes {
 }
 
 .fk-property-skeleton {
-  padding: 0 0 24px;
+  padding: 0;
+  width: 100%;
 }
 
 .fk-property-skeleton-hero {
-  height: min(42dvh, 320px);
+  height: var(--fk-property-hero-h, min(42dvh, 320px));
+  min-height: var(--fk-property-hero-min-h, 220px);
   margin: 0;
   border-radius: 0;
+}
+
+.fk-property-skeleton-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px 24px;
+}
+
+.fk-property-skeleton-line {
+  height: 14px;
+  width: 72%;
+  border-radius: 8px;
+}
+
+.fk-property-skeleton-line--title {
+  height: 28px;
+  width: 55%;
+  margin-bottom: 4px;
 }
 
 .fk-property-hero-bleed {
   position: relative;
   width: 100%;
-  height: min(42dvh, 320px);
-  min-height: 220px;
+  height: var(--fk-property-hero-h, min(42dvh, 320px));
+  min-height: var(--fk-property-hero-min-h, 220px);
   background: var(--wt-bg-secondary, var(--wt-border));
   overflow: hidden;
 }
@@ -3578,6 +3659,21 @@ html.wt-dark .leaflet-control-zoom a {
   padding: 16px 16px 24px;
 }
 
+/* Match AccessPageHero chrome on subpages (audit / add property). */
+.wt-toolbar.wt-toolbar--access {
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, #fff 8%, var(--wt-bg-header)) 0%,
+      var(--wt-bg-header) 48%,
+      color-mix(in srgb, #000 22%, var(--wt-bg-header)) 100%
+    );
+  box-shadow: none;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .fk-new-property__intro {
   margin-bottom: 12px;
 }
@@ -3591,9 +3687,11 @@ html.wt-dark .leaflet-control-zoom a {
 }
 
 .fk-access-hero {
+  --fk-access-hero-pad-x: 16px;
+  --fk-access-hero-brand-h: 42px;
   flex-shrink: 0;
   margin: 0 !important;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) 0 8px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 0 12px;
   overflow: visible;
   position: relative;
   z-index: 1200;
@@ -3617,7 +3715,8 @@ html.wt-dark .leaflet-control-zoom a {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 8px 0 16px;
+  min-height: var(--fk-access-hero-brand-h);
+  padding: 0 var(--fk-access-hero-pad-x);
   width: 100%;
   box-sizing: border-box;
   overflow: visible;
@@ -3655,7 +3754,15 @@ html.wt-dark .leaflet-control-zoom a {
 }
 
 .fk-access-hero__section {
-  padding: 8px 16px 6px;
+  padding: 10px var(--fk-access-hero-pad-x) 4px;
+}
+
+.fk-access-hero__body {
+  padding: 8px var(--fk-access-hero-pad-x) 0;
+}
+
+.fk-access-hero__identity {
+  padding: 8px var(--fk-access-hero-pad-x) 4px;
 }
 
 .fk-access-hero__section-title,
@@ -4030,10 +4137,7 @@ html.wt-dark .leaflet-control-zoom a {
   gap: 8px;
   align-items: stretch;
   margin: 0;
-  padding: 4px 16px 10px;
-}
-.fk-saved-tab .fk-access-hero__section {
-  padding: 2px 16px 0;
+  padding: 0;
 }
 .fk-saved-tab .fk-page-body {
   padding-top: 12px;
@@ -4262,7 +4366,7 @@ html.wt-dark .leaflet-control-zoom a {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 16px 20px;
+  padding: 4px 0 8px;
 }
 .fk-profile-identity__avatar {
   width: 56px;
@@ -4409,13 +4513,13 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
 
   .fk-shell:has(> .fk-tab-bar) > .fk-tab-bar {
     order: -1;
-    width: 220px;
+    width: 64px;
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     justify-content: flex-start;
     gap: 4px;
-    padding: 16px 10px;
-    padding-bottom: 16px;
+    padding: 12px 6px;
+    padding-bottom: 12px;
     border-top: none;
     border-right: 1px solid var(--wt-border);
     background: var(--wt-bg-elevated);
@@ -4423,17 +4527,19 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
 
   .fk-shell:has(> .fk-tab-bar) > .fk-tab-bar .fk-tab-btn {
     flex: 0 0 auto;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 12px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    width: 48px;
     min-height: 48px;
-    padding: 10px 14px;
+    padding: 10px 0;
     border-radius: 12px;
   }
 
   .fk-shell:has(> .fk-tab-bar) > .fk-tab-bar .fk-tab-btn--active::before {
-    top: 20%;
-    bottom: 20%;
+    top: 18%;
+    bottom: 18%;
     left: 0;
     right: auto;
     width: 3px;
@@ -4442,45 +4548,42 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
   }
 
   .fk-shell:has(> .fk-tab-bar) > .fk-tab-bar .fk-tab-label {
-    font-size: 13px;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .fk-shell:has(> .fk-tab-bar) > .fk-main {
     min-width: 0;
   }
 
-  /* Map pin preview → side panel */
-  .fk-map-preview {
-    left: auto;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: min(50%, 480px);
-    max-height: none;
-    border-radius: 16px 0 0 16px;
-    box-shadow: -8px 0 28px rgba(15, 23, 42, 0.14);
-    animation: fk-map-preview-in-side 220ms ease-out;
+  /* Map pin preview stays a bottom sheet inside the map column (not a side overlay). */
+  .fk-discovery--desktop-split .fk-map-preview {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 8px;
+    width: auto;
+    max-height: min(46%, 360px);
+    border-radius: 16px;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+    animation: fk-map-preview-in 220ms ease-out;
   }
 
-  @keyframes fk-map-preview-in-side {
-    from {
-      transform: translateX(110%);
-      opacity: 0.6;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
+  .fk-discovery--desktop-split .fk-map-preview__handle {
+    display: block;
   }
 
-  .fk-map-preview__handle {
-    display: none;
-  }
-
-  .fk-map-preview__chrome {
-    justify-content: flex-end;
-    min-height: 40px;
-    padding: 10px 12px 0;
+  .fk-discovery--desktop-split .fk-map-preview__chrome {
+    justify-content: center;
+    min-height: 28px;
+    padding: 8px 48px 0 12px;
   }
 
   /* Property detail → hero | sheet split */
@@ -4497,7 +4600,8 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
     min-height: 0;
   }
 
-  .fk-property-layout > .fk-property-hero-bleed {
+  .fk-property-layout > .fk-property-hero-bleed,
+  .fk-property-skeleton > .fk-property-skeleton-hero {
     flex: 1 1 50%;
     width: 50%;
     height: auto;
@@ -4505,7 +4609,8 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
     max-height: none;
   }
 
-  .fk-property-layout > .fk-property-sheet {
+  .fk-property-layout > .fk-property-sheet,
+  .fk-property-skeleton > .fk-property-skeleton-sheet {
     flex: 1 1 50%;
     width: 50%;
     margin-top: 0;
@@ -4518,10 +4623,23 @@ html.wt-contrast .fk-settings-card { border-width: 2px; }
     padding: 28px 28px 40px;
   }
 
-  .fk-property-detail > .fk-property-error,
-  .fk-property-detail > .fk-property-skeleton {
+  .fk-property-skeleton > .fk-property-skeleton-sheet {
+    gap: 16px;
+  }
+
+  .fk-property-skeleton .fk-discovery-skeleton--card {
+    height: 96px;
+  }
+
+  .fk-property-detail > .fk-property-error {
     flex: 1;
     width: 100%;
+  }
+
+  .fk-property-detail > .fk-property-skeleton.fk-property-layout {
+    flex: 1;
+    width: 100%;
+    height: 100%;
   }
 
   /* Discovery map | list split */
