@@ -665,10 +665,17 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
 
   content.innerHTML = "";
 
+  const hasFacts = facts.length > 0;
   const pill = document.createElement("div");
-  pill.className = "status-pill";
-  pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  pill.appendChild(document.createTextNode(wtT("ui.lensInfoFound", locale)));
+  if (hasFacts) {
+    pill.className = "status-pill";
+    pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    pill.appendChild(document.createTextNode(wtT("ui.lensInfoFound", locale)));
+  } else {
+    pill.className = "status-pill status-pill--matched";
+    pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    pill.appendChild(document.createTextNode(wtT("ui.lensPropertyMatched", locale)));
+  }
   content.appendChild(pill);
 
   const card = document.createElement("div");
@@ -700,17 +707,20 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
   const scoreBlock = createScoreBlock(facts, locale);
   if (scoreBlock) content.appendChild(scoreBlock);
 
-  if (facts.length > 0) {
+  if (hasFacts) {
     content.appendChild(createFeatureGrid(facts, locale));
   }
 
   const photosSection = createAuditPhotosSection(data.auditPhotos, data.hasAiGuess, locale);
   if (photosSection) content.appendChild(photosSection);
 
-  if (facts.length === 0) {
+  if (!hasFacts) {
     const empty = document.createElement("div");
     empty.className = "state-empty";
     empty.style.paddingTop = "8px";
+    const title = document.createElement("h2");
+    title.textContent = wtT("ui.lensNoInfoYet", locale);
+    empty.appendChild(title);
     const p = document.createElement("p");
     p.textContent = wtT("ui.lensNoFactsHint", locale);
     empty.appendChild(p);

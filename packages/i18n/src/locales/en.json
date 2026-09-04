@@ -826,6 +826,7 @@
     "lensReportIssue": "Report issue in Access",
     "lensReportHint": "Open WikiTraveler Access on your phone to flag missing or incorrect accessibility info.",
     "lensInfoFound": "Accessibility info found",
+    "lensPropertyMatched": "Property matched",
     "lensCheckingPage": "Checking this page…",
     "lensNoInfoYet": "No accessibility information yet",
     "lensRequestProperty": "Request this property",

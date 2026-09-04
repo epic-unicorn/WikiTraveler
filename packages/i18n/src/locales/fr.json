@@ -827,6 +827,7 @@
     "lensReportIssue": "Signaler dans Access",
     "lensReportHint": "Ouvrez WikiTraveler Access pour signaler des infos manquantes ou incorrectes.",
     "lensInfoFound": "Infos d'accessibilité trouvées",
+    "lensPropertyMatched": "Établissement trouvé",
     "lensCheckingPage": "Vérification de cette page…",
     "lensNoInfoYet": "Pas encore d'informations d'accessibilité",
     "lensRequestProperty": "Demander cet établissement",
