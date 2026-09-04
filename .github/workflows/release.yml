@@ -93,13 +93,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Trusted Publishing requires Node ≥22.14 and npm CLI ≥11.5.1
-          node-version: "22.14"
+          # Trusted Publishing needs npm ≥11.5.1; pin Node so npm@latest stays installable
+          node-version: "22"
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
       - name: Ensure npm CLI for OIDC trusted publishing
-        run: npm install -g npm@latest
+        run: npm install -g npm@11
 
       - run: pnpm install --frozen-lockfile
 
