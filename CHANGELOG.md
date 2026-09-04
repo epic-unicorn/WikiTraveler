@@ -18,10 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Access heroes use shared padding/logo sizing (tabs + toolbar); property detail loading skeleton matches mobile stack vs desktop photo|sheet split ([ACCESS-UX.md](docs/ACCESS-UX.md))
-- Access profile sync runs app-wide (not only Search tabs), so favorites/preferences saved on property pages write through to the home node ([ACCESS-UX.md](docs/ACCESS-UX.md))
 
 ### Fixed
 
+- Access profile sync write-through runs app-wide (property detail hearts / prefs), so a second logged-in device can see the same favorites and preferences ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Access “near me” GPS: keep the map visible while requesting location, clear permission/HTTPS errors with retry, then search within 1 km ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Docker node/Access images build `@wikitraveler/audit` (release images no longer fail module-not-found)
 - Release npm OIDC job: drop `setup-node` `registry-url` / empty `_authToken` so Trusted Publishing can authenticate ([RELEASES.md](docs/RELEASES.md))
