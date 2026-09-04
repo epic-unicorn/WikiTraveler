@@ -12,6 +12,7 @@ import {
   extractHotelNameFromTitle,
   buildHotelSearchQueries,
   pickBestPropertyMatch,
+  propertyReportUrl,
 } from "./lensLogic.js";
 
 const TIER_CLASSES = {
@@ -692,15 +693,6 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
     loc.textContent = prop.location;
     cardBody.appendChild(loc);
   }
-  const viewLink = document.createElement("a");
-  viewLink.className = "property-link";
-  viewLink.href = "#";
-  viewLink.textContent = wtT("ui.lensViewOnWikiTraveler", locale);
-  viewLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: propertyViewUrl(nodeUrl, propertyId) });
-  });
-  cardBody.appendChild(viewLink);
   card.appendChild(cardBody);
   content.appendChild(card);
 
@@ -743,7 +735,7 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
   reportBtn.className = "btn-secondary";
   reportBtn.textContent = wtT("ui.lensReportIssue", locale);
   reportBtn.addEventListener("click", () => {
-    chrome.tabs.create({ url: `${ACCESS_HUB_URL}/properties/${encodeURIComponent(propertyId)}?node=${encodeURIComponent(nodeUrl)}` });
+    chrome.tabs.create({ url: propertyReportUrl(nodeUrl, propertyId) });
   });
   content.appendChild(reportBtn);
 

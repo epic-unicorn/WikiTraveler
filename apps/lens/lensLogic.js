@@ -93,6 +93,11 @@ export function propertyViewUrl(nodeUrl, propertyId) {
   return `${ACCESS_HUB_URL}/properties/${encodeURIComponent(propertyId)}?node=${encodeURIComponent(nodeUrl)}`;
 }
 
+/** Opens Access property detail with the report sheet ready. */
+export function propertyReportUrl(nodeUrl, propertyId) {
+  return `${propertyViewUrl(nodeUrl, propertyId)}&report=1`;
+}
+
 export function isAllowedNodeUrl(raw) {
   try {
     const u = new URL(raw);

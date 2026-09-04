@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Lens popup: single **View details** CTA; **Report issue** opens Access with the report sheet (`?report=1`); removed duplicate “View on WikiTraveler Access” link
 - Lens popup/options UX refresh: Inter + brand blues/greens, found/empty/loading states, accessibility score + feature highlights, static toolbar icons ([LENS.md](docs/LENS.md))
 - Lens default home node is `https://node-eu.wikitraveler.org` (existing synced URLs unchanged)
 - Lens regenerated from `@wikitraveler/i18n` (`build:browser`); registration-closed nodes still open `/register` with clearer copy

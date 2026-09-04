@@ -17,6 +17,7 @@ import {
   hotelNamesLooselyEqual,
   pickBestPropertyMatch,
   buildHotelSearchQueries,
+  propertyReportUrl,
 } from "./lensLogic.js";
 
 describe("Lens defaults", () => {
@@ -122,6 +123,12 @@ describe("propertyViewUrl", () => {
 
   it("encodes special characters in the property id", () => {
     expect(propertyViewUrl("https://node.example", "a/b")).toContain("a%2Fb");
+  });
+
+  it("builds a report deep link that opens the report sheet", () => {
+    expect(propertyReportUrl("https://node.example", "prop-1")).toBe(
+      "https://access.wikitraveler.org/properties/prop-1?node=https%3A%2F%2Fnode.example&report=1"
+    );
   });
 });
 
