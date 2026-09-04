@@ -10,9 +10,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.5.1] - 2026-09-04
+
+### Operator notes
+
+- **Patch release** — no new Prisma migrations. Redeploy optional; gossip protocol unchanged (`2`).
+- npm `@wikitraveler/sdk@0.5.0` was unpublished (README pointed at the old UMD URL). Install **`@wikitraveler/sdk@0.5.1`** (or later). Trusted Publishing uses `npm stage publish` + 2FA approve; release OIDC job pins **npm@11** on Node 22.
+- Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.5.1`, `wikitraveler-access:0.5.1`.
+- GitHub Release attaches `manifest.json`, Lens zip (`0.5.1`), and SDK dist. See [RELEASES.md](docs/RELEASES.md).
+
 ### Fixed
 
 - Gossip lab bootstrap keeps retrying until **all** `BOOTSTRAP_PEERS` are linked (mesh-3 hub B no longer stops after discovering A only)
+- Release OIDC npm job pins `npm@11` (npm 12 requires Node ≥22.22; job runners stay on Node 22 LTS)
+- SDK README UMD script URL points at the current release tag (was still `v0.4.0` on the first npm bootstrap)
 
 ---
 
