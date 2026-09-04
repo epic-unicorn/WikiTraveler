@@ -12,6 +12,37 @@
 import { NODE_URL } from "@/lib/nodeInfo";
 import { prisma } from "@/lib/prisma";
 import { isSelfPeer, linkPeerUrl } from "@/lib/linkPeer";
+import { canonicalizeLabPeerUrl } from "@/lib/gossipLabUrls";
+
+function bootstrapSeedUrls(): string[] {
+  return (process.env.BOOTSTRAP_PEERS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((u) => u.replace(/\/$/, "") !== NODE_URL.replace(/\/$/, ""))
+    .filter((u, i, a) => a.indexOf(u) === i);
+}
+
+function seedUrlKeys(seedUrl: string): string[] {
+  const normalized = seedUrl.replace(/\/$/, "");
+  const canonical = canonicalizeLabPeerUrl(normalized);
+  return canonical !== normalized ? [normalized, canonical] : [normalized];
+}
+
+/** How many configured BOOTSTRAP_PEERS are already active in NodePeer. */
+export async function countLinkedBootstrapSeeds(seeds = bootstrapSeedUrls()): Promise<number> {
+  if (seeds.length === 0) return 0;
+  const peers = await prisma.nodePeer.findMany({
+    where: { isActive: true },
+    select: { url: true },
+  });
+  const peerUrls = new Set(peers.map((p) => p.url.replace(/\/$/, "")));
+  let linked = 0;
+  for (const seed of seeds) {
+    if (seedUrlKeys(seed).some((k) => peerUrls.has(k))) linked += 1;
+  }
+  return linked;
+}
 
 /**
  * Bootstrap peer discovery from BOOTSTRAP_PEERS env var.
@@ -34,16 +65,11 @@ export async function registerWithRegistry(): Promise<void> {
   if (!adminExists) {
     console.warn(
       "[bootstrap] ⚠️  No admin account found. " +
-      "Open the node web UI to complete first-time setup and create an admin account."
+        "Open the node web UI to complete first-time setup and create an admin account."
     );
   }
 
-  const seeds = (process.env.BOOTSTRAP_PEERS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .filter((u) => u.replace(/\/$/, "") !== NODE_URL.replace(/\/$/, ""))
-    .filter((u, i, a) => a.indexOf(u) === i);
+  const seeds = bootstrapSeedUrls();
 
   if (seeds.length === 0) {
     console.info("[bootstrap] No BOOTSTRAP_PEERS configured — running as isolated node.");
@@ -60,31 +86,42 @@ export async function registerWithRegistry(): Promise<void> {
   }
 }
 
-/** GOSSIP_DEV: retry bootstrap until peers appear (docker gossip lab cold start). */
+/** GOSSIP_DEV: retry bootstrap until all seed peers appear (docker gossip lab cold start). */
 export async function registerWithRegistryDevRetry(): Promise<void> {
+  const seeds = bootstrapSeedUrls();
   const maxAttempts = process.env.GOSSIP_DEV === "true" ? 24 : 1;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     await registerWithRegistry();
-    const peerCount = await prisma.nodePeer.count({ where: { isActive: true } });
-    if (peerCount > 0 || attempt === maxAttempts) break;
-    console.info(`[bootstrap] No peers yet — retry ${attempt}/${maxAttempts} in 5s…`);
+    const linked = await countLinkedBootstrapSeeds(seeds);
+    if (seeds.length === 0 || linked >= seeds.length || attempt === maxAttempts) break;
+    console.info(
+      `[bootstrap] Linked ${linked}/${seeds.length} seeds — retry ${attempt}/${maxAttempts} in 5s…`
+    );
     await new Promise((r) => setTimeout(r, 5_000));
   }
 }
 
-/** Keep trying bootstrap in gossip lab until the other node finishes starting. */
+/**
+ * Keep trying bootstrap in gossip lab until every BOOTSTRAP_PEERS seed is linked.
+ * Previously stopped after the first peer — mesh-3 hubs (B→A,C) then never retried C.
+ */
 export function startGossipDevBootstrapWatcher(): void {
   if (process.env.GOSSIP_DEV !== "true") return;
 
-  const intervalMs = 30_000;
+  const seeds = bootstrapSeedUrls();
+  if (seeds.length === 0) return;
+
+  const intervalMs = 15_000;
   const timer = setInterval(async () => {
     try {
-      const peerCount = await prisma.nodePeer.count({ where: { isActive: true } });
-      if (peerCount > 0) {
+      const linked = await countLinkedBootstrapSeeds(seeds);
+      if (linked >= seeds.length) {
         clearInterval(timer);
         return;
       }
-      console.info("[bootstrap] Gossip lab: still no peers — retrying discovery…");
+      console.info(
+        `[bootstrap] Gossip lab: linked ${linked}/${seeds.length} seeds — retrying discovery…`
+      );
       await registerWithRegistry();
     } catch (err) {
       console.warn("[bootstrap] Gossip lab retry failed:", err);

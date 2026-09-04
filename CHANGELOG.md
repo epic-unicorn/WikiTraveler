@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Gossip lab bootstrap keeps retrying until **all** `BOOTSTRAP_PEERS` are linked (mesh-3 hub B no longer stops after discovering A only)
+
 ---
 
 ## [0.5.0] - 2026-09-04
