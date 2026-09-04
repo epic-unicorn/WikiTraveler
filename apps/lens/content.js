@@ -511,7 +511,32 @@ function extractKeyFromCard(card) {
 // ---------------------------------------------------------------------------
 
 let _hoverTimer = null;
-const _cardCache = new Map(); // key -> { facts, name } | null
+const _cardCache = new Map(); // key -> { facts, name, expiresAt } | { miss: true, expiresAt }
+const CARD_TTL_MS = 5 * 60 * 1000;
+const CARD_MISS_TTL_MS = 60 * 1000;
+
+function readCardCache(key) {
+  const entry = _cardCache.get(key);
+  if (!entry) return { hit: false };
+  if (Date.now() > entry.expiresAt) {
+    _cardCache.delete(key);
+    return { hit: false };
+  }
+  if (entry.miss) return { hit: true, value: null };
+  return { hit: true, value: { facts: entry.facts, name: entry.name } };
+}
+
+function writeCardCache(key, value) {
+  if (value == null) {
+    _cardCache.set(key, { miss: true, expiresAt: Date.now() + CARD_MISS_TTL_MS });
+    return;
+  }
+  _cardCache.set(key, {
+    facts: value.facts,
+    name: value.name,
+    expiresAt: Date.now() + CARD_TTL_MS,
+  });
+}
 
 async function handleCardEnter(card, fromKeyboard = false) {
   const nodeUrl = await getNodeUrl();
@@ -522,9 +547,9 @@ async function handleCardEnter(card, fromKeyboard = false) {
   clearTimeout(_tooltipHideTimer);
 
   _hoverTimer = setTimeout(async () => {
-    if (_cardCache.has(key)) {
-      const cached = _cardCache.get(key);
-      if (cached) showTooltip(card, cached.facts, cached.name, fromKeyboard);
+    const cached = readCardCache(key);
+    if (cached.hit) {
+      if (cached.value) showTooltip(card, cached.value.facts, cached.value.name, fromKeyboard);
       return;
     }
 
@@ -537,7 +562,7 @@ async function handleCardEnter(card, fromKeyboard = false) {
       const name = key.slice(5);
       const { match } = await searchForProperty(name, nodeUrl, null, headers);
       if (!match) {
-        _cardCache.set(key, null);
+        writeCardCache(key, null);
         return;
       }
       propertyId = match.id;
@@ -569,26 +594,26 @@ async function handleCardEnter(card, fromKeyboard = false) {
             if (res2.ok) {
               const data2 = await res2.json();
               const entry2 = { facts: data2.facts ?? [], name: match.name };
-              _cardCache.set(key, entry2);
+              writeCardCache(key, entry2);
               if (card.matches(":hover")) showTooltip(card, entry2.facts, entry2.name);
               return;
             }
           }
         }
-        _cardCache.set(key, null);
+        writeCardCache(key, null);
         return;
       }
 
       if (!res.ok) {
-        _cardCache.set(key, null);
+        writeCardCache(key, null);
         return;
       }
       const data = await res.json();
       const entry = { facts: data.facts ?? [], name: propertyName };
-      _cardCache.set(key, entry);
+      writeCardCache(key, entry);
       if (card.matches(":hover") || fromKeyboard) showTooltip(card, entry.facts, entry.name, fromKeyboard);
     } catch {
-      _cardCache.set(key, null);
+      writeCardCache(key, null);
     }
   }, 350);
 }

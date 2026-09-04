@@ -47,7 +47,7 @@ Prefer updating [`packages/i18n`](../packages/i18n) and regenerating [`apps/lens
 
 ## Tests
 
-Pure helpers live in [`apps/lens/lensLogic.js`](../apps/lens/lensLogic.js) (score, defaults, URL builders). Run:
+Pure helpers live in [`apps/lens/lensLogic.js`](../apps/lens/lensLogic.js) (score, defaults, URL builders). Client cache: [`apps/lens/lensCache.js`](../apps/lens/lensCache.js). Run:
 
 ```bash
 pnpm --filter @wikitraveler/lens test

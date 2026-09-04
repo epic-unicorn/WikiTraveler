@@ -14,6 +14,14 @@ import {
   pickBestPropertyMatch,
   propertyReportUrl,
 } from "./lensLogic.js";
+import {
+  cachedFetch,
+  invalidateCache,
+  accessibilityCacheKey,
+  searchCacheKey,
+  healthCacheKey,
+  CACHE_TTL,
+} from "./lensCache.js";
 
 const TIER_CLASSES = {
   CONFIRMED: "tier--confirmed",
@@ -30,7 +38,12 @@ let menuContext = { nodeUrl: DEFAULT_NODE_URL, hasToken: false };
 async function updateNodeStatusBar(nodeUrl, locale) {
   const bar = document.getElementById("node-status-bar");
   setNodeStatusChecking(bar, locale);
-  const result = await checkNodeHealth(nodeUrl, locale);
+  const key = healthCacheKey(nodeUrl);
+  const result = await cachedFetch(
+    key,
+    () => checkNodeHealth(nodeUrl, locale),
+    CACHE_TTL.health
+  );
   applyNodeStatusEl(bar, result);
   return result;
 }
@@ -61,22 +74,32 @@ async function searchForProperty(name, nodeUrl, coords, headers = {}) {
 
   for (const q of queries) {
     try {
-      const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
-        headers,
-        timeoutMs: 6000,
-      });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const results = data.properties ?? [];
-      if (results.length === 0) continue;
+      const key = searchCacheKey(nodeUrl, q);
+      const results = await cachedFetch(
+        key,
+        async () => {
+          const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
+            headers,
+            timeoutMs: 6000,
+          });
+          if (!res.ok) {
+            const err = new Error("search failed");
+            err.status = res.status;
+            throw err;
+          }
+          const data = await res.json();
+          return data.properties ?? [];
+        },
+        CACHE_TTL.search
+      );
+      if (!results.length) continue;
 
       const picked = pickBestPropertyMatch(name, results);
       if (picked) return picked;
 
       if (!bestCandidates) bestCandidates = results;
-      // Keep scanning shorter/normalized queries — a later query may uniquely match.
     } catch {
-      // network error — try next query
+      // network / HTTP error — try next query
     }
   }
 
@@ -412,23 +435,25 @@ function initSearchSection(nodeUrl, authHeaders, locale, onSelect) {
 
     searchTimer = setTimeout(async () => {
       try {
-        const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
-          headers: authHeaders,
-          timeoutMs: 6000,
-        });
+        const key = searchCacheKey(nodeUrl, q);
+        const properties = await cachedFetch(
+          key,
+          async () => {
+            const res = await nodeFetch(`${nodeUrl}/api/properties?q=${encodeURIComponent(q)}`, {
+              headers: authHeaders,
+              timeoutMs: 6000,
+            });
+            if (!res.ok) {
+              const err = new Error("search failed");
+              err.status = res.status;
+              throw err;
+            }
+            const data = await res.json();
+            return data.properties ?? [];
+          },
+          CACHE_TTL.search
+        );
         if (seq !== searchSeq) return;
-        if (!res.ok) {
-          setSearching(false);
-          results.innerHTML = "";
-          const err = document.createElement("p");
-          err.className = "search-empty";
-          err.textContent = wtT("ui.searchNoResults", locale);
-          results.appendChild(err);
-          return;
-        }
-        const data = await res.json();
-        if (seq !== searchSeq) return;
-        const properties = data.properties ?? [];
 
         setSearching(false);
         results.innerHTML = "";
@@ -629,18 +654,39 @@ function showLoading(content, locale, message) {
 }
 
 async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHeaders, locale, tab) {
-  const res = await nodeFetch(
-    `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
-    { headers: authHeaders, timeoutMs: 6000 }
-  );
+  let status;
+  let data = null;
+  try {
+    const key = accessibilityCacheKey(nodeUrl, resolvedId);
+    data = await cachedFetch(
+      key,
+      async () => {
+        const res = await nodeFetch(
+          `${nodeUrl}/api/properties/${encodeURIComponent(resolvedId)}/accessibility`,
+          { headers: authHeaders, timeoutMs: 6000 }
+        );
+        if (!res.ok) {
+          const err = new Error("accessibility failed");
+          err.status = res.status;
+          throw err;
+        }
+        return res.json();
+      },
+      CACHE_TTL.accessibility
+    );
+    status = 200;
+  } catch (e) {
+    status = e?.status ?? 0;
+  }
 
-  if (res.status === 401 || res.status === 403) {
+  if (status === 401 || status === 403) {
     await new Promise((resolve) => chrome.storage.sync.remove(["wtToken"], resolve));
+    invalidateCache();
     showLoginForm(content, locale, nodeUrl);
     return;
   }
 
-  if (res.status === 404) {
+  if (status === 404) {
     if (tab) {
       const name = extractHotelNameFromTab(tab);
       if (name) {
@@ -654,12 +700,11 @@ async function fetchAndRender(resolvedId, displayName, content, nodeUrl, authHea
     return;
   }
 
-  if (!res.ok) {
+  if (status !== 200 || !data) {
     renderNotFound(content, nodeUrl, authHeaders, locale, displayName, resolvedId);
     return;
   }
 
-  const data = await res.json();
   const facts = data.facts ?? [];
   const prop = data.property;
   const propertyId = prop?.id ?? resolvedId;
@@ -1097,8 +1142,9 @@ document.getElementById("wt-menu-btn")?.addEventListener("click", openMenu);
 document.getElementById("wt-menu-close")?.addEventListener("click", closeMenu);
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && changes[WtI18n.LOCALE_STORAGE_KEY]) {
-    init();
+  if (area === "sync") {
+    if (changes.nodeUrl || changes.wtToken) invalidateCache();
+    if (changes[WtI18n.LOCALE_STORAGE_KEY]) init();
   }
 });
 

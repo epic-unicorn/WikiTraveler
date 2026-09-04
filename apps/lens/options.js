@@ -1,6 +1,7 @@
 // options.js
 
 import { DEFAULT_NODE_URL } from "./lensLogic.js";
+import { invalidateCache } from "./lensCache.js";
 
 const input = document.getElementById("nodeUrl");
 const localeSelect = document.getElementById("locale");
@@ -155,6 +156,7 @@ saveBtn.addEventListener("click", async () => {
   }
 
   chrome.storage.sync.set({ nodeUrl: url }, async () => {
+    invalidateCache();
     const result = await refreshNodeStatus(url);
     await refreshRegistrationAvailability(url);
     if (result.state === "online") {
