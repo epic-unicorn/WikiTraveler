@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WikiTraveler Lens",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Community-verified accessibility data on booking websites — popup panel and listing-page tooltips.",
   "permissions": [
     "storage",

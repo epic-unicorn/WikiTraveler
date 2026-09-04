@@ -26,7 +26,7 @@ const data = await wt.getAccessibility("osm:123");
 ### UMD / script tag
 
 ```html
-<script src="https://github.com/ingmarstruijs/WikiTraveler/releases/download/v0.5.0/wikitraveler.umd.js"></script>
+<script src="https://github.com/ingmarstruijs/WikiTraveler/releases/download/v0.5.1/wikitraveler.umd.js"></script>
 <script>
   const wt = new WikiTraveler({ nodeUrl: "https://node.example.org" });
 </script>

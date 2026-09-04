@@ -1,11 +1,11 @@
 {
-  "latest": "0.5.0",
-  "minRecommended": "0.5.0",
+  "latest": "0.5.1",
+  "minRecommended": "0.5.1",
   "releasedAt": "2026-09-04",
-  "node": "0.5.0",
-  "access": "0.5.0",
-  "lens": "0.5.0",
-  "sdk": "0.5.0",
+  "node": "0.5.1",
+  "access": "0.5.1",
+  "lens": "0.5.1",
+  "sdk": "0.5.1",
   "gossipProtocol": 2,
   "exportSchema": 2,
   "minSupportedNode": "0.2.0"
