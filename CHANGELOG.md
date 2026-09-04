@@ -33,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Gossip lab `postAudit`: warm accessibility GET + exponential backoff so Turbopack HTML 404s do not flake Tier C hub-journey
 - Access Vercel deploy: build `@wikitraveler/audit` in `vercel-build:access` so audit wizard imports resolve
 - Access favorites and accessibility preferences are stored per signed-in account (no longer shared after switching users)
 - Access login crash (`THEME_CLASSES is not defined`) when resetting theme on the sign-in screen
