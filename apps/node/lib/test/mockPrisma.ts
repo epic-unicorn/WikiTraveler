@@ -15,6 +15,7 @@ const MODELS = [
   "ingestJobTile",
   "communitySignal",
   "user",
+  "favorite",
   "nodePeer",
   "gossipSnapshot",
 ] as const;

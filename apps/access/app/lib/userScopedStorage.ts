@@ -13,13 +13,6 @@ function isEnvelope<T>(value: unknown): value is Envelope<T> {
   );
 }
 
-function currentUser(): string | null {
-  if (!hasStorage()) return null;
-  const raw = localStorage.getItem("wt_username");
-  const user = raw?.trim().toLowerCase();
-  return user || null;
-}
-
 function hasStorage(): boolean {
   try {
     return typeof localStorage !== "undefined";
@@ -29,20 +22,52 @@ function hasStorage(): boolean {
 }
 
 /**
- * Read a value scoped to the signed-in username.
- * Legacy unscoped JSON is migrated onto the current user as an envelope.
+ * Cache identity: prefer `username@homeNodeUrl` when the node URL is known,
+ * falling back to bare username (legacy envelopes are migrated on read/write).
+ */
+export function currentStorageUser(): string | null {
+  if (!hasStorage()) return null;
+  const raw = localStorage.getItem("wt_username");
+  const user = raw?.trim().toLowerCase();
+  if (!user) return null;
+  const node = (localStorage.getItem("wt_node_url") ?? "").trim().replace(/\/$/, "").toLowerCase();
+  if (!node) return user;
+  // Already stored as user@node
+  if (user.includes("@")) return user;
+  return `${user}@${node}`;
+}
+
+function legacyBareUser(scoped: string): string | null {
+  const at = scoped.indexOf("@");
+  return at > 0 ? scoped.slice(0, at) : null;
+}
+
+/**
+ * Read a value scoped to the signed-in username (+ node).
+ * Legacy unscoped JSON / bare-username keys migrate onto the current identity.
  * With no signed-in user the result is `fallback` (never another account's data).
  */
 export function readUserScoped<T>(key: string, fallback: T, isLegacy?: (value: unknown) => value is T): T {
   if (!hasStorage()) return fallback;
-  const user = currentUser();
+  const user = currentStorageUser();
   if (!user) return fallback;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as unknown;
     if (isEnvelope<T>(parsed)) {
-      return user in parsed.byUser ? parsed.byUser[user]! : fallback;
+      if (user in parsed.byUser) return parsed.byUser[user]!;
+      const bare = legacyBareUser(user);
+      if (bare && bare in parsed.byUser) {
+        const migratedValue = parsed.byUser[bare]!;
+        const next: Envelope<T> = {
+          byUser: { ...parsed.byUser, [user]: migratedValue },
+        };
+        delete next.byUser[bare];
+        localStorage.setItem(key, JSON.stringify(next));
+        return migratedValue;
+      }
+      return fallback;
     }
     const legacyOk = isLegacy ? isLegacy(parsed) : parsed !== undefined;
     if (!legacyOk) return fallback;
@@ -56,7 +81,7 @@ export function readUserScoped<T>(key: string, fallback: T, isLegacy?: (value: u
 
 export function writeUserScoped<T>(key: string, value: T): void {
   if (!hasStorage()) return;
-  const user = currentUser();
+  const user = currentStorageUser();
   if (!user) return;
   let byUser: Record<string, T> = {};
   try {
@@ -68,6 +93,8 @@ export function writeUserScoped<T>(key: string, value: T): void {
   } catch {
     byUser = {};
   }
+  const bare = legacyBareUser(user);
+  if (bare && bare in byUser) delete byUser[bare];
   byUser[user] = value;
   localStorage.setItem(key, JSON.stringify({ byUser } satisfies Envelope<T>));
 }

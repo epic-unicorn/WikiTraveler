@@ -1,4 +1,5 @@
 import { AUTH_CHANGED_EVENT } from "./authStorage";
+import { emitPreferencesDirty } from "./profileSyncEvents";
 import { isStringArray, readUserScoped, writeUserScoped } from "./userScopedStorage";
 
 /** Persistent accessibility search preferences (client + sync hook for Profile). */
@@ -20,17 +21,25 @@ const STORAGE_KEY = "wt_a11y_preferences";
 const PREFS_EVENT = "wt-a11y-preferences";
 
 export function readA11yPreferences(): A11yPreferenceKey[] {
-  if (typeof window === "undefined") return [];
+  if (typeof localStorage === "undefined") return [];
   const parsed = readUserScoped<string[]>(STORAGE_KEY, [], isStringArray);
   return parsed.filter((k): k is A11yPreferenceKey =>
     (A11Y_PREFERENCE_OPTIONS as readonly string[]).includes(k)
   );
 }
 
-export function writeA11yPreferences(keys: A11yPreferenceKey[]): void {
-  if (typeof window === "undefined") return;
+export function writeA11yPreferences(
+  keys: A11yPreferenceKey[],
+  opts?: { skipSync?: boolean }
+): void {
+  if (typeof localStorage === "undefined") return;
   writeUserScoped(STORAGE_KEY, keys);
-  window.dispatchEvent(new CustomEvent(PREFS_EVENT));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(PREFS_EVENT));
+  }
+  if (!opts?.skipSync) {
+    emitPreferencesDirty();
+  }
 }
 
 export function subscribeA11yPreferences(onChange: () => void): () => void {

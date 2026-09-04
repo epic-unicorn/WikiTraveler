@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { AUTH_CHANGED_EVENT } from "./authStorage";
 import { inferSavedCategory, type SavedPlaceCategory } from "./savedCategory";
+import { emitFavoritesDirty } from "./profileSyncEvents";
 import { readUserScoped, writeUserScoped } from "./userScopedStorage";
 
 export type { SavedPlaceCategory };
@@ -39,13 +38,16 @@ function isSavedPlaceList(value: unknown): value is SavedPlace[] {
 }
 
 export function readSavedPlaces(): SavedPlace[] {
-  if (typeof window === "undefined") return [];
+  if (typeof localStorage === "undefined") return [];
   return readUserScoped<SavedPlace[]>(KEY, [], isSavedPlaceList).map(normalizePlace);
 }
 
-export function writeSavedPlaces(places: SavedPlace[]) {
+export function writeSavedPlaces(places: SavedPlace[], opts?: { skipSync?: boolean }) {
   writeUserScoped(KEY, places.slice(0, 100));
   emitSavedChange();
+  if (!opts?.skipSync) {
+    emitFavoritesDirty();
+  }
 }
 
 export function readSavedPlaceIds(): Set<string> {
@@ -84,24 +86,4 @@ export function patchSavedPlace(id: string, patch: Partial<Omit<SavedPlace, "id"
   if (idx < 0) return;
   list[idx] = { ...list[idx], ...patch };
   writeSavedPlaces(list);
-}
-
-/** Reactive set of saved property IDs that updates on save/remove (same tab + cross tab). */
-export function useSavedPlaceIds(): Set<string> {
-  const [ids, setIds] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    const sync = () => setIds(readSavedPlaceIds());
-    sync();
-    window.addEventListener(SAVED_PLACES_EVENT, sync);
-    window.addEventListener(AUTH_CHANGED_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(SAVED_PLACES_EVENT, sync);
-      window.removeEventListener(AUTH_CHANGED_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-
-  return ids;
 }

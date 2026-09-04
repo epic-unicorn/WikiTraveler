@@ -564,7 +564,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
         {error && <p className="status-err fk-property-error">{error}</p>}
 
         {data && (
-          <>
+          <div className="fk-property-layout">
             <div className={`fk-property-hero-bleed${galleryPhotos.length > 0 ? "" : " fk-property-hero-bleed--empty"}`}>
               <HeroCarousel
                 photos={galleryPhotos}
@@ -959,7 +959,7 @@ export function PropertyDetail({ propertyId, initialNodeUrl }: Props) {
                 </section>
               )}
             </div>
-          </>
+          </div>
         )}
       </main>
       <PhotoLightbox

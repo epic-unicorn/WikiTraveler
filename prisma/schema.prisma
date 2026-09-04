@@ -344,11 +344,38 @@ enum Role {
 // User accounts — one account per node, identity is username@homeNodeUrl
 // ---------------------------------------------------------------------------
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
+  id                     String     @id @default(cuid())
+  username               String     @unique
+  passwordHash           String
+  role                   Role       @default(USER)
+  createdAt              DateTime   @default(now())
+  /// Access a11y search preference field names (string[]).
+  a11yPreferences        Json       @default("[]")
+  /// Access theme: light | dark | contrast | calm
+  theme                  String?
+  preferencesUpdatedAt   DateTime   @default(now())
+  favoritesUpdatedAt     DateTime   @default(now())
+  favorites              Favorite[]
+}
+
+/// Traveler favorites (Access Saved) — stored on the home node; localStorage is cache only.
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String
+  nodeUrl    String
+  name       String
+  location   String   @default("")
+  savedAt    DateTime @default(now())
+  imageUrl   String?
+  category   String?
+  facts      Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, propertyId, nodeUrl])
+  @@index([userId, savedAt])
 }
 
 // ---------------------------------------------------------------------------

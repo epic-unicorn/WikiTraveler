@@ -5,6 +5,7 @@ import {
   type ThemeMode,
 } from "@wikitraveler/ui";
 import { readAuthToken } from "./authStorage";
+import { emitPreferencesDirty } from "./profileSyncEvents";
 import { readUserScoped, writeUserScoped } from "./userScopedStorage";
 
 const SCOPED_KEY = "wt_access_theme";
@@ -35,12 +36,15 @@ export function readAccessThemePreference(): ThemeMode {
   return DEFAULT_ACCESS_THEME;
 }
 
-export function writeAccessThemePreference(mode: ThemeMode): void {
+export function writeAccessThemePreference(mode: ThemeMode, opts?: { skipSync?: boolean }): void {
   if (readAuthToken()) {
     writeUserScoped(SCOPED_KEY, mode);
   }
   if (typeof localStorage !== "undefined") {
     localStorage.setItem(THEME_STORAGE_KEY, mode);
+  }
+  if (!opts?.skipSync && readAuthToken()) {
+    emitPreferencesDirty();
   }
 }
 
