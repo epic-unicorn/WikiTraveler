@@ -80,10 +80,10 @@ async function getNodeUrl() {
   const result = await new Promise((resolve) => {
     chrome.runtime.sendMessage(
       { type: "RESOLVE_NODE", lat: coords?.lat ?? null, lon: coords?.lon ?? null },
-      (res) => resolve(res ?? { nodeUrl: "http://localhost:3000", regionMissing: false })
+      (res) => resolve(res ?? { nodeUrl: "https://node-eu.wikitraveler.org", regionMissing: false })
     );
   });
-  _nodeUrl = result.nodeUrl ?? "http://localhost:3000";
+  _nodeUrl = result.nodeUrl ?? "https://node-eu.wikitraveler.org";
   _regionMissing = result.regionMissing === true && coords != null;
   return _nodeUrl;
 }

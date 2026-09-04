@@ -165,3 +165,25 @@ export async function getContributorStats(reporterId: string) {
   ]);
   return { submitted, resolved, open };
 }
+
+/** Hard-delete a single community signal (admin cleanup). */
+export async function deleteSignalById(id: string): Promise<boolean> {
+  const existing = await prisma.communitySignal.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) return false;
+  await prisma.communitySignal.delete({ where: { id } });
+  return true;
+}
+
+/** Permanently remove resolved and dismissed signals from the queue. */
+export async function clearClosedSignals(): Promise<number> {
+  const result = await prisma.communitySignal.deleteMany({
+    where: { status: { in: ["RESOLVED", "DISMISSED"] } },
+  });
+  return result.count;
+}
+
+export async function countClosedSignals(): Promise<number> {
+  return prisma.communitySignal.count({
+    where: { status: { in: ["RESOLVED", "DISMISSED"] } },
+  });
+}

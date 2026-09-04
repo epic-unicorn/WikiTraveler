@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <title>WikiTraveler Lens — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
       background: #f8fafc;
       color: #0f172a;
       font-size: 14px;
@@ -16,7 +19,7 @@
 
     /* ——— Header (matches popup.html) ——— */
     header {
-      background: #1e3a8a;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
       color: #fff;
       padding: 13px 20px;
       display: flex;
@@ -228,7 +231,7 @@
       <!-- Node connection -->
       <p class="section-label">Node connection</p>
       <label for="nodeUrl">Node URL</label>
-      <input id="nodeUrl" type="url" placeholder="https://node.example.com" autocomplete="url" />
+      <input id="nodeUrl" type="url" placeholder="https://node-eu.wikitraveler.org" autocomplete="url" />
       <div id="node-status" class="node-status node-status--checking" role="status">
         <span class="node-status-dot" aria-hidden="true"></span>
         <span>Checking connection…</span>
@@ -256,6 +259,7 @@
         <input id="username" type="text" autocomplete="username" placeholder="your username" />
         <label for="password" style="margin-top:16px">Password</label>
         <input id="password" type="password" autocomplete="current-password" placeholder="password" />
+        <p id="registration-closed-note" class="hint" style="display:none;margin-top:10px;color:#854d0e"></p>
       </div>
 
       <div class="actions">

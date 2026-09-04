@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Lens first-run onboarding wizard and menu overlay (deep-links to Access hub)
+- Node admin: permanently delete a community signal; bulk-clear resolved/dismissed (`DELETE /api/admin/signals/[id]`, `POST /api/admin/signals/cleanup`)
 - Access UX redesign: Search / Saved / Profile nav, place-aware search, map “Search this area” + client cache, claim property, booking deep links, onboarding + a11y preferences, in-app report notifications ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Property claim API: `POST`/`DELETE /api/properties/[id]/claim` (AUDITOR/ADMIN); `claimedByUserId` / `claimedAt` on Property + Access accessibility GET (`isClaimedByMe`) ([ACCESS-UX.md](docs/ACCESS-UX.md))
 - Access audit wizard steps: Entrance → Mobility → Room → Bathroom → Communication → Review with Yes/Partial/No/N/A toggles; fields `automatic_door`, `path_to_entrance`, `corridor_min_width_cm`, `elevator_width_cm`, `visual_alarms`, `step_free_room`, `clear_space_beside_bed` ([ACCESS-UX.md](docs/ACCESS-UX.md))
@@ -22,10 +24,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Lens popup/options UX refresh: Inter + brand blues/greens, found/empty/loading states, accessibility score + feature highlights, static toolbar icons ([LENS.md](docs/LENS.md))
+- Lens default home node is `https://node-eu.wikitraveler.org` (existing synced URLs unchanged)
+- Lens regenerated from `@wikitraveler/i18n` (`build:browser`); registration-closed nodes still open `/register` with clearer copy
 - Node admin property audit: desktop layout polish (field rows, photo strip, danger zone, wider property page)
 
 ### Fixed
 
+- Access Vercel deploy: build `@wikitraveler/audit` in `vercel-build:access` so audit wizard imports resolve
 - Access favorites and accessibility preferences are stored per signed-in account (no longer shared after switching users)
 - Access login crash (`THEME_CLASSES is not defined`) when resetting theme on the sign-in screen
 - Access map GPS locate asks for permission, then shows a 1 km radius around the traveler
