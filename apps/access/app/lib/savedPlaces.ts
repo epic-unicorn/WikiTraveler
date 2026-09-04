@@ -85,5 +85,6 @@ export function patchSavedPlace(id: string, patch: Partial<Omit<SavedPlace, "id"
   const idx = list.findIndex((p) => p.id === id);
   if (idx < 0) return;
   list[idx] = { ...list[idx], ...patch };
-  writeSavedPlaces(list);
+  // Hydration is cache-only; do not write-through (avoids stamp races / PUT spam).
+  writeSavedPlaces(list, { skipSync: true });
 }

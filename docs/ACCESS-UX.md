@@ -25,9 +25,9 @@ Product lock for the Access PWA redesign (shipped on `main`). Installable web ma
 - **Property:** full-screen route with back; View is primary, Audit secondary
 - **Audit:** wizard chrome (draft / cancel / next) only
 
-**Saved / Favorites:** synced to the signed-in home-node account (localStorage is a per-user cache). Traveler reports are not shown here. Search and sort apply on this list.
+**Saved / Favorites:** synced to the signed-in home-node account (localStorage is a per-user cache). Write-through runs app-wide (including property detail hearts), so a second device sees the same list after login. Traveler reports are not shown here. Search and sort apply on this list.
 
-**Profile preferences:** accessibility chips and theme sync to the home node with the same local cache pattern.
+**Profile preferences:** accessibility chips and theme sync to the home node with the same app-wide cache pattern.
 
 **Notifications:** bell in the Access hero opens a short popup with a link to updates (resolved/dismissed reports).
 

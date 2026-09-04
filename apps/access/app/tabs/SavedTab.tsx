@@ -10,6 +10,8 @@ import {
   SAVED_PLACES_EVENT,
   type SavedPlace,
 } from "../lib/savedPlaces";
+import { AUTH_CHANGED_EVENT } from "../lib/authStorage";
+import { SYNCED_EVENT } from "../lib/profileSyncEvents";
 import { propertyHref } from "../lib/propertyHref";
 import { fetchPropertyAccessibility } from "../lib/accessApi";
 import { saveAccessReturn } from "../lib/navigationReturn";
@@ -47,9 +49,13 @@ export function SavedTab({ homeNodeUrl, active = true, onAddLocation }: Props) {
     const sync = () => setSaved(readSavedPlaces());
     sync();
     window.addEventListener(SAVED_PLACES_EVENT, sync);
+    window.addEventListener(AUTH_CHANGED_EVENT, sync);
+    window.addEventListener(SYNCED_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener(SAVED_PLACES_EVENT, sync);
+      window.removeEventListener(AUTH_CHANGED_EVENT, sync);
+      window.removeEventListener(SYNCED_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
   }, []);

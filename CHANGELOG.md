@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Access heroes use shared padding/logo sizing (tabs + toolbar); property detail loading skeleton matches mobile stack vs desktop photo|sheet split ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access profile sync runs app-wide (not only Search tabs), so favorites/preferences saved on property pages write through to the home node ([ACCESS-UX.md](docs/ACCESS-UX.md))
 
 ### Fixed
 
