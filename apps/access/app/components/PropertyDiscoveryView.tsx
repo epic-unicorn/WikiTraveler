@@ -119,6 +119,7 @@ export function PropertyDiscoveryView({
   const { t, getTierLabel } = useLocale();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<DiscoveryViewMode>("map");
   const [desktopSplit, setDesktopSplit] = useState(false);
   const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
@@ -182,10 +183,27 @@ export function PropertyDiscoveryView({
     }
   }, []);
 
-  const handleMapSelect = useCallback((pin: MapPin | null) => {
-    setSelectedPin(pin);
-    setSelectedId(pin?.id ?? null);
-  }, []);
+  const scrollListToId = useCallback(
+    (id: string) => {
+      const idx = properties.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        setVisibleCount((c) => Math.max(c, idx + 1));
+      }
+      requestAnimationFrame(() => {
+        itemRefs.current.get(id)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    },
+    [properties]
+  );
+
+  const handleMapSelect = useCallback(
+    (pin: MapPin | null) => {
+      setSelectedPin(pin);
+      setSelectedId(pin?.id ?? null);
+      if (pin) scrollListToId(pin.id);
+    },
+    [scrollListToId]
+  );
 
   const closeMapPreview = useCallback(() => {
     setSelectedPin(null);
@@ -246,6 +264,7 @@ export function PropertyDiscoveryView({
               loading={loading}
               error={error}
               selectedPropertyId={selectedId}
+              hoveredPropertyId={hoveredId}
               onSelectProperty={handleMapSelect}
               userLocation={userLocation}
               radiusKm={radiusKm}
@@ -305,6 +324,7 @@ export function PropertyDiscoveryView({
               <ul className="fk-discovery-cards" aria-label={t("ui.searchFindProperties")}>
                 {properties.slice(0, visibleCount).map((property) => {
                   const selected = selectedId === property.id;
+                  const hovered = hoveredId === property.id;
                   const saved = savedIds.has(property.id);
                   const a11y = accessibilitySummary(property.facts);
                   const dist = distanceLabel(property.distanceM);
@@ -317,7 +337,9 @@ export function PropertyDiscoveryView({
                         if (el) itemRefs.current.set(property.id, el);
                         else itemRefs.current.delete(property.id);
                       }}
-                      className={`fk-disco-item${selected ? " fk-disco-item--selected" : ""}${saved ? " fk-disco-item--saved" : ""}`}
+                      className={`fk-disco-item${selected ? " fk-disco-item--selected" : ""}${hovered && !selected ? " fk-disco-item--hovered" : ""}${saved ? " fk-disco-item--saved" : ""}`}
+                      onMouseEnter={() => setHoveredId(property.id)}
+                      onMouseLeave={() => setHoveredId((id) => (id === property.id ? null : id))}
                     >
                       <Link
                         href={propertyHref(property.id, propertyNodeUrl, homeNodeUrl)}
@@ -391,8 +413,10 @@ export function PropertyDiscoveryView({
                           aria-label={t("ui.discoveryShowOnMap")}
                           onClick={(e) => {
                             e.stopPropagation();
+                            const pin = propertySummaryToMapPin(property);
+                            setSelectedPin(pin);
                             handleSelect(property.id);
-                            changeViewMode("map");
+                            if (!desktopSplit) changeViewMode("map");
                           }}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

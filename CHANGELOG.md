@@ -13,7 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Access profile sync: favorites, accessibility preferences, and theme sync to the home-node account (`GET`/`PUT /api/auth/preferences`, `/api/auth/favorites`); localStorage remains a per-user cache ([ACCESS-UX.md](docs/ACCESS-UX.md))
-- Access desktop layout (≥900px): side nav, half-width map/property panels, map|list split, denser Favorites grid ([ACCESS-UX.md](docs/ACCESS-UX.md))
+- Access desktop layout (≥900px): icon rail, map|list split, map pin bottom sheet in the map column, list↔map hover/selection, denser Favorites grid ([ACCESS-UX.md](docs/ACCESS-UX.md))
 
 ### Fixed
 

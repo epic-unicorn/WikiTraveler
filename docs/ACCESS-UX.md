@@ -6,7 +6,7 @@ Product lock for the Access PWA redesign (shipped on `main`). Installable web ma
 
 **Bottom nav (mobile):** Search | Favorites | Contribute (AUDITOR/ADMIN only) | Profile
 
-**Desktop chrome (≥900px):** same tabs as a left side nav; Search shows map and list side-by-side; map pin preview and property detail use ~half-width panels; Favorites uses a multi-column grid. Property/audit routes keep focus chrome (no side nav) with wider content.
+**Desktop chrome (≥900px):** icon-only left rail; Search shows map and list side-by-side; map pin opens a bottom sheet in the map column (scrolls the list to the same place); list hover highlights the map pin; Favorites uses a multi-column grid. Property/audit routes keep focus chrome (no side nav) with wider content.
 
 | Former tab | New home |
 |------------|----------|

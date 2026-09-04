@@ -171,6 +171,7 @@ export function AccessTabs() {
             aria-controls="main-content"
             tabIndex={activeTab === tab.id ? 0 : -1}
             className={`fk-tab-btn${activeTab === tab.id ? " fk-tab-btn--active" : ""}`}
+            title={tab.label}
             onClick={() => setActiveTab(tab.id)}
             onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
           >

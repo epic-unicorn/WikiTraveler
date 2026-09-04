@@ -33,6 +33,8 @@ interface Props {
   loading?: boolean;
   error?: string;
   selectedPropertyId?: string | null;
+  /** List hover — lighter map emphasis than selection. */
+  hoveredPropertyId?: string | null;
   onSelectProperty?: (pin: MapPin | null) => void;
   userLocation?: UserLocation | null;
   radiusKm?: number | null;
@@ -65,37 +67,46 @@ function getTileConfig() {
   };
 }
 
-function radiusForZoom(zoom: number, selected: boolean): number {
+function radiusForZoom(zoom: number, emphasis: "none" | "hover" | "selected"): number {
   let base: number;
   if (zoom <= 6) base = 5;
   else if (zoom <= 8) base = 6;
   else if (zoom <= 10) base = 7;
   else if (zoom <= 12) base = 8;
   else base = 10;
-  return selected ? base + 3 : base;
+  if (emphasis === "selected") return base + 5;
+  if (emphasis === "hover") return base + 2;
+  return base;
 }
 
 function pinMarkerStyle(
   colors: { stroke: string; fill: string },
-  selected: boolean,
+  emphasis: "none" | "hover" | "selected",
   zoom: number
 ): import("leaflet").CircleMarkerOptions {
   return {
-    radius: radiusForZoom(zoom, selected),
+    radius: radiusForZoom(zoom, emphasis),
     color: colors.stroke,
     fillColor: colors.fill,
-    fillOpacity: 0.9,
-    weight: selected ? 4 : 2,
+    fillOpacity: emphasis === "none" ? 0.88 : 1,
+    weight: emphasis === "selected" ? 5 : emphasis === "hover" ? 3 : 2,
+    opacity: 1,
   };
 }
 
 const HEART_SVG =
   '<svg class="wt-map-pin__heart-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
-function savedPinIcon(L: typeof import("leaflet"), selected: boolean) {
-  const size = selected ? 30 : 24;
+function savedPinIcon(L: typeof import("leaflet"), emphasis: "none" | "hover" | "selected") {
+  const size = emphasis === "selected" ? 34 : emphasis === "hover" ? 28 : 24;
+  const mod =
+    emphasis === "selected"
+      ? " wt-map-pin--selected"
+      : emphasis === "hover"
+        ? " wt-map-pin--hovered"
+        : "";
   return L.divIcon({
-    className: `wt-map-pin wt-map-pin--saved${selected ? " wt-map-pin--selected" : ""}`,
+    className: `wt-map-pin wt-map-pin--saved${mod}`,
     html: `<span class="wt-map-pin__heart">${HEART_SVG}</span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -167,6 +178,7 @@ export function RegionMap({
   loading: externalLoading,
   error: externalError,
   selectedPropertyId = null,
+  hoveredPropertyId = null,
   onSelectProperty,
   userLocation = null,
   radiusKm = null,
@@ -216,6 +228,7 @@ export function RegionMap({
   const markerByIdRef = useRef<Map<string, MapMarker>>(new Map());
   const pinsRef = useRef<MapPin[]>([]);
   const selectedIdRef = useRef<string | null>(null);
+  const hoveredIdRef = useRef<string | null>(null);
   const savedIdsRef = useRef<Set<string>>(new Set());
   const lastFitSignatureRef = useRef<string | null>(null);
   const suppressAreaDirtyRef = useRef(false);
@@ -228,6 +241,7 @@ export function RegionMap({
 
   pinsRef.current = pins;
   selectedIdRef.current = selectedPropertyId;
+  hoveredIdRef.current = hoveredPropertyId;
   savedIdsRef.current = savedIds ?? new Set();
 
   useEffect(() => {
@@ -481,10 +495,15 @@ export function RegionMap({
 
     for (const pin of sorted) {
       const selected = pin.id === selectedIdRef.current;
+      const hovered = !selected && pin.id === hoveredIdRef.current;
+      const emphasis = selected ? "selected" : hovered ? "hover" : "none";
       const saved = savedSet.has(pin.id);
       const marker: MapMarker = saved
-        ? L.marker([pin.lat, pin.lon], { icon: savedPinIcon(L, selected), zIndexOffset: 400 })
-        : L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(pinColors, selected, zoom));
+        ? L.marker([pin.lat, pin.lon], {
+            icon: savedPinIcon(L, emphasis),
+            zIndexOffset: selected ? 600 : hovered ? 500 : 400,
+          })
+        : L.circleMarker([pin.lat, pin.lon], pinMarkerStyle(pinColors, emphasis, zoom));
       marker.on("click", () => {
         if (selectedIdRef.current === pin.id) {
           onSelectPropertyRef.current?.(null);
@@ -493,18 +512,27 @@ export function RegionMap({
         }
       });
       marker.addTo(group);
+      if ((selected || hovered) && "bringToFront" in marker) {
+        (marker as import("leaflet").CircleMarker).bringToFront();
+      }
       markerByIdRef.current.set(pin.id, marker);
     }
 
     updateRadiiRef.current = () => {
       const m = mapRef.current;
-      if (!m) return;
+      const Lf = leafletRef.current;
+      if (!m || !Lf) return;
       const z = m.getZoom();
+      const colors = readMapPinColors();
       markerByIdRef.current.forEach((marker, id) => {
-        if (!("setRadius" in marker)) return;
-        (marker as import("leaflet").CircleMarker).setRadius(
-          radiusForZoom(z, id === selectedIdRef.current)
-        );
+        const selected = id === selectedIdRef.current;
+        const hovered = !selected && id === hoveredIdRef.current;
+        const emphasis = selected ? "selected" : hovered ? "hover" : "none";
+        if ("setStyle" in marker) {
+          (marker as import("leaflet").CircleMarker).setStyle(pinMarkerStyle(colors, emphasis, z));
+        } else {
+          (marker as import("leaflet").Marker).setIcon(savedPinIcon(Lf, emphasis));
+        }
       });
     };
 
@@ -547,6 +575,10 @@ export function RegionMap({
     renderMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pins, mode, selectedPropertyId, userLocation, radiusKm, savedIds, onSelectProperty, autoFit, mapReady, t, viewportBrowse]);
+
+  useEffect(() => {
+    updateRadiiRef.current?.();
+  }, [hoveredPropertyId, selectedPropertyId, mapReady]);
 
   const showMapShell = viewportBrowse || pins.length > 0 || useExternal;
 
