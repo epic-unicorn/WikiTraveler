@@ -4,6 +4,17 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (branch, tag, or SHA — use main after Dockerfile fixes)"
+        required: true
+        type: string
+        default: main
+      version:
+        description: "Image version label (e.g. 0.5.1)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,9 +31,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
 
       - name: Set version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: docker/login-action@v3
         with:
@@ -35,8 +54,9 @@ jobs:
         with:
           images: ${{ env.NODE_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ steps.ver.outputs.version }}
+            type=semver,pattern={{version}},value=v${{ steps.ver.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.ver.outputs.version }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -46,16 +66,24 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            WIKITRAVELER_VERSION=${{ env.VERSION }}
+            WIKITRAVELER_VERSION=${{ steps.ver.outputs.version }}
 
   access:
     name: Publish access image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
 
       - name: Set version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: docker/login-action@v3
         with:
@@ -68,8 +96,9 @@ jobs:
         with:
           images: ${{ env.ACCESS_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ steps.ver.outputs.version }}
+            type=semver,pattern={{version}},value=v${{ steps.ver.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.ver.outputs.version }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -79,5 +108,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            WIKITRAVELER_VERSION=${{ env.VERSION }}
+            WIKITRAVELER_VERSION=${{ steps.ver.outputs.version }}
             NEXT_PUBLIC_NODE_API_URL=http://localhost:3000

@@ -196,9 +196,9 @@ Maintainers announce the intended minor window in the changelog or an issue when
 |------|----------|--------|
 | PR CI (lint, test, build) | `.github/workflows/ci.yml` | **Done** |
 | Gossip discovery + N/N-1 compat | `.github/workflows/gossip-compat.yml` | **Done** |
-| Docker publish on tag | `.github/workflows/release-docker.yml` | **Done** |
+| Docker publish on tag | `.github/workflows/release-docker.yml` | **Done** — also `workflow_dispatch` (`ref` + `version`) to rebuild after Dockerfile fixes |
 | GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
-| npm `@wikitraveler/sdk` on tag | `release.yml` job `npm-publish` | **Done** — `NPM_PUBLISH=true` + Trusted Publishing OIDC (`npm stage publish`); maintainer approves staged package with 2FA |
+| npm `@wikitraveler/sdk` on tag | `release.yml` job `npm-publish` | **Done** — `NPM_PUBLISH=true` + Trusted Publishing OIDC (`npm stage publish`); maintainer approves staged package with 2FA. Do **not** set `registry-url` on `setup-node` (empty `_authToken` blocks OIDC). After unpublish/recreate, re-add the Trusted Publisher on npmjs.com for `release.yml` / `npm stage publish`. |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
 | CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
 | Dependabot alerts | Settings → Code security | **Enabled** |

@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Docker node/Access images build `@wikitraveler/audit` (release images no longer fail module-not-found)
+- Release npm OIDC job: drop `setup-node` `registry-url` / empty `_authToken` so Trusted Publishing can authenticate ([RELEASES.md](docs/RELEASES.md))
+
 ---
 
 ## [0.5.1] - 2026-09-04
