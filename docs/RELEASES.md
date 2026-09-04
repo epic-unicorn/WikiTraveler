@@ -12,7 +12,8 @@ How WikiTraveler versions, ships, and stays compatible across a federated mesh o
 |-----------|---------|
 | **Sovereign operators** | Each node owner chooses when to deploy. No remote force-update. |
 | **Hub ≠ node** | Access (canonical hub or branded) is a **client artifact**; nodes hold truth. Hub outage does not stop gossip (**H4** — keep a backup Access origin allowlisted). |
-| **Loose coupling** | Node, Access, Lens, and SDK versions are related but not lockstep — except when a client API contract breaks (redeploy pair; **H5**). |
+| **Aligned release artifacts** | Each monorepo tag ships **the same** `X.Y.Z` for node, Access, Lens, and SDK (`scripts/release.mjs`). Mid-cycle PR bumps (e.g. Lens-only) are temporary and re-aligned at tag time. |
+| **Deploy independence** | Operators may upgrade nodes on N/N-1 and delay client updates between tags; that is not an excuse to ship mismatched versions in one Release. Redeploy Access+node together when a client API contract breaks (**H5**). |
 | **Gossip tolerance** | The mesh supports **current and previous minor** node releases unless a breaking change is announced. |
 | **Migrations first** | Database schema must be migrated **before** deploying code that depends on new columns. |
 | **Documented breaking windows** | Protocol or schema breaks get a sunset date in the changelog before enforcement. |
@@ -27,7 +28,7 @@ How WikiTraveler versions, ships, and stays compatible across a federated mesh o
 | **Node runtime** | `/api/nodeinfo`, `/api/health`, admin UI | `0.4.0` | `apps/node/lib/nodeInfo.ts` (should match tag) |
 | **Gossip protocol** | Delta JSON semantics | `2` | `@wikitraveler/core` + [COMPATIBILITY.md](./COMPATIBILITY.md) |
 | **Export schema** | Admin backup / gzip transfer | `2` | `apps/node/lib/nodeDataTransfer.ts` |
-| **Access / Lens / SDK** | Client artifacts | Independent | Per-app `package.json` / `manifest.json` |
+| **Access / Lens / SDK** | Client artifacts | Same as monorepo tag at release | Per-app `package.json` / Lens `manifest.json` (synced by `release.mjs`) |
 
 Keep [`versions.json`](../versions.json) updated on each release so operators and CI share one manifest.
 
@@ -53,7 +54,7 @@ Each `v*` tag should produce:
 | **Docker images** | Self-hosters | `wikitraveler-node`, `wikitraveler-access` (GHCR) |
 | **Source tree** | Vercel / custom hosts | Git checkout at tag |
 | **Lens zip** | Auditors | Attached to GitHub Release |
-| **SDK bundles** | Agencies | `packages/sdk/dist` on Release + **npm** `@wikitraveler/sdk` when `NPM_TOKEN` + `NPM_PUBLISH` are set |
+| **SDK bundles** | Agencies | `packages/sdk/dist` on Release + **npm** `@wikitraveler/sdk` when `NPM_PUBLISH=true` and [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) is configured for `release.yml` |
 | **Release manifest** | Operators | `manifest.json` on GitHub Release + [releases/manifest.json](../releases/manifest.json) on `main` |
 
 Tags and changelog are prepared with `scripts/release.mjs`. Docker GHCR images and GitHub Release assets publish automatically on tag push — see [Release automation](#release-automation-roadmap).
@@ -197,7 +198,7 @@ Maintainers announce the intended minor window in the changelog or an issue when
 | Gossip discovery + N/N-1 compat | `.github/workflows/gossip-compat.yml` | **Done** |
 | Docker publish on tag | `.github/workflows/release-docker.yml` | **Done** |
 | GitHub Release from tag | `.github/workflows/release.yml` | **Done** |
-| npm `@wikitraveler/sdk` on tag | `release.yml` job `npm-publish` | **Ready** — set repo variable `NPM_PUBLISH=true` + secret `NPM_TOKEN` |
+| npm `@wikitraveler/sdk` on tag | `release.yml` job `npm-publish` | **Ready** — repo variable `NPM_PUBLISH=true` + npm Trusted Publishing (OIDC) for `release.yml` (no long-lived `NPM_TOKEN`) |
 | `scripts/release.mjs` version bump helper | `scripts/release.mjs` | **Done** |
 | CodeQL analysis | GitHub **default setup** (Settings → Code security) | **Done** — do not also use `codeql.yml` |
 | Dependabot alerts | Settings → Code security | **Enabled** |
