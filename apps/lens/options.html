@@ -169,7 +169,10 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 20px;
+      margin-top: 16px;
+    }
+    .node-actions {
+      margin-top: 12px;
     }
     button {
       background: #1d4ed8;
@@ -236,6 +239,9 @@
         <span class="node-status-dot" aria-hidden="true"></span>
         <span>Checking connection…</span>
       </div>
+      <div class="actions node-actions">
+        <button id="save" type="button">Save URL</button>
+      </div>
       <p class="hint">Base URL of your WikiTraveler node (no trailing slash). Lens routes queries to the best regional peer automatically.</p>
 
       <hr class="section-divider" />
@@ -263,7 +269,6 @@
       </div>
 
       <div class="actions">
-        <button id="save" type="button">Save URL</button>
         <button id="login" type="button">Sign in</button>
         <button id="register" type="button" class="secondary">Create account</button>
         <button id="logout" type="button" class="danger" style="display:none">Sign out</button>
