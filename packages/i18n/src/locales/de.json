@@ -525,7 +525,7 @@
     "lensSettingsSubtitle": "Melden Sie sich auf Ihrem Heim-Node an und nutzen Sie Lens auf Buchungsseiten, wo WikiTraveler Abdeckung hat.",
     "lensNodeUrlHint": "Heim-Node-URL (Identität — nicht „nur dieses Land“). Lens leitet Anfragen an den regionalen Daten-Node weiter, wenn das Mesh Abdeckung hat. Speichern kann die Erlaubnis für HTTPS-Nodes anfordern.",
     "lensTokenSyncHint": "Ihr Token wird in Chrome Sync gespeichert und geräteübergreifend synchronisiert.",
-    "lensSaveUrl": "URL speichern",
+    "lensSaveUrl": "Speichern & Zugriff prüfen",
     "lensUrlSavedOk": "Node-URL gespeichert und erreichbar.",
     "lensUrlSavedOffline": "Node-URL gespeichert — Node ist derzeit nicht erreichbar.",
     "lensUrlEmpty": "Node-URL darf nicht leer sein.",

@@ -525,7 +525,7 @@
     "lensSettingsSubtitle": "Sign in on your home node, then use Lens on booking sites wherever WikiTraveler has coverage.",
     "lensNodeUrlHint": "Home node URL (identity — not “only this country”). Lens routes to the regional data node for the listing when the mesh has coverage. Saving may ask permission to reach HTTPS nodes.",
     "lensTokenSyncHint": "Your token is stored in Chrome sync and shared across devices.",
-    "lensSaveUrl": "Save URL",
+    "lensSaveUrl": "Save & verify access",
     "lensUrlSavedOk": "Node URL saved and reachable.",
     "lensUrlSavedOffline": "Node URL saved — but the node is not reachable right now.",
     "lensUrlEmpty": "Node URL cannot be empty.",

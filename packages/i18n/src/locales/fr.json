@@ -525,7 +525,7 @@
     "lensSettingsSubtitle": "Connectez-vous sur votre nœud d'origine, puis utilisez Lens sur les sites de réservation là où WikiTraveler a une couverture.",
     "lensNodeUrlHint": "URL du nœud d'origine (identité — pas « seulement ce pays »). Lens route vers le nœud de données régional lorsque le maillage a une couverture. L'enregistrement peut demander l'accès aux nœuds HTTPS.",
     "lensTokenSyncHint": "Votre jeton est stocké dans Chrome Sync et partagé entre appareils.",
-    "lensSaveUrl": "Enregistrer l'URL",
+    "lensSaveUrl": "Enregistrer et vérifier l'accès",
     "lensUrlSavedOk": "URL du nœud enregistrée et accessible.",
     "lensUrlSavedOffline": "URL enregistrée — le nœud n'est pas accessible pour l'instant.",
     "lensUrlEmpty": "L'URL du nœud ne peut pas être vide.",

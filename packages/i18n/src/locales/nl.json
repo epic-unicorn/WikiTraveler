@@ -525,7 +525,7 @@
     "lensSettingsSubtitle": "Log in op je thuis-node en gebruik Lens op boekingssites waar WikiTraveler dekking heeft.",
     "lensNodeUrlHint": "Thuis-node-URL (identiteit — niet “alleen dit land”). Lens stuurt vragen naar de regionale data-node wanneer het mesh dekking heeft. Opslaan kan toestemming vragen voor HTTPS-nodes.",
     "lensTokenSyncHint": "Je token wordt opgeslagen in Chrome Sync en gedeeld tussen apparaten.",
-    "lensSaveUrl": "URL opslaan",
+    "lensSaveUrl": "Opslaan & toegang controleren",
     "lensUrlSavedOk": "Node-URL opgeslagen en bereikbaar.",
     "lensUrlSavedOffline": "Node-URL opgeslagen — node is nu niet bereikbaar.",
     "lensUrlEmpty": "Node-URL mag niet leeg zijn.",
