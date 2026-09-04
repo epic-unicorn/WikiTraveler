@@ -17,12 +17,11 @@ import {
   readAccessThemePreference,
   writeAccessThemePreference,
 } from "./themePreference";
-import { FAVORITES_DIRTY_EVENT, PREFERENCES_DIRTY_EVENT } from "./profileSyncEvents";
+import { FAVORITES_DIRTY_EVENT, PREFERENCES_DIRTY_EVENT, emitProfileSynced, SYNCED_EVENT } from "./profileSyncEvents";
 import { readUserScoped, writeUserScoped } from "./userScopedStorage";
 
 const PREFS_STAMP_KEY = "wt_prefs_updated_at";
 const FAVS_STAMP_KEY = "wt_favorites_updated_at";
-const SYNCED_EVENT = "wt-profile-synced";
 
 type ServerPreferences = {
   a11yPreferences: string[];
@@ -38,6 +37,7 @@ type ServerFavorites = {
 let syncInFlight: Promise<void> | null = null;
 let pushPrefsTimer: ReturnType<typeof setTimeout> | null = null;
 let pushFavsTimer: ReturnType<typeof setTimeout> | null = null;
+let started = false;
 
 function isThemeMode(value: unknown): value is ThemeMode {
   return value === "light" || value === "dark" || value === "contrast" || value === "calm";
@@ -76,9 +76,17 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T | null>
         ...(init?.headers ?? {}),
       },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[profileSync] ${init?.method ?? "GET"} ${path} → ${res.status}`);
+      }
+      return null;
+    }
     return (await res.json()) as T;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[profileSync] ${init?.method ?? "GET"} ${path} failed`, err);
+    }
     return null;
   }
 }
@@ -166,12 +174,14 @@ export async function syncProfileFromServer(): Promise<void> {
       const localTheme = readAccessThemePreference();
       const localHas = localA11y.length > 0 || localTheme !== DEFAULT_ACCESS_THEME;
 
-      if (cacheMs > serverMs && localHas) {
+      // Prefer pushing local data when the server list is still the empty default
+      // (migration stamp) even if updatedAt is non-zero.
+      if (serverEmpty && localHas && (cacheMs === 0 || cacheMs >= serverMs)) {
+        await pushPreferencesNow();
+      } else if (cacheMs > serverMs && localHas) {
         await pushPreferencesNow();
       } else if (serverMs >= cacheMs && (!serverEmpty || cacheMs > 0)) {
         applyPreferencesLocally(me.preferences);
-      } else if (serverEmpty && localHas && cacheMs === 0) {
-        await pushPreferencesNow();
       }
     }
 
@@ -181,19 +191,19 @@ export async function syncProfileFromServer(): Promise<void> {
       const serverEmpty = !favs.places?.length;
       const localPlaces = readSavedPlaces();
 
-      if (cacheMs > serverMs && localPlaces.length > 0) {
+      if (serverEmpty && localPlaces.length > 0 && (cacheMs === 0 || cacheMs >= serverMs)) {
+        await pushFavoritesNow();
+      } else if (cacheMs > serverMs && localPlaces.length > 0) {
         await pushFavoritesNow();
       } else if (serverMs >= cacheMs && (!serverEmpty || cacheMs > 0)) {
         applyFavoritesLocally(favs);
-      } else if (serverEmpty && localPlaces.length > 0 && cacheMs === 0) {
-        await pushFavoritesNow();
       } else if (!serverEmpty && cacheMs === 0) {
         applyFavoritesLocally(favs);
       }
     }
 
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event(SYNCED_EVENT));
+      emitProfileSynced();
     }
   })().finally(() => {
     syncInFlight = null;
@@ -202,13 +212,23 @@ export async function syncProfileFromServer(): Promise<void> {
   return syncInFlight;
 }
 
-/** Wire login/logout/focus sync once for the Access shell. */
+/**
+ * Wire login/logout/focus sync once for the Access shell.
+ * Safe to call from multiple mounts — only one listener set is registered.
+ */
 export function startProfileSync(): () => void {
   if (typeof window === "undefined") return () => {};
 
   const run = () => {
     void syncProfileFromServer();
   };
+
+  if (started) {
+    run();
+    return () => {};
+  }
+  started = true;
+
   run();
 
   const onAuth = () => run();
@@ -225,12 +245,8 @@ export function startProfileSync(): () => void {
   window.addEventListener(FAVORITES_DIRTY_EVENT, onFavsDirty);
 
   return () => {
-    window.removeEventListener(AUTH_CHANGED_EVENT, onAuth);
-    document.removeEventListener("visibilitychange", onFocus);
-    window.removeEventListener("focus", onFocus);
-    window.removeEventListener(PREFERENCES_DIRTY_EVENT, onPrefsDirty);
-    window.removeEventListener(FAVORITES_DIRTY_EVENT, onFavsDirty);
+    // Keep listeners for the app lifetime; Providers remount should not drop sync.
   };
 }
 
-export { SYNCED_EVENT };
+export { SYNCED_EVENT } from "./profileSyncEvents";

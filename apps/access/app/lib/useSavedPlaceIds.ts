@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AUTH_CHANGED_EVENT } from "./authStorage";
+import { SYNCED_EVENT } from "./profileSyncEvents";
 import { readSavedPlaceIds, SAVED_PLACES_EVENT } from "./savedPlaces";
 
 /** Reactive set of saved property IDs that updates on save/remove (same tab + cross tab). */
@@ -13,10 +14,12 @@ export function useSavedPlaceIds(): Set<string> {
     sync();
     window.addEventListener(SAVED_PLACES_EVENT, sync);
     window.addEventListener(AUTH_CHANGED_EVENT, sync);
+    window.addEventListener(SYNCED_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener(SAVED_PLACES_EVENT, sync);
       window.removeEventListener(AUTH_CHANGED_EVENT, sync);
+      window.removeEventListener(SYNCED_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
   }, []);

@@ -86,11 +86,11 @@ describe("syncProfileFromServer", () => {
     expect(readSavedPlaces()[0]?.id).toBe("p1");
   });
 
-  it("pushes legacy local favorites when server list is empty", async () => {
+  it("pushes local favorites when server is empty even if updatedAt is non-zero", async () => {
     writeSavedPlaces(
       [
         {
-          id: "local-1",
+          id: "local-2",
           name: "Local",
           location: "",
           nodeUrl: "http://localhost:3000",
@@ -99,7 +99,6 @@ describe("syncProfileFromServer", () => {
       ],
       { skipSync: true }
     );
-    writeA11yPreferences([], { skipSync: true });
 
     const putBodies: string[] = [];
     vi.stubGlobal(
@@ -111,7 +110,7 @@ describe("syncProfileFromServer", () => {
             preferences: {
               a11yPreferences: [],
               theme: null,
-              updatedAt: "2020-01-01T00:00:00.000Z",
+              updatedAt: "2026-09-01T00:00:00.000Z",
             },
           });
         }
@@ -119,20 +118,11 @@ describe("syncProfileFromServer", () => {
           putBodies.push(String(init.body));
           return jsonResponse({
             places: JSON.parse(String(init.body)).places,
-            updatedAt: "2026-07-01T00:00:00.000Z",
+            updatedAt: "2026-09-04T00:00:00.000Z",
           });
         }
         if (url.includes("/api/auth/favorites")) {
-          return jsonResponse({ places: [], updatedAt: "2020-01-01T00:00:00.000Z" });
-        }
-        if (url.includes("/api/auth/preferences") && init?.method === "PUT") {
-          return jsonResponse({
-            preferences: {
-              a11yPreferences: [],
-              theme: "light",
-              updatedAt: "2026-07-01T00:00:00.000Z",
-            },
-          });
+          return jsonResponse({ places: [], updatedAt: "2026-09-01T00:00:00.000Z" });
         }
         return jsonResponse({}, false);
       })
@@ -140,6 +130,6 @@ describe("syncProfileFromServer", () => {
 
     await syncProfileFromServer();
     expect(putBodies.length).toBeGreaterThan(0);
-    expect(putBodies[0]).toContain("local-1");
+    expect(putBodies[0]).toContain("local-2");
   });
 });

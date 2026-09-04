@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { setupIonicReact, IonApp } from "@ionic/react";
 import { ThemeProvider, LocaleProvider } from "@wikitraveler/ui";
 import { AccessThemeSync, persistAccessTheme } from "./components/AccessThemeSync";
+import { startProfileSync } from "./lib/profileSync";
 
 let ionicBootstrapped = false;
 
@@ -25,6 +26,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     ensureIonic();
     setMounted(true);
   }, []);
+
+  // App-wide: favorites/prefs are edited on property pages too, not only AccessTabs.
+  useEffect(() => startProfileSync(), []);
 
   return (
     <ThemeProvider onPersist={persistAccessTheme}>
