@@ -399,29 +399,63 @@ export async function ensureLabAuditor(homeBase, {
   return { token: login.token, username, password, adminToken: admin };
 }
 
-export async function postAudit(base, propertyId, token, body, { origin, retries = 8, retryMs = 1500 } = {}) {
+function isNextHtml404(res, data) {
+  if (res.status !== 404) return false;
+  const msg = typeof data?.message === "string" ? data.message : "";
+  return msg.includes("<!DOCTYPE html>") || msg.includes("This page could not be found");
+}
+
+/**
+ * POST field audit. Gossip lab runs `next dev` (Turbopack), which can return App Router
+ * HTML 404 for API routes until the module is compiled — warm with GET, then retry POST
+ * with exponential backoff.
+ */
+export async function postAudit(
+  base,
+  propertyId,
+  token,
+  body,
+  { origin, retries = 12, retryMs = 1500 } = {}
+) {
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   };
   if (origin) headers.Origin = origin;
+  const authHeaders = {
+    Authorization: `Bearer ${token}`,
+    ...(origin ? { Origin: origin } : {}),
+  };
   const url = `${base}/api/properties/${encodeURIComponent(propertyId)}/accessibility`;
   let last;
   for (let i = 1; i <= retries; i++) {
+    // Compile / register the route module before POST (GET is cheaper than a failed audit).
+    const warm = await jsonFetch(url, {
+      method: "GET",
+      headers: authHeaders,
+      expectOk: false,
+    });
+    if (isNextHtml404(warm.res, warm.data)) {
+      if (i < retries) {
+        const wait = Math.min(Math.round(retryMs * 1.5 ** (i - 1)), 6_000);
+        console.log(`  audit route warm-up (${warm.res.status}), retry ${i}/${retries}…`);
+        await sleep(wait);
+      }
+      last = warm;
+      continue;
+    }
+
     last = await jsonFetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
       expectOk: false,
     });
-    // Next.js turbopack in the gossip lab can briefly 404 API routes as HTML not-found.
-    const msg = typeof last.data?.message === "string" ? last.data.message : "";
-    const looksLikeNextHtml404 =
-      last.res.status === 404 && (msg.includes("<!DOCTYPE html>") || msg.includes("This page could not be found"));
-    if (!looksLikeNextHtml404) return last;
+    if (!isNextHtml404(last.res, last.data)) return last;
     if (i < retries) {
+      const wait = Math.min(Math.round(retryMs * 1.5 ** (i - 1)), 6_000);
       console.log(`  audit route not ready (${last.res.status}), retry ${i}/${retries}…`);
-      await sleep(retryMs);
+      await sleep(wait);
     }
   }
   return last;
