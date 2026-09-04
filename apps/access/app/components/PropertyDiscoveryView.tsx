@@ -7,7 +7,7 @@ import { RegionMap } from "./RegionMap";
 import type { MapPin } from "../lib/accessApi";
 import { propertyHref } from "../lib/propertyHref";
 import { saveAccessReturn, type AccessReturnState } from "../lib/navigationReturn";
-import { useSavedPlaceIds } from "../lib/savedPlaces";
+import { useSavedPlaceIds } from "../lib/useSavedPlaceIds";
 import { AccessibilityIconRow } from "./AccessibilityIconRow";
 import { PropertyMapPreview } from "./PropertyMapPreview";
 import {

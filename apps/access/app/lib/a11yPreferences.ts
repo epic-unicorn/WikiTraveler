@@ -1,4 +1,5 @@
 import { AUTH_CHANGED_EVENT } from "./authStorage";
+import { emitPreferencesDirty } from "./profileSyncEvents";
 import { isStringArray, readUserScoped, writeUserScoped } from "./userScopedStorage";
 
 /** Persistent accessibility search preferences (client + sync hook for Profile). */
@@ -35,9 +36,9 @@ export function writeA11yPreferences(
   writeUserScoped(STORAGE_KEY, keys);
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(PREFS_EVENT));
-    if (!opts?.skipSync) {
-      void import("./profileSync").then((m) => m.schedulePreferencesPush());
-    }
+  }
+  if (!opts?.skipSync) {
+    emitPreferencesDirty();
   }
 }
 

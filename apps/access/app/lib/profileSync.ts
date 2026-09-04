@@ -17,6 +17,7 @@ import {
   readAccessThemePreference,
   writeAccessThemePreference,
 } from "./themePreference";
+import { FAVORITES_DIRTY_EVENT, PREFERENCES_DIRTY_EVENT } from "./profileSyncEvents";
 import { readUserScoped, writeUserScoped } from "./userScopedStorage";
 
 const PREFS_STAMP_KEY = "wt_prefs_updated_at";
@@ -214,15 +215,21 @@ export function startProfileSync(): () => void {
   const onFocus = () => {
     if (document.visibilityState === "visible") run();
   };
+  const onPrefsDirty = () => schedulePreferencesPush();
+  const onFavsDirty = () => scheduleFavoritesPush();
 
   window.addEventListener(AUTH_CHANGED_EVENT, onAuth);
   document.addEventListener("visibilitychange", onFocus);
   window.addEventListener("focus", onFocus);
+  window.addEventListener(PREFERENCES_DIRTY_EVENT, onPrefsDirty);
+  window.addEventListener(FAVORITES_DIRTY_EVENT, onFavsDirty);
 
   return () => {
     window.removeEventListener(AUTH_CHANGED_EVENT, onAuth);
     document.removeEventListener("visibilitychange", onFocus);
     window.removeEventListener("focus", onFocus);
+    window.removeEventListener(PREFERENCES_DIRTY_EVENT, onPrefsDirty);
+    window.removeEventListener(FAVORITES_DIRTY_EVENT, onFavsDirty);
   };
 }
 
