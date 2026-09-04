@@ -93,9 +93,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
+          # Trusted Publishing requires Node ≥22.14 and npm CLI ≥11.5.1
+          node-version: "22.14"
           registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Ensure npm CLI for OIDC trusted publishing
+        run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
 
@@ -107,11 +111,4 @@ jobs:
 
       - name: Publish @wikitraveler/sdk
         working-directory: packages/sdk
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN secret not set — skipping npm publish"
-            exit 0
-          fi
-          pnpm publish --access public --no-git-checks
+        run: npm publish --access public

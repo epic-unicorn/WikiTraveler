@@ -10,6 +10,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] - 2026-09-04
+
+### Operator notes
+
+- **Minor release** — additive Prisma migrations since `0.4.0`: `property_claim`, `text_translation_cache`. Run `DATABASE_URL=… pnpm db:deploy` **before** deploying node.
+- Redeploy **Node + Access** (Access UX/PWA, claim API, audit catalogue; Node admin audit parity + signal cleanup).
+- Gossip protocol unchanged (`2`); mesh with `0.4.x` peers remains supported. `minRecommendedNode` is `0.5.0`.
+- Docker: `ghcr.io/ingmarstruijs/wikitraveler-node:0.5.0`, `wikitraveler-access:0.5.0`.
+- GitHub Release attaches `manifest.json`, Lens zip (`0.5.0`), and SDK dist. npm `@wikitraveler/sdk@0.5.0` publishes when `NPM_PUBLISH=true` and Trusted Publishing is configured for `release.yml` ([RELEASES.md](docs/RELEASES.md)).
+- Chrome Web Store upload of the Lens zip remains a separate maintainer step ([LENS.md](docs/LENS.md)).
+
 ### Added
 
 - Lens first-run onboarding wizard and menu overlay (deep-links to Access hub)

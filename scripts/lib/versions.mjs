@@ -8,10 +8,12 @@ const WORKSPACE_PACKAGES = [
   "package.json",
   "apps/node/package.json",
   "apps/access/package.json",
+  "apps/lens/package.json",
   "packages/core/package.json",
   "packages/ui/package.json",
   "packages/i18n/package.json",
   "packages/ai-agent/package.json",
+  "packages/audit/package.json",
   "packages/sdk/package.json",
 ];
 

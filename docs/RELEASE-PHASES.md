@@ -26,7 +26,8 @@ Ship-facing history lives in [CHANGELOG.md](../CHANGELOG.md). Detailed phase wri
 
 Not blockers for `main` — enable when ready to publish externally. Same list lives under [ROADMAP.md](./ROADMAP.md#near-term-phase-6-maintainer-publish).
 
-- [ ] Set Actions variable `NPM_PUBLISH=true` and secret `NPM_TOKEN` for first `@wikitraveler/sdk` npm publish
+- [x] Set Actions variable `NPM_PUBLISH=true` for `@wikitraveler/sdk` npm publish
+- [ ] Configure npm [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) on `@wikitraveler/sdk` for GitHub `ingmarstruijs/WikiTraveler` / workflow `release.yml` (allow `npm publish`). First package creation may be a one-time interactive `npm publish` before OIDC works.
 - [ ] Upload Lens Release zip to the Chrome Web Store ([LENS.md](./LENS.md))
 - [ ] Confirm GHCR packages are **public** for new operators
 - [ ] Grow [public-peers.json](./public-peers.json) as operators opt in ([PUBLIC-PEERS.md](./PUBLIC-PEERS.md))

@@ -10,7 +10,7 @@ npm install @wikitraveler/sdk
 pnpm add @wikitraveler/sdk
 ```
 
-Publishing runs on `v*` tags when `NPM_TOKEN` is configured in GitHub Actions. Until then, use the **SDK files attached to the GitHub Release** or the UMD build below.
+Publishing runs on `v*` tags when repo variable `NPM_PUBLISH=true` and [Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) is configured for `.github/workflows/release.yml`. Until then, use the **SDK files attached to the GitHub Release** or the UMD build below.
 
 ## Usage
 
