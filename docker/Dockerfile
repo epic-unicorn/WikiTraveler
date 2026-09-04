@@ -11,6 +11,7 @@ COPY packages/core/package.json ./packages/core/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/ai-agent/package.json ./packages/ai-agent/
 COPY packages/i18n/package.json ./packages/i18n/
+COPY packages/audit/package.json ./packages/audit/
 COPY apps/node/package.json ./apps/node/
 COPY prisma/schema.prisma ./prisma/
 
@@ -29,6 +30,7 @@ COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
 COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
 COPY --from=deps /app/packages/ai-agent/node_modules ./packages/ai-agent/node_modules
 COPY --from=deps /app/packages/i18n/node_modules ./packages/i18n/node_modules
+COPY --from=deps /app/packages/audit/node_modules ./packages/audit/node_modules
 COPY --from=deps /app/apps/node/node_modules ./apps/node/node_modules
 
 COPY . .
@@ -40,6 +42,7 @@ ENV WIKITRAVELER_VERSION=$WIKITRAVELER_VERSION
 RUN pnpm exec prisma generate --schema=/app/prisma/schema.prisma
 RUN pnpm --filter @wikitraveler/core build
 RUN pnpm --filter @wikitraveler/i18n build
+RUN pnpm --filter @wikitraveler/audit build
 RUN pnpm --filter @wikitraveler/ui build
 RUN pnpm --filter @wikitraveler/ai-agent build
 # Packages already built above — do not use `pnpm --filter node build` (that re-runs vercel-build:packages).

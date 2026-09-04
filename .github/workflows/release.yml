@@ -93,13 +93,21 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Trusted Publishing needs npm ≥11.5.1; pin Node so npm@latest stays installable
+          # Trusted Publishing needs npm ≥11.5.1. Do not set registry-url here:
+          # setup-node would write //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN},
+          # and an empty token blocks OIDC (E401 / ENEEDAUTH).
           node-version: "22"
-          registry-url: https://registry.npmjs.org
           cache: pnpm
 
       - name: Ensure npm CLI for OIDC trusted publishing
         run: npm install -g npm@11
+
+      - name: Clear token auth so OIDC can run
+        run: |
+          for f in "${NPM_CONFIG_USERCONFIG:-}" "$HOME/.npmrc" "$RUNNER_TEMP/.npmrc"; do
+            [ -n "$f" ] && [ -f "$f" ] || continue
+            sed -i '/_authToken/d' "$f" || true
+          done
 
       - run: pnpm install --frozen-lockfile
 
@@ -111,7 +119,7 @@ jobs:
 
       - name: Stage @wikitraveler/sdk for npm (OIDC)
         working-directory: packages/sdk
-        # Trusted Publisher is configured for "npm stage publish" only.
+        # Trusted Publisher must match: repo, workflow file release.yml, command "npm stage publish".
         # After the tag workflow succeeds, approve on npmjs.com (Staged Packages) or:
         #   npm stage approve @wikitraveler/sdk@<version>
         run: npm stage publish --access public
